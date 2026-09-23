@@ -6,7 +6,8 @@
 
 [![CI](https://github.com/tchiopaulinjunior/betailo/actions/workflows/ci.yml/badge.svg)](https://github.com/tchiopaulinjunior/betailo/actions/workflows/ci.yml)
 ![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white)
-![Angular](https://img.shields.io/badge/Angular-19-DD0031?logo=angular&logoColor=white)
+![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-12-F69220?logo=pnpm&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-informational)
 
 > Projet portfolio : ce dépôt est l'amorçage technique (monorepo, CI,
@@ -70,8 +71,10 @@ roadmap de les remplir phase par phase.
 
 ## Démarrage rapide
 
-Prérequis : Go 1.24+, Node 22+, Docker (optionnel mais recommandé pour
-Postgres).
+Prérequis : Go 1.24+, Node 22.12+ (Node ≥22.22.3, ≥24.15 ou ≥26 pour passer
+à Angular 22 dès sa sortie stable — voir note plus bas), [pnpm](https://pnpm.io/)
+via `corepack enable` (inclus avec Node), Docker (optionnel mais recommandé
+pour Postgres).
 
 ### Avec Docker (le plus simple)
 
@@ -93,8 +96,9 @@ go run ./cmd/api        # démarre sur :8080
 
 # Frontend (dans un autre terminal)
 cd frontend
-npm install
-npm start                # démarre sur :4200
+corepack enable          # active pnpm (une seule fois par machine)
+pnpm install
+pnpm start                # démarre sur :4200
 ```
 
 ## Stack technique
@@ -103,7 +107,7 @@ npm start                # démarre sur :4200
 | --- | --- | --- |
 | Backend | Go 1.24, `net/http` natif, architecture en couches (handler → service → repository) | voir `backend/internal/platform/httpserver` |
 | Base de données | PostgreSQL, migrations SQL versionnées | voir `backend/migrations/` |
-| Frontend | Angular 19 (standalone components) + Tailwind CSS v4 | palette de marque déclarée dans `frontend/src/styles.css` (`@theme`) |
+| Frontend | Angular 21 (standalone components) + Tailwind CSS v4, géré avec pnpm | palette de marque déclarée dans `frontend/src/styles.css` (`@theme`) |
 | CI | GitHub Actions — jobs indépendants backend/frontend | voir `.github/workflows/ci.yml` |
 | Conteneurisation | Dockerfiles multi-stage (backend et frontend) + `docker-compose.yml` | |
 
@@ -118,9 +122,9 @@ proposition, section "Architecture technique et stack Go".
 | `cd backend && make run` | Lance l'API en local |
 | `cd backend && make test` | Tests Go avec race detector |
 | `cd backend && make lint` | golangci-lint |
-| `cd frontend && npm test` | Tests unitaires Angular (Karma + Chrome) |
-| `cd frontend && npm run lint` | ESLint |
-| `cd frontend && npm run build` | Build de production |
+| `cd frontend && pnpm test` | Tests unitaires Angular (Karma + Chrome) |
+| `cd frontend && pnpm run lint` | ESLint |
+| `cd frontend && pnpm run build` | Build de production |
 | `docker compose up --build` | Stack complète (Postgres + backend + frontend) |
 
 ## Intégration continue
@@ -130,11 +134,21 @@ Deux jobs indépendants tournent sur chaque push/PR vers `main` (voir
 
 - **Backend** : format (`gofmt`), `go vet`, tests avec race detector,
   build, et `golangci-lint`.
-- **Frontend** : `npm ci`, ESLint, tests unitaires en Chrome headless,
-  build de production.
+- **Frontend** : `pnpm install --frozen-lockfile`, ESLint, tests unitaires
+  en Chrome headless, build de production.
 
 Un job ne bloque pas l'autre : une régression frontend n'empêche pas de
 valider une pull request backend, et inversement.
+
+> **Note sur la version d'Angular.** La dernière version stable d'Angular
+> au moment de l'écriture est la v22, mais elle exige Node ≥22.22.3 (ou
+> ≥24.15 / ≥26). Le projet est donc sur **Angular 21** (la dernière version
+> pleinement testée avec un Node 22.22.x classique) ; passer à la v22 une
+> fois sur un Node suffisamment récent se fait avec
+> `pnpm dlx @angular/cli@22 update @angular/core@22 @angular/cli@22`.
+> Le paquet `angular-eslint` est lui déjà en v22 (pas de version stable
+> intermédiaire publiée) — un avertissement cosmétique de désaccord de
+> version peut apparaître au lint, sans impact réel.
 
 ## État du projet / roadmap
 

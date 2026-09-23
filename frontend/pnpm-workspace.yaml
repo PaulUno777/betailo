@@ -1,0 +1,11 @@
+# pnpm v10+ moved per-project settings out of package.json's "pnpm" field
+# into this file (see https://pnpm.io/settings).
+#
+# These packages ship native/postinstall build scripts that pnpm blocks by
+# default for supply-chain safety; Angular's esbuild-based build system
+# needs them to actually run, so they're explicitly allowlisted here.
+allowBuilds:
+  "@parcel/watcher": true
+  esbuild: true
+  lmdb: true
+  msgpackr-extract: true

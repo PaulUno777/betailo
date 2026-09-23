@@ -9,7 +9,8 @@ Monorepo à deux dossiers indépendants :
 
 - `backend/` — API Go (voir son `README` interne si présent, sinon le
   `Makefile` liste les commandes courantes : `make run`, `make test`, `make lint`).
-- `frontend/` — application Angular + Tailwind (`npm start`, `npm test`, `npm run build`).
+- `frontend/` — application Angular + Tailwind, gérée avec **pnpm**
+  (`pnpm start`, `pnpm test`, `pnpm run build`).
 
 Chaque dossier a ses propres dépendances et sa propre pipeline CI (voir
 `.github/workflows/ci.yml`) ; ils ne partagent pas de `node_modules`/`go.mod`.
@@ -17,7 +18,7 @@ Chaque dossier a ses propres dépendances et sa propre pipeline CI (voir
 ## Avant de committer
 
 - Backend : `make fmt && make lint && make test`
-- Frontend : `npm run lint && npm test -- --watch=false && npm run build`
+- Frontend : `pnpm run lint && pnpm test -- --watch=false && pnpm run build`
 
 ## Convention de commits
 
