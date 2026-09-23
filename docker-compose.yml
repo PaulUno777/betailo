@@ -1,0 +1,52 @@
+# Local development stack for Betailo.
+#
+# Usage:
+#   docker compose up --build
+#
+# The backend talks to Postgres via DATABASE_URL (see backend/.env.example).
+# The frontend is served separately in dev (npm start) — the "frontend"
+# service here builds the production image, useful to sanity-check the
+# Docker build and to run the full stack end-to-end.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: betailo
+      POSTGRES_PASSWORD: betailo
+      POSTGRES_DB: betailo
+    ports:
+      - "5432:5432"
+    volumes:
+      - betailo_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U betailo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://betailo:betailo@db:5432/betailo?sslmode=disable
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+
+volumes:
+  betailo_db_data:

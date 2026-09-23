@@ -1,0 +1,17 @@
+# Minimal, opinionated-but-not-noisy lint config for a portfolio project.
+# Run locally with: golangci-lint run ./...
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - unused
+    - gofmt
+    - goimports
+
+issues:
+  exclude-dirs:
+    - migrations

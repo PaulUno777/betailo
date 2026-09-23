@@ -1,0 +1,22 @@
+# --- Go (backend/) ---
+backend/bin/
+backend/*.exe
+*.test
+*.out
+
+# --- Node / Angular (frontend/) ---
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+npm-debug.log*
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store

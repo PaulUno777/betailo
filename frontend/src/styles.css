@@ -1,0 +1,37 @@
+/* Styles globaux de Betailo.
+ *
+ * Tailwind v4 se configure directement en CSS (plus de tailwind.config.js
+ * obligatoire) : le bloc @theme ci-dessous déclare les tokens de la charte
+ * graphique définie dans le document de proposition, pour que toute classe
+ * utilitaire (bg-brand-primary, text-brand-accent, etc.) suive la même
+ * palette dans toute l'application.
+ */
+@import "tailwindcss";
+
+@theme {
+  /* Couleurs de marque — voir la section "Direction artistique" du document
+   * de proposition pour la justification de chaque couleur. */
+  --color-brand-primary: #2f6f4f; /* vert émeraude terreux — actions principales */
+  --color-brand-accent: #e07a3e; /* terracotta chaud — mise en avant */
+  --color-brand-trust: #3d6b8c; /* bleu ardoise — confiance / vérifié */
+  --color-brand-bg: #faf7f2; /* blanc cassé chaud — fond principal */
+  --color-brand-text: #2b2622; /* brun très foncé — texte principal */
+  --color-brand-success: #3c9a5f;
+  --color-brand-warning: #d99a2b;
+  --color-brand-danger: #c0453a;
+
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+  font-family: var(--font-sans);
+}
