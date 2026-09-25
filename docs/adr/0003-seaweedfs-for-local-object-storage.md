@@ -23,8 +23,19 @@ Docker Hub, and for `quay.io/minio/minio` — ruling out a tag-specific or
 registry-specific fluke. A generic Docker Hub pull (`alpine:latest`)
 succeeded in the same environment in under a second, confirming the
 restriction is specific to MinIO's own images, not a general registry
-block. This matches MinIO's 2025 shift to requiring an account/login for
-their container images.
+block.
+
+Checking `minio/minio`'s own repository confirms why, precisely: it is
+no longer maintained, and "the MinIO community edition is now
+distributed as source code only. We will no longer provide
+pre-compiled binary releases for the community version" — including
+the Docker images. This isn't a login wall on an existing image; the
+pre-built community images were discontinued outright, permanently,
+in favor of MinIO's commercial AIStor product. The two paths their own
+README gives for still running community MinIO are building the
+binary from source (`go install github.com/minio/minio@latest`) or
+building your own Docker image from their `Dockerfile` after that —
+there is no pre-built image to pull, from any registry, going forward.
 
 `chrislusf/seaweedfs:latest` pulled successfully in the same environment
 and exposes an S3-compatible gateway (`weed server -s3`), making it a
@@ -59,13 +70,27 @@ or account. One fewer moving part (no separate bucket-init container).
 **Harder:** the architecture document's mention of MinIO for local dev
 is now stale until it's updated to name SeaweedFS instead — read this
 ADR as the current source of truth for that one detail in the meantime.
-Anyone reproducing this project's Docker Hub pull failure on their own
-machine, at a later date, should re-verify it before assuming SeaweedFS
-is still necessary — this is a point-in-time workaround for an external
-policy, not a technical preference for SeaweedFS over MinIO on its own
-merits.
+Unlike a login wall, this isn't expected to reverse itself — the
+community images are gone by policy, not by a temporary restriction —
+so this decision is not point-in-time in the way an outage or rate
+limit would be.
 
-**Explicitly not doing:** switching production away from R2, or adding
-a MinIO Docker Hub login/credential to CI or local setup instructions —
-both would treat a local-dev-only obstacle as if it also constrained
-production, which it doesn't.
+**Explicitly not doing:**
+- Switching production away from R2, or building a from-source MinIO
+  Docker image to restore parity with the architecture document's
+  literal wording. `S3Provider` already treats every S3-compatible
+  backend identically (ADR-0001), so nothing in the code benefits from
+  MinIO specifically over SeaweedFS — the only reason to still want
+  MinIO here would be matching the architecture document's exact
+  wording, which is cheaper to just update than to build a compile-time
+  dependency on MinIO's own Go toolchain build for.
+- Running MinIO natively on the host (`go install
+  github.com/minio/minio@latest`) as part of this project's checked-in
+  dev stack — it would work for one person's machine, but a
+  host-run process isn't reachable from the `backend` container by
+  service name the way `docker-compose.yml`'s other services are
+  (it would need `host.docker.internal`, which isn't reliable across
+  platforms), breaking the "`docker compose up --build` starts
+  everything" guarantee the README makes. Running MinIO natively for
+  personal, ad hoc exploration of its admin console is fine — it's
+  just not this repo's dev stack.
