@@ -4,7 +4,7 @@
   "properties": {
     "email": { "bsonType": "string" },
     "passwordHash": { "bsonType": "string" },
-    "role": { "enum": ["eleveur", "acheteur", "admin"] },
+    "role": { "enum": ["farmer", "buyer", "admin"] },
     "isVerified": { "bsonType": "bool" },
     "trustScore": { "bsonType": ["double", "int"] },
     "createdAt": { "bsonType": "date" }

@@ -10,14 +10,14 @@
       "description": "Frozen at reservation time, like an invoice line — does not recompute if the listing's price changes later."
     },
     "totalAmount": { "bsonType": ["double", "int"] },
-    "status": { "enum": ["en_attente", "confirmed", "livree", "annulee"] },
+    "status": { "enum": ["pending", "confirmed", "delivered", "cancelled"] },
     "createdAt": { "bsonType": "date" },
     "payment": {
       "bsonType": "object",
       "description": "Embedded escrow sub-document — no separate payments collection.",
       "required": ["status", "amount"],
       "properties": {
-        "status": { "enum": ["en_attente", "retenu", "libere", "echoue", "rembourse"] },
+        "status": { "enum": ["pending", "held", "released", "failed", "refunded"] },
         "amount": { "bsonType": ["double", "int"] },
         "heldAt": { "bsonType": "date" },
         "releasedAt": { "bsonType": "date" }

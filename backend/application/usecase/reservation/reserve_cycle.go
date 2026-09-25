@@ -1,9 +1,9 @@
 // Package reservation implements the one usecase in this codebase with
 // real business logic today: reserving quantity within a cycle's
 // listing and preventing overselling via a MongoDB multi-document
-// transaction — see "1. Réservation d'un cycle, sans survente" in the
-// "Concepts & Architecture" document for the sequence diagram this
-// package implements.
+// transaction — see the reservation sequence diagram ("no overselling")
+// in the "Concepts & Architecture" document for the flow this package
+// implements.
 //
 // ReserveCycle depends only on application/ports interfaces
 // (ListingRepository, CycleRepository, ReservationRepository,
@@ -11,7 +11,7 @@
 // Dependency Inversion Principle applied at the one boundary that
 // actually needs it. That keeps the business rule ("check-and-decrement
 // and insert happen atomically") testable with fakes and independent of
-// the driver; infrastructure/mongo is the only layer that imports
+// the driver; infrastructure/mongodb is the only layer that imports
 // mongo-driver. internal/app wires the two together once, at startup.
 package reservation
 

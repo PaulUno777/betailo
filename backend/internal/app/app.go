@@ -161,7 +161,7 @@ func connectMongo(ctx context.Context) (*mongo.Client, *mongo.Database, error) {
 // connectStorage builds the object-storage provider from STORAGE_*
 // environment variables — the same code points at SeaweedFS in dev and
 // Cloudflare R2 in production, only these values change (see the
-// "Architecture de déploiement" section of the architecture document).
+// "Deployment Architecture" section of the architecture document).
 func connectStorage(ctx context.Context) (*objectstorage.S3Provider, error) {
 	provider, err := objectstorage.NewS3Provider(ctx, objectstorage.Config{
 		Endpoint:  os.Getenv("STORAGE_ENDPOINT"),

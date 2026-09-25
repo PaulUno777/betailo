@@ -1,10 +1,10 @@
 // Package schemas embeds one MongoDB $jsonSchema validator per
 // collection, written by hand rather than generated from the Go
 // structs so the two can be reviewed independently (a struct change
-// doesn't silently loosen validation). internal/platform/db's
-// bootstrap loads these at startup and attaches each one to its
-// collection — see the "Modèle de données" section of the
-// "Concepts & Architecture" document for the schema these mirror.
+// doesn't silently loosen validation). infrastructure/mongodb's
+// Bootstrap loads these at startup and attaches each one to its
+// collection — see the data model section of the "Concepts &
+// Architecture" document for the schema these mirror.
 package schemas
 
 import (

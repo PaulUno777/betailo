@@ -22,8 +22,8 @@ type listingRefDoc struct {
 // ListingRepository implements ports.ListingRepository against the
 // "listings" collection. It does not depend on any other module's
 // repository, so reservation and listing stay decoupled at the module
-// boundary (see "les services ne se parlent pas directement entre
-// modules" in the architecture document).
+// boundary — modules don't call directly into each other's services,
+// per the architecture document.
 type ListingRepository struct {
 	Coll *mongo.Collection
 }

@@ -9,10 +9,9 @@ import (
 )
 
 // TxManager implements ports.TxManager with a client session and a
-// multi-document transaction (startSession/commitTransaction) — "the
-// transaction multi-documents ... garantit que la décrémentation de
-// capacité et la création de la réservation réussissent ou échouent
-// ensemble" (architecture document).
+// multi-document transaction (startSession/commitTransaction): the
+// capacity decrement and the reservation insert succeed or fail
+// together (see the architecture document's transaction section).
 type TxManager struct {
 	Client *mongo.Client
 }

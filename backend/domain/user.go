@@ -7,12 +7,16 @@ import (
 )
 
 // Role is one of the three account roles the platform recognizes.
+// Values match schemas/users.json's $jsonSchema enum exactly — do not
+// change these string literals without updating that file too, or
+// MongoDB will reject any user whose role isn't one of these three
+// values.
 type Role string
 
 const (
-	RoleEleveur  Role = "eleveur"
-	RoleAcheteur Role = "acheteur"
-	RoleAdmin    Role = "admin"
+	RoleFarmer Role = "farmer"
+	RoleBuyer  Role = "buyer"
+	RoleAdmin  Role = "admin"
 )
 
 // User manages accounts: registration, login, profile, role. No

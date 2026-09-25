@@ -6,21 +6,24 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// CycleStatus is a Cycle's position in its lifecycle.
+// CycleStatus is a Cycle's position in its lifecycle. Values match
+// schemas/cycles.json's $jsonSchema enum exactly — do not change these
+// string literals without updating that file too, or MongoDB will
+// reject any document whose status isn't one of these four values.
 type CycleStatus string
 
 const (
-	CycleStatusPlanned    CycleStatus = "planifie"
-	CycleStatusInProgress CycleStatus = "en_cours"
-	CycleStatusDone       CycleStatus = "termine"
-	CycleStatusCancelled  CycleStatus = "annule"
+	CycleStatusPlanned    CycleStatus = "planned"
+	CycleStatusInProgress CycleStatus = "in_progress"
+	CycleStatusDone       CycleStatus = "done"
+	CycleStatusCancelled  CycleStatus = "cancelled"
 )
 
 // HealthEvent is one entry in a Cycle's embedded health log. It is
 // always read and written together with its parent Cycle and stays
 // bounded in size (no unlimited health record) — exactly the case
-// MongoDB's document embedding targets, per the "Modèle de données"
-// section of the "Concepts & Architecture" document.
+// MongoDB's document embedding targets, per the data model section of
+// the "Concepts & Architecture" document.
 type HealthEvent struct {
 	Type        string
 	Description string
@@ -28,9 +31,9 @@ type HealthEvent struct {
 }
 
 // Cycle is the domain pivot: a breeding/growth/laying cycle that
-// listings, health logs and alerts attach to — see the "Cycle — le
-// concept pivot" section of the architecture document for why this,
-// and not a static "product", is the entity a buyer actually reserves.
+// listings, health logs and alerts attach to — it's the entity a buyer
+// actually reserves, not a static "product". See the architecture
+// document's overview of the domain concepts for why.
 type Cycle struct {
 	ID       bson.ObjectID
 	FarmID   bson.ObjectID

@@ -5,12 +5,12 @@
     "farmId": { "bsonType": "objectId" },
     "species": { "bsonType": "string" },
     "type": { "bsonType": "string" },
-    "status": { "enum": ["planifie", "en_cours", "termine", "annule"] },
+    "status": { "enum": ["planned", "in_progress", "done", "cancelled"] },
     "capacity": { "bsonType": "int", "minimum": 0 },
     "availableQuantity": {
       "bsonType": "int",
       "minimum": 0,
-      "description": "Maintained by atomic $inc decrements on reservation, never recomputed application-side — see reservation.Repository.Reserve."
+      "description": "Maintained by atomic $inc decrements on reservation, never recomputed application-side — see application/usecase/reservation.ReserveCycle."
     },
     "startsAt": { "bsonType": "date" },
     "endsAt": { "bsonType": "date" },

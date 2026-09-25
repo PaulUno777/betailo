@@ -9,8 +9,8 @@ import (
 // ReportTargetType is what a Report points at. Unlike the old
 // relational schema, MongoDB enforces no foreign key here either way,
 // so nothing is lost by keeping the same polymorphic
-// targetId/targetType pair — see the "REPORTS" bullet in the "Modèle de
-// données" section of the architecture document.
+// targetId/targetType pair — see the "REPORTS" bullet in the data model
+// section of the architecture document.
 type ReportTargetType string
 
 const (
@@ -20,15 +20,17 @@ const (
 )
 
 // ReportStatus is a Report's moderation state. UnderReview is set
-// automatically once a target crosses the repeated-report threshold
-// (see "3. Signalement anti-scam et reaction automatique").
+// automatically once a target crosses the repeated-report threshold —
+// see the anti-scam reporting flow in the architecture document. Values
+// match schemas/reports.json's $jsonSchema enum exactly — do not change
+// these string literals without updating that file too.
 type ReportStatus string
 
 const (
-	ReportOpen        ReportStatus = "ouvert"
-	ReportUnderReview ReportStatus = "sous_revue"
-	ReportHandled     ReportStatus = "traite"
-	ReportRejected    ReportStatus = "rejete"
+	ReportOpen        ReportStatus = "open"
+	ReportUnderReview ReportStatus = "under_review"
+	ReportHandled     ReportStatus = "handled"
+	ReportRejected    ReportStatus = "rejected"
 )
 
 // Report computes the trust score and handles reports/flagging

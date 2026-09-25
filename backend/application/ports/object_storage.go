@@ -6,8 +6,8 @@ import "context"
 // a small interface so usecases never talk to a specific object-storage
 // SDK directly. The concrete implementation — Cloudflare R2 in
 // production, SeaweedFS in local dev — is injected at startup via
-// configuration only — see the "Concepts & Architecture" document,
-// section "Architecture de déploiement".
+// configuration only, per the deployment architecture section of the
+// "Concepts & Architecture" document.
 type ObjectStorage interface {
 	// PresignUpload returns a URL the client can PUT the object to
 	// directly, bypassing the API server for the file bytes themselves.

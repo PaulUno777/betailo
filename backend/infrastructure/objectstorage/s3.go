@@ -1,8 +1,8 @@
 // Package objectstorage implements application/ports.ObjectStorage
 // against any S3-compatible endpoint via aws-sdk-go-v2 — Cloudflare R2
 // in production, SeaweedFS in local dev, same code either way (see the
-// "Concepts & Architecture" document, section "Architecture de
-// déploiement").
+// deployment architecture section of the "Concepts & Architecture"
+// document).
 package objectstorage
 
 import (

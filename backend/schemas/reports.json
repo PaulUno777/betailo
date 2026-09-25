@@ -8,7 +8,7 @@
     },
     "targetType": { "enum": ["listing", "profile", "forum_post"] },
     "reason": { "bsonType": "string" },
-    "status": { "enum": ["ouvert", "sous_revue", "traite", "rejete"] },
+    "status": { "enum": ["open", "under_review", "handled", "rejected"] },
     "createdAt": { "bsonType": "date" }
   }
 }

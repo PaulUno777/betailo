@@ -6,7 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// Farm manages an eleveur's exploitation: location, species raised. No
+// Farm manages a farmer's operation: location, species raised. No
 // repository lives for it yet — see domain/user.go's comment.
 type Farm struct {
 	ID        bson.ObjectID
