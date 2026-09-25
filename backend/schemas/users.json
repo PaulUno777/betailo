@@ -1,0 +1,12 @@
+{
+  "bsonType": "object",
+  "required": ["email", "passwordHash", "role", "createdAt"],
+  "properties": {
+    "email": { "bsonType": "string" },
+    "passwordHash": { "bsonType": "string" },
+    "role": { "enum": ["eleveur", "acheteur", "admin"] },
+    "isVerified": { "bsonType": "bool" },
+    "trustScore": { "bsonType": ["double", "int"] },
+    "createdAt": { "bsonType": "date" }
+  }
+}

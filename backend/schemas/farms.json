@@ -1,0 +1,14 @@
+{
+  "bsonType": "object",
+  "required": ["ownerId", "name", "location", "createdAt"],
+  "properties": {
+    "ownerId": { "bsonType": "objectId" },
+    "name": { "bsonType": "string" },
+    "location": { "bsonType": "string" },
+    "species": {
+      "bsonType": "array",
+      "items": { "bsonType": "string" }
+    },
+    "createdAt": { "bsonType": "date" }
+  }
+}

@@ -3,39 +3,75 @@
 # Usage:
 #   docker compose up --build
 #
-# The backend talks to Postgres via DATABASE_URL (see backend/.env.example).
+# The backend talks to MongoDB via MONGODB_URI and to object storage via
+# STORAGE_ENDPOINT (see backend/.env.example). In production these point
+# at MongoDB Atlas and Cloudflare R2 instead — same code, only the
+# environment variables change (see the "Concepts & Architecture"
+# document, section "Architecture de déploiement").
+#
+# `mongo` runs as a single-node replica set (--replSet), not a
+# standalone server: multi-document transactions — which
+# application/usecase/reservation depends on to prevent overselling —
+# only work on a replica set (Atlas's free tier is one too, always; see
+# the architecture document). The healthcheck both waits for mongod and
+# initiates the replica set on first success, so no separate init
+# container is needed.
+#
+# Local dev uses SeaweedFS's S3 gateway rather than MinIO: same S3 API,
+# same infrastructure/objectstorage code either way, and MinIO's own
+# images (minio/minio, minio/mc) now require a Docker Hub login to pull,
+# which SeaweedFS's don't. The bucket is created by the backend itself
+# at startup (objectstorage.S3Provider.EnsureBucket), so no separate
+# init container/client image is needed either.
+#
 # The frontend is served separately in dev (npm start) — the "frontend"
 # service here builds the production image, useful to sanity-check the
 # Docker build and to run the full stack end-to-end.
 
 services:
-  db:
-    image: postgres:16-alpine
+  mongo:
+    image: mongo:7
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: betailo
-      POSTGRES_PASSWORD: betailo
-      POSTGRES_DB: betailo
+    command: ["--replSet", "rs0"]
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - betailo_db_data:/var/lib/postgresql/data
+      - betailo_mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U betailo"]
+      test: >
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) {
+        rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    restart: unless-stopped
+    command: server -dir=/data -s3 -s3.port=9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - betailo_storage_data:/data
 
   backend:
     build:
       context: ./backend
     restart: unless-stopped
     depends_on:
-      db:
+      mongo:
         condition: service_healthy
+      seaweedfs:
+        condition: service_started
     environment:
       PORT: 8080
-      DATABASE_URL: postgres://betailo:betailo@db:5432/betailo?sslmode=disable
+      MONGODB_URI: mongodb://mongo:27017/?replicaSet=rs0
+      MONGODB_DATABASE: betailo
+      STORAGE_ENDPOINT: http://seaweedfs:9000
+      STORAGE_BUCKET: betailo
+      STORAGE_ACCESS_KEY: betailo
+      STORAGE_SECRET_KEY: betailo123
+      STORAGE_REGION: us-east-1
     ports:
       - "8080:8080"
 
@@ -49,4 +85,5 @@ services:
       - "4200:80"
 
 volumes:
-  betailo_db_data:
+  betailo_mongo_data:
+  betailo_storage_data:

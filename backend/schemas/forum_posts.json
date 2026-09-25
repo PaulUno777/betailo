@@ -1,0 +1,24 @@
+{
+  "bsonType": "object",
+  "required": ["authorId", "category", "title", "body", "createdAt"],
+  "properties": {
+    "authorId": { "bsonType": "objectId" },
+    "category": { "bsonType": "string" },
+    "title": { "bsonType": "string" },
+    "body": { "bsonType": "string" },
+    "listingId": { "bsonType": "objectId" },
+    "createdAt": { "bsonType": "date" },
+    "replies": {
+      "bsonType": "array",
+      "items": {
+        "bsonType": "object",
+        "required": ["authorId", "body", "createdAt"],
+        "properties": {
+          "authorId": { "bsonType": "objectId" },
+          "body": { "bsonType": "string" },
+          "createdAt": { "bsonType": "date" }
+        }
+      }
+    }
+  }
+}

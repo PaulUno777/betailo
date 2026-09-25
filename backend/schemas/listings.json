@@ -1,0 +1,19 @@
+{
+  "bsonType": "object",
+  "required": ["title", "unitPrice", "status"],
+  "properties": {
+    "cycleId": {
+      "bsonType": "objectId",
+      "description": "Optional: a Cycle can exist before it is published (no Listing yet). Referential integrity here is enforced by the service layer, not the schema."
+    },
+    "title": { "bsonType": "string" },
+    "description": { "bsonType": "string" },
+    "unitPrice": { "bsonType": ["double", "int"], "minimum": 0 },
+    "status": { "bsonType": "string" },
+    "photos": {
+      "bsonType": "array",
+      "items": { "bsonType": "string" },
+      "description": "Object storage keys — signed URLs are generated on demand via internal/platform/storage, never stored."
+    }
+  }
+}

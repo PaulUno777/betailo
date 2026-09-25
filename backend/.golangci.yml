@@ -11,7 +11,3 @@ linters:
     - unused
     - gofmt
     - goimports
-
-issues:
-  exclude-dirs:
-    - migrations

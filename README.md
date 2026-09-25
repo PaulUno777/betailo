@@ -4,28 +4,22 @@
 > cycle d'élevage, avis, forum, et outils anti-arnaque, sur un socle
 > **Go** (backend) + **Angular / Tailwind** (frontend).
 
-[![CI](https://github.com/tchiopaulinjunior/betailo/actions/workflows/ci.yml/badge.svg)](https://github.com/tchiopaulinjunior/betailo/actions/workflows/ci.yml)
-![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white)
+![CI](https://github.com/pauluno777/betailo/actions/workflows/ci.yml/badge.svg)
+![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
 ![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-12-F69220?logo=pnpm&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-informational)
 
-> Projet portfolio : ce dépôt est l'amorçage technique (monorepo, CI,
-> squelettes backend/frontend) du projet détaillé dans le document de
-> proposition — architecture complète, modèle de données, direction
-> artistique et roadmap. Ce README documente **ce qui existe déjà dans le
-> code** ; le document de proposition reste la référence produit.
+> Projet portfolio : ce dépôt est l'amorçage technique (monorepo, CI, squelettes backend/frontend) du projet détaillé dans le document de proposition architecture complète, modèle de données, direction artistique et roadmap. Ce README documente **ce qui existe déjà dans le code** ; le document de proposition reste la référence produit.
+
+
 
 ## Pourquoi ce projet
 
 La plupart des plateformes d'élevage se contentent de copier un
 e-commerce classique. Betailo part d'un constat différent : un éleveur ne
-vend pas un "produit" statique, il gère des **cycles** (reproduction,
-engraissement, ponte...) qui ont un début, une durée et une fin — et
-c'est ce cycle, pas un simple stock, que l'acheteur réserve. Ce dépôt est
-un projet portfolio destiné à démontrer, de façon concrète et finie,
-la conception d'une API Go en couches, une modélisation de domaine non
-triviale, et une interface pensée pour un public peu digitalisé.
+vend pas un "produit" statique, il gère des **cycles** (reproduction, engraissement, ponte...) qui ont un début, une durée et une fin et c'est ce cycle, pas un simple stock, que l'acheteur réserve. Ce dépôt est un projet portfolio destiné à démontrer, de façon concrète et finie, la conception d'une API Go en couches, une modélisation de domaine non triviale, et une interface pensée pour un public peu digitalisé.
 
 ## Sommaire
 
@@ -37,13 +31,15 @@ triviale, et une interface pensée pour un public peu digitalisé.
 - [État du projet](#état-du-projet--roadmap)
 - [Licence](#licence)
 
+
+
 ## Structure du monorepo
 
 ```
 betailo/
 ├── backend/     # API Go — voir backend/ pour le détail des modules
 ├── frontend/    # Application Angular + Tailwind
-├── docker-compose.yml   # Stack complète (Postgres + backend + frontend)
+├── docker-compose.yml   # Stack complète (MongoDB + SeaweedFS + backend + frontend)
 └── .github/workflows/ci.yml
 ```
 
@@ -55,26 +51,60 @@ Détail du backend (le cœur du projet) :
 
 ```
 backend/
-├── cmd/api/                # point d'entrée du binaire
-├── internal/
-│   ├── auth/ user/ farm/ cycle/ listing/ reservation/
-│   ├── payment/ review/ forum/ trust/ notification/
-│   └── platform/{db, httpserver}/
-├── migrations/              # schéma SQL (golang-migrate)
+├── cmd/api/                    # point d'entrée du binaire (juste : Initialize -> Bootstrap -> Run)
+├── domain/                     # entités pures — zéro tag bson/json, zéro import d'infra
+├── application/
+│   ├── ports/                  # interfaces (repositories, TxManager, ObjectStorage)
+│   └── usecase/reservation/    # le seul usecase avec une vraie logique métier pour l'instant
+├── infrastructure/
+│   ├── mongodb/                 # implémente application/ports contre MongoDB (mongo-driver/v2)
+│   └── objectstorage/           # implémente application/ports.ObjectStorage (S3-compatible)
+├── interfaces/httpserver/       # couche de livraison : routeur, middlewares, JSON
+├── internal/app/                # composition root : connecte tout ce qui précède
+├── schemas/                     # un validateur $jsonSchema MongoDB par collection
 └── Dockerfile
 ```
 
-Chaque dossier sous `internal/` correspond à un module métier décrit dans
-le document de proposition ; ils ne contiennent pour l'instant qu'un
-type placeholder et un commentaire de responsabilité, à charge de la
-roadmap de les remplir phase par phase.
+Architecture en couches à sens unique — `interfaces` → `application` →
+`domain`, et `infrastructure` implémente `application/ports` sans que
+`domain`/`application` ne la connaissent jamais dans l'autre sens
+(Dependency Inversion) :
+
+- **`domain/`** ne contient que des structs Go simples (types
+  d'identifiants MongoDB `bson.ObjectID` mis à part — imposé par le
+  modèle de données du document "Concepts & Architecture" — aucune
+  dépendance à `mongo-driver`, `net/http` ou quoi que ce soit d'autre).
+- **`application/ports/`** déclare les interfaces dont les usecases ont
+  besoin (`ListingRepository`, `CycleRepository`, `ReservationRepository`,
+  `TxManager`, `ObjectStorage`), chacune réduite aux méthodes réellement
+  utilisées (Interface Segregation) — les ajouter ici, pas dans
+  `infrastructure/`, c'est ce qui permet à `application/usecase` de ne
+  jamais importer `mongo-driver`.
+- **`application/usecase/reservation`** implémente le flux "1.
+  Réservation d'un cycle, sans survente" : `ReserveCycle.Execute` ne
+  dépend que des interfaces ci-dessus, jamais de `*mongo.Client` — il se
+  teste avec des doublons (voir `reserve_cycle_test.go`), sans base de
+  données.
+- **`infrastructure/mongodb`** est le seul package qui importe
+  `mongo-driver` ; chaque repository y implémente une interface de
+  `application/ports` et convertit entre les entités `domain` (sans
+  tags) et un document BSON privé au fichier (`reservationDoc`, etc.).
+- **`internal/app`** est le composition root : le seul endroit qui
+  connaît à la fois les usecases et MongoDB/le stockage objet, et qui
+  les assemble (`Initialize`), avant que `cmd/api/main.go` n'appelle
+  `Bootstrap` puis `Run`.
+
+Les modules qui n'ont pas encore de logique métier (user, farm, review,
+forum, trust/report) restent volontairement de simples entités dans
+`domain/` sans port ni repository — leur en ajouter un sans méthode
+réelle serait de l'abstraction prématurée ; ils suivront ce même patron
+dès qu'une vraie règle métier apparaît.
 
 ## Démarrage rapide
 
-Prérequis : Go 1.24+, Node 22.12+ (Node ≥22.22.3, ≥24.15 ou ≥26 pour passer
-à Angular 22 dès sa sortie stable — voir note plus bas), [pnpm](https://pnpm.io/)
+Prérequis : Go 1.25+, Node 22.12+ (Node ≥22.22.3, ≥24.15 ou ≥26 pour passer à Angular 22 dès sa sortie stable voir note plus bas), [pnpm](https://pnpm.io/)
 via `corepack enable` (inclus avec Node), Docker (optionnel mais recommandé
-pour Postgres).
+pour MongoDB et le stockage objet).
 
 ### Avec Docker (le plus simple)
 
@@ -82,16 +112,19 @@ pour Postgres).
 docker compose up --build
 ```
 
-- Backend : http://localhost:8080/health
-- Frontend : http://localhost:4200
-- Postgres : localhost:5432 (user/mdp/db : `betailo`)
+- Backend : [http://localhost:8080/health](http://localhost:8080/health)
+- Frontend : [http://localhost:4200](http://localhost:4200)
+- MongoDB : localhost:27017 (base `betailo`)
+- SeaweedFS (stockage objet S3-compatible, dev uniquement) : API S3 sur localhost:9000 — remplace MinIO ici car ses images Docker Hub (`minio/minio`, `minio/mc`) exigent désormais une connexion Docker Hub ; même API S3, même code `ports.ObjectStorage`
+
+
 
 ### En local, sans Docker
 
 ```bash
 # Backend
 cd backend
-cp .env.example .env   # ajuster DATABASE_URL si besoin
+cp .env.example .env   # ajuster MONGODB_URI/STORAGE_* si besoin
 go run ./cmd/api        # démarre sur :8080
 
 # Frontend (dans un autre terminal)
@@ -101,31 +134,46 @@ pnpm install
 pnpm start                # démarre sur :4200
 ```
 
+Sans Docker, le backend a quand même besoin d'un MongoDB et d'un
+stockage S3-compatible atteignables (il se connecte et fait tourner le
+bootstrap au démarrage) : `docker compose up mongo seaweedfs`
+lance juste ces deux-là si vous préférez faire tourner `go run` en
+dehors de Docker.
+
+
+
 ## Stack technique
 
-| Couche | Choix | Détail |
-| --- | --- | --- |
-| Backend | Go 1.24, `net/http` natif, architecture en couches (handler → service → repository) | voir `backend/internal/platform/httpserver` |
-| Base de données | PostgreSQL, migrations SQL versionnées | voir `backend/migrations/` |
-| Frontend | Angular 21 (standalone components) + Tailwind CSS v4, géré avec pnpm | palette de marque déclarée dans `frontend/src/styles.css` (`@theme`) |
-| CI | GitHub Actions — jobs indépendants backend/frontend | voir `.github/workflows/ci.yml` |
-| Conteneurisation | Dockerfiles multi-stage (backend et frontend) + `docker-compose.yml` | |
+
+| Couche           | Choix                                                                                                    | Détail                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Backend          | Go 1.25, `net/http` natif, architecture en couches (`domain` → `application` → `infrastructure`/`interfaces`), ports + inversion de dépendance (voir `application/usecase/reservation`) | voir `backend/interfaces/httpserver` et `backend/application/usecase/reservation` |
+| Base de données  | MongoDB (Atlas en prod, conteneur `mongo` en dev), driver officiel `mongo-driver/v2`, aucun ODM, validateurs `$jsonSchema` appliqués au démarrage | voir `backend/infrastructure/mongodb` et `backend/schemas/`             |
+| Stockage fichiers | Interface `ports.ObjectStorage` (URLs signées), implémentée via `aws-sdk-go-v2` — Cloudflare R2 en prod, SeaweedFS en dev, même code | voir `backend/infrastructure/objectstorage`                               |
+| Frontend         | Angular 21 (standalone components) + Tailwind CSS v4, géré avec pnpm                                       | palette de marque déclarée dans `frontend/src/styles.css` (`@theme`) |
+| CI               | GitHub Actions — jobs indépendants backend/frontend                                                        | voir `.github/workflows/ci.yml`                                      |
+| Conteneurisation | Dockerfiles multi-stage (backend et frontend) + `docker-compose.yml`                                       |                                                                        |
+
 
 Le raisonnement détaillé derrière chaque choix (pourquoi pas d'ORM, pourquoi
-un monolithe plutôt que des microservices, etc.) est dans le document de
-proposition, section "Architecture technique et stack Go".
+un monolithe plutôt que des microservices, pourquoi MongoDB plutôt que
+relationnel, etc.) est dans le document "Concepts & Architecture".
 
 ## Commandes utiles
 
-| Commande | Effet |
-| --- | --- |
-| `cd backend && make run` | Lance l'API en local |
-| `cd backend && make test` | Tests Go avec race detector |
-| `cd backend && make lint` | golangci-lint |
-| `cd frontend && pnpm test` | Tests unitaires Angular (Karma + Chrome) |
-| `cd frontend && pnpm run lint` | ESLint |
-| `cd frontend && pnpm run build` | Build de production |
-| `docker compose up --build` | Stack complète (Postgres + backend + frontend) |
+
+| Commande                        | Effet                                          |
+| ------------------------------- | ---------------------------------------------- |
+| `cd backend && make run`        | Lance l'API en local                           |
+| `cd backend && make test`       | Tests Go avec race detector                    |
+| `cd backend && make lint`       | golangci-lint                                  |
+| `cd frontend && pnpm test`      | Tests unitaires Angular (Karma + Chrome)       |
+| `cd frontend && pnpm run lint`  | ESLint                                         |
+| `cd frontend && pnpm run build` | Build de production                            |
+| `docker compose up --build`     | Stack complète (MongoDB + SeaweedFS + backend + frontend) |
+
+
+
 
 ## Intégration continue
 
@@ -133,9 +181,9 @@ Deux jobs indépendants tournent sur chaque push/PR vers `main` (voir
 `.github/workflows/ci.yml`) :
 
 - **Backend** : format (`gofmt`), `go vet`, tests avec race detector,
-  build, et `golangci-lint`.
+build, et `golangci-lint`.
 - **Frontend** : `pnpm install --frozen-lockfile`, ESLint, tests unitaires
-  en Chrome headless, build de production.
+en Chrome headless, build de production.
 
 Un job ne bloque pas l'autre : une régression frontend n'empêche pas de
 valider une pull request backend, et inversement.
@@ -150,6 +198,8 @@ valider une pull request backend, et inversement.
 > intermédiaire publiée) — un avertissement cosmétique de désaccord de
 > version peut apparaître au lint, sans impact réel.
 
+
+
 ## État du projet / roadmap
 
 Ce dépôt correspond à la **phase 1 (Socle)** de la roadmap du document de
@@ -162,4 +212,4 @@ comme compétence.
 
 ## Licence
 
-MIT — voir [`LICENSE`](./LICENSE).
+MIT — voir `[LICENSE](./LICENSE)`.
