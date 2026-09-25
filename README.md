@@ -114,7 +114,13 @@ docker compose up --build
 
 - Backend : [http://localhost:8080/health](http://localhost:8080/health)
 - Frontend : [http://localhost:4200](http://localhost:4200)
-- MongoDB : localhost:27017 (base `betailo`)
+- MongoDB : localhost:27017 (base `betailo`). Pour Compass, mongosh ou tout
+  outil lancé **depuis la machine hôte** (pas depuis un conteneur), utilisez
+  `mongodb://localhost:27017/?directConnection=true` : `mongo` tourne en
+  replica set à un seul nœud (nécessaire pour les transactions) et
+  s'annonce en interne comme `mongo:27017`, un nom qui ne se résout que
+  depuis le réseau docker-compose — sans `directConnection=true`, la
+  connexion initiale réussit puis échoue en essayant de résoudre ce nom.
 - SeaweedFS (stockage objet S3-compatible, dev uniquement) : API S3 sur localhost:9000 — remplace MinIO ici car ses images Docker Hub (`minio/minio`, `minio/mc`) exigent désormais une connexion Docker Hub ; même API S3, même code `ports.ObjectStorage`
 
 
