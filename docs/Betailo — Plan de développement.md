@@ -30,7 +30,7 @@ Le projet sert un double objectif (portfolio + montée en compétences Go) : ce 
 | Conception d'API REST | Endpoints cohérents, codes HTTP corrects, DTOs validés, erreurs structurées (pas de `panic` qui remonte au client) | `internal/*/handler` + tests d'intégration HTTP |
 | Modélisation de domaine | Le `Cycle` pilote vraiment le modèle (rien n'est vendable hors d'un cycle), validateurs de schéma cohérents (`$jsonSchema` par collection, choix d'embarquement vs référence justifiés) | `schemas/`, revue du schéma |
 | Concurrency Go | Mise à jour atomique (`findOneAndUpdate` + transaction MongoDB) pour éviter la survente sur `reservation`, worker de notifications en goroutines sans fuite ni race | `go test -race`, code de `internal/reservation` |
-| Sécurité applicative | JWT correctement vérifié, rate limiting actif, mots de passe hashés (jamais en clair, même en logs) | `internal/auth`, `internal/platform/httpserver` |
+| Sécurité applicative | JWT correctement vérifié, rate limiting actif, mots de passe hashés (jamais en clair, même en logs) | `application/usecase/auth`, `infrastructure/jwt`, `infrastructure/security`, `interfaces/httpserver` |
 | Anti-scam / confiance | Score de confiance calculé à partir de données réelles (pas une constante), signalement traçable de bout en bout | `internal/trust` |
 | Tests | Au moins un test d'intégration par module critique (`reservation`, `payment`, `trust`), pas seulement des tests unitaires triviaux | CI (job backend) |
 | Frontend | Respect réel de la direction artistique (palette, tailles de police, zones cliquables), pas juste "ça compile" | Comparaison écran par écran avec la section "Direction artistique" |
@@ -43,8 +43,8 @@ Un niveau "intermédiaire" convaincant, c'est cette grille majoritairement coch�
 **Phase 1 — Socle**
 
 - [x] Monorepo, CI de base, README
-- [ ] Module `auth` réellement fonctionnel (pas juste un placeholder) : inscription, connexion, JWT vérifié par middleware
-- [ ] Au moins un test d'intégration HTTP (au-delà du `/health`)
+- [x] Module `auth` réellement fonctionnel (pas juste un placeholder) : inscription, connexion, JWT vérifié par middleware
+- [x] Au moins un test d'intégration HTTP (au-delà du `/health`)
 
 **Phase 2 — Cœur métier**
 
