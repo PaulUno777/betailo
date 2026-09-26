@@ -37,3 +37,4 @@ explicitly not doing).
 | [0003](0003-seaweedfs-for-local-object-storage.md) | SeaweedFS, not MinIO, for local S3-compatible storage | Accepted |
 | [0004](0004-mongo-single-node-replica-set-for-local-dev.md) | Single-node MongoDB replica set for local dev transactions | Accepted |
 | [0005](0005-english-only-in-code-french-in-product-docs.md) | English exclusively in code; French stays the product-documentation language | Accepted |
+| [0006](0006-stateless-jwt-auth.md) | Stateless JWT auth: bcrypt + HMAC, no session store, no refresh tokens | Accepted |

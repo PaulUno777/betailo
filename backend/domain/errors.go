@@ -12,4 +12,6 @@ var (
 	ErrConflict             = errors.New("conflict")
 	ErrInvalid              = errors.New("invalid")
 	ErrInsufficientCapacity = errors.New("insufficient_capacity")
+	ErrUnauthorized         = errors.New("unauthorized")
+	ErrEmailTaken           = errors.New("email_taken")
 )

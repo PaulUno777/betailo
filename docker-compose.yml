@@ -72,6 +72,10 @@ services:
       STORAGE_ACCESS_KEY: betailo
       STORAGE_SECRET_KEY: betailo123
       STORAGE_REGION: us-east-1
+      # Dev-only value — never reuse this in production. See
+      # backend/.env.example.
+      JWT_SECRET: local-dev-secret-not-for-production-use
+      ACCESS_TOKEN_TTL: 24h
     ports:
       - "8080:8080"
 
