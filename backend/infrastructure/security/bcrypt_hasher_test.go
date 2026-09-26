@@ -1,8 +1,9 @@
 package security
 
 import (
-	"golang.org/x/crypto/bcrypt"
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestBcryptHasher_RoundTrip(t *testing.T) {
