@@ -1,6 +1,6 @@
 // Package httpserver is the delivery layer shared by every business
-// module: the router, cross-cutting middlewares (logging, recovery,
-// future auth checks) and generic JSON helpers.
+// module: the router, cross-cutting middlewares (logging, auth) and
+// generic JSON helpers.
 //
 // Business handlers will register their routes on the *http.ServeMux
 // built here — this package never contains business logic itself, and
@@ -18,13 +18,17 @@ import (
 
 // NewRouter builds the application's top-level router.
 //
-// Only the health check is wired for now; each business module will add
-// its own routes here as it's implemented (see the roadmap in the
-// "Concepts & Architecture" document).
-func NewRouter(logger *slog.Logger) http.Handler {
+// GET /me exists specifically to demonstrate RequireAuth protecting a
+// route end-to-end; each further business module will add its own
+// routes here as it's implemented (see the roadmap in the "Concepts &
+// Architecture" document).
+func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", handleHealth)
+	mux.HandleFunc("POST /auth/register", handleRegister(deps.Register))
+	mux.HandleFunc("POST /auth/login", handleLogin(deps.Login))
+	mux.Handle("GET /me", RequireAuth(deps.Signer)(http.HandlerFunc(handleMe)))
 
 	return withLogging(logger, mux)
 }

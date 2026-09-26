@@ -1,10 +1,10 @@
 // Package app is the composition root: the one place in this codebase
 // that knows about both the application layer (usecases, ports) and the
-// concrete infrastructure (mongodb, objectstorage) at once, and wires
-// them together. Everything else — domain, application, infrastructure,
-// interfaces — depends only inward; app is where the dependency graph
-// actually gets built (see cmd/api/main.go, which just calls
-// Initialize/Bootstrap/Run).
+// concrete infrastructure (mongodb, objectstorage, jwt, security) at
+// once, and wires them together. Everything else — domain, application,
+// infrastructure, interfaces — depends only inward; app is where the
+// dependency graph actually gets built (see cmd/api/main.go, which just
+// calls Initialize/Bootstrap/Run).
 package app
 
 import (
@@ -20,19 +20,26 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
+	"github.com/pauluno777/betailo/backend/infrastructure/clock"
+	"github.com/pauluno777/betailo/backend/infrastructure/jwt"
 	"github.com/pauluno777/betailo/backend/infrastructure/mongodb"
 	"github.com/pauluno777/betailo/backend/infrastructure/objectstorage"
+	"github.com/pauluno777/betailo/backend/infrastructure/security"
 	"github.com/pauluno777/betailo/backend/interfaces/httpserver"
 )
 
-// Application holds what Run needs. Its usecases (ReserveCycle, and
-// whatever follows it) are exported so a future httpserver handler set
-// can take this struct and wire routes to them without app needing to
-// know about routing.
+// Application holds what Run needs. Its usecases (ReserveCycle,
+// Register, Login, and whatever follows them) are exported so a future
+// caller can take this struct and wire more routes to them without app
+// needing to know about routing.
 type Application struct {
 	Logger       *slog.Logger
 	ReserveCycle *reservation.ReserveCycle
+	Register     *auth.Register
+	Login        *auth.Login
 
 	mongoClient     *mongo.Client
 	mongoDatabase   *mongo.Database
@@ -60,6 +67,12 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		return nil, func() {}, err
 	}
 
+	signer, err := newTokenSigner()
+	if err != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, func() {}, err
+	}
+
 	reserveCycle := &reservation.ReserveCycle{
 		Listings:     &mongodb.ListingRepository{Coll: database.Collection("listings")},
 		Cycles:       &mongodb.CycleRepository{Coll: database.Collection("cycles")},
@@ -67,13 +80,24 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		Tx:           &mongodb.TxManager{Client: client},
 	}
 
+	users := &mongodb.UserRepository{Coll: database.Collection("users")}
+	hasher := security.BcryptHasher{}
+	systemClock := clock.System{}
+
+	register := &auth.Register{Users: users, Hasher: hasher, Clock: systemClock}
+	login := &auth.Login{Users: users, Hasher: hasher, Signer: signer, Clock: systemClock, TTL: accessTokenTTL()}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 	server := &http.Server{
-		Addr:         ":" + port,
-		Handler:      httpserver.NewRouter(logger),
+		Addr: ":" + port,
+		Handler: httpserver.NewRouter(logger, httpserver.Dependencies{
+			Register: register,
+			Login:    login,
+			Signer:   signer,
+		}),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -82,6 +106,8 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	application := &Application{
 		Logger:          logger,
 		ReserveCycle:    reserveCycle,
+		Register:        register,
+		Login:           login,
 		mongoClient:     client,
 		mongoDatabase:   database,
 		storageProvider: storageProvider,
@@ -161,7 +187,7 @@ func connectMongo(ctx context.Context) (*mongo.Client, *mongo.Database, error) {
 // connectStorage builds the object-storage provider from STORAGE_*
 // environment variables — the same code points at SeaweedFS in dev and
 // Cloudflare R2 in production, only these values change (see the
-// "Deployment Architecture" section of the architecture document).
+// "Concepts & Architecture" document's deployment architecture section).
 func connectStorage(ctx context.Context) (*objectstorage.S3Provider, error) {
 	provider, err := objectstorage.NewS3Provider(ctx, objectstorage.Config{
 		Endpoint:  os.Getenv("STORAGE_ENDPOINT"),
@@ -174,4 +200,33 @@ func connectStorage(ctx context.Context) (*objectstorage.S3Provider, error) {
 		return nil, fmt.Errorf("app: connect storage: %w", err)
 	}
 	return provider, nil
+}
+
+// newTokenSigner builds the JWT signer from JWT_SECRET. Unlike the
+// other environment variables in this file, there is no fallback: an
+// empty or default secret would mean anyone can forge a valid token,
+// so a missing JWT_SECRET fails startup instead of silently signing
+// with an empty key.
+func newTokenSigner() (ports.TokenSigner, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return nil, fmt.Errorf("app: JWT_SECRET must be set")
+	}
+	return &jwt.Signer{Secret: []byte(secret)}, nil
+}
+
+// accessTokenTTL reads ACCESS_TOKEN_TTL (a Go duration string, e.g.
+// "24h"); auth.Login falls back to its own 24h default when this
+// returns zero, so an unset or unparsable value is not a startup
+// failure.
+func accessTokenTTL() time.Duration {
+	raw := os.Getenv("ACCESS_TOKEN_TTL")
+	if raw == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0
+	}
+	return d
 }

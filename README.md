@@ -54,11 +54,16 @@ backend/
 ├── cmd/api/                    # point d'entrée du binaire (juste : Initialize -> Bootstrap -> Run)
 ├── domain/                     # entités pures — zéro tag bson/json, zéro import d'infra
 ├── application/
-│   ├── ports/                  # interfaces (repositories, TxManager, ObjectStorage)
-│   └── usecase/reservation/    # le seul usecase avec une vraie logique métier pour l'instant
+│   ├── ports/                  # interfaces (repositories, TxManager, ObjectStorage, TokenSigner, ...)
+│   └── usecase/
+│       ├── auth/                # inscription, connexion — JWT vérifié par le middleware httpserver
+│       └── reservation/         # empêche la survente d'un cycle (transaction MongoDB)
 ├── infrastructure/
 │   ├── mongodb/                 # implémente application/ports contre MongoDB (mongo-driver/v2)
-│   └── objectstorage/           # implémente application/ports.ObjectStorage (S3-compatible)
+│   ├── objectstorage/           # implémente application/ports.ObjectStorage (S3-compatible)
+│   ├── security/                # bcrypt (application/ports.PasswordHasher)
+│   ├── jwt/                     # JWT HMAC-SHA256 (application/ports.TokenSigner)
+│   └── clock/                   # horloge système (application/ports.Clock)
 ├── interfaces/httpserver/       # couche de livraison : routeur, middlewares, JSON
 ├── internal/app/                # composition root : connecte tout ce qui précède
 ├── schemas/                     # un validateur $jsonSchema MongoDB par collection
@@ -76,28 +81,37 @@ Architecture en couches à sens unique — `interfaces` → `application` →
   dépendance à `mongo-driver`, `net/http` ou quoi que ce soit d'autre).
 - **`application/ports/`** déclare les interfaces dont les usecases ont
   besoin (`ListingRepository`, `CycleRepository`, `ReservationRepository`,
-  `TxManager`, `ObjectStorage`), chacune réduite aux méthodes réellement
+  `TxManager`, `ObjectStorage`, `UserRepository`, `PasswordHasher`,
+  `TokenSigner`, `Clock`), chacune réduite aux méthodes réellement
   utilisées (Interface Segregation) — les ajouter ici, pas dans
   `infrastructure/`, c'est ce qui permet à `application/usecase` de ne
-  jamais importer `mongo-driver`.
-- **`application/usecase/reservation`** implémente le flux "1.
-  Réservation d'un cycle, sans survente" : `ReserveCycle.Execute` ne
-  dépend que des interfaces ci-dessus, jamais de `*mongo.Client` — il se
-  teste avec des doublons (voir `reserve_cycle_test.go`), sans base de
-  données.
+  jamais importer `mongo-driver`, `bcrypt` ou une librairie JWT.
+- **`application/usecase/reservation`** implémente le flux anti-survente
+  d'un cycle : `ReserveCycle.Execute` ne dépend que des interfaces
+  ci-dessus, jamais de `*mongo.Client` — il se teste avec des doublons
+  (voir `reserve_cycle_test.go`), sans base de données.
+- **`application/usecase/auth`** implémente l'inscription et la
+  connexion : `Register`/`Login.Execute` ne dépendent que des interfaces
+  ci-dessus, jamais de bcrypt ou d'une librairie JWT directement — voir
+  [ADR-0006](docs/adr/0006-stateless-jwt-auth.md) pour les choix
+  (JWT sans session ni refresh token, auto-inscription limitée à
+  farmer/buyer).
 - **`infrastructure/mongodb`** est le seul package qui importe
   `mongo-driver` ; chaque repository y implémente une interface de
   `application/ports` et convertit entre les entités `domain` (sans
-  tags) et un document BSON privé au fichier (`reservationDoc`, etc.).
+  tags) et un document BSON privé au fichier (`reservationDoc`,
+  `userDoc`, etc.). `infrastructure/security` (bcrypt) et
+  `infrastructure/jwt` suivent le même principe pour leurs propres
+  dépendances.
 - **`internal/app`** est le composition root : le seul endroit qui
-  connaît à la fois les usecases et MongoDB/le stockage objet, et qui
-  les assemble (`Initialize`), avant que `cmd/api/main.go` n'appelle
+  connaît à la fois les usecases et MongoDB/le stockage objet/JWT, et
+  qui les assemble (`Initialize`), avant que `cmd/api/main.go` n'appelle
   `Bootstrap` puis `Run`.
 
-Les modules qui n'ont pas encore de logique métier (user, farm, review,
-forum, trust/report) restent volontairement de simples entités dans
-`domain/` sans port ni repository — leur en ajouter un sans méthode
-réelle serait de l'abstraction prématurée ; ils suivront ce même patron
+Les modules qui n'ont pas encore de logique métier (farm, review, forum,
+trust/report) restent volontairement de simples entités dans `domain/`
+sans port ni repository — leur en ajouter un sans méthode réelle serait
+de l'abstraction prématurée ; ils suivront ce même patron
 dès qu'une vraie règle métier apparaît.
 
 ## Démarrage rapide
