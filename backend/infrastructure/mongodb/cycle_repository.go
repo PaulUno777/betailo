@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -11,13 +12,143 @@ import (
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
-// CycleRepository implements ports.CycleRepository against the
-// "cycles" collection.
+// healthEventDoc mirrors domain.HealthEvent for BSON persistence.
+type healthEventDoc struct {
+	Type        string    `bson:"type"`
+	Description string    `bson:"description"`
+	Date        time.Time `bson:"date"`
+}
+
+// cycleDoc mirrors domain.Cycle for BSON persistence. domain.Cycle
+// itself carries no bson tags (see domain/cycle.go); mapping happens
+// only here, at the infrastructure boundary.
+type cycleDoc struct {
+	ID                bson.ObjectID      `bson:"_id,omitempty"`
+	FarmID            bson.ObjectID      `bson:"farmId"`
+	Species           string             `bson:"species"`
+	Type              string             `bson:"type"`
+	Status            domain.CycleStatus `bson:"status"`
+	Capacity          int                `bson:"capacity"`
+	AvailableQuantity int                `bson:"availableQuantity"`
+	StartsAt          time.Time          `bson:"startsAt"`
+	EndsAt            *time.Time         `bson:"endsAt,omitempty"`
+	HealthLog         []healthEventDoc   `bson:"healthLog,omitempty"`
+}
+
+func fromDomainCycle(c *domain.Cycle) cycleDoc {
+	doc := cycleDoc{
+		ID:                c.ID,
+		FarmID:            c.FarmID,
+		Species:           c.Species,
+		Type:              c.Type,
+		Status:            c.Status,
+		Capacity:          c.Capacity,
+		AvailableQuantity: c.AvailableQuantity,
+		StartsAt:          c.StartsAt,
+		EndsAt:            c.EndsAt,
+	}
+	for _, e := range c.HealthLog {
+		doc.HealthLog = append(doc.HealthLog, healthEventDoc{Type: e.Type, Description: e.Description, Date: e.Date})
+	}
+	return doc
+}
+
+func (d cycleDoc) toDomain() *domain.Cycle {
+	c := &domain.Cycle{
+		ID:                d.ID,
+		FarmID:            d.FarmID,
+		Species:           d.Species,
+		Type:              d.Type,
+		Status:            d.Status,
+		Capacity:          d.Capacity,
+		AvailableQuantity: d.AvailableQuantity,
+		StartsAt:          d.StartsAt,
+		EndsAt:            d.EndsAt,
+	}
+	for _, e := range d.HealthLog {
+		c.HealthLog = append(c.HealthLog, domain.HealthEvent{Type: e.Type, Description: e.Description, Date: e.Date})
+	}
+	return c
+}
+
+// CycleRepository implements ports.CycleRepository (reservation's
+// narrow slice) and ports.CycleStore (the fuller CRUD port
+// application/usecase/cycle depends on) against the "cycles"
+// collection — see ports.CycleStore's doc comment for why one concrete
+// type implements two interfaces here.
 type CycleRepository struct {
 	Coll *mongo.Collection
 }
 
-var _ ports.CycleRepository = (*CycleRepository)(nil)
+var (
+	_ ports.CycleRepository = (*CycleRepository)(nil)
+	_ ports.CycleStore      = (*CycleRepository)(nil)
+)
+
+// Create implements ports.CycleStore.
+func (r *CycleRepository) Create(ctx context.Context, c *domain.Cycle) error {
+	if c.ID.IsZero() {
+		c.ID = bson.NewObjectID()
+	}
+	_, err := r.Coll.InsertOne(ctx, fromDomainCycle(c))
+	return err
+}
+
+// FindByID implements ports.CycleStore.
+func (r *CycleRepository) FindByID(ctx context.Context, id bson.ObjectID) (*domain.Cycle, error) {
+	var doc cycleDoc
+	err := r.Coll.FindOne(ctx, bson.M{"_id": id}).Decode(&doc)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return doc.toDomain(), nil
+}
+
+// ListByFarm implements ports.CycleStore.
+func (r *CycleRepository) ListByFarm(ctx context.Context, farmID bson.ObjectID) ([]*domain.Cycle, error) {
+	cur, err := r.Coll.Find(ctx, bson.M{"farmId": farmID})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var out []*domain.Cycle
+	for cur.Next(ctx) {
+		var doc cycleDoc
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		out = append(out, doc.toDomain())
+	}
+	return out, cur.Err()
+}
+
+// UpdateStatus implements ports.CycleStore.
+func (r *CycleRepository) UpdateStatus(ctx context.Context, id bson.ObjectID, status domain.CycleStatus) error {
+	res, err := r.Coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"status": status}})
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// Delete implements ports.CycleStore.
+func (r *CycleRepository) Delete(ctx context.Context, id bson.ObjectID) error {
+	res, err := r.Coll.DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		return err
+	}
+	if res.DeletedCount == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
 
 // DecrementAvailability implements ports.CycleRepository via the atomic
 // findOneAndUpdate + $inc described in the sequence diagram: the

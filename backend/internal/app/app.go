@@ -22,6 +22,9 @@ import (
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
+	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
+	"github.com/pauluno777/betailo/backend/application/usecase/farm"
+	"github.com/pauluno777/betailo/backend/application/usecase/listing"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/infrastructure/clock"
 	"github.com/pauluno777/betailo/backend/infrastructure/jwt"
@@ -81,6 +84,9 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	}
 
 	users := &mongodb.UserRepository{Coll: database.Collection("users")}
+	farms := &mongodb.FarmRepository{Coll: database.Collection("farms")}
+	cycles := &mongodb.CycleRepository{Coll: database.Collection("cycles")}
+	listings := &mongodb.ListingRepository{Coll: database.Collection("listings")}
 	hasher := security.BcryptHasher{}
 	systemClock := clock.System{}
 
@@ -97,6 +103,24 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			Register: register,
 			Login:    login,
 			Signer:   signer,
+
+			CreateFarm:  &farm.CreateFarm{Farms: farms, Clock: systemClock},
+			GetFarm:     &farm.GetFarm{Farms: farms},
+			ListMyFarms: &farm.ListMyFarms{Farms: farms},
+			UpdateFarm:  &farm.UpdateFarm{Farms: farms},
+			DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
+
+			CreateCycle:       &cycle.CreateCycle{Farms: farms, Cycles: cycles},
+			GetCycle:          &cycle.GetCycle{Cycles: cycles},
+			ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: cycles},
+			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
+			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
+
+			CreateListing:         &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			GetListing:            &listing.GetListing{Listings: listings},
+			ListPublishedListings: &listing.ListPublishedListings{Listings: listings},
+			UpdateListing:         &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			UnpublishListing:      &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
 		}),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,

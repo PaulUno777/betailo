@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/domain"
 )
 
 // claimsContextKey is an unexported type so no other package can
@@ -36,6 +37,24 @@ func RequireAuth(signer ports.TokenSigner) func(http.Handler) http.Handler {
 
 			ctx := context.WithValue(r.Context(), claimsContextKey{}, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// RequireRole must sit behind RequireAuth (it reads the claims that
+// middleware stores) and rejects the request with 403 if the
+// authenticated user's role doesn't match. Used to keep, for instance,
+// farm/cycle/listing creation restricted to farmers — a buyer's valid
+// token still gets 403, not the 401 an invalid token would.
+func RequireRole(role domain.Role) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := ClaimsFromContext(r.Context())
+			if !ok || claims.Role != role {
+				writeError(w, errForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }

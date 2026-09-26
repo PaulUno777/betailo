@@ -4,16 +4,16 @@
   "properties": {
     "cycleId": {
       "bsonType": "objectId",
-      "description": "Optional: a Cycle can exist before it is published (no Listing yet). Referential integrity here is enforced by the service layer, not the schema."
+      "description": "Technically optional in the schema, but application/usecase/listing.CreateListing never creates a listing without one — see ADR-0001."
     },
     "title": { "bsonType": "string" },
     "description": { "bsonType": "string" },
     "unitPrice": { "bsonType": ["double", "int"], "minimum": 0 },
-    "status": { "bsonType": "string" },
+    "status": { "enum": ["draft", "published", "unpublished"] },
     "photos": {
       "bsonType": "array",
       "items": { "bsonType": "string" },
-      "description": "Object storage keys — signed URLs are generated on demand via internal/platform/storage, never stored."
+      "description": "Object storage keys — signed URLs are generated on demand via infrastructure/objectstorage, never stored."
     }
   }
 }

@@ -27,9 +27,9 @@ Le projet sert un double objectif (portfolio + montée en compétences Go) : ce 
 
 | Compétence | Ce qui doit être visible dans le code | Où le vérifier |
 | --- | --- | --- |
-| Conception d'API REST | Endpoints cohérents, codes HTTP corrects, DTOs validés, erreurs structurées (pas de `panic` qui remonte au client) | `internal/*/handler` + tests d'intégration HTTP |
+| Conception d'API REST | Endpoints cohérents, codes HTTP corrects, DTOs validés, erreurs structurées (pas de `panic` qui remonte au client) | `interfaces/httpserver` + tests d'intégration HTTP |
 | Modélisation de domaine | Le `Cycle` pilote vraiment le modèle (rien n'est vendable hors d'un cycle), validateurs de schéma cohérents (`$jsonSchema` par collection, choix d'embarquement vs référence justifiés) | `schemas/`, revue du schéma |
-| Concurrency Go | Mise à jour atomique (`findOneAndUpdate` + transaction MongoDB) pour éviter la survente sur `reservation`, worker de notifications en goroutines sans fuite ni race | `go test -race`, code de `internal/reservation` |
+| Concurrency Go | Mise à jour atomique (`findOneAndUpdate` + transaction MongoDB) pour éviter la survente sur `reservation`, worker de notifications en goroutines sans fuite ni race | `go test -race`, code de `application/usecase/reservation` |
 | Sécurité applicative | JWT correctement vérifié, rate limiting actif, mots de passe hashés (jamais en clair, même en logs) | `application/usecase/auth`, `infrastructure/jwt`, `infrastructure/security`, `interfaces/httpserver` |
 | Anti-scam / confiance | Score de confiance calculé à partir de données réelles (pas une constante), signalement traçable de bout en bout | `internal/trust` |
 | Tests | Au moins un test d'intégration par module critique (`reservation`, `payment`, `trust`), pas seulement des tests unitaires triviaux | CI (job backend) |
@@ -48,8 +48,8 @@ Un niveau "intermédiaire" convaincant, c'est cette grille majoritairement coch�
 
 **Phase 2 — Cœur métier**
 
-- [ ] CRUD complet `farm` / `cycle` / `listing` avec validation des règles (dates, quantités)
-- [ ] Un cycle sans annonce ne casse rien ; une annonce sans cycle est impossible
+- [x] CRUD complet `farm` / `cycle` / `listing` avec validation des règles (dates, quantités)
+- [x] Un cycle sans annonce ne casse rien ; une annonce sans cycle est impossible
 
 **Phase 3 — Transactionnel**
 

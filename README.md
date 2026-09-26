@@ -57,6 +57,7 @@ backend/
 │   ├── ports/                  # interfaces (repositories, TxManager, ObjectStorage, TokenSigner, ...)
 │   └── usecase/
 │       ├── auth/                # inscription, connexion — JWT vérifié par le middleware httpserver
+│       ├── farm/ cycle/ listing/ # CRUD complet, invariants de propriété et de suppression (voir ADR-0007)
 │       └── reservation/         # empêche la survente d'un cycle (transaction MongoDB)
 ├── infrastructure/
 │   ├── mongodb/                 # implémente application/ports contre MongoDB (mongo-driver/v2)
@@ -96,6 +97,12 @@ Architecture en couches à sens unique — `interfaces` → `application` →
   [ADR-0006](docs/adr/0006-stateless-jwt-auth.md) pour les choix
   (JWT sans session ni refresh token, auto-inscription limitée à
   farmer/buyer).
+- **`application/usecase/farm` / `.../cycle` / `.../listing`**
+  implémentent le CRUD complet de la Phase 2 : résolution de la
+  propriété via la chaîne listing → cycle → farm → owner, invariants de
+  suppression dans les deux sens, et la machine à états du statut d'un
+  cycle — voir
+  [ADR-0007](docs/adr/0007-farm-cycle-listing-crud-invariants.md).
 - **`infrastructure/mongodb`** est le seul package qui importe
   `mongo-driver` ; chaque repository y implémente une interface de
   `application/ports` et convertit entre les entités `domain` (sans
@@ -108,7 +115,7 @@ Architecture en couches à sens unique — `interfaces` → `application` →
   qui les assemble (`Initialize`), avant que `cmd/api/main.go` n'appelle
   `Bootstrap` puis `Run`.
 
-Les modules qui n'ont pas encore de logique métier (farm, review, forum,
+Les modules qui n'ont pas encore de logique métier (review, forum,
 trust/report) restent volontairement de simples entités dans `domain/`
 sans port ni repository — leur en ajouter un sans méthode réelle serait
 de l'abstraction prématurée ; ils suivront ce même patron

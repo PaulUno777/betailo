@@ -18,6 +18,16 @@ var errUnauthorized = fmt.Errorf("httpserver: unauthorized: %w", domain.ErrUnaut
 // it to 400, same as a usecase-level validation failure.
 var errBadRequestBody = fmt.Errorf("httpserver: request body must be valid JSON: %w", domain.ErrInvalid)
 
+// errForbidden is what RequireRole reports for a valid token whose role
+// doesn't match — wrapping domain.ErrForbidden so writeError maps it to
+// 403, distinct from RequireAuth's 401.
+var errForbidden = fmt.Errorf("httpserver: forbidden: %w", domain.ErrForbidden)
+
+// errMissingPathParam is what a handler reports when a required
+// {param} in the route pattern is missing or fails to parse — a
+// malformed request, not a client authorization problem.
+var errMissingPathParam = fmt.Errorf("httpserver: invalid or missing path parameter: %w", domain.ErrInvalid)
+
 // errorResponse is every error body's shape — one consistent structure
 // so a client never has to guess whether an endpoint reports failures
 // differently from another.
@@ -43,6 +53,8 @@ func errorStatus(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, domain.ErrUnauthorized):
 		return http.StatusUnauthorized
+	case errors.Is(err, domain.ErrForbidden):
+		return http.StatusForbidden
 	case errors.Is(err, domain.ErrNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, domain.ErrEmailTaken), errors.Is(err, domain.ErrConflict), errors.Is(err, domain.ErrInsufficientCapacity):
@@ -61,6 +73,8 @@ func errorMessage(err error) string {
 		return err.Error()
 	case errors.Is(err, domain.ErrUnauthorized):
 		return "invalid credentials"
+	case errors.Is(err, domain.ErrForbidden):
+		return "forbidden"
 	case errors.Is(err, domain.ErrNotFound):
 		return "not found"
 	case errors.Is(err, domain.ErrEmailTaken):
