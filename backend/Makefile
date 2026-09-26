@@ -1,6 +1,6 @@
-.PHONY: run build test lint fmt migrate-up migrate-down
+.PHONY: run build test lint fmt
 
-run: ## Run the API locally (needs Go 1.24+, DATABASE_URL optional at this stage)
+run: ## Run the API locally (needs Go 1.25+, MONGODB_URI/STORAGE_* — see .env.example)
 	go run ./cmd/api
 
 build: ## Compile the binary into ./bin/api
@@ -14,9 +14,3 @@ lint: ## Run golangci-lint (install: https://golangci-lint.run/welcome/install/)
 
 fmt: ## Format all Go source files
 	gofmt -w .
-
-migrate-up: ## Apply all migrations (needs golang-migrate and $$DATABASE_URL)
-	migrate -path migrations -database "$$DATABASE_URL" up
-
-migrate-down: ## Roll back the last migration
-	migrate -path migrations -database "$$DATABASE_URL" down 1

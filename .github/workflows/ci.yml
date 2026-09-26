@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache-dependency-path: backend/go.sum
 
       - name: Format check (gofmt)
@@ -55,6 +55,12 @@ jobs:
         with:
           working-directory: backend
           version: latest
+          # The action's cached "latest" binary can lag behind the Go
+          # version declared in go.mod (golangci-lint refuses to lint a
+          # go.mod newer than the Go toolchain it was itself built
+          # with). Building from source with the job's own Go toolchain
+          # (see actions/setup-go above) sidesteps that entirely.
+          install-mode: goinstall
 
   frontend:
     name: Frontend (Angular)
@@ -79,10 +85,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm run lint --if-present
+        run: pnpm run lint
 
       - name: Unit tests (headless Chrome)
         run: pnpm exec ng test --watch=false --browsers=ChromeHeadlessCI
 
       - name: Build (production)
-        run: pnpm run build -- --configuration production
+        run: pnpm run build --configuration production

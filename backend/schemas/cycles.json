@@ -1,0 +1,30 @@
+{
+  "bsonType": "object",
+  "required": ["farmId", "species", "type", "status", "capacity", "availableQuantity", "startsAt"],
+  "properties": {
+    "farmId": { "bsonType": "objectId" },
+    "species": { "bsonType": "string" },
+    "type": { "bsonType": "string" },
+    "status": { "enum": ["planned", "in_progress", "done", "cancelled"] },
+    "capacity": { "bsonType": "int", "minimum": 0 },
+    "availableQuantity": {
+      "bsonType": "int",
+      "minimum": 0,
+      "description": "Maintained by atomic $inc decrements on reservation, never recomputed application-side — see application/usecase/reservation.ReserveCycle."
+    },
+    "startsAt": { "bsonType": "date" },
+    "endsAt": { "bsonType": "date" },
+    "healthLog": {
+      "bsonType": "array",
+      "items": {
+        "bsonType": "object",
+        "required": ["type", "description", "date"],
+        "properties": {
+          "type": { "bsonType": "string" },
+          "description": { "bsonType": "string" },
+          "date": { "bsonType": "date" }
+        }
+      }
+    }
+  }
+}
