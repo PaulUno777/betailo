@@ -135,8 +135,7 @@ func TestReservation_HTTP_FullEscrowLifecycle(t *testing.T) {
 
 	// The buyer's own reservation list should show it.
 	mineRec := doJSON(t, router, http.MethodGet, "/reservations/mine", nil, buyerToken)
-	var mine []reservationResponse
-	mine = decodeJSON[[]reservationResponse](t, mineRec)
+	mine := decodeJSON[[]reservationResponse](t, mineRec)
 	found := false
 	for _, r := range mine {
 		if r.ID == reservationID {
