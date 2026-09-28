@@ -29,7 +29,19 @@ type User struct {
 	Email        string
 	PasswordHash string
 	Role         Role
-	IsVerified   bool
-	TrustScore   float64
-	CreatedAt    time.Time
+
+	// DisplayName is the one public-facing identity field this MVP
+	// collects — forum posts, reviews and reservation lists need
+	// *something* attributable to show; full profile fields (phone,
+	// address) are out of scope until a module actually needs them.
+	DisplayName string
+
+	IsVerified bool
+	// Suspended blocks a user from creating farms, cycles, listings,
+	// reservations, reviews, reports or forum posts — set by
+	// application/usecase/admin's account actions, never by the user
+	// themselves.
+	Suspended  bool
+	TrustScore float64
+	CreatedAt  time.Time
 }

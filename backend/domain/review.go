@@ -10,6 +10,12 @@ type Review struct {
 	ID            bson.ObjectID
 	ReservationID bson.ObjectID
 	AuthorID      bson.ObjectID
-	Rating        int
-	Comment       string
+
+	// FarmID is denormalized at creation time (resolved once via
+	// reservation -> listing -> cycle -> farm) so RatingSummary and the
+	// marketplace read model can query reviews by farm directly, instead
+	// of joining four collections on every read.
+	FarmID  bson.ObjectID
+	Rating  int
+	Comment string
 }

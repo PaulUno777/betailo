@@ -25,9 +25,21 @@ type Listing struct {
 	Title       string
 	Description string
 	UnitPrice   float64
-	Status      ListingStatus
+
+	// Unit is the pricing unit shown next to UnitPrice ("poussin",
+	// "trio", "sac"...) — free text set by the farmer, not an enum: the
+	// marketplace spans too many species/units to close-list them.
+	Unit   string
+	Status ListingStatus
 
 	// Photos holds object-storage keys, never URLs — signed URLs are
 	// generated on demand via application/ports.ObjectStorage.
 	Photos []string
+
+	// Flagged is set true once the reporting threshold trips (see
+	// application/usecase/report.CreateReport) and hides the listing
+	// from the public marketplace until an admin resolves the reports
+	// against it. Kept separate from Status so the publish/unpublish
+	// state machine doesn't have to reason about moderation.
+	Flagged bool
 }

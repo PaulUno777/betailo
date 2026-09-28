@@ -76,6 +76,9 @@ func (f *fakeCycleStore) FindByID(context.Context, bson.ObjectID) (*domain.Cycle
 func (f *fakeCycleStore) ListByFarm(_ context.Context, farmID bson.ObjectID) ([]*domain.Cycle, error) {
 	return f.byFarm[farmID], nil
 }
+func (f *fakeCycleStore) ListByStatus(context.Context, domain.CycleStatus) ([]*domain.Cycle, error) {
+	return nil, nil
+}
 func (f *fakeCycleStore) UpdateStatus(context.Context, bson.ObjectID, domain.CycleStatus) error {
 	return nil
 }

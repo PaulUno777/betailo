@@ -21,17 +21,25 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
+	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
+	"github.com/pauluno777/betailo/backend/application/usecase/forum"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
+	"github.com/pauluno777/betailo/backend/application/usecase/report"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
+	"github.com/pauluno777/betailo/backend/application/usecase/review"
+	"github.com/pauluno777/betailo/backend/application/usecase/trust"
 	"github.com/pauluno777/betailo/backend/infrastructure/clock"
 	"github.com/pauluno777/betailo/backend/infrastructure/jwt"
 	"github.com/pauluno777/betailo/backend/infrastructure/mongodb"
 	"github.com/pauluno777/betailo/backend/infrastructure/objectstorage"
+	"github.com/pauluno777/betailo/backend/infrastructure/payment"
 	"github.com/pauluno777/betailo/backend/infrastructure/security"
 	"github.com/pauluno777/betailo/backend/interfaces/httpserver"
+	"github.com/pauluno777/betailo/backend/internal/worker"
 )
 
 // Application holds what Run needs. Its usecases (ReserveCycle,
@@ -48,6 +56,7 @@ type Application struct {
 	mongoDatabase   *mongo.Database
 	storageProvider *objectstorage.S3Provider
 	server          *http.Server
+	worker          *worker.Worker
 }
 
 // Initialize connects to MongoDB and object storage and wires every
@@ -76,22 +85,88 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		return nil, func() {}, err
 	}
 
-	reserveCycle := &reservation.ReserveCycle{
-		Listings:     &mongodb.ListingRepository{Coll: database.Collection("listings")},
-		Cycles:       &mongodb.CycleRepository{Coll: database.Collection("cycles")},
-		Reservations: &mongodb.ReservationRepository{Coll: database.Collection("reservations")},
-		Tx:           &mongodb.TxManager{Client: client},
-	}
-
 	users := &mongodb.UserRepository{Coll: database.Collection("users")}
 	farms := &mongodb.FarmRepository{Coll: database.Collection("farms")}
 	cycles := &mongodb.CycleRepository{Coll: database.Collection("cycles")}
 	listings := &mongodb.ListingRepository{Coll: database.Collection("listings")}
+	reservations := &mongodb.ReservationRepository{Coll: database.Collection("reservations")}
+	reviews := &mongodb.ReviewRepository{Coll: database.Collection("reviews")}
+	reports := &mongodb.ReportRepository{Coll: database.Collection("reports")}
+	forumPosts := &mongodb.ForumRepository{Coll: database.Collection("forum_posts")}
+	notifications := &mongodb.NotificationRepository{Coll: database.Collection("notifications")}
 	hasher := security.BcryptHasher{}
 	systemClock := clock.System{}
+	sandboxPayments := payment.Sandbox{}
 
 	register := &auth.Register{Users: users, Hasher: hasher, Clock: systemClock}
 	login := &auth.Login{Users: users, Hasher: hasher, Signer: signer, Clock: systemClock, TTL: accessTokenTTL()}
+
+	trustRecompute := &trust.Recompute{
+		Users: users, Farms: farms, Cycles: cycles, Listings: listings,
+		Reservations: reservations, Reviews: reviews, Reports: reports, Clock: systemClock,
+	}
+
+	reserveCycle := &reservation.ReserveCycle{
+		Listings: listings, Cycles: cycles, Reservations: reservations,
+		Payments: sandboxPayments, Tx: &mongodb.TxManager{Client: client}, Clock: systemClock,
+	}
+	payReservation := &reservation.PayReservation{Reservations: reservations, Payments: sandboxPayments, Clock: systemClock}
+	markDelivered := &reservation.MarkDelivered{Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Clock: systemClock}
+	confirmDelivery := &reservation.ConfirmDelivery{
+		Reservations: reservations, Reports: reports, Listings: listings, Cycles: cycles,
+		Farms: farms, Trust: trustRecompute, Clock: systemClock,
+	}
+	openDispute := &reservation.OpenDispute{Reservations: reservations, Reports: reports, Clock: systemClock}
+	listMyReservations := &reservation.ListMyReservations{Reservations: reservations}
+	listReservationsByFarm := &reservation.ListReservationsByFarm{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations}
+
+	createReview := &review.CreateReview{
+		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reviews: reviews, Trust: trustRecompute,
+	}
+	listFarmReviews := &review.ListByFarm{Reviews: reviews}
+
+	createReport := &report.CreateReport{Reports: reports, Listings: listings, Clock: systemClock}
+
+	createForumPost := &forum.CreatePost{Forum: forumPosts, Clock: systemClock}
+	listForumPosts := &forum.ListPosts{Forum: forumPosts}
+	getForumPost := &forum.GetPost{Forum: forumPosts}
+	addForumReply := &forum.AddReply{Forum: forumPosts, Clock: systemClock}
+	markBestAnswer := &forum.MarkBestAnswer{Forum: forumPosts}
+
+	sellerDashboard := &dashboard.SellerDashboard{
+		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Users: users, Clock: systemClock,
+	}
+
+	adminOverview := &admin.Overview{Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Clock: systemClock}
+	adminListUsers := &admin.ListUsers{Users: users}
+	adminVerifyUser := &admin.VerifyUser{Users: users, Trust: trustRecompute}
+	adminSuspendUser := &admin.SuspendUser{Users: users}
+	adminListCycles := &admin.ListAllCycles{Cycles: cycles}
+	adminListListings := &admin.ListAllListings{Cycles: cycles, Listings: listings}
+	adminListEscrow := &admin.ListEscrowTransactions{Cycles: cycles, Listings: listings, Reservations: reservations}
+	adminReleaseEscrow := &reservation.AdminReleaseEscrow{
+		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Trust: trustRecompute, Clock: systemClock,
+	}
+	adminRefundEscrow := &reservation.AdminRefundEscrow{Reservations: reservations, Payments: sandboxPayments, Clock: systemClock}
+	adminListReports := &admin.ListReports{Reports: reports}
+	adminGetReportDetail := &admin.GetReportDetail{
+		Reports: reports, Users: users, Listings: listings, Cycles: cycles, Farms: farms, Search: listings, Clock: systemClock,
+	}
+	adminResolveReport := &admin.ResolveReport{Reports: reports, Users: users, Trust: trustRecompute}
+
+	bgWorker := &worker.Worker{
+		Cycles: cycles,
+		ExpireUnpaid: &reservation.ExpireUnpaidReservations{
+			Reservations: reservations, Listings: listings, Cycles: cycles, Notifications: notifications, Clock: systemClock,
+		},
+		AutoRelease: &reservation.AutoReleaseDeliveries{
+			Reservations: reservations, Reports: reports, Listings: listings, Cycles: cycles,
+			Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock,
+		},
+		Notifications: notifications,
+		Clock:         systemClock,
+		Logger:        logger,
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -116,11 +191,48 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
 
-			CreateListing:         &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
-			GetListing:            &listing.GetListing{Listings: listings},
-			ListPublishedListings: &listing.ListPublishedListings{Listings: listings},
-			UpdateListing:         &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
-			UnpublishListing:      &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
+			CreateListing:       &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			GetListing:          &listing.GetListing{Listings: listings},
+			UpdateListing:       &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			UnpublishListing:    &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
+			PresignListingPhoto: &listing.PresignListingPhoto{Farms: farms, Cycles: cycles, Listings: listings, Storage: storageProvider},
+			SetListingPhotos:    &listing.SetListingPhotos{Farms: farms, Cycles: cycles, Listings: listings},
+			SearchListings:      &listing.SearchListings{Search: listings},
+			Storage:             storageProvider,
+
+			ReserveCycle:           reserveCycle,
+			PayReservation:         payReservation,
+			MarkDelivered:          markDelivered,
+			ConfirmDelivery:        confirmDelivery,
+			OpenDispute:            openDispute,
+			ListMyReservations:     listMyReservations,
+			ListReservationsByFarm: listReservationsByFarm,
+
+			CreateReview:    createReview,
+			ListFarmReviews: listFarmReviews,
+
+			CreateReport: createReport,
+
+			CreateForumPost: createForumPost,
+			ListForumPosts:  listForumPosts,
+			GetForumPost:    getForumPost,
+			AddForumReply:   addForumReply,
+			MarkBestAnswer:  markBestAnswer,
+
+			SellerDashboard: sellerDashboard,
+
+			AdminOverview:        adminOverview,
+			AdminListUsers:       adminListUsers,
+			AdminVerifyUser:      adminVerifyUser,
+			AdminSuspendUser:     adminSuspendUser,
+			AdminListCycles:      adminListCycles,
+			AdminListListings:    adminListListings,
+			AdminListEscrow:      adminListEscrow,
+			AdminReleaseEscrow:   adminReleaseEscrow,
+			AdminRefundEscrow:    adminRefundEscrow,
+			AdminListReports:     adminListReports,
+			AdminGetReportDetail: adminGetReportDetail,
+			AdminResolveReport:   adminResolveReport,
 		}),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -136,6 +248,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		mongoDatabase:   database,
 		storageProvider: storageProvider,
 		server:          server,
+		worker:          bgWorker,
 	}
 
 	cleanup := func() {
@@ -172,6 +285,8 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 func (a *Application) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	go a.worker.Run(ctx)
 
 	errCh := make(chan error, 1)
 	go func() {

@@ -28,8 +28,10 @@ type listingDoc struct {
 	Title       string               `bson:"title"`
 	Description string               `bson:"description,omitempty"`
 	UnitPrice   float64              `bson:"unitPrice"`
+	Unit        string               `bson:"unit,omitempty"`
 	Status      domain.ListingStatus `bson:"status"`
 	Photos      []string             `bson:"photos,omitempty"`
+	Flagged     bool                 `bson:"flagged,omitempty"`
 }
 
 func fromDomainListing(l *domain.Listing) listingDoc {
@@ -39,8 +41,10 @@ func fromDomainListing(l *domain.Listing) listingDoc {
 		Title:       l.Title,
 		Description: l.Description,
 		UnitPrice:   l.UnitPrice,
+		Unit:        l.Unit,
 		Status:      l.Status,
 		Photos:      l.Photos,
+		Flagged:     l.Flagged,
 	}
 }
 
@@ -51,8 +55,10 @@ func (d listingDoc) toDomain() *domain.Listing {
 		Title:       d.Title,
 		Description: d.Description,
 		UnitPrice:   d.UnitPrice,
+		Unit:        d.Unit,
 		Status:      d.Status,
 		Photos:      d.Photos,
+		Flagged:     d.Flagged,
 	}
 }
 
@@ -105,25 +111,6 @@ func (r *ListingRepository) FindByID(ctx context.Context, id bson.ObjectID) (*do
 		return nil, err
 	}
 	return doc.toDomain(), nil
-}
-
-// ListPublished implements ports.ListingStore.
-func (r *ListingRepository) ListPublished(ctx context.Context) ([]*domain.Listing, error) {
-	cur, err := r.Coll.Find(ctx, bson.M{"status": domain.ListingPublished})
-	if err != nil {
-		return nil, err
-	}
-	defer cur.Close(ctx)
-
-	var out []*domain.Listing
-	for cur.Next(ctx) {
-		var doc listingDoc
-		if err := cur.Decode(&doc); err != nil {
-			return nil, err
-		}
-		out = append(out, doc.toDomain())
-	}
-	return out, cur.Err()
 }
 
 // FindByCycleID implements ports.ListingStore.

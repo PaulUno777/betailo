@@ -1,0 +1,55 @@
+# Render Blueprint for Betailo's backend — see
+# https://render.com/docs/blueprint-spec. Deploy by connecting this repo
+# in the Render dashboard ("New +" -> "Blueprint"); Render reads this
+# file and creates the service below.
+#
+# Only the backend is defined here (the ask this file answers). The
+# frontend stays a separate concern — see frontend/Dockerfile and the
+# "Architecture de déploiement" section of
+# docs/Betailo — Concepts & Architecture.md for how it's meant to be
+# served (nginx, proxying /api to this service).
+#
+# MongoDB and object storage are NOT Render resources: Render has no
+# managed MongoDB or S3-compatible storage offering, so both point at
+# external services in production (MongoDB Atlas, Cloudflare R2) —
+# `sync: false` below means "set this secret by hand in the Render
+# dashboard", never committed here.
+services:
+  - type: web
+    name: betailo-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      # Render injects PORT itself for a web service; backend/cmd/api
+      # already reads it (see internal/app.Application, which falls
+      # back to 8080 only when PORT is unset — i.e. only in local dev).
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: betailo
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY
+        sync: false
+      - key: STORAGE_SECRET_KEY
+        sync: false
+      - key: STORAGE_REGION
+        value: auto
+      # Render can generate this itself (a random 256-bit value) —
+      # never reuse the docker-compose.yml dev value in production.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_TTL
+        value: 24h
+      # The deployed frontend's real origin — set this once that's
+      # known; it defaults to http://localhost:4200 otherwise, which is
+      # wrong for anything but local dev (see
+      # interfaces/httpserver/middleware_cors.go).
+      - key: CORS_ALLOWED_ORIGIN
+        sync: false

@@ -48,6 +48,7 @@ type UpdateListingInput struct {
 	Title       string
 	Description string
 	UnitPrice   float64
+	Unit        string
 }
 
 // Execute returns domain.ErrForbidden if OwnerID doesn't own the
@@ -78,6 +79,7 @@ func (uc *UpdateListing) Execute(ctx context.Context, in UpdateListingInput) (*d
 	l.Title = title
 	l.Description = strings.TrimSpace(in.Description)
 	l.UnitPrice = in.UnitPrice
+	l.Unit = strings.TrimSpace(in.Unit)
 
 	if err := uc.Listings.Update(ctx, l); err != nil {
 		return nil, err

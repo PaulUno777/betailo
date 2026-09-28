@@ -19,11 +19,6 @@ type ListingStore interface {
 	// FindByID returns domain.ErrNotFound if no listing has this ID.
 	FindByID(ctx context.Context, id bson.ObjectID) (*domain.Listing, error)
 
-	// ListPublished returns every listing with status
-	// domain.ListingPublished — the marketplace-facing view, needing no
-	// authentication.
-	ListPublished(ctx context.Context) ([]*domain.Listing, error)
-
 	// FindByCycleID returns domain.ErrNotFound if no listing references
 	// this cycle — used by application/usecase/cycle.DeleteCycle to
 	// enforce that a cycle with a listing can't be deleted out from

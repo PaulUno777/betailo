@@ -42,6 +42,15 @@ type Cycle struct {
 	Status   CycleStatus
 	Capacity int
 
+	// MinPerReservation and MaxPerReservation bound a single
+	// reservation's quantity (0 means "no bound"). Enforced by
+	// application/usecase/reservation.ReserveCycle, not by the schema —
+	// same rationale as the listing/cycle "orphan" invariant in
+	// ADR-0001: the service layer owns cross-field business rules, the
+	// $jsonSchema validator only owns per-field shape.
+	MinPerReservation int
+	MaxPerReservation int
+
 	// AvailableQuantity is maintained by atomic decrement
 	// (findOneAndUpdate + $inc) on reservation, never recomputed by any
 	// usecase — the only way to prevent overselling without an explicit

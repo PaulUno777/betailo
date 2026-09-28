@@ -4,6 +4,7 @@
   "properties": {
     "reservationId": { "bsonType": "objectId" },
     "authorId": { "bsonType": "objectId" },
+    "farmId": { "bsonType": "objectId" },
     "rating": { "bsonType": "int", "minimum": 1, "maximum": 5 },
     "comment": { "bsonType": "string" }
   }

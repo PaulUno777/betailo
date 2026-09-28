@@ -47,6 +47,28 @@ func (f *fakeUsers) FindByEmail(_ context.Context, email string) (*domain.User, 
 	return u, nil
 }
 
+func (f *fakeUsers) FindByID(_ context.Context, id bson.ObjectID) (*domain.User, error) {
+	for _, u := range f.byEmail {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (f *fakeUsers) Update(_ context.Context, u *domain.User) error {
+	f.byEmail[u.Email] = u
+	return nil
+}
+
+func (f *fakeUsers) List(_ context.Context) ([]*domain.User, error) {
+	out := make([]*domain.User, 0, len(f.byEmail))
+	for _, u := range f.byEmail {
+		out = append(out, u)
+	}
+	return out, nil
+}
+
 // fakeHasher is intentionally not bcrypt — it just needs Hash/Compare
 // to agree with each other, so the usecase's own logic is what's under
 // test, not bcrypt's.

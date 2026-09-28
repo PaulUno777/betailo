@@ -26,7 +26,9 @@ type userDoc struct {
 	Email        string        `bson:"email"`
 	PasswordHash string        `bson:"passwordHash"`
 	Role         domain.Role   `bson:"role"`
+	DisplayName  string        `bson:"displayName,omitempty"`
 	IsVerified   bool          `bson:"isVerified"`
+	Suspended    bool          `bson:"suspended,omitempty"`
 	TrustScore   float64       `bson:"trustScore"`
 	CreatedAt    time.Time     `bson:"createdAt"`
 }
@@ -37,7 +39,9 @@ func fromDomainUser(u *domain.User) userDoc {
 		Email:        u.Email,
 		PasswordHash: u.PasswordHash,
 		Role:         u.Role,
+		DisplayName:  u.DisplayName,
 		IsVerified:   u.IsVerified,
+		Suspended:    u.Suspended,
 		TrustScore:   u.TrustScore,
 		CreatedAt:    u.CreatedAt,
 	}
@@ -49,7 +53,9 @@ func (d userDoc) toDomain() *domain.User {
 		Email:        d.Email,
 		PasswordHash: d.PasswordHash,
 		Role:         d.Role,
+		DisplayName:  d.DisplayName,
 		IsVerified:   d.IsVerified,
+		Suspended:    d.Suspended,
 		TrustScore:   d.TrustScore,
 		CreatedAt:    d.CreatedAt,
 	}
@@ -96,4 +102,48 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 		return nil, err
 	}
 	return doc.toDomain(), nil
+}
+
+// FindByID implements ports.UserRepository.
+func (r *UserRepository) FindByID(ctx context.Context, id bson.ObjectID) (*domain.User, error) {
+	var doc userDoc
+	err := r.Coll.FindOne(ctx, bson.M{"_id": id}).Decode(&doc)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return doc.toDomain(), nil
+}
+
+// List implements ports.UserRepository.
+func (r *UserRepository) List(ctx context.Context) ([]*domain.User, error) {
+	cur, err := r.Coll.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var out []*domain.User
+	for cur.Next(ctx) {
+		var doc userDoc
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		out = append(out, doc.toDomain())
+	}
+	return out, cur.Err()
+}
+
+// Update implements ports.UserRepository.
+func (r *UserRepository) Update(ctx context.Context, u *domain.User) error {
+	res, err := r.Coll.ReplaceOne(ctx, bson.M{"_id": u.ID}, fromDomainUser(u))
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }

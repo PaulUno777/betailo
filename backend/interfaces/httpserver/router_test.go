@@ -10,10 +10,17 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
+	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
+	"github.com/pauluno777/betailo/backend/application/usecase/forum"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
+	"github.com/pauluno777/betailo/backend/application/usecase/report"
+	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
+	"github.com/pauluno777/betailo/backend/application/usecase/review"
+	"github.com/pauluno777/betailo/backend/application/usecase/trust"
 	"github.com/pauluno777/betailo/backend/domain"
 	"github.com/pauluno777/betailo/backend/infrastructure/clock"
 	"github.com/pauluno777/betailo/backend/infrastructure/jwt"
@@ -57,46 +64,175 @@ func (f *fakeUserRepo) FindByEmail(_ context.Context, email string) (*domain.Use
 	return u, nil
 }
 
+func (f *fakeUserRepo) FindByID(_ context.Context, id bson.ObjectID) (*domain.User, error) {
+	for _, u := range f.byEmail {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (f *fakeUserRepo) Update(_ context.Context, u *domain.User) error {
+	f.byEmail[u.Email] = u
+	return nil
+}
+
+func (f *fakeUserRepo) List(_ context.Context) ([]*domain.User, error) {
+	out := make([]*domain.User, 0, len(f.byEmail))
+	for _, u := range f.byEmail {
+		out = append(out, u)
+	}
+	return out, nil
+}
+
+// testFakes is every in-memory store newTestRouterAndFakes wires up —
+// exposed so a test can reach in directly when the HTTP surface alone
+// can't set up a scenario (promoting a user to admin: registration
+// itself refuses the admin role, on purpose — see
+// TestRegister_HTTP_RejectsAdminRole).
+type testFakes struct {
+	users        *fakeUserRepo
+	farms        *fakeFarmRepo
+	cycles       *fakeCycleStore
+	listings     *fakeListingStore
+	reservations *fakeReservationRepo
+	reviews      *fakeReviewRepo
+	reports      *fakeReportRepo
+	forumPosts   *fakeForumRepo
+	storage      fakeObjectStorage
+	signer       *jwt.Signer
+	clock        clock.System
+}
+
+// promoteToAdmin flips a registered user's role directly in the fake
+// store — the only way to get an admin account in these tests, since
+// POST /auth/register rejects the admin role by design. The caller
+// must log in again afterward: a token already issued still carries the
+// old role, since Login signs the role at issuance time, not read live
+// from the store on every request.
+func (tf *testFakes) promoteToAdmin(userID string) {
+	id, _ := bson.ObjectIDFromHex(userID)
+	for _, u := range tf.users.byEmail {
+		if u.ID == id {
+			u.Role = domain.RoleAdmin
+		}
+	}
+}
+
 // newTestRouter builds a full router with real bcrypt (at the fast
 // MinCost, so tests stay quick), a real JWT signer, and the real system
 // clock — the signer's exp claim is validated against actual wall-clock
 // time by the JWT library regardless of what Clock a usecase used to
 // compute it, so these HTTP tests can't use a fixed/fake clock the way
 // application/usecase/auth's own tests do. Persistence is the only
-// thing faked, via an in-memory user store.
+// thing faked, via in-memory stores.
 func newTestRouter() http.Handler {
-	users := newFakeUserRepo()
-	farms := newFakeFarmRepo()
-	cycles := newFakeCycleStore()
-	listings := newFakeListingStore()
+	router, _ := newTestRouterAndFakes()
+	return router
+}
+
+func newTestRouterAndFakes() (http.Handler, *testFakes) {
+	tf := &testFakes{
+		users: newFakeUserRepo(), farms: newFakeFarmRepo(), cycles: newFakeCycleStore(),
+		listings: newFakeListingStore(), reservations: newFakeReservationRepo(),
+		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(),
+		signer: &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")},
+		clock:  clock.System{},
+	}
 	hasher := security.BcryptHasher{Cost: bcrypt.MinCost}
-	signer := &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")}
-	systemClock := clock.System{}
+	payments := fakePaymentProvider{}
+
+	search := &fakeListingSearch{store: tf.listings, cycles: tf.cycles, farms: tf.farms, users: tf.users, reviews: tf.reviews}
+
+	trustRecompute := &trust.Recompute{
+		Users: tf.users, Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings,
+		Reservations: tf.reservations, Reviews: tf.reviews, Reports: tf.reports, Clock: tf.clock,
+	}
 
 	deps := Dependencies{
-		Register: &auth.Register{Users: users, Hasher: hasher, Clock: systemClock},
-		Login:    &auth.Login{Users: users, Hasher: hasher, Signer: signer, Clock: systemClock, TTL: time.Hour},
-		Signer:   signer,
+		Register: &auth.Register{Users: tf.users, Hasher: hasher, Clock: tf.clock},
+		Login:    &auth.Login{Users: tf.users, Hasher: hasher, Signer: tf.signer, Clock: tf.clock, TTL: time.Hour},
+		Signer:   tf.signer,
 
-		CreateFarm:  &farm.CreateFarm{Farms: farms, Clock: systemClock},
-		GetFarm:     &farm.GetFarm{Farms: farms},
-		ListMyFarms: &farm.ListMyFarms{Farms: farms},
-		UpdateFarm:  &farm.UpdateFarm{Farms: farms},
-		DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
+		CreateFarm:  &farm.CreateFarm{Farms: tf.farms, Clock: tf.clock},
+		GetFarm:     &farm.GetFarm{Farms: tf.farms},
+		ListMyFarms: &farm.ListMyFarms{Farms: tf.farms},
+		UpdateFarm:  &farm.UpdateFarm{Farms: tf.farms},
+		DeleteFarm:  &farm.DeleteFarm{Farms: tf.farms, Cycles: tf.cycles},
 
-		CreateCycle:       &cycle.CreateCycle{Farms: farms, Cycles: cycles},
-		GetCycle:          &cycle.GetCycle{Cycles: cycles},
-		ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: cycles},
-		UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
-		DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
+		CreateCycle:       &cycle.CreateCycle{Farms: tf.farms, Cycles: tf.cycles},
+		GetCycle:          &cycle.GetCycle{Cycles: tf.cycles},
+		ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: tf.cycles},
+		UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: tf.farms, Cycles: tf.cycles},
+		DeleteCycle:       &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 
-		CreateListing:         &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
-		GetListing:            &listing.GetListing{Listings: listings},
-		ListPublishedListings: &listing.ListPublishedListings{Listings: listings},
-		UpdateListing:         &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
-		UnpublishListing:      &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
+		CreateListing:       &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		GetListing:          &listing.GetListing{Listings: tf.listings},
+		UpdateListing:       &listing.UpdateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		UnpublishListing:    &listing.UnpublishListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		PresignListingPhoto: &listing.PresignListingPhoto{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Storage: tf.storage},
+		SetListingPhotos:    &listing.SetListingPhotos{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		SearchListings:      &listing.SearchListings{Search: search},
+		Storage:             tf.storage,
+
+		ReserveCycle: &reservation.ReserveCycle{
+			Listings: tf.listings, Cycles: tf.cycles, Reservations: tf.reservations, Payments: payments, Tx: fakeTxManager{}, Clock: tf.clock,
+		},
+		PayReservation: &reservation.PayReservation{Reservations: tf.reservations, Payments: payments, Clock: tf.clock},
+		MarkDelivered:  &reservation.MarkDelivered{Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Clock: tf.clock},
+		ConfirmDelivery: &reservation.ConfirmDelivery{
+			Reservations: tf.reservations, Reports: tf.reports, Listings: tf.listings, Cycles: tf.cycles,
+			Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock,
+		},
+		OpenDispute:            &reservation.OpenDispute{Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
+		ListMyReservations:     &reservation.ListMyReservations{Reservations: tf.reservations},
+		ListReservationsByFarm: &reservation.ListReservationsByFarm{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
+
+		CreateReview: &review.CreateReview{
+			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reviews: tf.reviews, Trust: trustRecompute,
+		},
+		ListFarmReviews: &review.ListByFarm{Reviews: tf.reviews},
+
+		CreateReport: &report.CreateReport{Reports: tf.reports, Listings: tf.listings, Clock: tf.clock},
+
+		CreateForumPost: &forum.CreatePost{Forum: tf.forumPosts, Clock: tf.clock},
+		ListForumPosts:  &forum.ListPosts{Forum: tf.forumPosts},
+		GetForumPost:    &forum.GetPost{Forum: tf.forumPosts},
+		AddForumReply:   &forum.AddReply{Forum: tf.forumPosts, Clock: tf.clock},
+		MarkBestAnswer:  &forum.MarkBestAnswer{Forum: tf.forumPosts},
+
+		SellerDashboard: &dashboard.SellerDashboard{
+			Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Users: tf.users, Clock: tf.clock,
+		},
+
+		AdminOverview:     &admin.Overview{Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
+		AdminListUsers:    &admin.ListUsers{Users: tf.users},
+		AdminVerifyUser:   &admin.VerifyUser{Users: tf.users, Trust: trustRecompute},
+		AdminSuspendUser:  &admin.SuspendUser{Users: tf.users},
+		AdminListCycles:   &admin.ListAllCycles{Cycles: tf.cycles},
+		AdminListListings: &admin.ListAllListings{Cycles: tf.cycles, Listings: tf.listings},
+		AdminListEscrow:   &admin.ListEscrowTransactions{Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
+		AdminReleaseEscrow: &reservation.AdminReleaseEscrow{
+			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock,
+		},
+		AdminRefundEscrow: &reservation.AdminRefundEscrow{Reservations: tf.reservations, Payments: payments, Clock: tf.clock},
+		AdminListReports:  &admin.ListReports{Reports: tf.reports},
+		AdminGetReportDetail: &admin.GetReportDetail{
+			Reports: tf.reports, Users: tf.users, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms,
+			Search: search, Clock: tf.clock,
+		},
+		AdminResolveReport: &admin.ResolveReport{Reports: tf.reports, Users: tf.users, Trust: trustRecompute},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewRouter(logger, deps)
+	return NewRouter(logger, deps), tf
+}
+
+// fakeTxManager just runs fn inline — no transaction semantics needed
+// to exercise the router/handler layer itself.
+type fakeTxManager struct{}
+
+func (fakeTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
 }

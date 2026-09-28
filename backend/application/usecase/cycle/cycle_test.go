@@ -96,6 +96,16 @@ func (f *fakeCycles) ListByFarm(_ context.Context, farmID bson.ObjectID) ([]*dom
 	return out, nil
 }
 
+func (f *fakeCycles) ListByStatus(_ context.Context, status domain.CycleStatus) ([]*domain.Cycle, error) {
+	var out []*domain.Cycle
+	for _, c := range f.byID {
+		if c.Status == status {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
 func (f *fakeCycles) UpdateStatus(_ context.Context, id bson.ObjectID, status domain.CycleStatus) error {
 	c, ok := f.byID[id]
 	if !ok {
