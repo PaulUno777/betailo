@@ -1,0 +1,61 @@
+package httpserver
+
+import (
+	"net/http"
+	"testing"
+)
+
+func TestForum_HTTP_PostReplyAndMarkBestAnswer(t *testing.T) {
+	router := newTestRouter()
+	authorToken, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
+	replierToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
+
+	postRec := doJSON(t, router, http.MethodPost, "/forum/posts", createForumPostRequest{
+		Category: "sanitaire", Title: "Calendrier de vaccination ?", Body: "500 poulets, quel calendrier ?",
+	}, authorToken)
+	if postRec.Code != http.StatusCreated {
+		t.Fatalf("create post status = %d, want %d; body = %s", postRec.Code, http.StatusCreated, postRec.Body.String())
+	}
+	post := decodeJSON[forumPostResponse](t, postRec)
+
+	listRec := doJSON(t, router, http.MethodGet, "/forum/posts?category=sanitaire", nil, "")
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list posts status = %d, want %d", listRec.Code, http.StatusOK)
+	}
+	found := false
+	for _, p := range decodeJSON[[]forumPostResponse](t, listRec) {
+		if p.ID == post.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("new post doesn't appear in the category-filtered list")
+	}
+
+	replyRec := doJSON(t, router, http.MethodPost, "/forum/posts/"+post.ID+"/replies", addForumReplyRequest{
+		Body: "Rappel à J35 en saison des pluies.",
+	}, replierToken)
+	if replyRec.Code != http.StatusCreated {
+		t.Fatalf("add reply status = %d, want %d; body = %s", replyRec.Code, http.StatusCreated, replyRec.Body.String())
+	}
+
+	// Only the post's author can mark a best answer.
+	forbidden := doJSON(t, router, http.MethodPost, "/forum/posts/"+post.ID+"/replies/0/mark-best", nil, replierToken)
+	if forbidden.Code != http.StatusForbidden {
+		t.Fatalf("non-author mark-best status = %d, want %d", forbidden.Code, http.StatusForbidden)
+	}
+
+	markRec := doJSON(t, router, http.MethodPost, "/forum/posts/"+post.ID+"/replies/0/mark-best", nil, authorToken)
+	if markRec.Code != http.StatusNoContent {
+		t.Fatalf("mark-best status = %d, want %d; body = %s", markRec.Code, http.StatusNoContent, markRec.Body.String())
+	}
+
+	getRec := doJSON(t, router, http.MethodGet, "/forum/posts/"+post.ID, nil, "")
+	got := decodeJSON[forumPostResponse](t, getRec)
+	if len(got.Replies) != 1 {
+		t.Fatalf("Replies = %d, want 1", len(got.Replies))
+	}
+	if got.BestReplyIndex == nil || *got.BestReplyIndex != 0 {
+		t.Errorf("BestReplyIndex = %v, want pointer to 0", got.BestReplyIndex)
+	}
+}

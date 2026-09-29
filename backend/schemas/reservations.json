@@ -10,8 +10,18 @@
       "description": "Frozen at reservation time, like an invoice line — does not recompute if the listing's price changes later."
     },
     "totalAmount": { "bsonType": ["double", "int"] },
+    "serviceFee": { "bsonType": ["double", "int"] },
     "status": { "enum": ["pending", "confirmed", "delivered", "cancelled"] },
     "createdAt": { "bsonType": "date" },
+    "priority": {
+      "bsonType": "bool",
+      "description": "True when the buyer paid at reservation time — a paid reservation is never bumped by a later one."
+    },
+    "paymentDeadline": {
+      "bsonType": "date",
+      "description": "Set only on an unpaid (priority=false) reservation; the worker cancels it and restores capacity once this passes."
+    },
+    "deliveredAt": { "bsonType": "date" },
     "payment": {
       "bsonType": "object",
       "description": "Embedded escrow sub-document — no separate payments collection.",

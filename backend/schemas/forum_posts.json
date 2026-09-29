@@ -19,6 +19,7 @@
           "createdAt": { "bsonType": "date" }
         }
       }
-    }
+    },
+    "bestReplyIndex": { "bsonType": "int", "minimum": 0 }
   }
 }

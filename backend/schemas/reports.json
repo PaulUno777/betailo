@@ -6,7 +6,7 @@
     "targetId": {
       "description": "listing | profile | forum_post — no foreign key, unlike the old relational schema, since no collection here enforces referential integrity anyway."
     },
-    "targetType": { "enum": ["listing", "profile", "forum_post"] },
+    "targetType": { "enum": ["listing", "profile", "forum_post", "reservation"] },
     "reason": { "bsonType": "string" },
     "status": { "enum": ["open", "under_review", "handled", "rejected"] },
     "createdAt": { "bsonType": "date" }

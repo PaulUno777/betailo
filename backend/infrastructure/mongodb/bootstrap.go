@@ -97,16 +97,27 @@ func ensureIndexes(ctx context.Context, database *mongo.Database) error {
 		{"reservations", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "listingId", Value: 1}}},
 			{Keys: bson.D{{Key: "buyerId", Value: 1}}},
+			// The worker's expiry sweep: unpaid reservations past their
+			// deadline. Sparse-friendly since most reservations never set
+			// paymentDeadline (paid-at-creation ones don't have one).
+			{Keys: bson.D{{Key: "paymentDeadline", Value: 1}}},
 		}},
 		{"reviews", []mongo.IndexModel{
 			// One review per reservation.
 			{Keys: bson.D{{Key: "reservationId", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "farmId", Value: 1}}},
 		}},
 		{"reports", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "targetId", Value: 1}, {Key: "createdAt", Value: -1}}},
+			{Keys: bson.D{{Key: "status", Value: 1}}},
 		}},
 		{"forum_posts", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "authorId", Value: 1}}},
+			{Keys: bson.D{{Key: "category", Value: 1}}},
+		}},
+		{"notifications", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "status", Value: 1}}},
+			{Keys: bson.D{{Key: "userId", Value: 1}}},
 		}},
 	}
 

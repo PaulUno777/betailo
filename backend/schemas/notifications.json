@@ -1,0 +1,12 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "type", "message", "status", "createdAt"],
+  "properties": {
+    "userId": { "bsonType": "objectId" },
+    "type": { "bsonType": "string" },
+    "message": { "bsonType": "string" },
+    "status": { "enum": ["pending", "sent"] },
+    "createdAt": { "bsonType": "date" },
+    "sentAt": { "bsonType": "date" }
+  }
+}

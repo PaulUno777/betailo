@@ -34,6 +34,13 @@ type CreateCycleInput struct {
 	Capacity int
 	StartsAt time.Time
 	EndsAt   *time.Time
+
+	// MinPerReservation/MaxPerReservation bound a single buyer's
+	// reservation quantity — 0 means "no bound". Enforced here at
+	// creation and by application/usecase/reservation.ReserveCycle
+	// against every reservation attempt.
+	MinPerReservation int
+	MaxPerReservation int
 }
 
 // Execute returns domain.ErrNotFound if the farm doesn't exist,
@@ -65,6 +72,15 @@ func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domai
 	if in.EndsAt != nil && !in.EndsAt.After(in.StartsAt) {
 		return nil, fmt.Errorf("cycle: endsAt must be after startsAt: %w", domain.ErrInvalid)
 	}
+	if in.MinPerReservation < 0 || in.MaxPerReservation < 0 {
+		return nil, fmt.Errorf("cycle: minPerReservation/maxPerReservation must not be negative: %w", domain.ErrInvalid)
+	}
+	if in.MaxPerReservation > 0 && in.MaxPerReservation > in.Capacity {
+		return nil, fmt.Errorf("cycle: maxPerReservation must not exceed capacity: %w", domain.ErrInvalid)
+	}
+	if in.MinPerReservation > 0 && in.MaxPerReservation > 0 && in.MinPerReservation > in.MaxPerReservation {
+		return nil, fmt.Errorf("cycle: minPerReservation must not exceed maxPerReservation: %w", domain.ErrInvalid)
+	}
 
 	c := &domain.Cycle{
 		FarmID:   in.FarmID,
@@ -78,6 +94,8 @@ func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domai
 		AvailableQuantity: in.Capacity,
 		StartsAt:          in.StartsAt,
 		EndsAt:            in.EndsAt,
+		MinPerReservation: in.MinPerReservation,
+		MaxPerReservation: in.MaxPerReservation,
 	}
 
 	if err := uc.Cycles.Create(ctx, c); err != nil {

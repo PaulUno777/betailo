@@ -32,6 +32,8 @@ type cycleDoc struct {
 	AvailableQuantity int                `bson:"availableQuantity"`
 	StartsAt          time.Time          `bson:"startsAt"`
 	EndsAt            *time.Time         `bson:"endsAt,omitempty"`
+	MinPerReservation int                `bson:"minPerReservation,omitempty"`
+	MaxPerReservation int                `bson:"maxPerReservation,omitempty"`
 	HealthLog         []healthEventDoc   `bson:"healthLog,omitempty"`
 }
 
@@ -46,6 +48,8 @@ func fromDomainCycle(c *domain.Cycle) cycleDoc {
 		AvailableQuantity: c.AvailableQuantity,
 		StartsAt:          c.StartsAt,
 		EndsAt:            c.EndsAt,
+		MinPerReservation: c.MinPerReservation,
+		MaxPerReservation: c.MaxPerReservation,
 	}
 	for _, e := range c.HealthLog {
 		doc.HealthLog = append(doc.HealthLog, healthEventDoc{Type: e.Type, Description: e.Description, Date: e.Date})
@@ -64,6 +68,8 @@ func (d cycleDoc) toDomain() *domain.Cycle {
 		AvailableQuantity: d.AvailableQuantity,
 		StartsAt:          d.StartsAt,
 		EndsAt:            d.EndsAt,
+		MinPerReservation: d.MinPerReservation,
+		MaxPerReservation: d.MaxPerReservation,
 	}
 	for _, e := range d.HealthLog {
 		c.HealthLog = append(c.HealthLog, domain.HealthEvent{Type: e.Type, Description: e.Description, Date: e.Date})
@@ -126,6 +132,25 @@ func (r *CycleRepository) ListByFarm(ctx context.Context, farmID bson.ObjectID) 
 	return out, cur.Err()
 }
 
+// ListByStatus implements ports.CycleStore.
+func (r *CycleRepository) ListByStatus(ctx context.Context, status domain.CycleStatus) ([]*domain.Cycle, error) {
+	cur, err := r.Coll.Find(ctx, bson.M{"status": status})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var out []*domain.Cycle
+	for cur.Next(ctx) {
+		var doc cycleDoc
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		out = append(out, doc.toDomain())
+	}
+	return out, cur.Err()
+}
+
 // UpdateStatus implements ports.CycleStore.
 func (r *CycleRepository) UpdateStatus(ctx context.Context, id bson.ObjectID, status domain.CycleStatus) error {
 	res, err := r.Coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"status": status}})
@@ -164,6 +189,27 @@ func (r *CycleRepository) DecrementAvailability(ctx context.Context, cycleID bso
 			return domain.ErrInsufficientCapacity
 		}
 		return err
+	}
+	return nil
+}
+
+// IncrementAvailability implements ports.CycleRepository — the inverse
+// of DecrementAvailability, used to restore capacity when a reservation
+// that had claimed it is cancelled (an unpaid one expiring past its
+// deadline, or an explicit cancellation). No capacity condition needed
+// here: giving quantity back can never push availableQuantity past the
+// cycle's own Capacity as long as callers only restore what they
+// previously decremented — enforced by the usecase, not this method.
+func (r *CycleRepository) IncrementAvailability(ctx context.Context, cycleID bson.ObjectID, quantity int) error {
+	filter := bson.M{"_id": cycleID}
+	update := bson.M{"$inc": bson.M{"availableQuantity": quantity}}
+
+	res, err := r.Coll.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return domain.ErrNotFound
 	}
 	return nil
 }

@@ -23,6 +23,12 @@ type CycleStore interface {
 
 	ListByFarm(ctx context.Context, farmID bson.ObjectID) ([]*domain.Cycle, error)
 
+	// ListByStatus returns every cycle in the given status, across every
+	// farm — internal/worker's sweep for automatic status transitions
+	// (planned -> in_progress -> done) needs a global view, unlike every
+	// other caller of this port which scopes to one farm.
+	ListByStatus(ctx context.Context, status domain.CycleStatus) ([]*domain.Cycle, error)
+
 	// UpdateStatus is deliberately narrower than a general update: a
 	// cycle's status is the one field usecases change after creation —
 	// see application/usecase/cycle.UpdateCycleStatus's state machine.

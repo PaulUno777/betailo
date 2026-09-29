@@ -33,6 +33,7 @@ type CreateListingInput struct {
 	Title       string
 	Description string
 	UnitPrice   float64
+	Unit        string
 }
 
 // Execute returns domain.ErrNotFound if the cycle or its farm doesn't
@@ -66,6 +67,7 @@ func (uc *CreateListing) Execute(ctx context.Context, in CreateListingInput) (*d
 		Title:       title,
 		Description: strings.TrimSpace(in.Description),
 		UnitPrice:   in.UnitPrice,
+		Unit:        strings.TrimSpace(in.Unit),
 		Status:      domain.ListingPublished,
 	}
 

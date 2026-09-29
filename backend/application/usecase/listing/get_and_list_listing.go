@@ -19,13 +19,3 @@ type GetListing struct {
 func (uc *GetListing) Execute(ctx context.Context, id bson.ObjectID) (*domain.Listing, error) {
 	return uc.Listings.FindByID(ctx, id)
 }
-
-// ListPublishedListings is the usecase: the marketplace-facing browse
-// view. Needs no authentication.
-type ListPublishedListings struct {
-	Listings ports.ListingStore
-}
-
-func (uc *ListPublishedListings) Execute(ctx context.Context) ([]*domain.Listing, error) {
-	return uc.Listings.ListPublished(ctx)
-}

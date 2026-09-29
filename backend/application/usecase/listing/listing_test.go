@@ -60,6 +60,9 @@ func (f *fakeCycles) FindByID(_ context.Context, id bson.ObjectID) (*domain.Cycl
 func (f *fakeCycles) ListByFarm(context.Context, bson.ObjectID) ([]*domain.Cycle, error) {
 	return nil, nil
 }
+func (f *fakeCycles) ListByStatus(context.Context, domain.CycleStatus) ([]*domain.Cycle, error) {
+	return nil, nil
+}
 func (f *fakeCycles) UpdateStatus(context.Context, bson.ObjectID, domain.CycleStatus) error {
 	return nil
 }

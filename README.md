@@ -28,6 +28,7 @@ vend pas un "produit" statique, il gère des **cycles** (reproduction, engraisse
 - [Stack technique](#stack-technique)
 - [Commandes utiles](#commandes-utiles)
 - [Intégration continue](#intégration-continue)
+- [Déploiement](#déploiement)
 - [État du projet](#état-du-projet--roadmap)
 - [Licence](#licence)
 
@@ -226,6 +227,33 @@ valider une pull request backend, et inversement.
 > version peut apparaître au lint, sans impact réel.
 
 
+
+## Déploiement
+
+Le backend se déploie sur [Render](https://render.com) via le blueprint
+`render.yaml` à la racine : dans le dashboard Render, **New +** →
+**Blueprint**, puis pointer sur ce dépôt. Render lit `render.yaml`,
+construit l'image avec `backend/Dockerfile` (build multi-étage, voir ce
+fichier) et crée un service web Docker.
+
+Secrets à renseigner à la main dans le dashboard après création (marqués
+`sync: false` dans `render.yaml`, jamais committés) :
+
+- `MONGODB_URI` — une connexion [MongoDB Atlas](https://www.mongodb.com/atlas)
+  (le tier gratuit M0 est un replica set, ce que
+  `application/usecase/reservation` exige pour ses transactions
+  multi-documents).
+- `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`,
+  `STORAGE_SECRET_KEY` — un bucket [Cloudflare R2](https://developers.cloudflare.com/r2/).
+- `CORS_ALLOWED_ORIGIN` — l'origine réelle du frontend déployé (voir
+  `interfaces/httpserver/middleware_cors.go` ; sans cette variable,
+  seul `http://localhost:4200` est autorisé).
+
+`JWT_SECRET` est généré automatiquement par Render (`generateValue:
+true`) — ne jamais réutiliser la valeur de dev de `docker-compose.yml`.
+`PORT` n'a rien à configurer : Render l'injecte lui-même, et
+`internal/app` le lit déjà (voir `backend/.env.example` pour la liste
+complète des variables et leur usage en local).
 
 ## État du projet / roadmap
 

@@ -33,8 +33,22 @@ type Reservation struct {
 	BuyerID     bson.ObjectID
 	Quantity    int
 	UnitPrice   float64
+	ServiceFee  float64
 	TotalAmount float64
 	Status      ReservationStatus
 	CreatedAt   time.Time
 	Payment     *PaymentInfo
+
+	// Priority is true when the buyer paid at reservation time ("payer
+	// maintenant") rather than reserving without paying. A paid
+	// reservation is never bumped; an unpaid one is the one the worker
+	// expires once PaymentDeadline passes — see
+	// application/usecase/reservation and internal/worker.
+	Priority        bool
+	PaymentDeadline *time.Time
+
+	// DeliveredAt is set by the farmer's MarkDelivered usecase — it
+	// starts the 48h window after which the worker auto-releases escrow
+	// if the buyer never calls ConfirmDelivery and no dispute is open.
+	DeliveredAt *time.Time
 }

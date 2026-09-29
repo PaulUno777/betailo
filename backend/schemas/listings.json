@@ -9,11 +9,16 @@
     "title": { "bsonType": "string" },
     "description": { "bsonType": "string" },
     "unitPrice": { "bsonType": ["double", "int"], "minimum": 0 },
+    "unit": { "bsonType": "string" },
     "status": { "enum": ["draft", "published", "unpublished"] },
     "photos": {
       "bsonType": "array",
       "items": { "bsonType": "string" },
       "description": "Object storage keys — signed URLs are generated on demand via infrastructure/objectstorage, never stored."
+    },
+    "flagged": {
+      "bsonType": "bool",
+      "description": "Set by application/usecase/report.CreateReport once the repeated-report threshold trips; hides the listing from the public marketplace until an admin resolves it."
     }
   }
 }

@@ -32,4 +32,8 @@ type ForumPost struct {
 	ListingID *bson.ObjectID
 	CreatedAt time.Time
 	Replies   []ForumReply
+
+	// BestReplyIndex, when set, points into Replies — the post's author
+	// marking one reply as the answer that resolved their question.
+	BestReplyIndex *int
 }

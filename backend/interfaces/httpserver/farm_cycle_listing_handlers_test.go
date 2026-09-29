@@ -55,10 +55,10 @@ func TestDemoFlow_HTTP_FarmCycleListing(t *testing.T) {
 	if browseRec.Code != http.StatusOK {
 		t.Fatalf("browse listings status = %d, want %d", browseRec.Code, http.StatusOK)
 	}
-	published := decodeJSON[[]listingResponse](t, browseRec)
+	published := decodeJSON[marketplaceSearchResponse](t, browseRec)
 	found := false
-	for _, l := range published {
-		if l.ID == listingOut.ID {
+	for _, item := range published.Items {
+		if item.Listing.ID == listingOut.ID {
 			found = true
 		}
 	}
@@ -178,8 +178,8 @@ func TestUnpublishListing_HTTP_RemovesFromPublicBrowse(t *testing.T) {
 	}
 
 	browseRec := doJSON(t, router, http.MethodGet, "/listings", nil, "")
-	for _, l := range decodeJSON[[]listingResponse](t, browseRec) {
-		if l.ID == listingOut.ID {
+	for _, item := range decodeJSON[marketplaceSearchResponse](t, browseRec).Items {
+		if item.Listing.ID == listingOut.ID {
 			t.Error("unpublished listing still appears in the public browse list")
 		}
 	}

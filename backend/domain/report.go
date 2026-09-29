@@ -14,9 +14,10 @@ import (
 type ReportTargetType string
 
 const (
-	ReportTargetListing   ReportTargetType = "listing"
-	ReportTargetProfile   ReportTargetType = "profile"
-	ReportTargetForumPost ReportTargetType = "forum_post"
+	ReportTargetListing     ReportTargetType = "listing"
+	ReportTargetProfile     ReportTargetType = "profile"
+	ReportTargetForumPost   ReportTargetType = "forum_post"
+	ReportTargetReservation ReportTargetType = "reservation"
 )
 
 // ReportStatus is a Report's moderation state. UnderReview is set

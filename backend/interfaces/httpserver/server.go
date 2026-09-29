@@ -59,13 +59,63 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("PATCH /cycles/{id}/status", chain(handleUpdateCycleStatus(deps.UpdateCycleStatus), auth))
 	mux.Handle("DELETE /cycles/{id}", chain(handleDeleteCycle(deps.DeleteCycle), auth))
 
-	mux.Handle("POST /listings", farmerOnly(handleCreateListing(deps.CreateListing)))
-	mux.HandleFunc("GET /listings/{id}", handleGetListing(deps.GetListing))
-	mux.HandleFunc("GET /listings", handleListPublishedListings(deps.ListPublishedListings))
-	mux.Handle("PUT /listings/{id}", chain(handleUpdateListing(deps.UpdateListing), auth))
+	mux.Handle("POST /listings", farmerOnly(handleCreateListing(deps.CreateListing, deps.Storage)))
+	mux.HandleFunc("GET /listings/{id}", handleGetListing(deps.GetListing, deps.Storage))
+	mux.HandleFunc("GET /listings", handleSearchListings(deps.SearchListings, deps.Storage))
+	mux.Handle("PUT /listings/{id}", chain(handleUpdateListing(deps.UpdateListing, deps.Storage), auth))
 	mux.Handle("DELETE /listings/{id}", chain(handleUnpublishListing(deps.UnpublishListing), auth))
+	mux.Handle("POST /listings/{id}/photos/presign", chain(handlePresignListingPhoto(deps.PresignListingPhoto), auth))
+	mux.Handle("PUT /listings/{id}/photos", chain(handleSetListingPhotos(deps.SetListingPhotos, deps.Storage), auth))
 
-	return withLogging(logger, mux)
+	// Reservation & escrow. Creating one needs no role restriction — a
+	// farmer can buy too — but does need auth, since BuyerID/FarmOwnerID
+	// always come from the token, never a request body field.
+	mux.Handle("POST /listings/{id}/reservations", chain(handleCreateReservation(deps.ReserveCycle), auth))
+	mux.Handle("GET /reservations/mine", chain(handleListMyReservations(deps.ListMyReservations), auth))
+	mux.Handle("POST /reservations/{id}/pay", chain(handlePayReservation(deps.PayReservation), auth))
+	mux.Handle("POST /reservations/{id}/mark-delivered", chain(handleMarkDelivered(deps.MarkDelivered), auth))
+	mux.Handle("POST /reservations/{id}/confirm-delivery", chain(handleConfirmDelivery(deps.ConfirmDelivery), auth))
+	mux.Handle("POST /reservations/{id}/dispute", chain(handleOpenDispute(deps.OpenDispute), auth))
+	mux.Handle("GET /farms/{farmId}/reservations", chain(handleListReservationsByFarm(deps.ListReservationsByFarm), auth))
+
+	// Reviews — writing one needs auth (the buyer only); reading a
+	// farm's reviews is public, like its listings.
+	mux.Handle("POST /reservations/{id}/reviews", chain(handleCreateReview(deps.CreateReview), auth))
+	mux.HandleFunc("GET /farms/{id}/reviews", handleListFarmReviews(deps.ListFarmReviews))
+
+	// Reporting — any authenticated role can report.
+	mux.Handle("POST /reports", chain(handleCreateReport(deps.CreateReport), auth))
+
+	// Forum — reading is public; posting/replying needs auth.
+	mux.Handle("POST /forum/posts", chain(handleCreateForumPost(deps.CreateForumPost), auth))
+	mux.HandleFunc("GET /forum/posts", handleListForumPosts(deps.ListForumPosts))
+	mux.HandleFunc("GET /forum/posts/{id}", handleGetForumPost(deps.GetForumPost))
+	mux.Handle("POST /forum/posts/{id}/replies", chain(handleAddForumReply(deps.AddForumReply), auth))
+	mux.Handle("POST /forum/posts/{id}/replies/{index}/mark-best", chain(handleMarkBestAnswer(deps.MarkBestAnswer), auth))
+
+	// Seller (farmer) portal — ownership is checked inside the usecase
+	// itself, the same as every other /farms/{farmId}/... route.
+	mux.Handle("GET /farms/{farmId}/dashboard", chain(handleSellerDashboard(deps.SellerDashboard), auth))
+
+	// Admin (root) console — every route here is gated on the admin
+	// role alone; each usecase reads/writes platform-wide, with no
+	// further ownership check of its own (see application/usecase/admin's
+	// package doc).
+	adminOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireRole(domain.RoleAdmin)) }
+	mux.Handle("GET /admin/overview", adminOnly(handleAdminOverview(deps.AdminOverview)))
+	mux.Handle("GET /admin/users", adminOnly(handleAdminListUsers(deps.AdminListUsers)))
+	mux.Handle("POST /admin/users/{id}/verify", adminOnly(handleAdminVerifyUser(deps.AdminVerifyUser)))
+	mux.Handle("POST /admin/users/{id}/suspend", adminOnly(handleAdminSuspendUser(deps.AdminSuspendUser)))
+	mux.Handle("GET /admin/cycles", adminOnly(handleAdminListCycles(deps.AdminListCycles)))
+	mux.Handle("GET /admin/listings", adminOnly(handleAdminListListings(deps.AdminListListings)))
+	mux.Handle("GET /admin/escrow", adminOnly(handleAdminListEscrow(deps.AdminListEscrow)))
+	mux.Handle("POST /admin/escrow/{id}/release", adminOnly(handleAdminReleaseEscrow(deps.AdminReleaseEscrow)))
+	mux.Handle("POST /admin/escrow/{id}/refund", adminOnly(handleAdminRefundEscrow(deps.AdminRefundEscrow)))
+	mux.Handle("GET /admin/reports", adminOnly(handleAdminListReports(deps.AdminListReports)))
+	mux.Handle("GET /admin/reports/{id}", adminOnly(handleAdminGetReportDetail(deps.AdminGetReportDetail)))
+	mux.Handle("POST /admin/reports/{id}/resolve", adminOnly(handleAdminResolveReport(deps.AdminResolveReport)))
+
+	return withCORS(withLogging(logger, mux))
 }
 
 type healthResponse struct {
