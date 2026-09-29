@@ -14,21 +14,56 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/pauluno777/betailo/backend/domain"
 )
+
+// chain applies middlewares to h in the order given — chain(h, A, B)
+// means A wraps B wraps h, so A runs first. Only exists to keep the
+// route table below readable; it has no behavior of its own.
+func chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler {
+	for i := len(mws) - 1; i >= 0; i-- {
+		h = mws[i](h)
+	}
+	return h
+}
 
 // NewRouter builds the application's top-level router.
 //
-// GET /me exists specifically to demonstrate RequireAuth protecting a
-// route end-to-end; each further business module will add its own
-// routes here as it's implemented (see the roadmap in the "Concepts &
-// Architecture" document).
+// Creating a farm, cycle or listing is restricted to farmers
+// (RequireRole) — everything else that mutates one of those (update,
+// delete, a cycle's status) is protected by RequireAuth alone and
+// relies on the usecase's own ownership check instead: a buyer could
+// never own a farm to begin with, so a second role gate there would be
+// redundant. Reads (GET) need no authentication — farms, cycles and
+// published listings are the public marketplace.
 func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux := http.NewServeMux()
+	auth := RequireAuth(deps.Signer)
+	farmerOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireRole(domain.RoleFarmer)) }
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("POST /auth/register", handleRegister(deps.Register))
 	mux.HandleFunc("POST /auth/login", handleLogin(deps.Login))
-	mux.Handle("GET /me", RequireAuth(deps.Signer)(http.HandlerFunc(handleMe)))
+	mux.Handle("GET /me", chain(http.HandlerFunc(handleMe), auth))
+
+	mux.Handle("POST /farms", farmerOnly(handleCreateFarm(deps.CreateFarm)))
+	mux.HandleFunc("GET /farms/{id}", handleGetFarm(deps.GetFarm))
+	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms), auth))
+	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm), auth))
+	mux.Handle("DELETE /farms/{id}", chain(handleDeleteFarm(deps.DeleteFarm), auth))
+
+	mux.Handle("POST /cycles", farmerOnly(handleCreateCycle(deps.CreateCycle)))
+	mux.HandleFunc("GET /cycles/{id}", handleGetCycle(deps.GetCycle))
+	mux.HandleFunc("GET /farms/{farmId}/cycles", handleListCyclesByFarm(deps.ListCyclesByFarm))
+	mux.Handle("PATCH /cycles/{id}/status", chain(handleUpdateCycleStatus(deps.UpdateCycleStatus), auth))
+	mux.Handle("DELETE /cycles/{id}", chain(handleDeleteCycle(deps.DeleteCycle), auth))
+
+	mux.Handle("POST /listings", farmerOnly(handleCreateListing(deps.CreateListing)))
+	mux.HandleFunc("GET /listings/{id}", handleGetListing(deps.GetListing))
+	mux.HandleFunc("GET /listings", handleListPublishedListings(deps.ListPublishedListings))
+	mux.Handle("PUT /listings/{id}", chain(handleUpdateListing(deps.UpdateListing), auth))
+	mux.Handle("DELETE /listings/{id}", chain(handleUnpublishListing(deps.UnpublishListing), auth))
 
 	return withLogging(logger, mux)
 }

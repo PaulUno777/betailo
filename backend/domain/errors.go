@@ -14,4 +14,5 @@ var (
 	ErrInsufficientCapacity = errors.New("insufficient_capacity")
 	ErrUnauthorized         = errors.New("unauthorized")
 	ErrEmailTaken           = errors.New("email_taken")
+	ErrForbidden            = errors.New("forbidden")
 )
