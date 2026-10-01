@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 )
@@ -31,6 +32,15 @@ type Config struct {
 	SecretKey string
 	Region    string        // R2 ignores the value but the SDK requires one; SeaweedFS does too
 	URLExpiry time.Duration // how long a presigned URL stays valid; defaults to 15 minutes
+
+	// PublicEndpoint is what a presigned URL is actually addressed to —
+	// the browser that receives one from an API response resolves it
+	// directly, so it must be reachable from outside the Docker network
+	// Endpoint lives on (e.g. "http://localhost:9000" against the
+	// "seaweedfs" service, which docker-compose already publishes on
+	// that host port). Defaults to Endpoint, which is correct whenever
+	// the two coincide (single-endpoint R2 in production).
+	PublicEndpoint string
 }
 
 // S3Provider implements ports.ObjectStorage against any S3-compatible
@@ -73,9 +83,21 @@ func NewS3Provider(ctx context.Context, cfg Config) (*S3Provider, error) {
 		o.UsePathStyle = true
 	})
 
+	publicEndpoint := cfg.PublicEndpoint
+	if publicEndpoint == "" {
+		publicEndpoint = cfg.Endpoint
+	}
+	presignClient := client
+	if publicEndpoint != cfg.Endpoint {
+		presignClient = s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(publicEndpoint)
+			o.UsePathStyle = true
+		})
+	}
+
 	return &S3Provider{
 		client:  client,
-		presign: s3.NewPresignClient(client),
+		presign: s3.NewPresignClient(presignClient),
 		bucket:  cfg.Bucket,
 		expiry:  cfg.URLExpiry,
 	}, nil
@@ -120,6 +142,18 @@ func (p *S3Provider) EnsureBucket(ctx context.Context) error {
 	var alreadyOwned *types.BucketAlreadyOwnedByYou
 	var alreadyExists *types.BucketAlreadyExists
 	if errors.As(err, &alreadyOwned) || errors.As(err, &alreadyExists) {
+		return nil
+	}
+
+	// R2 denies CreateBucket outright (AccessDenied, not "already
+	// owned") for any token scoped below Admin — including the
+	// least-privilege Object Read & Write token production should use,
+	// against a bucket that token already reads and writes fine. A
+	// production bucket is provisioned out of band (package doc), so
+	// this is exactly the no-op that call is supposed to be; only a
+	// different failure here is worth surfacing.
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && apiErr.ErrorCode() == "AccessDenied" {
 		return nil
 	}
 	return fmt.Errorf("objectstorage: create bucket: %w", err)
