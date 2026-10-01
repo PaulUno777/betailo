@@ -44,7 +44,13 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("POST /auth/register", handleRegister(deps.Register))
-	mux.HandleFunc("POST /auth/login", handleLogin(deps.Login))
+	mux.HandleFunc("POST /auth/login", handleLogin(deps.Login, deps.Cookies))
+	// Neither reads Authorization — each authenticates via the refresh
+	// cookie itself, which matters for refresh specifically: that's the
+	// one call still expected to work after the access token has
+	// already expired.
+	mux.HandleFunc("POST /auth/refresh", handleRefresh(deps.RefreshToken, deps.Cookies))
+	mux.HandleFunc("POST /auth/logout", handleLogout(deps.Logout, deps.Cookies))
 	mux.Handle("GET /me", chain(http.HandlerFunc(handleMe), auth))
 
 	mux.Handle("POST /farms", farmerOnly(handleCreateFarm(deps.CreateFarm)))
@@ -107,7 +113,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /admin/users/{id}/verify", adminOnly(handleAdminVerifyUser(deps.AdminVerifyUser)))
 	mux.Handle("POST /admin/users/{id}/suspend", adminOnly(handleAdminSuspendUser(deps.AdminSuspendUser)))
 	mux.Handle("GET /admin/cycles", adminOnly(handleAdminListCycles(deps.AdminListCycles)))
-	mux.Handle("GET /admin/listings", adminOnly(handleAdminListListings(deps.AdminListListings)))
+	mux.Handle("GET /admin/listings", adminOnly(handleAdminListListings(deps.AdminListListings, deps.Storage)))
 	mux.Handle("GET /admin/escrow", adminOnly(handleAdminListEscrow(deps.AdminListEscrow)))
 	mux.Handle("POST /admin/escrow/{id}/release", adminOnly(handleAdminReleaseEscrow(deps.AdminReleaseEscrow)))
 	mux.Handle("POST /admin/escrow/{id}/refund", adminOnly(handleAdminRefundEscrow(deps.AdminRefundEscrow)))

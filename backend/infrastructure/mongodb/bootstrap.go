@@ -85,6 +85,15 @@ func ensureIndexes(ctx context.Context, database *mongo.Database) error {
 		{"users", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)},
 		}},
+		{"refresh_tokens", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "tokenHash", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "userId", Value: 1}}},
+			{Keys: bson.D{{Key: "familyId", Value: 1}}},
+			// TTL: Mongo's background thread deletes a document once
+			// expiresAt is in the past — no cleanup worker needed,
+			// unlike the reservation expiry sweep in internal/worker.
+			{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)},
+		}},
 		{"farms", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "ownerId", Value: 1}}},
 		}},

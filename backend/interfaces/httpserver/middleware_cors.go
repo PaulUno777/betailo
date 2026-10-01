@@ -23,6 +23,13 @@ func withCORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		w.Header().Set("Access-Control-Max-Age", "600")
+		// Safe unconditionally: origin above is always one exact
+		// configured value, never "*" — the one precondition browsers
+		// require before they'll honor credentialed (cookie-bearing)
+		// cross-origin requests. Needed for /auth/refresh and
+		// /auth/logout's cookie; harmless for every other route, which
+		// carries no cookie to begin with (see cookie_config.go's Path).
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

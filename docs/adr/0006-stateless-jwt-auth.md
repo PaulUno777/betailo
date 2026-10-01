@@ -69,6 +69,10 @@ takes effect only once that user's current token expires. This is an
 accepted trade for the MVP's scope, not an oversight — worth revisiting
 if `ACCESS_TOKEN_TTL` needs to shrink from 24h for that reason alone,
 which would itself be a sign refresh tokens are now warranted.
+**Update:** that trigger was pulled — see
+[ADR-0008](0008-refresh-token-rotation-httponly-cookie.md), which adds
+refresh-token rotation and shrinks `ACCESS_TOKEN_TTL`'s default to 15
+minutes. Everything else in this ADR still stands.
 
 **Explicitly not doing:** refresh tokens, a session/token store,
 multi-factor auth, or a password-reset flow — none of Phase 1's DoD

@@ -39,3 +39,4 @@ explicitly not doing).
 | [0005](0005-english-only-in-code-french-in-product-docs.md) | English exclusively in code; French stays the product-documentation language | Accepted |
 | [0006](0006-stateless-jwt-auth.md) | Stateless JWT auth: bcrypt + HMAC, no session store, no refresh tokens | Accepted |
 | [0007](0007-farm-cycle-listing-crud-invariants.md) | Farm/Cycle/Listing CRUD: ownership chain, deletion invariants, cycle state machine | Accepted |
+| [0008](0008-refresh-token-rotation-httponly-cookie.md) | Refresh-token rotation in an httpOnly cookie | Accepted |

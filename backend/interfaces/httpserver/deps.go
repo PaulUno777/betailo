@@ -19,9 +19,12 @@ import (
 // business module's usecase (see the roadmap) doesn't change every
 // existing call to NewRouter.
 type Dependencies struct {
-	Register *auth.Register
-	Login    *auth.Login
-	Signer   ports.TokenSigner
+	Register     *auth.Register
+	Login        *auth.Login
+	RefreshToken *auth.RefreshToken
+	Logout       *auth.Logout
+	Signer       ports.TokenSigner
+	Cookies      CookieConfig
 
 	CreateFarm  *farm.CreateFarm
 	GetFarm     *farm.GetFarm

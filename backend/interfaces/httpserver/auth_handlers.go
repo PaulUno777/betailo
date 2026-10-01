@@ -56,6 +56,7 @@ func handleRegister(uc *auth.Register) http.HandlerFunc {
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Remember bool   `json:"remember"`
 }
 
 type loginResponse struct {
@@ -63,7 +64,7 @@ type loginResponse struct {
 	User        userResponse `json:"user"`
 }
 
-func handleLogin(uc *auth.Login) http.HandlerFunc {
+func handleLogin(uc *auth.Login, cookies CookieConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req loginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -71,16 +72,62 @@ func handleLogin(uc *auth.Login) http.HandlerFunc {
 			return
 		}
 
-		out, err := uc.Execute(r.Context(), auth.LoginInput{Email: req.Email, Password: req.Password})
+		out, err := uc.Execute(r.Context(), auth.LoginInput{Email: req.Email, Password: req.Password, Remember: req.Remember})
 		if err != nil {
 			writeError(w, err)
 			return
 		}
 
+		setRefreshCookie(w, out.RefreshToken, out.RefreshExpiresAt, req.Remember, cookies)
 		writeJSON(w, http.StatusOK, loginResponse{
 			AccessToken: out.AccessToken,
 			User:        toUserResponse(out.User),
 		})
+	}
+}
+
+// refreshResponse deliberately carries only the new access token — a
+// refresh call doesn't need to re-send the full user, and the rotated
+// refresh token itself never appears in a JSON body, only in the
+// Set-Cookie header (see setRefreshCookie).
+type refreshResponse struct {
+	AccessToken string `json:"accessToken"`
+}
+
+func handleRefresh(uc *auth.RefreshToken, cookies CookieConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		raw := readRefreshCookie(r)
+		if raw == "" {
+			writeError(w, errUnauthorized)
+			return
+		}
+
+		out, err := uc.Execute(r.Context(), auth.RefreshTokenInput{RawToken: raw})
+		if err != nil {
+			// Whatever went wrong (expired, reused, unknown, suspended
+			// account), the presented cookie is no longer any good —
+			// clear it so the frontend's next silent-refresh attempt
+			// fails fast instead of retrying the same dead cookie.
+			clearRefreshCookie(w, cookies)
+			writeError(w, err)
+			return
+		}
+
+		setRefreshCookie(w, out.RefreshToken, out.RefreshExpiresAt, out.Persistent, cookies)
+		writeJSON(w, http.StatusOK, refreshResponse{AccessToken: out.AccessToken})
+	}
+}
+
+func handleLogout(uc *auth.Logout, cookies CookieConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		raw := readRefreshCookie(r)
+		// Best-effort: Logout.Execute is a no-op for an empty or
+		// unknown token (see its doc comment), and the cookie is
+		// cleared either way, so there's nothing a caller needs to
+		// react to here.
+		_ = uc.Execute(r.Context(), auth.LogoutInput{RawToken: raw})
+		clearRefreshCookie(w, cookies)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

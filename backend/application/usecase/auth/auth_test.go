@@ -108,3 +108,57 @@ type fakeClock struct {
 }
 
 func (f fakeClock) Now() time.Time { return f.now }
+
+// fakeRefreshTokens is an in-memory double for
+// ports.RefreshTokenRepository, keyed by hash so FindByHash is exactly
+// as cheap and exactly as correct as the real Mongo lookup it stands in
+// for.
+type fakeRefreshTokens struct {
+	byHash map[string]*ports.RefreshToken
+}
+
+func newFakeRefreshTokens() *fakeRefreshTokens {
+	return &fakeRefreshTokens{byHash: map[string]*ports.RefreshToken{}}
+}
+
+func (f *fakeRefreshTokens) Create(_ context.Context, t *ports.RefreshToken) error {
+	f.byHash[t.TokenHash] = t
+	return nil
+}
+
+func (f *fakeRefreshTokens) FindByHash(_ context.Context, tokenHash string) (*ports.RefreshToken, error) {
+	t, ok := f.byHash[tokenHash]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	return t, nil
+}
+
+func (f *fakeRefreshTokens) Rotate(_ context.Context, oldID bson.ObjectID, next *ports.RefreshToken) error {
+	var old *ports.RefreshToken
+	for _, t := range f.byHash {
+		if t.ID == oldID {
+			old = t
+			break
+		}
+	}
+	if old == nil || old.RevokedAt != nil {
+		return domain.ErrConflict
+	}
+	now := next.IssuedAt
+	old.RevokedAt = &now
+	old.RevokedReason = "rotated"
+	old.ReplacedBy = &next.ID
+	f.byHash[next.TokenHash] = next
+	return nil
+}
+
+func (f *fakeRefreshTokens) RevokeFamily(_ context.Context, familyID bson.ObjectID, reason string, revokedAt time.Time) error {
+	for _, t := range f.byHash {
+		if t.FamilyID == familyID && t.RevokedAt == nil {
+			t.RevokedAt = &revokedAt
+			t.RevokedReason = reason
+		}
+	}
+	return nil
+}
