@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { AdminUser } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { AppError } from '../../core/http/app-error';
@@ -8,6 +7,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/admin/users` — per `Admin.dc.html`'s user table: verify/suspend,
  * backed directly by `GET /admin/users` + the two POST actions. */
@@ -59,7 +59,7 @@ export class AdminUsersComponent {
   private readonly adminApi = inject(AdminApi);
   private readonly toast = inject(ToastService);
 
-  protected readonly users = httpResource<AdminUser[]>(() => this.adminApi.usersUrl());
+  protected readonly users = apiResource<AdminUser[]>(() => this.adminApi.usersUrl());
   protected readonly acting = signal<string | null>(null);
 
   protected verify(id: string): void {

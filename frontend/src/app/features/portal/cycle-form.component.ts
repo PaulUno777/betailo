@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Farm } from '../../domain/models';
@@ -10,6 +9,7 @@ import { ToastService } from '../../core/notifications/toast.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/portal/cycles/new` — per `CycleForm.dc.html`, simplified to the
  * fields `POST /cycles` actually accepts (species, type, capacity,
@@ -71,7 +71,7 @@ export class CycleFormComponent {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
-  private readonly farms = httpResource<Farm[]>(() => this.farmsApi.mineUrl());
+  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   private readonly myFarm = computed(() => this.farms.value()?.[0]);
 
   protected readonly species = signal('');

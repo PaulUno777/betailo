@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { Farm, Reservation } from '../../domain/models';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/portal/payments` — no dedicated payments endpoint exists; this
  * groups the same `GET /farms/{farmId}/reservations` feed `Reservations`
@@ -58,10 +58,10 @@ export class PortalPaymentsComponent {
   private readonly farmsApi = inject(FarmsApi);
   private readonly reservationsApi = inject(ReservationsApi);
 
-  private readonly farms = httpResource<Farm[]>(() => this.farmsApi.mineUrl());
+  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   private readonly myFarm = computed(() => this.farms.value()?.[0]);
 
-  protected readonly reservations = httpResource<Reservation[]>(() => {
+  protected readonly reservations = apiResource<Reservation[]>(() => {
     const farmId = this.myFarm()?.id;
     return farmId ? this.reservationsApi.byFarmUrl(farmId) : undefined;
   });

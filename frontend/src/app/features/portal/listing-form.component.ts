@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { HttpClient, httpResource } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -14,6 +14,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/portal/listings/new` — per `ListingForm.dc.html`, including the
  * presign → PUT-to-storage → register-photos flow the plan called out
@@ -91,10 +92,10 @@ export class ListingFormComponent {
     initialValue: ''
   });
 
-  private readonly farms = httpResource<Farm[]>(() => this.farmsApi.mineUrl());
+  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   private readonly myFarm = computed(() => this.farms.value()?.[0]);
 
-  protected readonly cycles = httpResource<Cycle[]>(() => {
+  protected readonly cycles = apiResource<Cycle[]>(() => {
     const farmId = this.myFarm()?.id;
     return farmId ? this.cyclesApi.byFarmUrl(farmId) : undefined;
   });

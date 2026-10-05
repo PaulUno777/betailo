@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ReportStatus } from '../../domain/enums';
@@ -8,6 +7,7 @@ import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
+import { apiResource } from '../../core/http/api-resource';
 
 const STATUS_TONE: Readonly<Record<ReportStatus, 'amber' | 'sky' | 'forest' | 'stone'>> = {
   open: 'amber',
@@ -71,7 +71,7 @@ export class AdminReportsListComponent {
 
   protected readonly status = signal('');
 
-  protected readonly reports = httpResource<Report[]>(() => this.adminApi.reportsUrl(this.status() || undefined));
+  protected readonly reports = apiResource<Report[]>(() => this.adminApi.reportsUrl(this.status() || undefined));
 
   protected statusTone(status: ReportStatus) {
     return STATUS_TONE[status];

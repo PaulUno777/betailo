@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -22,6 +21,7 @@ import { NoticeComponent } from '../../shared/ui/notice/notice.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { apiResource } from '../../core/http/api-resource';
 
 @Component({
   selector: 'bt-checkout',
@@ -187,11 +187,11 @@ export class CheckoutComponent {
     { initialValue: 1 }
   );
 
-  protected readonly listing = httpResource<Listing>(() =>
+  protected readonly listing = apiResource<Listing>(() =>
     this.listingId() ? this.listingsApi.detailUrl(this.listingId()) : undefined
   );
 
-  protected readonly cycle = httpResource<Cycle>(() => {
+  protected readonly cycle = apiResource<Cycle>(() => {
     const cycleId = this.listing.value()?.cycleId;
     return cycleId ? this.cyclesApi.detailUrl(cycleId) : undefined;
   });
