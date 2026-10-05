@@ -146,6 +146,19 @@ func handleGetListingDetail(uc *listing.GetDetail, storage ports.ObjectStorage) 
 	}
 }
 
+// updateListingRequest edits a listing. cycleId is accepted (old
+// clients send the create shape) but ignored: a listing never moves.
+type updateListingRequest struct {
+	CycleID           string  `json:"cycleId,omitempty"`
+	Title             string  `json:"title"`
+	Description       string  `json:"description,omitempty"`
+	UnitPrice         float64 `json:"unitPrice"`
+	Unit              string  `json:"unit,omitempty"`
+	Breed             *string `json:"breed,omitempty"`
+	AgeWeeks          *int    `json:"ageWeeks,omitempty"`
+	DeliveryAvailable *bool   `json:"deliveryAvailable,omitempty"`
+}
+
 func handleUpdateListing(uc *listing.UpdateListing, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
@@ -157,7 +170,7 @@ func handleUpdateListing(uc *listing.UpdateListing, storage ports.ObjectStorage)
 		if !ok {
 			return
 		}
-		var req createListingRequest
+		var req updateListingRequest
 		if !readJSON(w, r, &req) {
 			return
 		}
@@ -165,6 +178,7 @@ func handleUpdateListing(uc *listing.UpdateListing, storage ports.ObjectStorage)
 		l, err := uc.Execute(r.Context(), listing.UpdateListingInput{
 			ListingID: id, OwnerID: claims.UserID, Title: req.Title,
 			Description: req.Description, UnitPrice: req.UnitPrice, Unit: req.Unit,
+			Breed: req.Breed, AgeWeeks: req.AgeWeeks, DeliveryAvailable: req.DeliveryAvailable,
 		})
 		if err != nil {
 			writeError(w, err)

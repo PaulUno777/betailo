@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -49,6 +50,12 @@ type UpdateListingInput struct {
 	Description string
 	UnitPrice   float64
 	Unit        string
+
+	// Breed, AgeWeeks and DeliveryAvailable are left unchanged when nil,
+	// so older clients that only send the core fields keep working.
+	Breed             *string
+	AgeWeeks          *int
+	DeliveryAvailable *bool
 }
 
 // Execute returns domain.ErrForbidden if OwnerID doesn't own the
@@ -74,6 +81,25 @@ func (uc *UpdateListing) Execute(ctx context.Context, in UpdateListingInput) (*d
 	}
 	if in.UnitPrice < 0 {
 		return nil, fmt.Errorf("listing: unitPrice must not be negative: %w", domain.ErrInvalid)
+	}
+	if utf8.RuneCountInString(title) > maxTitleLen || utf8.RuneCountInString(strings.TrimSpace(in.Description)) > maxDescriptionLen {
+		return nil, fmt.Errorf("listing: title or description too long: %w", domain.ErrInvalid)
+	}
+	if in.Breed != nil {
+		breed := strings.TrimSpace(*in.Breed)
+		if utf8.RuneCountInString(breed) > maxBreedLen {
+			return nil, fmt.Errorf("listing: breed must be at most %d characters: %w", maxBreedLen, domain.ErrInvalid)
+		}
+		l.Breed = breed
+	}
+	if in.AgeWeeks != nil {
+		if *in.AgeWeeks < 0 || *in.AgeWeeks > maxAgeWeeks {
+			return nil, fmt.Errorf("listing: age is out of range: %w", domain.ErrInvalid)
+		}
+		l.AgeWeeks = *in.AgeWeeks
+	}
+	if in.DeliveryAvailable != nil {
+		l.DeliveryAvailable = *in.DeliveryAvailable
 	}
 
 	l.Title = title
