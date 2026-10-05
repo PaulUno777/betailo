@@ -46,6 +46,11 @@ jobs:
       - name: Test (avec race detector)
         run: go test -race ./...
 
+      # Vrai MongoDB (replica set, pour les transactions) démarré par
+      # testcontainers — Docker est déjà disponible sur ubuntu-latest.
+      - name: Tests d'intégration (MongoDB, testcontainers)
+        run: go test -race -tags integration ./internal/integration/...
+
       - name: Build
         run: go build ./...
 
