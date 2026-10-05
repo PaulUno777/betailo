@@ -53,7 +53,7 @@ func TestSeller_HTTP_WizardDraftPhotosPublish(t *testing.T) {
 	}
 
 	mine := decodeJSON[[]farmListingResponse](t, doJSON(t, router, http.MethodGet, "/farms/"+farmID+"/listings", nil, token))
-	if len(mine) != 1 || mine[0].Listing.ID != l.ID || mine[0].Cycle.ID != c.ID {
+	if len(mine) != 1 || mine[0].Listing.ID != l.ID || mine[0].Cycle.ID != c.ID || len(mine[0].PhotoKeys) != 1 || mine[0].PhotoKeys[0] != key {
 		t.Fatalf("farm listings = %+v, want the one listing with its cycle", mine)
 	}
 }

@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -78,6 +79,9 @@ type farmListingResponse struct {
 	Listing            listingResponse `json:"listing"`
 	Cycle              cycleResponse   `json:"cycle"`
 	ActiveReservations int             `json:"activeReservations"`
+	// PhotoKeys are the storage keys behind listing.photos, in the same
+	// order: the owner sends them back to keep or reorder photos.
+	PhotoKeys []string `json:"photoKeys"`
 }
 
 func handleListFarmListings(uc *listing.ListFarmListings, storage ports.ObjectStorage) http.HandlerFunc {
@@ -100,7 +104,7 @@ func handleListFarmListings(uc *listing.ListFarmListings, storage ports.ObjectSt
 		for _, row := range rows {
 			out = append(out, farmListingResponse{
 				Listing: toListingResponse(r.Context(), storage, row.Listing), Cycle: toCycleResponse(row.Cycle),
-				ActiveReservations: row.ActiveReservations,
+				ActiveReservations: row.ActiveReservations, PhotoKeys: photoKeysOf(r.Context(), storage, row.Listing.Photos),
 			})
 		}
 		writeJSON(w, http.StatusOK, out)
@@ -166,4 +170,16 @@ func handleUpdateCycle(uc *cycle.UpdateCycle) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, toCycleResponse(c))
 	}
+}
+
+// photoKeysOf returns the keys whose presign succeeds, matching what
+// toListingResponse put in photos, so the two lists line up.
+func photoKeysOf(ctx context.Context, storage ports.ObjectStorage, keys []string) []string {
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		if _, err := storage.PresignDownload(ctx, k); err == nil {
+			out = append(out, k)
+		}
+	}
+	return out
 }
