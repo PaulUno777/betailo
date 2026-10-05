@@ -2,6 +2,7 @@ package cycle
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -115,6 +116,22 @@ func (f *fakeCycles) UpdateStatus(_ context.Context, id bson.ObjectID, status do
 	return nil
 }
 
+func (f *fakeCycles) AppendHealthEvent(_ context.Context, id bson.ObjectID, e domain.HealthEvent, maxEntries int) error {
+	c, ok := f.byID[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if len(c.HealthLog) >= maxEntries {
+		return domain.ErrConflict
+	}
+	// Store a fresh copy, like a database would, rather than mutating
+	// the *Cycle a caller may still hold from FindByID.
+	updated := *c
+	updated.HealthLog = append(append([]domain.HealthEvent(nil), c.HealthLog...), e)
+	f.byID[id] = &updated
+	return nil
+}
+
 func (f *fakeCycles) Delete(_ context.Context, id bson.ObjectID) error {
 	if _, ok := f.byID[id]; !ok {
 		return domain.ErrNotFound
@@ -144,3 +161,7 @@ func (f *fakeListings) FindByCycleID(_ context.Context, cycleID bson.ObjectID) (
 	return l, nil
 }
 func (f *fakeListings) Update(context.Context, *domain.Listing) error { return nil }
+
+type fakeClock struct{ now time.Time }
+
+func (c fakeClock) Now() time.Time { return c.now }

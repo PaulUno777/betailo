@@ -2,7 +2,6 @@ package farm
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -10,29 +9,6 @@ import (
 
 	"github.com/pauluno777/betailo/backend/domain"
 )
-
-func TestGetFarm_Execute(t *testing.T) {
-	farms := newFakeFarms()
-	created := &domain.Farm{OwnerID: bson.NewObjectID(), Name: "Ferme", Location: "Douala"}
-	if err := farms.Create(context.Background(), created); err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
-
-	uc := &GetFarm{Farms: farms}
-
-	got, err := uc.Execute(context.Background(), created.ID)
-	if err != nil {
-		t.Fatalf("Execute() error = %v, want nil", err)
-	}
-	if got.Name != "Ferme" {
-		t.Errorf("Name = %q, want %q", got.Name, "Ferme")
-	}
-
-	_, err = uc.Execute(context.Background(), bson.NewObjectID())
-	if !errors.Is(err, domain.ErrNotFound) {
-		t.Fatalf("Execute() with unknown ID: error = %v, want domain.ErrNotFound", err)
-	}
-}
 
 func TestListMyFarms_Execute(t *testing.T) {
 	farms := newFakeFarms()

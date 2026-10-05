@@ -22,6 +22,9 @@ type farmDoc struct {
 	Location  string        `bson:"location"`
 	Species   []string      `bson:"species,omitempty"`
 	CreatedAt time.Time     `bson:"createdAt"`
+
+	Description  string `bson:"description,omitempty"`
+	ContactPhone string `bson:"contactPhone,omitempty"`
 }
 
 func fromDomainFarm(f *domain.Farm) farmDoc {
@@ -32,6 +35,9 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 		Location:  f.Location,
 		Species:   f.Species,
 		CreatedAt: f.CreatedAt,
+
+		Description:  f.Description,
+		ContactPhone: f.ContactPhone,
 	}
 }
 
@@ -43,6 +49,9 @@ func (d farmDoc) toDomain() *domain.Farm {
 		Location:  d.Location,
 		Species:   d.Species,
 		CreatedAt: d.CreatedAt,
+
+		Description:  d.Description,
+		ContactPhone: d.ContactPhone,
 	}
 }
 

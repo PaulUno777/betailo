@@ -19,6 +19,8 @@ type cycleResponse struct {
 	AvailableQuantity int        `json:"availableQuantity"`
 	StartsAt          time.Time  `json:"startsAt"`
 	EndsAt            *time.Time `json:"endsAt,omitempty"`
+	MinPerReservation int        `json:"minPerReservation,omitempty"`
+	MaxPerReservation int        `json:"maxPerReservation,omitempty"`
 }
 
 func toCycleResponse(c *domain.Cycle) cycleResponse {
@@ -26,6 +28,61 @@ func toCycleResponse(c *domain.Cycle) cycleResponse {
 		ID: c.ID.Hex(), FarmID: c.FarmID.Hex(), Species: c.Species, Type: c.Type,
 		Status: string(c.Status), Capacity: c.Capacity, AvailableQuantity: c.AvailableQuantity,
 		StartsAt: c.StartsAt, EndsAt: c.EndsAt,
+		MinPerReservation: c.MinPerReservation, MaxPerReservation: c.MaxPerReservation,
+	}
+}
+
+type timelineStepResponse struct {
+	Kind   string    `json:"kind"`
+	Date   time.Time `json:"date"`
+	Title  string    `json:"title,omitempty"`
+	Detail string    `json:"detail,omitempty"`
+	State  string    `json:"state"`
+}
+
+func toTimelineResponse(steps []domain.TimelineStep) []timelineStepResponse {
+	out := make([]timelineStepResponse, 0, len(steps))
+	for _, s := range steps {
+		out = append(out, timelineStepResponse{Kind: string(s.Kind), Date: s.Date, Title: s.Title, Detail: s.Detail, State: string(s.State)})
+	}
+	return out
+}
+
+// cycleDetailResponse is a single cycle with its server-built timeline.
+type cycleDetailResponse struct {
+	cycleResponse
+	Timeline []timelineStepResponse `json:"timeline"`
+}
+
+type healthEventRequest struct {
+	Title  string    `json:"title"`
+	Detail string    `json:"detail,omitempty"`
+	Date   time.Time `json:"date"`
+}
+
+func handleAddHealthEvent(uc *cycle.AddHealthEvent) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		var req healthEventRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		c, err := uc.Execute(r.Context(), cycle.AddHealthEventInput{
+			CycleID: id, OwnerID: claims.UserID, Title: req.Title, Detail: req.Detail, Date: req.Date,
+		})
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, toCycleResponse(c))
 	}
 }
 
@@ -73,12 +130,12 @@ func handleGetCycle(uc *cycle.GetCycle) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		c, err := uc.Execute(r.Context(), id)
+		v, err := uc.Execute(r.Context(), id)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, toCycleResponse(c))
+		writeJSON(w, http.StatusOK, cycleDetailResponse{cycleResponse: toCycleResponse(v.Cycle), Timeline: toTimelineResponse(v.Timeline)})
 	}
 }
 

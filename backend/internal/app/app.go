@@ -28,6 +28,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
 	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
+	"github.com/pauluno777/betailo/backend/application/usecase/favorite"
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
@@ -97,6 +98,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	reports := &mongodb.ReportRepository{Coll: database.Collection("reports")}
 	forumPosts := &mongodb.ForumRepository{Coll: database.Collection("forum_posts")}
 	notifications := &mongodb.NotificationRepository{Coll: database.Collection("notifications")}
+	favorites := &mongodb.FavoriteRepository{Coll: database.Collection("favorites")}
 	hasher := security.BcryptHasher{}
 	systemClock := clock.System{}
 	sandboxPayments := payment.Sandbox{}
@@ -194,25 +196,35 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			Cookies:      cookieConfig(),
 			RateLimits:   httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
-			CreateFarm:  &farm.CreateFarm{Farms: farms, Clock: systemClock},
-			GetFarm:     &farm.GetFarm{Farms: farms},
+			CreateFarm: &farm.CreateFarm{Farms: farms, Trust: trustRecompute, Clock: systemClock},
+			GetFarmProfile: &farm.GetProfile{
+				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
+			},
 			ListMyFarms: &farm.ListMyFarms{Farms: farms},
 			UpdateFarm:  &farm.UpdateFarm{Farms: farms},
 			DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
 			CreateCycle:       &cycle.CreateCycle{Farms: farms, Cycles: cycles},
-			GetCycle:          &cycle.GetCycle{Cycles: cycles},
+			GetCycle:          &cycle.GetCycle{Cycles: cycles, Clock: systemClock},
+			AddHealthEvent:    &cycle.AddHealthEvent{Farms: farms, Cycles: cycles, Clock: systemClock},
 			ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: cycles},
 			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
 
-			CreateListing:       &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
-			GetListing:          &listing.GetListing{Listings: listings},
+			CreateListing: &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			GetListing:    &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
+			GetListingDetail: &listing.GetDetail{
+				Listings: listings, Cycles: cycles, Farms: farms, Users: users, Reviews: reviews,
+				Reservations: reservations, Favorites: favorites, Clock: systemClock,
+			},
 			UpdateListing:       &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
 			UnpublishListing:    &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
 			PresignListingPhoto: &listing.PresignListingPhoto{Farms: farms, Cycles: cycles, Listings: listings, Storage: storageProvider},
 			SetListingPhotos:    &listing.SetListingPhotos{Farms: farms, Cycles: cycles, Listings: listings},
-			SearchListings:      &listing.SearchListings{Search: listings},
+			SearchListings:      &listing.SearchListings{Search: listings, Favorites: favorites},
+			AddFavorite:         &favorite.Add{Listings: listings, Favorites: favorites, Clock: systemClock},
+			RemoveFavorite:      &favorite.Remove{Favorites: favorites},
+			ListMyFavorites:     &favorite.ListMine{Favorites: favorites, Search: listings},
 			Storage:             storageProvider,
 
 			ReserveCycle:           reserveCycle,

@@ -23,6 +23,9 @@ type ListingSearchCriteria struct {
 	MaxPrice     float64
 	VerifiedOnly bool
 	Query        string // matched against the listing's title
+	// IDs, when non-empty, restricts results to these listings (still
+	// only published, unflagged ones). Backs "my favorites".
+	IDs []bson.ObjectID
 	// Sort is one of the ListingSort* constants; anything else
 	// (including "") falls back to ListingSortAvailability.
 	Sort     string
@@ -64,6 +67,9 @@ type ListingSearchItem struct {
 
 	ReviewAverage float64
 	ReviewCount   int
+
+	// Favorited is set by the usecase layer for a signed-in viewer.
+	Favorited bool
 }
 
 // ListingSearchResult carries the page plus the total match count, for

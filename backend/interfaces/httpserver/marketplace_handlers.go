@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -33,6 +34,8 @@ type marketplaceListingResponse struct {
 
 	ReviewAverage float64 `json:"reviewAverage"`
 	ReviewCount   int     `json:"reviewCount"`
+
+	Favorited bool `json:"favorited"`
 }
 
 type marketplaceSearchResponse struct {
@@ -51,24 +54,13 @@ func handleSearchListings(uc *listing.SearchListings, storage ports.ObjectStorag
 			Page: parseIntOr(q.Get("page"), 1), PageSize: parseIntOr(q.Get("pageSize"), 0),
 		}
 
-		result, err := uc.Execute(r.Context(), criteria)
+		claims, _ := ClaimsFromContext(r.Context())
+		result, err := uc.Execute(r.Context(), criteria, claims.UserID)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-
-		items := make([]marketplaceListingResponse, 0, len(result.Items))
-		for _, it := range result.Items {
-			items = append(items, marketplaceListingResponse{
-				Listing: toListingResponse(r.Context(), storage, it.Listing),
-				Species: it.Species, CycleType: it.CycleType, CycleStatus: string(it.CycleStatus),
-				StartsAt: it.StartsAt, EndsAt: it.EndsAt, Capacity: it.Capacity, Available: it.Available,
-				FarmID: it.FarmID.Hex(), FarmName: it.FarmName, FarmLocation: it.FarmLocation,
-				FarmVerified: it.FarmVerified, FarmTrustScore: it.FarmTrustScore,
-				ReviewAverage: it.ReviewAverage, ReviewCount: it.ReviewCount,
-			})
-		}
-		writeJSON(w, http.StatusOK, marketplaceSearchResponse{Items: items, Total: result.Total})
+		writeJSON(w, http.StatusOK, marketplaceSearchResponse{Items: toMarketplaceItems(r.Context(), storage, result.Items), Total: result.Total})
 	}
 }
 
@@ -92,4 +84,20 @@ func parseIntOr(s string, def int) int {
 		return def
 	}
 	return v
+}
+
+func toMarketplaceItems(ctx context.Context, storage ports.ObjectStorage, in []ports.ListingSearchItem) []marketplaceListingResponse {
+	items := make([]marketplaceListingResponse, 0, len(in))
+	for _, it := range in {
+		items = append(items, marketplaceListingResponse{
+			Listing: toListingResponse(ctx, storage, it.Listing),
+			Species: it.Species, CycleType: it.CycleType, CycleStatus: string(it.CycleStatus),
+			StartsAt: it.StartsAt, EndsAt: it.EndsAt, Capacity: it.Capacity, Available: it.Available,
+			FarmID: it.FarmID.Hex(), FarmName: it.FarmName, FarmLocation: it.FarmLocation,
+			FarmVerified: it.FarmVerified, FarmTrustScore: it.FarmTrustScore,
+			ReviewAverage: it.ReviewAverage, ReviewCount: it.ReviewCount,
+			Favorited: it.Favorited,
+		})
+	}
+	return items
 }

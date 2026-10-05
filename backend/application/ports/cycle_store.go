@@ -34,6 +34,13 @@ type CycleStore interface {
 	// see application/usecase/cycle.UpdateCycleStatus's state machine.
 	UpdateStatus(ctx context.Context, id bson.ObjectID, status domain.CycleStatus) error
 
+	// AppendHealthEvent pushes e onto the cycle's health log, atomically
+	// refusing with domain.ErrConflict once the log already holds
+	// maxEntries (a single conditional update, so two concurrent
+	// appends can't both slip past the cap). domain.ErrNotFound for an
+	// unknown cycle.
+	AppendHealthEvent(ctx context.Context, id bson.ObjectID, e domain.HealthEvent, maxEntries int) error
+
 	// Delete removes the cycle unconditionally — the "no existing
 	// listing" invariant is checked by the usecase, not here, for the
 	// same reason as FarmRepository.Delete. See

@@ -70,6 +70,10 @@ func (f *fakeCycles) ListByStatus(context.Context, domain.CycleStatus) ([]*domai
 func (f *fakeCycles) UpdateStatus(context.Context, bson.ObjectID, domain.CycleStatus) error {
 	return nil
 }
+
+func (f *fakeCycles) AppendHealthEvent(context.Context, bson.ObjectID, domain.HealthEvent, int) error {
+	return nil
+}
 func (f *fakeCycles) Delete(context.Context, bson.ObjectID) error { return nil }
 
 type fakeListings struct {

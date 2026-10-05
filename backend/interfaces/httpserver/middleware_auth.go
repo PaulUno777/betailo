@@ -45,6 +45,25 @@ func RequireAuth(signer ports.TokenSigner) func(http.Handler) http.Handler {
 // middleware stores) and rejects the request with 403 if the
 // authenticated user's role doesn't match. Used to keep, for instance,
 // farm/cycle/listing creation restricted to farmers — a buyer's valid
+
+// OptionalAuth is RequireAuth for public routes that personalise their
+// response when the caller is signed in (a favorited flag, a farmer's
+// contact phone). No Authorization header means an anonymous request.
+// A header that's present but invalid (typically an expired access
+// token) is still a 401, so the client's refresh-and-retry flow kicks in
+// instead of silently serving the anonymous view to a signed-in user.
+func OptionalAuth(signer ports.TokenSigner) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.TrimSpace(r.Header.Get("Authorization")) == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			RequireAuth(signer)(next).ServeHTTP(w, r)
+		})
+	}
+}
+
 // token still gets 403, not the 401 an invalid token would.
 func RequireRole(role domain.Role) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

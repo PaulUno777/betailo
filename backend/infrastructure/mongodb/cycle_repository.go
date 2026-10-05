@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -159,6 +160,30 @@ func (r *CycleRepository) UpdateStatus(ctx context.Context, id bson.ObjectID, st
 	}
 	if res.MatchedCount == 0 {
 		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// AppendHealthEvent implements ports.CycleStore. The filter only
+// matches while index maxEntries-1 doesn't exist yet, which caps the
+// log in the same atomic update that grows it.
+func (r *CycleRepository) AppendHealthEvent(ctx context.Context, id bson.ObjectID, e domain.HealthEvent, maxEntries int) error {
+	full := fmt.Sprintf("healthLog.%d", maxEntries-1)
+	res, err := r.Coll.UpdateOne(ctx,
+		bson.M{"_id": id, full: bson.M{"$exists": false}},
+		bson.M{"$push": bson.M{"healthLog": healthEventDoc{Type: e.Type, Description: e.Description, Date: e.Date}}},
+	)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		// Either the cycle doesn't exist or its log is full.
+		if n, err := r.Coll.CountDocuments(ctx, bson.M{"_id": id}); err != nil {
+			return err
+		} else if n == 0 {
+			return domain.ErrNotFound
+		}
+		return fmt.Errorf("cycle: health log is full: %w", domain.ErrConflict)
 	}
 	return nil
 }

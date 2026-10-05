@@ -53,6 +53,9 @@ type searchRow struct {
 // card.
 func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCriteria) (ports.ListingSearchResult, error) {
 	match := bson.M{"status": domain.ListingPublished, "flagged": bson.M{"$ne": true}}
+	if len(c.IDs) > 0 {
+		match["_id"] = bson.M{"$in": c.IDs}
+	}
 	if c.Query != "" {
 		match["title"] = bson.M{"$regex": regexp.QuoteMeta(c.Query), "$options": "i"}
 	}

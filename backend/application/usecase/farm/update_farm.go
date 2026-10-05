@@ -26,6 +26,9 @@ type UpdateFarmInput struct {
 	Name     string
 	Location string
 	Species  []string
+
+	Description  string
+	ContactPhone string
 }
 
 // Execute returns domain.ErrNotFound if the farm doesn't exist and
@@ -48,9 +51,16 @@ func (uc *UpdateFarm) Execute(ctx context.Context, in UpdateFarmInput) (*domain.
 		return nil, fmt.Errorf("farm: location is required: %w", domain.ErrInvalid)
 	}
 
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone)
+	if err != nil {
+		return nil, err
+	}
+
 	f.Name = name
 	f.Location = location
 	f.Species = in.Species
+	f.Description = description
+	f.ContactPhone = phone
 
 	if err := uc.Farms.Update(ctx, f); err != nil {
 		return nil, err
