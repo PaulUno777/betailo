@@ -270,8 +270,13 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: tf.farms, Cycles: tf.cycles},
 		DeleteCycle:       &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 
-		CreateListing: &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
-		GetListing:    &listing.GetListing{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
+		CreateListing:      &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		GetListing:         &listing.GetListing{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
+		QuickCreateListing: &listing.QuickCreate{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Sequencer: tf.sequencer, Tx: fakeTxManager{}, Clock: tf.clock},
+		PublishListing:     &listing.Publish{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		ListFarmListings:   &listing.ListFarmListings{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
+		PriceHint:          &listing.PriceHint{Search: search},
+		UpdateCycle:        &cycle.UpdateCycle{Farms: tf.farms, Cycles: tf.cycles, Editor: tf.cycles},
 		GetListingDetail: &listing.GetDetail{
 			Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Users: tf.users, Reviews: tf.reviews,
 			Reservations: tf.reservations, Favorites: tf.favorites, ReviewStore: tf.reviews, Clock: tf.clock,

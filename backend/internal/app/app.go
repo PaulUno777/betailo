@@ -241,8 +241,13 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
 
-			CreateListing: &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
-			GetListing:    &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
+			CreateListing:      &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			GetListing:         &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
+			QuickCreateListing: &listing.QuickCreate{Farms: farms, Cycles: cycles, Listings: listings, Sequencer: counters, Tx: txManager, Clock: systemClock},
+			PublishListing:     &listing.Publish{Farms: farms, Cycles: cycles, Listings: listings},
+			ListFarmListings:   &listing.ListFarmListings{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations},
+			PriceHint:          &listing.PriceHint{Search: listings},
+			UpdateCycle:        &cycle.UpdateCycle{Farms: farms, Cycles: cycles, Editor: cycles},
 			GetListingDetail: &listing.GetDetail{
 				Listings: listings, Cycles: cycles, Farms: farms, Users: users, Reviews: reviews,
 				Reservations: reservations, Favorites: favorites, ReviewStore: reviews, Clock: systemClock,

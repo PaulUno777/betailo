@@ -203,7 +203,7 @@ func TestAdmin_HTTP_ListingsWithPhotosResolveURLs(t *testing.T) {
 	listingID, farmerToken := setupListing(t, router, 120)
 	root := adminToken(t, router, tf)
 
-	keys := make([]string, 0, 3) // the usecase requires 3-12 photos
+	keys := make([]string, 0, 3)
 	for range 3 {
 		presignRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", nil, farmerToken)
 		if presignRec.Code != http.StatusOK {

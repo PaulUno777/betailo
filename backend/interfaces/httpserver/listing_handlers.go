@@ -20,6 +20,10 @@ type listingResponse struct {
 	Unit        string   `json:"unit,omitempty"`
 	Status      string   `json:"status"`
 	Photos      []string `json:"photos,omitempty"`
+
+	Breed             string `json:"breed,omitempty"`
+	AgeWeeks          int    `json:"ageWeeks,omitempty"`
+	DeliveryAvailable bool   `json:"deliveryAvailable"`
 }
 
 // toListingResponse resolves Photos (object-storage keys) to signed GET
@@ -30,6 +34,7 @@ func toListingResponse(ctx context.Context, storage ports.ObjectStorage, l *doma
 	resp := listingResponse{
 		ID: l.ID.Hex(), Title: l.Title, Description: l.Description,
 		UnitPrice: l.UnitPrice, Unit: l.Unit, Status: string(l.Status),
+		Breed: l.Breed, AgeWeeks: l.AgeWeeks, DeliveryAvailable: l.DeliveryAvailable,
 	}
 	if l.CycleID != nil {
 		hex := l.CycleID.Hex()

@@ -42,4 +42,10 @@ type Listing struct {
 	// against it. Kept separate from Status so the publish/unpublish
 	// state machine doesn't have to reason about moderation.
 	Flagged bool
+
+	// Breed ("Brahma herminé"), AgeWeeks and DeliveryAvailable describe
+	// the animals as the sell wizard collects them. All optional.
+	Breed             string
+	AgeWeeks          int
+	DeliveryAvailable bool
 }

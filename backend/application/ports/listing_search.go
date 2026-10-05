@@ -86,4 +86,8 @@ type ListingSearchResult struct {
 // one HTTP handler need this wider, joined query.
 type ListingSearchRepository interface {
 	Search(ctx context.Context, criteria ListingSearchCriteria) (ListingSearchResult, error)
+	// PublishedPrices returns up to limit unit prices of published,
+	// unflagged listings of a species, optionally only from farms whose
+	// location matches region (the price hint's sample).
+	PublishedPrices(ctx context.Context, species, region string, limit int) ([]float64, error)
 }

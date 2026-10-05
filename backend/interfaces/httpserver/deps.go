@@ -57,11 +57,16 @@ type Dependencies struct {
 	ListCyclesByFarm  *cycle.ListCyclesByFarm
 	UpdateCycleStatus *cycle.UpdateCycleStatus
 	AddHealthEvent    *cycle.AddHealthEvent
+	UpdateCycle       *cycle.UpdateCycle
 	DeleteCycle       *cycle.DeleteCycle
 
 	CreateListing       *listing.CreateListing
 	GetListing          *listing.GetListing
 	GetListingDetail    *listing.GetDetail
+	QuickCreateListing  *listing.QuickCreate
+	PublishListing      *listing.Publish
+	ListFarmListings    *listing.ListFarmListings
+	PriceHint           *listing.PriceHint
 	UpdateListing       *listing.UpdateListing
 	UnpublishListing    *listing.UnpublishListing
 	PresignListingPhoto *listing.PresignListingPhoto
