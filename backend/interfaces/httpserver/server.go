@@ -88,6 +88,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// Reservation & escrow. Creating one needs no role restriction — a
 	// farmer can buy too — but does need auth, since BuyerID/FarmOwnerID
 	// always come from the token, never a request body field.
+	mux.Handle("POST /listings/{id}/quote", chain(handleQuoteReservation(deps.QuoteReservation), auth))
 	mux.Handle("POST /listings/{id}/reservations", chain(handleCreateReservation(deps.ReserveCycle), auth))
 	mux.Handle("GET /reservations/mine", chain(handleListMyReservations(deps.ListMyReservations, deps.Storage), auth))
 	mux.Handle("POST /reservations/{id}/pay", chain(handlePayReservation(deps.PayReservation), auth))

@@ -64,6 +64,7 @@ type Dependencies struct {
 	Storage             ports.ObjectStorage
 
 	CancelReservation      *reservation.CancelReservation
+	QuoteReservation       *reservation.Quote
 	ReserveCycle           *reservation.ReserveCycle
 	PayReservation         *reservation.PayReservation
 	MarkDelivered          *reservation.MarkDelivered

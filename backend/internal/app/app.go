@@ -258,6 +258,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 
 			ReserveCycle:           reserveCycle,
 			CancelReservation:      cancelReservation,
+			QuoteReservation:       &reservation.Quote{Listings: listings, Cycles: cycles, Farms: farms},
 			PayReservation:         payReservation,
 			MarkDelivered:          markDelivered,
 			ConfirmDelivery:        confirmDelivery,

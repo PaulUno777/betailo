@@ -270,6 +270,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Tx: fakeTxManager{}, Clock: tf.clock,
 			Parties: parties, Notifications: tf.notifications,
 		},
+		QuoteReservation:         &reservation.Quote{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
 		ListNotifications:        &inbox.List{Inbox: tf.notifications},
 		UnreadNotifications:      &inbox.UnreadCount{Inbox: tf.notifications},
 		MarkNotificationRead:     &inbox.MarkRead{Inbox: tf.notifications, Clock: tf.clock},

@@ -91,47 +91,19 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 		payment = p
 	}
 
-	l, err := uc.Listings.FindByID(ctx, in.ListingID)
+	ok, err := checkReservable(ctx, uc.Listings, uc.Cycles, uc.Farms, in.ListingID, in.BuyerID, in.Quantity)
 	if err != nil {
 		return nil, err
 	}
-	// The same rule as the public listing page: only a published,
-	// unflagged listing is on sale.
-	if l.Status != domain.ListingPublished || l.Flagged || l.CycleID == nil {
-		return nil, fmt.Errorf("reservation: listing is not available: %w", domain.ErrNotFound)
-	}
-	cycleID, unitPrice := *l.CycleID, l.UnitPrice
-
-	cyc, err := uc.Cycles.FindByID(ctx, cycleID)
-	if err != nil {
-		return nil, err
-	}
-	if cyc.Status != domain.CycleStatusPlanned && cyc.Status != domain.CycleStatusInProgress {
-		return nil, fmt.Errorf("reservation: the cycle is no longer open: %w", domain.ErrConflict)
-	}
-	farm, err := uc.Farms.FindByID(ctx, cyc.FarmID)
-	if err != nil {
-		return nil, err
-	}
-	// A farmer reserving their own animals would mint released "sales"
-	// that feed their trust score.
-	if farm.OwnerID == in.BuyerID {
-		return nil, fmt.Errorf("reservation: you can't reserve your own listing: %w", domain.ErrForbidden)
-	}
-	if cyc.MinPerReservation > 0 && in.Quantity < cyc.MinPerReservation {
-		return nil, fmt.Errorf("reservation: quantity below the cycle's minimum of %d: %w", cyc.MinPerReservation, domain.ErrInvalid)
-	}
-	if cyc.MaxPerReservation > 0 && in.Quantity > cyc.MaxPerReservation {
-		return nil, fmt.Errorf("reservation: quantity above the cycle's maximum of %d: %w", cyc.MaxPerReservation, domain.ErrInvalid)
-	}
+	l, cycleID, unitPrice, farm := ok.listing, ok.cycle.ID, ok.listing.UnitPrice, ok.farm
 
 	seq, err := uc.Sequencer.Next(ctx, domain.ReservationRefPrefix)
 	if err != nil {
 		return nil, err
 	}
 
-	subtotal := unitPrice * float64(in.Quantity)
-	fee := subtotal * ServiceFeeRate
+	amounts := priceOf(unitPrice, in.Quantity)
+	subtotal, fee := amounts.Subtotal, amounts.ServiceFee
 	now := uc.Clock.Now()
 	deadline := now.Add(UnpaidReservationGrace)
 
@@ -228,4 +200,68 @@ func validatePayment(method ports.PaymentMethod, rawPhone string) (validPayment,
 	default:
 		return validPayment{}, fmt.Errorf("payment: unknown payment method %q: %w", method, domain.ErrInvalid)
 	}
+}
+
+// reservable is what checkReservable resolved on the way.
+type reservable struct {
+	listing *domain.Listing
+	cycle   *domain.Cycle
+	farm    *domain.Farm
+}
+
+// checkReservable is every rule about whether buyerID may reserve
+// quantity places on a listing, shared by ReserveCycle and Quote so the
+// checkout preview can never disagree with the reservation itself.
+// Remaining capacity is enforced atomically by the reservation's own
+// decrement; Quote checks it too, as a preview.
+func checkReservable(ctx context.Context, listings ports.ListingStore, cycles ports.CycleRepository, farms ports.FarmRepository, listingID, buyerID bson.ObjectID, quantity int) (*reservable, error) {
+	if quantity <= 0 {
+		return nil, fmt.Errorf("reservation: quantity must be positive: %w", domain.ErrInvalid)
+	}
+	l, err := listings.FindByID(ctx, listingID)
+	if err != nil {
+		return nil, err
+	}
+	// The same rule as the public listing page: only a published,
+	// unflagged listing is on sale.
+	if l.Status != domain.ListingPublished || l.Flagged || l.CycleID == nil {
+		return nil, fmt.Errorf("reservation: listing is not available: %w", domain.ErrNotFound)
+	}
+	cyc, err := cycles.FindByID(ctx, *l.CycleID)
+	if err != nil {
+		return nil, err
+	}
+	if cyc.Status != domain.CycleStatusPlanned && cyc.Status != domain.CycleStatusInProgress {
+		return nil, fmt.Errorf("reservation: the cycle is no longer open: %w", domain.ErrConflict)
+	}
+	farm, err := farms.FindByID(ctx, cyc.FarmID)
+	if err != nil {
+		return nil, err
+	}
+	// A farmer reserving their own animals would mint released "sales"
+	// that feed their trust score.
+	if farm.OwnerID == buyerID {
+		return nil, fmt.Errorf("reservation: you can't reserve your own listing: %w", domain.ErrForbidden)
+	}
+	if cyc.MinPerReservation > 0 && quantity < cyc.MinPerReservation {
+		return nil, fmt.Errorf("reservation: quantity below the cycle's minimum of %d: %w", cyc.MinPerReservation, domain.ErrInvalid)
+	}
+	if cyc.MaxPerReservation > 0 && quantity > cyc.MaxPerReservation {
+		return nil, fmt.Errorf("reservation: quantity above the cycle's maximum of %d: %w", cyc.MaxPerReservation, domain.ErrInvalid)
+	}
+	return &reservable{listing: l, cycle: cyc, farm: farm}, nil
+}
+
+// Amounts is a reservation's price breakdown.
+type Amounts struct {
+	UnitPrice  float64
+	Subtotal   float64
+	ServiceFee float64
+	Total      float64
+}
+
+func priceOf(unitPrice float64, quantity int) Amounts {
+	subtotal := unitPrice * float64(quantity)
+	fee := subtotal * ServiceFeeRate
+	return Amounts{UnitPrice: unitPrice, Subtotal: subtotal, ServiceFee: fee, Total: subtotal + fee}
 }

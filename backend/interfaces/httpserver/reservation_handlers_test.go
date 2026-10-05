@@ -254,3 +254,31 @@ func TestReservation_HTTP_ActionsFollowTheLifecycleAndCancel(t *testing.T) {
 		t.Errorf("unknown group status = %d, want 400", bad.Code)
 	}
 }
+
+func TestReservation_HTTP_QuoteMatchesTheReservation(t *testing.T) {
+	router := newTestRouter()
+	listingID, farmerToken := setupListing(t, router, 120)
+	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
+
+	rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/quote", quoteRequest{Quantity: 30}, buyerToken)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("quote status = %d; body = %s", rec.Code, rec.Body.String())
+	}
+	q := decodeJSON[quoteResponse](t, rec)
+	if q.Subtotal != 75000 || q.ServiceFee != 1500 || q.Total != 76500 || q.Max != 120 || q.Min != 1 || q.UnpaidHours != 24 {
+		t.Fatalf("quote = %+v, want 30 x 2500 + 2%% fee, bounds 1..120", q)
+	}
+
+	res := decodeJSON[createReservationResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations",
+		createReservationRequest{Quantity: 30}, buyerToken)).Reservation
+	if res.TotalAmount != q.Total || res.ServiceFee != q.ServiceFee {
+		t.Errorf("reservation total %v/fee %v, want the quoted %v/%v", res.TotalAmount, res.ServiceFee, q.Total, q.ServiceFee)
+	}
+
+	if rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/quote", quoteRequest{Quantity: 91}, buyerToken); rec.Code != http.StatusConflict {
+		t.Errorf("quote over what's left: status = %d, want 409", rec.Code)
+	}
+	if rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/quote", quoteRequest{Quantity: 1}, farmerToken); rec.Code != http.StatusForbidden {
+		t.Errorf("quote on your own listing: status = %d, want 403", rec.Code)
+	}
+}

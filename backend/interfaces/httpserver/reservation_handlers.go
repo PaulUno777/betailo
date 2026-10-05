@@ -337,3 +337,47 @@ func handleListReservationsByFarm(uc *reservation.ListReservationsByFarm, storag
 		writeJSON(w, http.StatusOK, toReservationListResponse(r.Context(), storage, list))
 	}
 }
+
+type quoteRequest struct {
+	Quantity int `json:"quantity"`
+}
+
+type quoteResponse struct {
+	Quantity    int     `json:"quantity"`
+	UnitPrice   float64 `json:"unitPrice"`
+	Subtotal    float64 `json:"subtotal"`
+	ServiceFee  float64 `json:"serviceFee"`
+	Total       float64 `json:"total"`
+	FeeRate     float64 `json:"feeRate"`
+	Min         int     `json:"min"`
+	Max         int     `json:"max"`
+	Available   int     `json:"available"`
+	UnpaidHours int     `json:"unpaidHours"`
+}
+
+func handleQuoteReservation(uc *reservation.Quote) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		listingID, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		var req quoteRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		q, err := uc.Execute(r.Context(), reservation.QuoteInput{ListingID: listingID, BuyerID: claims.UserID, Quantity: req.Quantity})
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, quoteResponse{
+			Quantity: q.Quantity, UnitPrice: q.UnitPrice, Subtotal: q.Subtotal, ServiceFee: q.ServiceFee, Total: q.Total,
+			FeeRate: q.FeeRate, Min: q.Min, Max: q.Max, Available: q.Available, UnpaidHours: q.UnpaidHours,
+		})
+	}
+}
