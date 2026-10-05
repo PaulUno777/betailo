@@ -195,3 +195,38 @@ func TestAdmin_HTTP_ReportsDetailAndResolve(t *testing.T) {
 		t.Error("report status should be handled after verify_identity")
 	}
 }
+
+// Regression: GET /admin/listings once passed a nil storage port to
+// toListingResponse, which panicked on the first listing that had photos.
+func TestAdmin_HTTP_ListingsWithPhotosResolveURLs(t *testing.T) {
+	router, tf := newTestRouterAndFakes()
+	listingID, farmerToken := setupListing(t, router, 120)
+	root := adminToken(t, router, tf)
+
+	keys := make([]string, 0, 3) // the usecase requires 3-12 photos
+	for range 3 {
+		presignRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", nil, farmerToken)
+		if presignRec.Code != http.StatusOK {
+			t.Fatalf("presign status = %d; body = %s", presignRec.Code, presignRec.Body.String())
+		}
+		keys = append(keys, decodeJSON[presignPhotoResponse](t, presignRec).Key)
+	}
+	setRec := doJSON(t, router, http.MethodPut, "/listings/"+listingID+"/photos", setListingPhotosRequest{Keys: keys}, farmerToken)
+	if setRec.Code != http.StatusOK {
+		t.Fatalf("set photos status = %d; body = %s", setRec.Code, setRec.Body.String())
+	}
+
+	rec := doJSON(t, router, http.MethodGet, "/admin/listings", nil, root)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin listings status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	for _, l := range decodeJSON[[]listingResponse](t, rec) {
+		if l.ID == listingID {
+			if len(l.Photos) != len(keys) || l.Photos[0] != "https://fake-download.example/"+keys[0] {
+				t.Fatalf("photos = %v, want signed download URLs for %v", l.Photos, keys)
+			}
+			return
+		}
+	}
+	t.Fatal("admin listings should include the created listing")
+}
