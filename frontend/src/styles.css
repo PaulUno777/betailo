@@ -1,27 +1,288 @@
-/* Styles globaux de Betailo.
- *
- * Tailwind v4 se configure directement en CSS (plus de tailwind.config.js
- * obligatoire) : le bloc @theme ci-dessous déclare les tokens de la charte
- * graphique définie dans le document de proposition, pour que toute classe
- * utilitaire (bg-brand-primary, text-brand-accent, etc.) suive la même
- * palette dans toute l'application.
+/* Betailo design tokens — sourced 1:1 from the product design system
+ * (project/tokens.json). Tailwind v4 reads the @theme block below and
+ * generates matching utilities (bg-forest, text-ink-muted, rounded-lg,
+ * h-control-md, ...); color/shadow tokens are re-pointed for dark mode
+ * further down without touching a single utility class.
  */
 @import "tailwindcss";
 
 @theme {
-  /* Couleurs de marque — voir la section "Direction artistique" du document
-   * de proposition pour la justification de chaque couleur. */
-  --color-brand-primary: #2f6f4f; /* vert émeraude terreux — actions principales */
-  --color-brand-accent: #e07a3e; /* terracotta chaud — mise en avant */
-  --color-brand-trust: #3d6b8c; /* bleu ardoise — confiance / vérifié */
-  --color-brand-bg: #faf7f2; /* blanc cassé chaud — fond principal */
-  --color-brand-text: #2b2622; /* brun très foncé — texte principal */
-  --color-brand-success: #3c9a5f;
-  --color-brand-warning: #d99a2b;
-  --color-brand-danger: #c0453a;
+  --font-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --font-sans: Figtree, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
 
-  --font-sans:
-    "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-surface: #f5efe3;
+  --color-surface-raised: #fbf8f2;
+  --color-surface-card: #ffffff;
+  --color-surface-sunken: #ede5d6;
+  --color-line: #e3dacb;
+  --color-line-strong: #cfc4b0;
+  --color-ink: #16211c;
+  --color-ink-muted: #5e6b63;
+  --color-forest: #1f6448;
+  --color-forest-deep: #123d2c;
+  --color-on-forest: #ffffff;
+  --color-on-forest-deep: #f5efe3;
+  --color-forest-soft: #dcebdf;
+  --color-clay: #e8813f;
+  --color-on-clay: #16211c;
+  --color-clay-ink: #9a4515;
+  --color-clay-soft: #f9e1cf;
+  --color-sky: #2f4a75;
+  --color-sky-soft: #e1e8f3;
+  --color-amber: #7a5a12;
+  --color-amber-soft: #f7eacb;
+  --color-alert: #a3332a;
+  --color-on-alert: #ffffff;
+  --color-alert-soft: #f6deda;
+  --color-plum: #5d3a6e;
+  --color-plum-soft: #ece2f0;
+  --color-stone: #4a4436;
+  --color-stone-soft: #e9e4da;
+  --color-star: var(--color-clay);
+  --color-star-empty: #ddd3c1;
+  --color-link: var(--color-forest);
+  --color-focus: #1f6448;
+
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-2xl: 36px;
+
+  --height-control-sm: 36px;
+  --height-control-md: 44px;
+  --height-control-lg: 52px;
+  --height-control-xl: 56px;
+  --height-bottom-nav: 80px;
+  --width-sidebar: 260px;
+  --width-sidebar-admin: 240px;
+  --container-content-max: 1296px;
+
+  --shadow-hover: 0 18px 40px rgba(18, 61, 44, 0.12);
+  --shadow-float: 0 24px 60px rgba(18, 61, 44, 0.1);
+  --shadow-dialog: 0 30px 60px rgba(22, 33, 28, 0.3);
+  --shadow-cta: 0 10px 24px rgba(232, 129, 63, 0.45);
+  --shadow-focus: 0 0 0 4px rgba(31, 100, 72, 0.18);
+}
+
+/* Dark palette, defined once; both triggers below (system preference and
+ * an explicit user override) just remap the public tokens onto it, so the
+ * values themselves are never duplicated. */
+:root {
+  --dark-surface: #111b16;
+  --dark-surface-raised: #18241e;
+  --dark-surface-card: #1e2c25;
+  --dark-surface-sunken: #0c1410;
+  --dark-line: #2c3b33;
+  --dark-line-strong: #46594f;
+  --dark-ink: #f1ece2;
+  --dark-ink-muted: #a9b7ae;
+  --dark-forest: #5fb58c;
+  --dark-forest-deep: #0b2a1e;
+  --dark-on-forest: #0c1410;
+  --dark-on-forest-deep: #f1ece2;
+  --dark-forest-soft: #173a2a;
+  --dark-clay: #f0914f;
+  --dark-clay-ink: #f4a66e;
+  --dark-clay-soft: #3a2212;
+  --dark-sky: #9db7e0;
+  --dark-sky-soft: #1c2a40;
+  --dark-amber: #e8c46a;
+  --dark-amber-soft: #332812;
+  --dark-alert: #f08a7e;
+  --dark-on-alert: #16211c;
+  --dark-alert-soft: #3d1a16;
+  --dark-plum: #cda8dd;
+  --dark-plum-soft: #2e2036;
+  --dark-stone: #cfc7b6;
+  --dark-stone-soft: #2a2822;
+  --dark-star-empty: #3a4a41;
+  --dark-focus: #8fd6b2;
+  --dark-shadow-hover: 0 18px 40px rgba(0, 0, 0, 0.5);
+  --dark-shadow-float: 0 24px 60px rgba(0, 0, 0, 0.5);
+  --dark-shadow-dialog: 0 30px 60px rgba(0, 0, 0, 0.6);
+  --dark-shadow-cta: 0 10px 24px rgba(240, 145, 79, 0.3);
+  --dark-shadow-focus: 0 0 0 4px rgba(143, 214, 178, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface: var(--dark-surface);
+    --color-surface-raised: var(--dark-surface-raised);
+    --color-surface-card: var(--dark-surface-card);
+    --color-surface-sunken: var(--dark-surface-sunken);
+    --color-line: var(--dark-line);
+    --color-line-strong: var(--dark-line-strong);
+    --color-ink: var(--dark-ink);
+    --color-ink-muted: var(--dark-ink-muted);
+    --color-forest: var(--dark-forest);
+    --color-forest-deep: var(--dark-forest-deep);
+    --color-on-forest: var(--dark-on-forest);
+    --color-on-forest-deep: var(--dark-on-forest-deep);
+    --color-forest-soft: var(--dark-forest-soft);
+    --color-clay: var(--dark-clay);
+    --color-clay-ink: var(--dark-clay-ink);
+    --color-clay-soft: var(--dark-clay-soft);
+    --color-sky: var(--dark-sky);
+    --color-sky-soft: var(--dark-sky-soft);
+    --color-amber: var(--dark-amber);
+    --color-amber-soft: var(--dark-amber-soft);
+    --color-alert: var(--dark-alert);
+    --color-on-alert: var(--dark-on-alert);
+    --color-alert-soft: var(--dark-alert-soft);
+    --color-plum: var(--dark-plum);
+    --color-plum-soft: var(--dark-plum-soft);
+    --color-stone: var(--dark-stone);
+    --color-stone-soft: var(--dark-stone-soft);
+    --color-star-empty: var(--dark-star-empty);
+    --color-focus: var(--dark-focus);
+    --shadow-hover: var(--dark-shadow-hover);
+    --shadow-float: var(--dark-shadow-float);
+    --shadow-dialog: var(--dark-shadow-dialog);
+    --shadow-cta: var(--dark-shadow-cta);
+    --shadow-focus: var(--dark-shadow-focus);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-surface: var(--dark-surface);
+  --color-surface-raised: var(--dark-surface-raised);
+  --color-surface-card: var(--dark-surface-card);
+  --color-surface-sunken: var(--dark-surface-sunken);
+  --color-line: var(--dark-line);
+  --color-line-strong: var(--dark-line-strong);
+  --color-ink: var(--dark-ink);
+  --color-ink-muted: var(--dark-ink-muted);
+  --color-forest: var(--dark-forest);
+  --color-forest-deep: var(--dark-forest-deep);
+  --color-on-forest: var(--dark-on-forest);
+  --color-on-forest-deep: var(--dark-on-forest-deep);
+  --color-forest-soft: var(--dark-forest-soft);
+  --color-clay: var(--dark-clay);
+  --color-clay-ink: var(--dark-clay-ink);
+  --color-clay-soft: var(--dark-clay-soft);
+  --color-sky: var(--dark-sky);
+  --color-sky-soft: var(--dark-sky-soft);
+  --color-amber: var(--dark-amber);
+  --color-amber-soft: var(--dark-amber-soft);
+  --color-alert: var(--dark-alert);
+  --color-on-alert: var(--dark-on-alert);
+  --color-alert-soft: var(--dark-alert-soft);
+  --color-plum: var(--dark-plum);
+  --color-plum-soft: var(--dark-plum-soft);
+  --color-stone: var(--dark-stone);
+  --color-stone-soft: var(--dark-stone-soft);
+  --color-star-empty: var(--dark-star-empty);
+  --color-focus: var(--dark-focus);
+  --shadow-hover: var(--dark-shadow-hover);
+  --shadow-float: var(--dark-shadow-float);
+  --shadow-dialog: var(--dark-shadow-dialog);
+  --shadow-cta: var(--dark-shadow-cta);
+  --shadow-focus: var(--dark-shadow-focus);
+}
+
+/* Named type styles from the design system — one class per style so
+ * markup reads the same name a designer would use, instead of stacking
+ * four separate utilities (size + weight + tracking + family) everywhere. */
+@utility text-display-xl {
+  font-family: var(--font-display);
+  font-size: 76px;
+  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: -2.5px;
+}
+@utility text-display-l {
+  font-family: var(--font-display);
+  font-size: 52px;
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+}
+@utility text-heading-1 {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+@utility text-heading-2 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+@utility text-heading-3 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+@utility text-heading-4 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+@utility text-number-xl {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+@utility text-body-l {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 27px;
+  font-weight: 400;
+}
+@utility text-body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 400;
+}
+@utility text-body-strong {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 600;
+}
+@utility text-small {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+@utility text-caption {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+@utility text-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+@utility text-mono-id {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+@utility text-amount {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 html,
@@ -31,7 +292,33 @@ body {
 
 body {
   margin: 0;
-  background-color: var(--color-brand-bg);
-  color: var(--color-brand-text);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+/* box-shadow already follows whatever border-radius the focused element
+ * has of its own — forcing one here would flatten a pill button or a
+ * round avatar into a rounded rectangle the instant it's focused. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Every text/select field is a bordered wrapper div around a plain
+ * input/select/textarea (TextField, SelectField): the wrapper draws the
+ * ring itself via `focus-within`, sized to its own rounded corners. The
+ * inner control's own box is shorter than the wrapper, so letting the
+ * rule above also ring the inner element produces two mismatched,
+ * concentric borders — suppressed here instead. */
+:is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus-visible {
+  box-shadow: none;
+}
+
+/* Chrome fills a known-autofilled field with its own yellow background
+ * that ordinary background-color rules can't override — this delays the
+ * paint long enough to layer our own surface color in in its place. */
+input:autofill {
+  transition: background-color 9999s ease-in-out 0s;
+  -webkit-text-fill-color: var(--color-ink);
 }

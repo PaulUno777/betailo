@@ -68,6 +68,10 @@ services:
       MONGODB_URI: mongodb://mongo:27017/?replicaSet=rs0
       MONGODB_DATABASE: betailo
       STORAGE_ENDPOINT: http://seaweedfs:9000
+      # Presigned URLs go to the browser, which is outside this compose
+      # network and can't resolve the "seaweedfs" hostname — the 9000
+      # port mapping below makes the same server reachable as localhost.
+      STORAGE_PUBLIC_ENDPOINT: http://localhost:9000
       STORAGE_BUCKET: betailo
       STORAGE_ACCESS_KEY: betailo
       STORAGE_SECRET_KEY: betailo123
