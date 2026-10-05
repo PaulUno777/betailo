@@ -52,6 +52,16 @@ export const routes: Routes = [
         canActivate: [authGuard]
       },
       {
+        path: 'farms/:id/reviews',
+        loadComponent: () => import('./features/marketplace/farm-reviews.component').then((m) => m.FarmReviewsComponent)
+      },
+      {
+        path: 'account/reservations/:id/review',
+        loadComponent: () => import('./features/account/review-form.component').then((m) => m.ReviewFormComponent),
+        canActivate: [authGuard],
+        data: { focus: true }
+      },
+      {
         path: 'notifications',
         loadComponent: () => import('./features/notifications/notifications.component').then((m) => m.NotificationsComponent),
         canActivate: [authGuard]

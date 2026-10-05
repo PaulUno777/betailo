@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { map } from 'rxjs';
@@ -41,6 +41,7 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
   selector: 'bt-listing-detail',
   imports: [
     NgTemplateOutlet,
+    RouterLink,
     FormsModule,
     StatusBadgeComponent,
     CycleTimelineComponent,
@@ -141,11 +142,18 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
               </section>
 
               <section id="avis" class="flex scroll-mt-20 flex-col gap-4">
-                <h2 class="text-heading-3">{{ 'listingDetail.reviewsTitle' | t }}</h2>
+                <div class="flex items-baseline justify-between gap-3">
+                  <h2 class="text-heading-3">{{ 'listingDetail.reviewsTitle' | t }}</h2>
+                  @if (d.reviewSummary.count > 0) {
+                    <a [routerLink]="['/farms', d.farm.id, 'reviews']" class="text-body-strong text-forest underline">
+                      {{ 'listingDetail.seeAllReviews' | t: { count: d.reviewSummary.count } }}
+                    </a>
+                  }
+                </div>
                 @if (d.reviewSummary.count > 0) {
                   <bt-rating-summary [average]="d.reviewSummary.average" [count]="d.reviewSummary.count" [histogram]="d.reviewSummary.histogram" />
                   @for (review of d.topReviews; track review.id) {
-                    <bt-review-card [rating]="review.rating" [comment]="review.comment" />
+                    <bt-review-card [review]="review" [anonymousName]="'farmReviews.anonymous' | t" />
                   }
                 } @else {
                   <p class="rounded-lg border border-dashed border-line-strong p-5 text-center text-body text-ink-muted">
