@@ -54,6 +54,10 @@ type SellerDashboardOutput struct {
 
 	ActiveCycles       []CycleSummary
 	LatestReservations []*domain.Reservation
+
+	// Todos is "À faire aujourd'hui": what needs the farmer now, decided
+	// here so the portal only lists it.
+	Todos []Todo
 }
 
 const latestReservationsLimit = 6
@@ -122,6 +126,7 @@ func (uc *SellerDashboard) Execute(ctx context.Context, in SellerDashboardInput)
 	}
 
 	out.LatestReservations = latestN(reservations, latestReservationsLimit)
+	out.Todos = todosFor(cycles, reservations, cycleByListing, uc.Clock.Now())
 
 	for _, c := range cycles {
 		if c.Status != domain.CycleStatusPlanned && c.Status != domain.CycleStatusInProgress {
@@ -166,4 +171,64 @@ func latestN(reservations []*domain.Reservation, n int) []*domain.Reservation {
 		sorted = sorted[:n]
 	}
 	return sorted
+}
+
+// Todo kinds.
+const (
+	TodoMarkDelivered   = "mark_delivered"   // paid reservations waiting to be delivered
+	TodoHealthLog       = "health_log"       // a cycle with buyers and no carnet entry for a week
+	TodoAwaitingPayment = "awaiting_payment" // reserved but not paid yet
+)
+
+// healthLogStaleAfter is how long a cycle with buyers can go without a
+// carnet entry before the farmer is nudged to add one.
+const healthLogStaleAfter = 7 * 24 * time.Hour
+
+// Todo is one line of "À faire aujourd'hui". Count is set for
+// reservation todos; CycleID and CycleRef point a health-log todo at its
+// cycle.
+type Todo struct {
+	Kind     string
+	Count    int
+	CycleID  bson.ObjectID
+	CycleRef string
+}
+
+func todosFor(cycles []*domain.Cycle, reservations []*domain.Reservation, cycleByListing map[bson.ObjectID]*domain.Cycle, now time.Time) []Todo {
+	var toDeliver, unpaid int
+	buyersOn := map[bson.ObjectID]bool{}
+	for _, r := range reservations {
+		paid := r.Payment != nil && r.Payment.Status == domain.PaymentHeld
+		switch {
+		case r.Status == domain.ReservationConfirmed && paid && r.DeliveredAt == nil:
+			toDeliver++
+		case r.Status == domain.ReservationPending:
+			unpaid++
+		}
+		if c, ok := cycleByListing[r.ListingID]; ok && domain.GroupOf(r) == domain.GroupActive {
+			buyersOn[c.ID] = true
+		}
+	}
+	var todos []Todo
+	if toDeliver > 0 {
+		todos = append(todos, Todo{Kind: TodoMarkDelivered, Count: toDeliver})
+	}
+	for _, c := range cycles {
+		if c.Status != domain.CycleStatusInProgress || !buyersOn[c.ID] {
+			continue
+		}
+		last := c.StartsAt
+		for _, e := range c.HealthLog {
+			if e.Date.After(last) && !e.Date.After(now) {
+				last = e.Date
+			}
+		}
+		if now.Sub(last) > healthLogStaleAfter {
+			todos = append(todos, Todo{Kind: TodoHealthLog, CycleID: c.ID, CycleRef: c.Reference})
+		}
+	}
+	if unpaid > 0 {
+		todos = append(todos, Todo{Kind: TodoAwaitingPayment, Count: unpaid})
+	}
+	return todos
 }

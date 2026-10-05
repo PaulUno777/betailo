@@ -22,6 +22,14 @@ type sellerDashboardResponse struct {
 	WeeklyReservationCounts [8]int                 `json:"weeklyReservationCounts"`
 	ActiveCycles            []cycleSummaryResponse `json:"activeCycles"`
 	LatestReservations      []reservationResponse  `json:"latestReservations"`
+	Todos                   []todoResponse         `json:"todos"`
+}
+
+type todoResponse struct {
+	Kind     string `json:"kind"`
+	Count    int    `json:"count,omitempty"`
+	CycleID  string `json:"cycleId,omitempty"`
+	CycleRef string `json:"cycleRef,omitempty"`
 }
 
 func handleSellerDashboard(uc *dashboard.SellerDashboard) http.HandlerFunc {
@@ -54,10 +62,20 @@ func handleSellerDashboard(uc *dashboard.SellerDashboard) http.HandlerFunc {
 			latest = append(latest, toReservationResponse(res))
 		}
 
+		todos := make([]todoResponse, 0, len(out.Todos))
+		for _, td := range out.Todos {
+			t := todoResponse{Kind: td.Kind, Count: td.Count, CycleRef: td.CycleRef}
+			if !td.CycleID.IsZero() {
+				t.CycleID = td.CycleID.Hex()
+			}
+			todos = append(todos, t)
+		}
+
 		writeJSON(w, http.StatusOK, sellerDashboardResponse{
 			TrustScore: out.TrustScore, ReservationsThisPeriod: out.ReservationsThisPeriod,
 			EscrowHeldTotal: out.EscrowHeldTotal, ReleasedThisPeriod: out.ReleasedThisPeriod,
 			WeeklyReservationCounts: out.WeeklyReservationCounts, ActiveCycles: cycles, LatestReservations: latest,
+			Todos: todos,
 		})
 	}
 }
