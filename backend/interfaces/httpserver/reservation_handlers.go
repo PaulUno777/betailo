@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
@@ -222,27 +224,99 @@ func handleOpenDispute(uc *reservation.OpenDispute) http.HandlerFunc {
 	}
 }
 
-func handleListMyReservations(uc *reservation.ListMyReservations) http.HandlerFunc {
+// reservationViewResponse is a reservation card: the reservation, what
+// was reserved and from whom, and the server's decisions about its tab,
+// progress and next actions (see reservation.View).
+type reservationViewResponse struct {
+	reservationResponse
+	Listing struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+		Unit  string `json:"unit,omitempty"`
+		Photo string `json:"photo,omitempty"`
+	} `json:"listing"`
+	Farm struct {
+		ID           string `json:"id"`
+		Name         string `json:"name"`
+		Location     string `json:"location"`
+		ContactPhone string `json:"contactPhone,omitempty"`
+	} `json:"farm"`
+	Cycle struct {
+		ID        string     `json:"id"`
+		Reference string     `json:"reference"`
+		Status    string     `json:"status"`
+		StartsAt  time.Time  `json:"startsAt"`
+		EndsAt    *time.Time `json:"endsAt,omitempty"`
+	} `json:"cycle"`
+	Group         string               `json:"group"`
+	Steps         []escrowStepResponse `json:"steps"`
+	AutoReleaseAt *time.Time           `json:"autoReleaseAt,omitempty"`
+	DisputeOpen   bool                 `json:"disputeOpen"`
+	Reviewed      bool                 `json:"reviewed"`
+	Actions       []string             `json:"actions"`
+}
+
+type escrowStepResponse struct {
+	Key   string `json:"key"`
+	State string `json:"state"`
+}
+
+type reservationListResponse struct {
+	Items       []reservationViewResponse `json:"items"`
+	Counts      map[string]int            `json:"counts"`
+	EscrowTotal float64                   `json:"escrowTotal"`
+}
+
+func toReservationListResponse(ctx context.Context, storage ports.ObjectStorage, list *reservation.ViewList) reservationListResponse {
+	out := reservationListResponse{Items: make([]reservationViewResponse, 0, len(list.Items)), Counts: map[string]int{}, EscrowTotal: list.EscrowTotal}
+	for g, n := range list.Counts {
+		out.Counts[string(g)] = n
+	}
+	for _, v := range list.Items {
+		item := reservationViewResponse{reservationResponse: toReservationResponse(v.Reservation)}
+		item.Listing.ID, item.Listing.Title, item.Listing.Unit = v.Listing.ID.Hex(), v.Listing.Title, v.Listing.Unit
+		if len(v.Listing.Photos) > 0 {
+			if url, err := storage.PresignDownload(ctx, v.Listing.Photos[0]); err == nil {
+				item.Listing.Photo = url
+			}
+		}
+		item.Farm.ID, item.Farm.Name, item.Farm.Location = v.Farm.ID.Hex(), v.Farm.Name, v.Farm.Location
+		if slices.Contains(v.Actions, reservation.ActionContact) {
+			item.Farm.ContactPhone = v.Farm.ContactPhone
+		}
+		item.Cycle.ID, item.Cycle.Reference, item.Cycle.Status = v.Cycle.ID.Hex(), v.Cycle.Reference, string(v.Cycle.Status)
+		item.Cycle.StartsAt, item.Cycle.EndsAt = v.Cycle.StartsAt, v.Cycle.EndsAt
+		item.Group, item.AutoReleaseAt, item.DisputeOpen, item.Reviewed = string(v.Group), v.AutoReleaseAt, v.DisputeOpen, v.Reviewed
+		item.Steps = make([]escrowStepResponse, 0, len(v.Steps))
+		for _, st := range v.Steps {
+			item.Steps = append(item.Steps, escrowStepResponse{Key: string(st.Key), State: string(st.State)})
+		}
+		item.Actions = make([]string, 0, len(v.Actions))
+		for _, a := range v.Actions {
+			item.Actions = append(item.Actions, string(a))
+		}
+		out.Items = append(out.Items, item)
+	}
+	return out
+}
+
+func handleListMyReservations(uc *reservation.ListMyReservations, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
 			writeError(w, errUnauthorized)
 			return
 		}
-		reservations, err := uc.Execute(r.Context(), claims.UserID)
+		list, err := uc.Execute(r.Context(), claims.UserID, domain.ReservationGroup(r.URL.Query().Get("group")))
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		out := make([]reservationResponse, 0, len(reservations))
-		for _, res := range reservations {
-			out = append(out, toReservationResponse(res))
-		}
-		writeJSON(w, http.StatusOK, out)
+		writeJSON(w, http.StatusOK, toReservationListResponse(r.Context(), storage, list))
 	}
 }
 
-func handleListReservationsByFarm(uc *reservation.ListReservationsByFarm) http.HandlerFunc {
+func handleListReservationsByFarm(uc *reservation.ListReservationsByFarm, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -253,17 +327,13 @@ func handleListReservationsByFarm(uc *reservation.ListReservationsByFarm) http.H
 		if !ok {
 			return
 		}
-		reservations, err := uc.Execute(r.Context(), reservation.ListReservationsByFarmInput{
-			FarmID: farmID, OwnerID: claims.UserID,
+		list, err := uc.Execute(r.Context(), reservation.ListReservationsByFarmInput{
+			FarmID: farmID, OwnerID: claims.UserID, Group: domain.ReservationGroup(r.URL.Query().Get("group")),
 		})
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		out := make([]reservationResponse, 0, len(reservations))
-		for _, res := range reservations {
-			out = append(out, toReservationResponse(res))
-		}
-		writeJSON(w, http.StatusOK, out)
+		writeJSON(w, http.StatusOK, toReservationListResponse(r.Context(), storage, list))
 	}
 }

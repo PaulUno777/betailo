@@ -266,9 +266,13 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Reservations: tf.reservations, Reports: tf.reports, Listings: tf.listings, Cycles: tf.cycles,
 			Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock,
 		},
-		OpenDispute:            &reservation.OpenDispute{Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
-		ListMyReservations:     &reservation.ListMyReservations{Reservations: tf.reservations},
-		ListReservationsByFarm: &reservation.ListReservationsByFarm{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
+		OpenDispute: &reservation.OpenDispute{Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
+		ListMyReservations: &reservation.ListMyReservations{
+			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reports: tf.reports, Reviews: tf.reviews,
+		},
+		ListReservationsByFarm: &reservation.ListReservationsByFarm{
+			Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Reviews: tf.reviews,
+		},
 
 		CreateReview: &review.CreateReview{
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reviews: tf.reviews, Trust: trustRecompute,

@@ -133,8 +133,12 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		Farms: farms, Trust: trustRecompute, Clock: systemClock,
 	}
 	openDispute := &reservation.OpenDispute{Reservations: reservations, Reports: reports, Clock: systemClock}
-	listMyReservations := &reservation.ListMyReservations{Reservations: reservations}
-	listReservationsByFarm := &reservation.ListReservationsByFarm{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations}
+	listMyReservations := &reservation.ListMyReservations{
+		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reports: reports, Reviews: reviews,
+	}
+	listReservationsByFarm := &reservation.ListReservationsByFarm{
+		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Reviews: reviews,
+	}
 
 	createReview := &review.CreateReview{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reviews: reviews, Trust: trustRecompute,

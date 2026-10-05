@@ -85,13 +85,13 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// farmer can buy too — but does need auth, since BuyerID/FarmOwnerID
 	// always come from the token, never a request body field.
 	mux.Handle("POST /listings/{id}/reservations", chain(handleCreateReservation(deps.ReserveCycle), auth))
-	mux.Handle("GET /reservations/mine", chain(handleListMyReservations(deps.ListMyReservations), auth))
+	mux.Handle("GET /reservations/mine", chain(handleListMyReservations(deps.ListMyReservations, deps.Storage), auth))
 	mux.Handle("POST /reservations/{id}/pay", chain(handlePayReservation(deps.PayReservation), auth))
 	mux.Handle("POST /reservations/{id}/mark-delivered", chain(handleMarkDelivered(deps.MarkDelivered), auth))
 	mux.Handle("POST /reservations/{id}/confirm-delivery", chain(handleConfirmDelivery(deps.ConfirmDelivery), auth))
 	mux.Handle("POST /reservations/{id}/cancel", chain(handleCancelReservation(deps.CancelReservation), auth))
 	mux.Handle("POST /reservations/{id}/dispute", chain(handleOpenDispute(deps.OpenDispute), auth))
-	mux.Handle("GET /farms/{farmId}/reservations", chain(handleListReservationsByFarm(deps.ListReservationsByFarm), auth))
+	mux.Handle("GET /farms/{farmId}/reservations", chain(handleListReservationsByFarm(deps.ListReservationsByFarm, deps.Storage), auth))
 
 	// Reviews — writing one needs auth (the buyer only); reading a
 	// farm's reviews is public, like its listings.

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 )
@@ -135,12 +136,18 @@ func TestReservation_HTTP_FullEscrowLifecycle(t *testing.T) {
 
 	// The buyer's own reservation list should show it.
 	mineRec := doJSON(t, router, http.MethodGet, "/reservations/mine", nil, buyerToken)
-	mine := decodeJSON[[]reservationResponse](t, mineRec)
+	mine := decodeJSON[reservationListResponse](t, mineRec)
 	found := false
-	for _, r := range mine {
+	for _, r := range mine.Items {
 		if r.ID == reservationID {
 			found = true
+			if r.Group != "done" || !slices.Contains(r.Actions, "review") || r.Listing.Title == "" || r.Reference == "" {
+				t.Errorf("released reservation view = %+v, want done group, a review action, listing title and reference", r)
+			}
 		}
+	}
+	if mine.Counts["done"] != 1 || mine.EscrowTotal != 0 {
+		t.Errorf("counts=%v escrowTotal=%v, want one done and nothing held", mine.Counts, mine.EscrowTotal)
 	}
 	if !found {
 		t.Error("GET /reservations/mine doesn't include the buyer's own reservation")
@@ -200,13 +207,50 @@ func TestReservation_HTTP_ListByFarm_OwnerOnly(t *testing.T) {
 	if ownerRec.Code != http.StatusOK {
 		t.Fatalf("owner list status = %d, want %d; body = %s", ownerRec.Code, http.StatusOK, ownerRec.Body.String())
 	}
-	if len(decodeJSON[[]reservationResponse](t, ownerRec)) != 1 {
-		t.Error("farm owner should see exactly one reservation")
+	owned := decodeJSON[reservationListResponse](t, ownerRec)
+	if len(owned.Items) != 1 {
+		t.Fatal("farm owner should see exactly one reservation")
+	}
+	if !slices.Contains(owned.Items[0].Actions, "mark_delivered") || owned.EscrowTotal != owned.Items[0].TotalAmount {
+		t.Errorf("farmer view = %+v (escrow %v), want mark_delivered offered and the held amount totalled", owned.Items[0].Actions, owned.EscrowTotal)
 	}
 
 	otherFarmerToken, _ := registerAndLogin(t, router, uniqueEmail("other-farmer"), "farmer")
 	forbiddenRec := doJSON(t, router, http.MethodGet, "/farms/"+farmID+"/reservations", nil, otherFarmerToken)
 	if forbiddenRec.Code != http.StatusForbidden {
 		t.Fatalf("non-owner list status = %d, want %d", forbiddenRec.Code, http.StatusForbidden)
+	}
+}
+
+func TestReservation_HTTP_ActionsFollowTheLifecycleAndCancel(t *testing.T) {
+	router := newTestRouter()
+	listingID, farmerToken := setupListing(t, router, 120)
+	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
+
+	// Farmers can't reserve their own listing.
+	own := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 1}, farmerToken)
+	if own.Code != http.StatusForbidden {
+		t.Fatalf("own listing status = %d, want 403", own.Code)
+	}
+
+	rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 4}, buyerToken)
+	id := decodeJSON[createReservationResponse](t, rec).Reservation.ID
+
+	list := decodeJSON[reservationListResponse](t, doJSON(t, router, http.MethodGet, "/reservations/mine?group=active", nil, buyerToken))
+	if len(list.Items) != 1 || !slices.Contains(list.Items[0].Actions, "pay") || !slices.Contains(list.Items[0].Actions, "cancel") {
+		t.Fatalf("unpaid view = %+v, want pay and cancel offered", list.Items)
+	}
+
+	cancel := doJSON(t, router, http.MethodPost, "/reservations/"+id+"/cancel", nil, buyerToken)
+	if cancel.Code != http.StatusOK || decodeJSON[reservationResponse](t, cancel).Status != "cancelled" {
+		t.Fatalf("cancel status = %d; body = %s", cancel.Code, cancel.Body.String())
+	}
+	list = decodeJSON[reservationListResponse](t, doJSON(t, router, http.MethodGet, "/reservations/mine?group=cancelled", nil, buyerToken))
+	if len(list.Items) != 1 || len(list.Items[0].Actions) != 0 || list.Counts["active"] != 0 {
+		t.Fatalf("after cancel = %+v counts=%v, want it under cancelled with no actions", list.Items, list.Counts)
+	}
+
+	if bad := doJSON(t, router, http.MethodGet, "/reservations/mine?group=bogus", nil, buyerToken); bad.Code != http.StatusBadRequest {
+		t.Errorf("unknown group status = %d, want 400", bad.Code)
 	}
 }
