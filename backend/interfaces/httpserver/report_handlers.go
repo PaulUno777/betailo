@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
@@ -37,8 +36,7 @@ func handleCreateReport(uc *report.CreateReport) http.HandlerFunc {
 			return
 		}
 		var req createReportRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 		targetID, err := parseObjectIDField(req.TargetID)

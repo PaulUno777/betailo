@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -63,8 +62,7 @@ func handleCreateListing(uc *listing.CreateListing, storage ports.ObjectStorage)
 			return
 		}
 		var req createListingRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 		cycleID, err := parseObjectIDField(req.CycleID)
@@ -112,8 +110,7 @@ func handleUpdateListing(uc *listing.UpdateListing, storage ports.ObjectStorage)
 			return
 		}
 		var req createListingRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 
@@ -170,8 +167,7 @@ func handleSetListingPhotos(uc *listing.SetListingPhotos, storage ports.ObjectSt
 			return
 		}
 		var req setListingPhotosRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 		l, err := uc.Execute(r.Context(), listing.SetListingPhotosInput{ListingID: id, OwnerID: claims.UserID, Keys: req.Keys})

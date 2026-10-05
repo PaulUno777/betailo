@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
@@ -38,8 +37,7 @@ func handleCreateFarm(uc *farm.CreateFarm) http.HandlerFunc {
 		}
 
 		var req farmRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 
@@ -101,8 +99,7 @@ func handleUpdateFarm(uc *farm.UpdateFarm) http.HandlerFunc {
 			return
 		}
 		var req farmRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 

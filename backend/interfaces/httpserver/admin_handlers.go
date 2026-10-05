@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
@@ -236,8 +235,7 @@ func handleAdminResolveReport(uc *admin.ResolveReport) http.HandlerFunc {
 			return
 		}
 		var req resolveReportRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 		rp, err := uc.Execute(r.Context(), admin.ResolveReportInput{ReportID: id, Action: admin.ResolveAction(req.Action)})
