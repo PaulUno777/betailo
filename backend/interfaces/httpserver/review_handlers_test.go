@@ -136,8 +136,11 @@ func TestReview_HTTP_RichReviewHelpfulAndReply(t *testing.T) {
 		t.Errorf("voting your own review status = %d, want 403", own.Code)
 	}
 	mine := decodeJSON[farmReviewsResponse](t, doJSON(t, router, http.MethodGet, "/farms/"+farmID+"/reviews", nil, otherToken))
-	if !mine.Items[0].VotedByMe {
-		t.Error("votedByMe should be true for the voter")
+	if !mine.Items[0].VotedByMe || mine.Items[0].Mine {
+		t.Error("for the voter: votedByMe should be true and mine false")
+	}
+	if own := decodeJSON[farmReviewsResponse](t, doJSON(t, router, http.MethodGet, "/farms/"+farmID+"/reviews", nil, buyerToken)); !own.Items[0].Mine {
+		t.Error("mine should be true for the review's author")
 	}
 
 	// Reply: owner only, once, and the reviewer hears about it.

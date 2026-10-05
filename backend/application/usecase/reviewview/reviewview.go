@@ -19,6 +19,8 @@ type Item struct {
 	AuthorName     string
 	ReservationRef string
 	VotedByViewer  bool
+	// ByViewer is true on the viewer's own review: they can't vote on it.
+	ByViewer bool
 }
 
 // Sources is the read access Build needs.
@@ -46,7 +48,7 @@ func Build(ctx context.Context, src Sources, reviews []*domain.Review, viewerID 
 	}
 	items := make([]Item, 0, len(reviews))
 	for _, r := range reviews {
-		it := Item{Review: r, VotedByViewer: voted[r.ID]}
+		it := Item{Review: r, VotedByViewer: voted[r.ID], ByViewer: !viewerID.IsZero() && r.AuthorID == viewerID}
 		if u, err := src.Users.FindByID(ctx, r.AuthorID); err == nil {
 			it.AuthorName = domain.PublicName(u.DisplayName)
 		}
