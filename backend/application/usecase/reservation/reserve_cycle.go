@@ -37,8 +37,10 @@ const UnpaidReservationGrace = 24 * time.Hour
 // happens only after that transaction commits — never before, so a
 // buyer is never charged for a reservation that failed on capacity.
 type ReserveCycle struct {
-	Listings     ports.ListingRepository
+	Listings     ports.ListingStore
 	Cycles       ports.CycleRepository
+	Farms        ports.FarmRepository
+	Sequencer    ports.Sequencer
 	Reservations ports.ReservationRepository
 	Payments     ports.PaymentProvider
 	Tx           ports.TxManager
@@ -57,6 +59,9 @@ type ReserveCycleInput struct {
 	// UnpaidReservationGrace and the worker's expiry sweep.
 	PayNow        bool
 	PaymentMethod ports.PaymentMethod
+	// PayerPhone is the Mobile Money number as typed; required for
+	// mtn_momo and orange_money, ignored for card.
+	PayerPhone string
 }
 
 // ReserveCycleOutput wraps the usecase's result. PaymentCaptured is
@@ -74,20 +79,52 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 		return nil, fmt.Errorf("reservation: quantity must be positive: %w", domain.ErrInvalid)
 	}
 
-	cycleID, unitPrice, err := uc.Listings.CycleAndPrice(ctx, in.ListingID)
+	var payment validPayment
+	if in.PayNow {
+		p, err := validatePayment(in.PaymentMethod, in.PayerPhone)
+		if err != nil {
+			return nil, err
+		}
+		payment = p
+	}
+
+	l, err := uc.Listings.FindByID(ctx, in.ListingID)
 	if err != nil {
 		return nil, err
 	}
+	// The same rule as the public listing page: only a published,
+	// unflagged listing is on sale.
+	if l.Status != domain.ListingPublished || l.Flagged || l.CycleID == nil {
+		return nil, fmt.Errorf("reservation: listing is not available: %w", domain.ErrNotFound)
+	}
+	cycleID, unitPrice := *l.CycleID, l.UnitPrice
 
 	cyc, err := uc.Cycles.FindByID(ctx, cycleID)
 	if err != nil {
 		return nil, err
+	}
+	if cyc.Status != domain.CycleStatusPlanned && cyc.Status != domain.CycleStatusInProgress {
+		return nil, fmt.Errorf("reservation: the cycle is no longer open: %w", domain.ErrConflict)
+	}
+	farm, err := uc.Farms.FindByID(ctx, cyc.FarmID)
+	if err != nil {
+		return nil, err
+	}
+	// A farmer reserving their own animals would mint released "sales"
+	// that feed their trust score.
+	if farm.OwnerID == in.BuyerID {
+		return nil, fmt.Errorf("reservation: you can't reserve your own listing: %w", domain.ErrForbidden)
 	}
 	if cyc.MinPerReservation > 0 && in.Quantity < cyc.MinPerReservation {
 		return nil, fmt.Errorf("reservation: quantity below the cycle's minimum of %d: %w", cyc.MinPerReservation, domain.ErrInvalid)
 	}
 	if cyc.MaxPerReservation > 0 && in.Quantity > cyc.MaxPerReservation {
 		return nil, fmt.Errorf("reservation: quantity above the cycle's maximum of %d: %w", cyc.MaxPerReservation, domain.ErrInvalid)
+	}
+
+	seq, err := uc.Sequencer.Next(ctx, domain.ReservationRefPrefix)
+	if err != nil {
+		return nil, err
 	}
 
 	subtotal := unitPrice * float64(in.Quantity)
@@ -97,6 +134,7 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 
 	res := &domain.Reservation{
 		ID:              bson.NewObjectID(),
+		Reference:       domain.FormatReference(domain.ReservationRefPrefix, seq),
 		ListingID:       in.ListingID,
 		BuyerID:         in.BuyerID,
 		Quantity:        in.Quantity,
@@ -123,7 +161,7 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 		return &ReserveCycleOutput{Reservation: res}, nil
 	}
 
-	if err := capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, in.PaymentMethod); err != nil {
+	if err := capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, payment); err != nil {
 		return &ReserveCycleOutput{Reservation: res, PaymentCaptured: false}, nil
 	}
 	return &ReserveCycleOutput{Reservation: res, PaymentCaptured: true}, nil
@@ -133,8 +171,11 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 // ReserveCycle (immediate) and PayReservation (a pending reservation
 // paid later): take payment, then persist the reservation as
 // confirmed, held in escrow, and prioritized.
-func capturePayment(ctx context.Context, payments ports.PaymentProvider, reservations ports.ReservationRepository, clock ports.Clock, res *domain.Reservation, method ports.PaymentMethod) error {
-	if _, err := payments.Capture(ctx, res.ID.Hex(), res.TotalAmount, method); err != nil {
+func capturePayment(ctx context.Context, payments ports.PaymentProvider, reservations ports.ReservationRepository, clock ports.Clock, res *domain.Reservation, p validPayment) error {
+	providerRef, err := payments.Capture(ctx, ports.CaptureRequest{
+		Reference: res.Reference, Amount: res.TotalAmount, Method: p.method, PayerPhone: p.phone,
+	})
+	if err != nil {
 		return err
 	}
 	now := clock.Now()
@@ -143,5 +184,38 @@ func capturePayment(ctx context.Context, payments ports.PaymentProvider, reserva
 	res.PaymentDeadline = nil
 	res.Payment.Status = domain.PaymentHeld
 	res.Payment.HeldAt = &now
+	res.Payment.Method = string(p.method)
+	res.Payment.ProviderRef = providerRef
+	if p.phone != "" {
+		res.Payment.PayerPhoneMasked = domain.MaskPhone(p.phone)
+	}
 	return reservations.Update(ctx, res)
+}
+
+// validPayment is a checked payment method plus, for Mobile Money, the
+// payer's number in E.164.
+type validPayment struct {
+	method ports.PaymentMethod
+	phone  string
+}
+
+// validatePayment checks the method is one we take and that Mobile Money
+// comes with a Cameroonian mobile number (the only kind MoMo and Orange
+// Money work with). Card needs no number.
+func validatePayment(method ports.PaymentMethod, rawPhone string) (validPayment, error) {
+	switch method {
+	case ports.PaymentMethodCard:
+		return validPayment{method: method}, nil
+	case ports.PaymentMethodMTNMoMo, ports.PaymentMethodOrangeMoney:
+		phone, err := domain.NormalizePhone(rawPhone)
+		if err != nil {
+			return validPayment{}, fmt.Errorf("payment: mobile money number: %w", err)
+		}
+		if !domain.IsCameroonMobile(phone) {
+			return validPayment{}, fmt.Errorf("payment: mobile money needs a Cameroonian mobile number: %w", domain.ErrInvalid)
+		}
+		return validPayment{method: method, phone: phone}, nil
+	default:
+		return validPayment{}, fmt.Errorf("payment: unknown payment method %q: %w", method, domain.ErrInvalid)
+	}
 }

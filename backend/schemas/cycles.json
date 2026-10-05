@@ -2,6 +2,7 @@
   "bsonType": "object",
   "required": ["farmId", "species", "type", "status", "capacity", "availableQuantity", "startsAt"],
   "properties": {
+    "reference": { "bsonType": "string" },
     "farmId": { "bsonType": "objectId" },
     "species": { "bsonType": "string" },
     "type": { "bsonType": "string" },

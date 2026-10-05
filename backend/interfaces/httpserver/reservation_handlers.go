@@ -16,6 +16,9 @@ type paymentInfoResponse struct {
 	Amount     float64    `json:"amount"`
 	HeldAt     *time.Time `json:"heldAt,omitempty"`
 	ReleasedAt *time.Time `json:"releasedAt,omitempty"`
+
+	Method           string `json:"method,omitempty"`
+	PayerPhoneMasked string `json:"payerPhoneMasked,omitempty"`
 }
 
 // reservationResponse is what a reservation looks like over the wire —
@@ -23,6 +26,7 @@ type paymentInfoResponse struct {
 // deadline, escrow status); the client only ever renders it.
 type reservationResponse struct {
 	ID              string               `json:"id"`
+	Reference       string               `json:"reference"`
 	ListingID       string               `json:"listingId"`
 	BuyerID         string               `json:"buyerId"`
 	Quantity        int                  `json:"quantity"`
@@ -39,7 +43,7 @@ type reservationResponse struct {
 
 func toReservationResponse(r *domain.Reservation) reservationResponse {
 	resp := reservationResponse{
-		ID: r.ID.Hex(), ListingID: r.ListingID.Hex(), BuyerID: r.BuyerID.Hex(),
+		ID: r.ID.Hex(), Reference: r.Reference, ListingID: r.ListingID.Hex(), BuyerID: r.BuyerID.Hex(),
 		Quantity: r.Quantity, UnitPrice: r.UnitPrice, ServiceFee: r.ServiceFee, TotalAmount: r.TotalAmount,
 		Status: string(r.Status), Priority: r.Priority, PaymentDeadline: r.PaymentDeadline,
 		DeliveredAt: r.DeliveredAt, CreatedAt: r.CreatedAt,
@@ -48,6 +52,7 @@ func toReservationResponse(r *domain.Reservation) reservationResponse {
 		resp.Payment = &paymentInfoResponse{
 			Status: string(r.Payment.Status), Amount: r.Payment.Amount,
 			HeldAt: r.Payment.HeldAt, ReleasedAt: r.Payment.ReleasedAt,
+			Method: r.Payment.Method, PayerPhoneMasked: r.Payment.PayerPhoneMasked,
 		}
 	}
 	return resp
@@ -57,6 +62,7 @@ type createReservationRequest struct {
 	Quantity      int    `json:"quantity"`
 	PayNow        bool   `json:"payNow"`
 	PaymentMethod string `json:"paymentMethod,omitempty"`
+	PayerPhone    string `json:"payerPhone,omitempty"`
 }
 
 type createReservationResponse struct {
@@ -82,7 +88,7 @@ func handleCreateReservation(uc *reservation.ReserveCycle) http.HandlerFunc {
 
 		out, err := uc.Execute(r.Context(), reservation.ReserveCycleInput{
 			ListingID: listingID, BuyerID: claims.UserID, Quantity: req.Quantity,
-			PayNow: req.PayNow, PaymentMethod: ports.PaymentMethod(req.PaymentMethod),
+			PayNow: req.PayNow, PaymentMethod: ports.PaymentMethod(req.PaymentMethod), PayerPhone: req.PayerPhone,
 		})
 		if err != nil {
 			writeError(w, err)
@@ -96,6 +102,7 @@ func handleCreateReservation(uc *reservation.ReserveCycle) http.HandlerFunc {
 
 type payReservationRequest struct {
 	PaymentMethod string `json:"paymentMethod,omitempty"`
+	PayerPhone    string `json:"payerPhone,omitempty"`
 }
 
 func handlePayReservation(uc *reservation.PayReservation) http.HandlerFunc {
@@ -115,8 +122,28 @@ func handlePayReservation(uc *reservation.PayReservation) http.HandlerFunc {
 		}
 
 		res, err := uc.Execute(r.Context(), reservation.PayReservationInput{
-			ReservationID: id, BuyerID: claims.UserID, PaymentMethod: ports.PaymentMethod(req.PaymentMethod),
+			ReservationID: id, BuyerID: claims.UserID, PaymentMethod: ports.PaymentMethod(req.PaymentMethod), PayerPhone: req.PayerPhone,
 		})
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toReservationResponse(res))
+	}
+}
+
+func handleCancelReservation(uc *reservation.CancelReservation) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		res, err := uc.Execute(r.Context(), reservation.CancelReservationInput{ReservationID: id, BuyerID: claims.UserID})
 		if err != nil {
 			writeError(w, err)
 			return

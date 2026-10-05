@@ -16,7 +16,7 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala"}
 	farms := newFakeFarms(f)
 	cycles := newFakeCycles()
-	uc := &CreateCycle{Farms: farms, Cycles: cycles}
+	uc := &CreateCycle{Farms: farms, Cycles: cycles, Sequencer: &fakeSequencer{}}
 
 	starts := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	ends := starts.Add(30 * 24 * time.Hour)
@@ -27,6 +27,9 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
+	}
+	if c.Reference != "CYC-0001" {
+		t.Errorf("Reference = %q, want CYC-0001", c.Reference)
 	}
 	if c.Status != domain.CycleStatusPlanned {
 		t.Errorf("Status = %v, want %v", c.Status, domain.CycleStatusPlanned)

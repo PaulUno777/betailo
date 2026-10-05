@@ -160,6 +160,7 @@ type testFakes struct {
 	forumPosts    *fakeForumRepo
 	storage       fakeObjectStorage
 	favorites     *fakeFavoriteRepo
+	sequencer     *fakeSequencer
 	signer        *jwt.Signer
 	clock         clock.System
 }
@@ -195,7 +196,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 	tf := &testFakes{
 		users: newFakeUserRepo(), refreshTokens: newFakeRefreshTokenRepo(), farms: newFakeFarmRepo(), cycles: newFakeCycleStore(),
 		listings: newFakeListingStore(), reservations: newFakeReservationRepo(),
-		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(),
+		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(), sequencer: &fakeSequencer{},
 		signer: &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")},
 		clock:  clock.System{},
 	}
@@ -231,7 +232,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		UpdateFarm:  &farm.UpdateFarm{Farms: tf.farms},
 		DeleteFarm:  &farm.DeleteFarm{Farms: tf.farms, Cycles: tf.cycles},
 
-		CreateCycle:       &cycle.CreateCycle{Farms: tf.farms, Cycles: tf.cycles},
+		CreateCycle:       &cycle.CreateCycle{Farms: tf.farms, Cycles: tf.cycles, Sequencer: tf.sequencer},
 		GetCycle:          &cycle.GetCycle{Cycles: tf.cycles, Clock: tf.clock},
 		AddHealthEvent:    &cycle.AddHealthEvent{Farms: tf.farms, Cycles: tf.cycles, Clock: tf.clock},
 		ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: tf.cycles},
@@ -255,10 +256,12 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		Storage:             tf.storage,
 
 		ReserveCycle: &reservation.ReserveCycle{
-			Listings: tf.listings, Cycles: tf.cycles, Reservations: tf.reservations, Payments: payments, Tx: fakeTxManager{}, Clock: tf.clock,
+			Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Sequencer: tf.sequencer, Reservations: tf.reservations,
+			Payments: payments, Tx: fakeTxManager{}, Clock: tf.clock,
 		},
-		PayReservation: &reservation.PayReservation{Reservations: tf.reservations, Payments: payments, Clock: tf.clock},
-		MarkDelivered:  &reservation.MarkDelivered{Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Clock: tf.clock},
+		CancelReservation: &reservation.CancelReservation{Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Tx: fakeTxManager{}},
+		PayReservation:    &reservation.PayReservation{Reservations: tf.reservations, Payments: payments, Clock: tf.clock},
+		MarkDelivered:     &reservation.MarkDelivered{Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Clock: tf.clock},
 		ConfirmDelivery: &reservation.ConfirmDelivery{
 			Reservations: tf.reservations, Reports: tf.reports, Listings: tf.listings, Cycles: tf.cycles,
 			Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock,

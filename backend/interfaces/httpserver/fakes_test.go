@@ -442,7 +442,8 @@ func (f *fakeReservationRepo) ListDeliveredBefore(_ context.Context, before time
 // these tests don't depend on that package.
 type fakePaymentProvider struct{}
 
-func (fakePaymentProvider) Capture(_ context.Context, reference string, _ float64, _ ports.PaymentMethod) (string, error) {
+func (fakePaymentProvider) Capture(_ context.Context, req ports.CaptureRequest) (string, error) {
+	reference := req.Reference
 	return "fake-ref-" + reference, nil
 }
 
@@ -661,4 +662,15 @@ func (f *fakeFavoriteRepo) FavoritedAmong(_ context.Context, userID bson.ObjectI
 		}
 	}
 	return out, nil
+}
+
+// fakeSequencer counts per key, like the counters collection.
+type fakeSequencer struct{ byKey map[string]int64 }
+
+func (f *fakeSequencer) Next(_ context.Context, key string) (int64, error) {
+	if f.byKey == nil {
+		f.byKey = map[string]int64{}
+	}
+	f.byKey[key]++
+	return f.byKey[key], nil
 }

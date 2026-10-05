@@ -57,6 +57,7 @@ type Dependencies struct {
 	SearchListings      *listing.SearchListings
 	Storage             ports.ObjectStorage
 
+	CancelReservation      *reservation.CancelReservation
 	ReserveCycle           *reservation.ReserveCycle
 	PayReservation         *reservation.PayReservation
 	MarkDelivered          *reservation.MarkDelivered

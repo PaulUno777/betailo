@@ -71,6 +71,8 @@ type env struct {
 	reports      *mongodb.ReportRepository
 	notifs       *mongodb.NotificationRepository
 	favorites    *mongodb.FavoriteRepository
+	counters     *mongodb.CounterRepository
+	db           *mongo.Database
 	tx           *mongodb.TxManager
 	trust        *trust.Recompute
 }
@@ -93,6 +95,8 @@ func newEnv(t *testing.T) *env {
 		reports:      &mongodb.ReportRepository{Coll: db.Collection("reports")},
 		notifs:       &mongodb.NotificationRepository{Coll: db.Collection("notifications")},
 		favorites:    &mongodb.FavoriteRepository{Coll: db.Collection("favorites")},
+		counters:     &mongodb.CounterRepository{Coll: db.Collection("counters")},
+		db:           db,
 		tx:           &mongodb.TxManager{Client: client},
 	}
 	e.trust = &trust.Recompute{
@@ -149,8 +153,7 @@ func TestReserveCycle_ConcurrentReservationsNeverOversell(t *testing.T) {
 	const capacity, buyers, perBuyer = 50, 40, 3 // 120 requested for 50 places
 	_, cycle, listing := e.seed(t, capacity)
 
-	uc := &reservation.ReserveCycle{
-		Listings: e.listings, Cycles: e.cycles, Reservations: e.reservations,
+	uc := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Farms: e.farms, Sequencer: e.counters, Reservations: e.reservations,
 		Payments: payment.Sandbox{}, Tx: e.tx, Clock: clock.System{},
 	}
 
@@ -224,8 +227,8 @@ func TestEscrow_HeldThenReleasedOnConfirmation(t *testing.T) {
 	buyer := e.buyer(t)
 	sys := clock.System{}
 
-	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: sys}
-	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 10, PayNow: true, PaymentMethod: "mtn_momo"})
+	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Farms: e.farms, Sequencer: e.counters, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: sys}
+	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 10, PayNow: true, PaymentMethod: "mtn_momo", PayerPhone: "690123456"})
 	if err != nil || !out.PaymentCaptured {
 		t.Fatalf("reserve+pay: captured=%v err=%v", out != nil && out.PaymentCaptured, err)
 	}
@@ -250,8 +253,8 @@ func TestEscrow_HeldThenRefundedByAdmin(t *testing.T) {
 	buyer := e.buyer(t)
 	sys := clock.System{}
 
-	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: sys}
-	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 5, PayNow: true, PaymentMethod: "orange_money"})
+	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Farms: e.farms, Sequencer: e.counters, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: sys}
+	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 5, PayNow: true, PaymentMethod: "orange_money", PayerPhone: "699123456"})
 	if err != nil || !out.PaymentCaptured {
 		t.Fatalf("reserve+pay: err=%v", err)
 	}
@@ -307,8 +310,8 @@ func TestTrust_RecomputedFromRealSignals(t *testing.T) {
 	}
 	baseline := score()
 
-	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: sys}
-	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 10, PayNow: true, PaymentMethod: "mtn_momo"})
+	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Farms: e.farms, Sequencer: e.counters, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: sys}
+	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 10, PayNow: true, PaymentMethod: "mtn_momo", PayerPhone: "690123456"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +355,7 @@ func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
 
 	// A reservation made 25h ago is past the 24h unpaid grace period.
 	past := fixedClock{t: now.Add(-reservation.UnpaidReservationGrace - time.Hour)}
-	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: past}
+	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Farms: e.farms, Sequencer: e.counters, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: past}
 	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 30})
 	if err != nil {
 		t.Fatal(err)
@@ -373,7 +376,7 @@ func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
 	sys := clock.System{}
 	w := &worker.Worker{
 		Cycles:       e.cycles,
-		ExpireUnpaid: &reservation.ExpireUnpaidReservations{Reservations: e.reservations, Listings: e.listings, Cycles: e.cycles, Notifications: e.notifs, Clock: sys},
+		ExpireUnpaid: &reservation.ExpireUnpaidReservations{Reservations: e.reservations, Listings: e.listings, Cycles: e.cycles, Tx: e.tx, Notifications: e.notifs, Clock: sys},
 		AutoRelease: &reservation.AutoReleaseDeliveries{
 			Reservations: e.reservations, Reports: e.reports, Listings: e.listings, Cycles: e.cycles,
 			Farms: e.farms, Trust: e.trust, Notifications: e.notifs, Clock: sys,
@@ -506,5 +509,55 @@ func TestFavoriteRepository_IdempotentAndOrdered(t *testing.T) {
 	}
 	if err := e.favorites.Remove(ctx, user, a); err != nil {
 		t.Fatalf("removing twice should be a no-op, got %v", err)
+	}
+}
+
+// References must stay unique under concurrent creation, and the
+// startup backfill must give pre-existing documents one.
+func TestCounters_ConcurrentReferencesAreUniqueAndBackfillFillsGaps(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	seen := map[int64]bool{}
+	for range 50 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n, err := e.counters.Next(ctx, "RSV")
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if seen[n] {
+				t.Errorf("duplicate counter value %d", n)
+			}
+			seen[n] = true
+		}()
+	}
+	wg.Wait()
+	if len(seen) != 50 {
+		t.Fatalf("got %d distinct values, want 50", len(seen))
+	}
+
+	_, cycle, _ := e.seed(t, 10) // seeded straight through the repository: no reference
+	if err := mongodb.BackfillReferences(ctx, e.db); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.cycles.FindByID(ctx, cycle.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Reference != "CYC-0001" {
+		t.Fatalf("backfilled reference = %q, want CYC-0001", got.Reference)
+	}
+	if err := mongodb.BackfillReferences(ctx, e.db); err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := e.cycles.FindByID(ctx, cycle.ID); again.Reference != "CYC-0001" {
+		t.Fatalf("backfill isn't idempotent: %q", again.Reference)
 	}
 }

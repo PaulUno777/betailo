@@ -27,8 +27,8 @@ type Sandbox struct{}
 var _ ports.PaymentProvider = Sandbox{}
 
 // Capture implements ports.PaymentProvider.
-func (Sandbox) Capture(_ context.Context, reference string, _ float64, method ports.PaymentMethod) (string, error) {
-	return fmt.Sprintf("sandbox_%s_%s", method, bson.NewObjectID().Hex()), nil
+func (Sandbox) Capture(_ context.Context, req ports.CaptureRequest) (string, error) {
+	return fmt.Sprintf("sandbox_%s_%s", req.Method, bson.NewObjectID().Hex()), nil
 }
 
 // Refund implements ports.PaymentProvider.

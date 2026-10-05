@@ -18,14 +18,51 @@ import (
 // exactly this: the usecase's business rule is tested here without a
 // MongoDB instance or a real payment provider.
 
+// fakeListings serves one listing for any ID: published by default,
+// with status/flagged overridable to exercise the availability rule.
 type fakeListings struct {
 	cycleID   bson.ObjectID
 	unitPrice float64
 	err       error
+	status    domain.ListingStatus
+	flagged   bool
 }
 
 func (f *fakeListings) CycleAndPrice(context.Context, bson.ObjectID) (bson.ObjectID, float64, error) {
 	return f.cycleID, f.unitPrice, f.err
+}
+
+func (f *fakeListings) FindByID(_ context.Context, id bson.ObjectID) (*domain.Listing, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	status := f.status
+	if status == "" {
+		status = domain.ListingPublished
+	}
+	cycleID := f.cycleID
+	return &domain.Listing{ID: id, CycleID: &cycleID, UnitPrice: f.unitPrice, Status: status, Flagged: f.flagged}, nil
+}
+
+func (f *fakeListings) Create(context.Context, *domain.Listing) error { return nil }
+func (f *fakeListings) FindByCycleID(context.Context, bson.ObjectID) (*domain.Listing, error) {
+	return nil, domain.ErrNotFound
+}
+func (f *fakeListings) Update(context.Context, *domain.Listing) error { return nil }
+
+// testFarm owns every cycle fakeCycles serves; testFarmOwner is the
+// farmer behind it.
+var (
+	testFarmOwner = bson.NewObjectID()
+	testFarm      = &domain.Farm{ID: bson.NewObjectID(), OwnerID: testFarmOwner}
+)
+
+// fakeSeq counts like the counters collection.
+type fakeSeq struct{ n int64 }
+
+func (f *fakeSeq) Next(context.Context, string) (int64, error) {
+	f.n++
+	return f.n, nil
 }
 
 type fakeCycles struct {
@@ -37,7 +74,7 @@ type fakeCycles struct {
 
 func (f *fakeCycles) FindByID(_ context.Context, id bson.ObjectID) (*domain.Cycle, error) {
 	if f.cycle == nil {
-		return &domain.Cycle{ID: id, AvailableQuantity: f.available}, nil
+		return &domain.Cycle{ID: id, FarmID: testFarm.ID, Status: domain.CycleStatusInProgress, AvailableQuantity: f.available}, nil
 	}
 	return f.cycle, nil
 }
@@ -144,7 +181,8 @@ type fakePayments struct {
 	captures   []float64
 }
 
-func (f *fakePayments) Capture(_ context.Context, _ string, amount float64, _ ports.PaymentMethod) (string, error) {
+func (f *fakePayments) Capture(_ context.Context, req ports.CaptureRequest) (string, error) {
+	amount := req.Amount
 	if f.captureErr != nil {
 		return "", f.captureErr
 	}
@@ -170,6 +208,7 @@ func (fakeTx) WithinTx(ctx context.Context, fn func(ctx context.Context) error) 
 func newReserveCycle(listings *fakeListings, cycles *fakeCycles, reservations *fakeReservations, payments *fakePayments) *ReserveCycle {
 	return &ReserveCycle{
 		Listings: listings, Cycles: cycles, Reservations: reservations,
+		Farms: &fakeFarms{byID: map[bson.ObjectID]*domain.Farm{testFarm.ID: testFarm}}, Sequencer: &fakeSeq{},
 		Payments: payments, Tx: fakeTx{}, Clock: fakeClock{now: time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)},
 	}
 }
@@ -230,7 +269,7 @@ func TestReserveCycle_Execute_PayNow_Success(t *testing.T) {
 
 	out, err := uc.Execute(context.Background(), ReserveCycleInput{
 		ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID(), Quantity: 2,
-		PayNow: true, PaymentMethod: ports.PaymentMethodMTNMoMo,
+		PayNow: true, PaymentMethod: ports.PaymentMethodMTNMoMo, PayerPhone: "6 90 12 34 56",
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
@@ -268,7 +307,7 @@ func TestReserveCycle_Execute_PayNow_CaptureFailsKeepsReservationUnpaid(t *testi
 	uc := newReserveCycle(listings, cycles, reservations, payments)
 
 	out, err := uc.Execute(context.Background(), ReserveCycleInput{
-		ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID(), Quantity: 1, PayNow: true,
+		ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID(), Quantity: 1, PayNow: true, PaymentMethod: ports.PaymentMethodCard,
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil (the reservation itself must still succeed)", err)
@@ -319,7 +358,7 @@ func TestReserveCycle_Execute_RejectsNonPositiveQuantity(t *testing.T) {
 func TestReserveCycle_Execute_EnforcesMinMaxPerReservation(t *testing.T) {
 	cycleID := bson.NewObjectID()
 	listings := &fakeListings{cycleID: cycleID, unitPrice: 10}
-	cycles := &fakeCycles{cycle: &domain.Cycle{ID: cycleID, MinPerReservation: 5, MaxPerReservation: 20}, available: 100}
+	cycles := &fakeCycles{cycle: &domain.Cycle{ID: cycleID, FarmID: testFarm.ID, Status: domain.CycleStatusInProgress, MinPerReservation: 5, MaxPerReservation: 20}, available: 100}
 	uc := newReserveCycle(listings, cycles, newFakeReservations(), &fakePayments{})
 
 	in := ReserveCycleInput{ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID()}
@@ -352,5 +391,66 @@ func TestReserveCycle_Execute_ListingLookupError(t *testing.T) {
 	})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Execute() error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestReserveCycle_Execute_AvailabilityAndOwnershipRules(t *testing.T) {
+	tests := []struct {
+		name     string
+		listings *fakeListings
+		cycles   *fakeCycles
+		buyer    bson.ObjectID
+		want     error
+	}{
+		{"draft listing", &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10, status: domain.ListingDraft}, &fakeCycles{available: 10}, bson.NewObjectID(), domain.ErrNotFound},
+		{"unpublished listing", &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10, status: domain.ListingUnpublished}, &fakeCycles{available: 10}, bson.NewObjectID(), domain.ErrNotFound},
+		{"flagged listing", &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10, flagged: true}, &fakeCycles{available: 10}, bson.NewObjectID(), domain.ErrNotFound},
+		{"finished cycle", &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10},
+			&fakeCycles{cycle: &domain.Cycle{FarmID: testFarm.ID, Status: domain.CycleStatusDone, AvailableQuantity: 10}, available: 10}, bson.NewObjectID(), domain.ErrConflict},
+		{"own listing", &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10}, &fakeCycles{available: 10}, testFarmOwner, domain.ErrForbidden},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reservations := newFakeReservations()
+			uc := newReserveCycle(tt.listings, tt.cycles, reservations, &fakePayments{})
+			_, err := uc.Execute(context.Background(), ReserveCycleInput{ListingID: bson.NewObjectID(), BuyerID: tt.buyer, Quantity: 1})
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("Execute() error = %v, want %v", err, tt.want)
+			}
+			if len(tt.cycles.decrements) != 0 {
+				t.Error("a refused reservation must not claim any places")
+			}
+		})
+	}
+}
+
+func TestReserveCycle_Execute_MobileMoneyNeedsCameroonianMobile(t *testing.T) {
+	for _, phone := range []string{"", "222123456", "+33612345678", "12345"} {
+		uc := newReserveCycle(&fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10}, &fakeCycles{available: 10}, newFakeReservations(), &fakePayments{})
+		_, err := uc.Execute(context.Background(), ReserveCycleInput{
+			ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID(), Quantity: 1,
+			PayNow: true, PaymentMethod: ports.PaymentMethodOrangeMoney, PayerPhone: phone,
+		})
+		if !errors.Is(err, domain.ErrInvalid) {
+			t.Errorf("phone %q: error = %v, want ErrInvalid", phone, err)
+		}
+	}
+}
+
+func TestReserveCycle_Execute_AssignsReferenceAndMasksPayer(t *testing.T) {
+	uc := newReserveCycle(&fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10}, &fakeCycles{available: 10}, newFakeReservations(), &fakePayments{})
+	out, err := uc.Execute(context.Background(), ReserveCycleInput{
+		ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID(), Quantity: 1,
+		PayNow: true, PaymentMethod: ports.PaymentMethodMTNMoMo, PayerPhone: "690 12 34 56",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := out.Reservation
+	if res.Reference != "RSV-0001" {
+		t.Errorf("Reference = %q, want RSV-0001", res.Reference)
+	}
+	if res.Payment.Method != "mtn_momo" || res.Payment.PayerPhoneMasked != "+237 6•• •• 34 56" || res.Payment.ProviderRef == "" {
+		t.Errorf("payment = %+v, want method, masked phone and provider ref recorded", res.Payment)
 	}
 }

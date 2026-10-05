@@ -49,7 +49,7 @@ func TestAdmin_HTTP_OverviewReflectsPlatformActivity(t *testing.T) {
 	router, tf := newTestRouterAndFakes()
 	listingID, _ := setupListing(t, router, 120)
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
-	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 10, PayNow: true}, buyerToken)
+	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 10, PayNow: true, PaymentMethod: "card"}, buyerToken)
 
 	root := adminToken(t, router, tf)
 	rec := doJSON(t, router, http.MethodGet, "/admin/overview", nil, root)
@@ -130,11 +130,11 @@ func TestAdmin_HTTP_EscrowReleaseAndRefund(t *testing.T) {
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 	root := adminToken(t, router, tf)
 
-	res1Rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true}, buyerToken)
+	res1Rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true, PaymentMethod: "card"}, buyerToken)
 	res1 := decodeJSON[createReservationResponse](t, res1Rec).Reservation.ID
 	doJSON(t, router, http.MethodPost, "/reservations/"+res1+"/mark-delivered", nil, farmerToken)
 
-	res2Rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true}, buyerToken)
+	res2Rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true, PaymentMethod: "card"}, buyerToken)
 	res2 := decodeJSON[createReservationResponse](t, res2Rec).Reservation.ID
 
 	escrowRec := doJSON(t, router, http.MethodGet, "/admin/escrow", nil, root)

@@ -52,3 +52,24 @@ func NormalizePhone(raw string) (string, error) {
 	}
 	return "+" + s, nil
 }
+
+// MaskPhone hides the middle of an E.164 Cameroonian number for display
+// ("+237690123456" -> "+237 6•• •• 34 56"). Other numbers keep only
+// their last four digits.
+func MaskPhone(e164 string) string {
+	digits := strings.TrimPrefix(e164, "+")
+	if strings.HasPrefix(digits, cameroonCountryCode) && len(digits) == len(cameroonCountryCode)+9 {
+		local := digits[len(cameroonCountryCode):]
+		return "+237 " + local[:1] + "•• •• " + local[5:7] + " " + local[7:]
+	}
+	if len(digits) <= 4 {
+		return e164
+	}
+	return "•••• " + digits[len(digits)-4:]
+}
+
+// IsCameroonMobile reports whether an E.164 number is a Cameroonian
+// mobile line, the only kind Mobile Money works with.
+func IsCameroonMobile(e164 string) bool {
+	return strings.HasPrefix(e164, "+"+cameroonCountryCode+"6") && len(e164) == 1+len(cameroonCountryCode)+9
+}

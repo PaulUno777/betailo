@@ -10,7 +10,7 @@ import (
 // and returns its ID.
 func reserveAndRelease(t *testing.T, router http.Handler, listingID, farmerToken, buyerToken string) string {
 	t.Helper()
-	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 10, PayNow: true}, buyerToken)
+	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 10, PayNow: true, PaymentMethod: "card"}, buyerToken)
 	reservationID := decodeJSON[createReservationResponse](t, reserveRec).Reservation.ID
 	doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/mark-delivered", nil, farmerToken)
 	doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/confirm-delivery", nil, buyerToken)
@@ -59,7 +59,7 @@ func TestReview_HTTP_RejectsBeforeEscrowReleased(t *testing.T) {
 	listingID, farmerToken := setupListing(t, router, 120)
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
-	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true}, buyerToken)
+	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true, PaymentMethod: "card"}, buyerToken)
 	reservationID := decodeJSON[createReservationResponse](t, reserveRec).Reservation.ID
 	_ = farmerToken
 

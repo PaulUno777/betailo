@@ -165,3 +165,10 @@ func (f *fakeListings) Update(context.Context, *domain.Listing) error { return n
 type fakeClock struct{ now time.Time }
 
 func (c fakeClock) Now() time.Time { return c.now }
+
+type fakeSequencer struct{ n int64 }
+
+func (f *fakeSequencer) Next(context.Context, string) (int64, error) {
+	f.n++
+	return f.n, nil
+}

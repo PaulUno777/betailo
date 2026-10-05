@@ -20,6 +20,10 @@ type paymentInfoDoc struct {
 	Amount     float64              `bson:"amount"`
 	HeldAt     *time.Time           `bson:"heldAt,omitempty"`
 	ReleasedAt *time.Time           `bson:"releasedAt,omitempty"`
+
+	Method           string `bson:"method,omitempty"`
+	PayerPhoneMasked string `bson:"payerPhoneMasked,omitempty"`
+	ProviderRef      string `bson:"providerRef,omitempty"`
 }
 
 // reservationDoc mirrors domain.Reservation for BSON persistence.
@@ -27,6 +31,7 @@ type paymentInfoDoc struct {
 // mapping happens only here, at the infrastructure boundary.
 type reservationDoc struct {
 	ID              bson.ObjectID            `bson:"_id,omitempty"`
+	Reference       string                   `bson:"reference,omitempty"`
 	ListingID       bson.ObjectID            `bson:"listingId"`
 	BuyerID         bson.ObjectID            `bson:"buyerId"`
 	Quantity        int                      `bson:"quantity"`
@@ -44,6 +49,7 @@ type reservationDoc struct {
 func fromDomainReservation(r *domain.Reservation) reservationDoc {
 	doc := reservationDoc{
 		ID:              r.ID,
+		Reference:       r.Reference,
 		ListingID:       r.ListingID,
 		BuyerID:         r.BuyerID,
 		Quantity:        r.Quantity,
@@ -62,6 +68,10 @@ func fromDomainReservation(r *domain.Reservation) reservationDoc {
 			Amount:     r.Payment.Amount,
 			HeldAt:     r.Payment.HeldAt,
 			ReleasedAt: r.Payment.ReleasedAt,
+
+			Method:           r.Payment.Method,
+			PayerPhoneMasked: r.Payment.PayerPhoneMasked,
+			ProviderRef:      r.Payment.ProviderRef,
 		}
 	}
 	return doc
@@ -70,6 +80,7 @@ func fromDomainReservation(r *domain.Reservation) reservationDoc {
 func (d reservationDoc) toDomain() *domain.Reservation {
 	r := &domain.Reservation{
 		ID:              d.ID,
+		Reference:       d.Reference,
 		ListingID:       d.ListingID,
 		BuyerID:         d.BuyerID,
 		Quantity:        d.Quantity,
@@ -88,6 +99,10 @@ func (d reservationDoc) toDomain() *domain.Reservation {
 			Amount:     d.Payment.Amount,
 			HeldAt:     d.Payment.HeldAt,
 			ReleasedAt: d.Payment.ReleasedAt,
+
+			Method:           d.Payment.Method,
+			PayerPhoneMasked: d.Payment.PayerPhoneMasked,
+			ProviderRef:      d.Payment.ProviderRef,
 		}
 	}
 	return r

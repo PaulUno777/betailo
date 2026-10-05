@@ -20,8 +20,9 @@ import (
 // StartsAt/EndsAt are caller-supplied business dates, not audit
 // timestamps.
 type CreateCycle struct {
-	Farms  ports.FarmRepository
-	Cycles ports.CycleStore
+	Farms     ports.FarmRepository
+	Cycles    ports.CycleStore
+	Sequencer ports.Sequencer
 }
 
 // CreateCycleInput is what a caller (the HTTP handler) supplies.
@@ -97,6 +98,12 @@ func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domai
 		MinPerReservation: in.MinPerReservation,
 		MaxPerReservation: in.MaxPerReservation,
 	}
+
+	seq, err := uc.Sequencer.Next(ctx, domain.CycleRefPrefix)
+	if err != nil {
+		return nil, err
+	}
+	c.Reference = domain.FormatReference(domain.CycleRefPrefix, seq)
 
 	if err := uc.Cycles.Create(ctx, c); err != nil {
 		return nil, err

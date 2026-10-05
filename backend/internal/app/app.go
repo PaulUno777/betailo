@@ -99,6 +99,8 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	forumPosts := &mongodb.ForumRepository{Coll: database.Collection("forum_posts")}
 	notifications := &mongodb.NotificationRepository{Coll: database.Collection("notifications")}
 	favorites := &mongodb.FavoriteRepository{Coll: database.Collection("favorites")}
+	counters := &mongodb.CounterRepository{Coll: database.Collection("counters")}
+	txManager := &mongodb.TxManager{Client: client}
 	hasher := security.BcryptHasher{}
 	systemClock := clock.System{}
 	sandboxPayments := payment.Sandbox{}
@@ -120,9 +122,10 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	}
 
 	reserveCycle := &reservation.ReserveCycle{
-		Listings: listings, Cycles: cycles, Reservations: reservations,
-		Payments: sandboxPayments, Tx: &mongodb.TxManager{Client: client}, Clock: systemClock,
+		Listings: listings, Cycles: cycles, Farms: farms, Sequencer: counters, Reservations: reservations,
+		Payments: sandboxPayments, Tx: txManager, Clock: systemClock,
 	}
+	cancelReservation := &reservation.CancelReservation{Reservations: reservations, Listings: listings, Cycles: cycles, Tx: txManager}
 	payReservation := &reservation.PayReservation{Reservations: reservations, Payments: sandboxPayments, Clock: systemClock}
 	markDelivered := &reservation.MarkDelivered{Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Clock: systemClock}
 	confirmDelivery := &reservation.ConfirmDelivery{
@@ -170,7 +173,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	bgWorker := &worker.Worker{
 		Cycles: cycles,
 		ExpireUnpaid: &reservation.ExpireUnpaidReservations{
-			Reservations: reservations, Listings: listings, Cycles: cycles, Notifications: notifications, Clock: systemClock,
+			Reservations: reservations, Listings: listings, Cycles: cycles, Tx: txManager, Notifications: notifications, Clock: systemClock,
 		},
 		AutoRelease: &reservation.AutoReleaseDeliveries{
 			Reservations: reservations, Reports: reports, Listings: listings, Cycles: cycles,
@@ -204,7 +207,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateFarm:  &farm.UpdateFarm{Farms: farms},
 			DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
-			CreateCycle:       &cycle.CreateCycle{Farms: farms, Cycles: cycles},
+			CreateCycle:       &cycle.CreateCycle{Farms: farms, Cycles: cycles, Sequencer: counters},
 			GetCycle:          &cycle.GetCycle{Cycles: cycles, Clock: systemClock},
 			AddHealthEvent:    &cycle.AddHealthEvent{Farms: farms, Cycles: cycles, Clock: systemClock},
 			ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: cycles},
@@ -228,6 +231,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			Storage:             storageProvider,
 
 			ReserveCycle:           reserveCycle,
+			CancelReservation:      cancelReservation,
 			PayReservation:         payReservation,
 			MarkDelivered:          markDelivered,
 			ConfirmDelivery:        confirmDelivery,
@@ -296,6 +300,9 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 // objectstorage.S3Provider.EnsureBucket).
 func (a *Application) Bootstrap(ctx context.Context) error {
 	if err := mongodb.Bootstrap(ctx, a.mongoDatabase); err != nil {
+		return err
+	}
+	if err := mongodb.BackfillReferences(ctx, a.mongoDatabase); err != nil {
 		return err
 	}
 	a.Logger.Info("connected to MongoDB and bootstrapped collections")

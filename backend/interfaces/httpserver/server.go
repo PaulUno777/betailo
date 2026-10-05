@@ -89,6 +89,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /reservations/{id}/pay", chain(handlePayReservation(deps.PayReservation), auth))
 	mux.Handle("POST /reservations/{id}/mark-delivered", chain(handleMarkDelivered(deps.MarkDelivered), auth))
 	mux.Handle("POST /reservations/{id}/confirm-delivery", chain(handleConfirmDelivery(deps.ConfirmDelivery), auth))
+	mux.Handle("POST /reservations/{id}/cancel", chain(handleCancelReservation(deps.CancelReservation), auth))
 	mux.Handle("POST /reservations/{id}/dispute", chain(handleOpenDispute(deps.OpenDispute), auth))
 	mux.Handle("GET /farms/{farmId}/reservations", chain(handleListReservationsByFarm(deps.ListReservationsByFarm), auth))
 

@@ -36,7 +36,7 @@ func TestReservation_HTTP_PayNow_IsPriorityAndHeld(t *testing.T) {
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
 	rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{
-		Quantity: 30, PayNow: true, PaymentMethod: "mtn_momo",
+		Quantity: 30, PayNow: true, PaymentMethod: "mtn_momo", PayerPhone: "690123456",
 	}, buyerToken)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("reserve status = %d, want %d; body = %s", rec.Code, http.StatusCreated, rec.Body.String())
@@ -101,7 +101,7 @@ func TestReservation_HTTP_FullEscrowLifecycle(t *testing.T) {
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
 	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{
-		Quantity: 20, PayNow: true,
+		Quantity: 20, PayNow: true, PaymentMethod: "card",
 	}, buyerToken)
 	reservationID := decodeJSON[createReservationResponse](t, reserveRec).Reservation.ID
 
@@ -152,7 +152,7 @@ func TestReservation_HTTP_DisputeBlocksConfirmDelivery(t *testing.T) {
 	listingID, farmerToken := setupListing(t, router, 120)
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
-	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 10, PayNow: true}, buyerToken)
+	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 10, PayNow: true, PaymentMethod: "card"}, buyerToken)
 	reservationID := decodeJSON[createReservationResponse](t, reserveRec).Reservation.ID
 	doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/mark-delivered", nil, farmerToken)
 
@@ -175,7 +175,7 @@ func TestReservation_HTTP_PayLaterThenPay(t *testing.T) {
 	reserveRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 10}, buyerToken)
 	reservationID := decodeJSON[createReservationResponse](t, reserveRec).Reservation.ID
 
-	payRec := doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/pay", payReservationRequest{PaymentMethod: "orange_money"}, buyerToken)
+	payRec := doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/pay", payReservationRequest{PaymentMethod: "orange_money", PayerPhone: "690123456"}, buyerToken)
 	if payRec.Code != http.StatusOK {
 		t.Fatalf("pay status = %d, want %d; body = %s", payRec.Code, http.StatusOK, payRec.Body.String())
 	}
@@ -189,7 +189,7 @@ func TestReservation_HTTP_ListByFarm_OwnerOnly(t *testing.T) {
 	router, tf := newTestRouterAndFakes()
 	listingID, farmerToken := setupListing(t, router, 120)
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
-	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true}, buyerToken)
+	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5, PayNow: true, PaymentMethod: "card"}, buyerToken)
 
 	var farmID string
 	for _, f := range tf.farms.byID {
