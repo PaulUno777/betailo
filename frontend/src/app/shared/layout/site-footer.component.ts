@@ -11,9 +11,16 @@ import { LogoComponent } from '../ui/logo/logo.component';
   selector: 'bt-site-footer',
   imports: [RouterLink, LogoComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
     <footer class="bg-forest-deep text-on-forest-deep">
-      <div class="mx-auto grid max-w-content-max gap-10 px-5 py-14 sm:grid-cols-12 sm:px-18">
+      <!-- Phones get a one-line footer: a sitemap is desktop furniture; on
+           mobile the bottom nav already is the sitemap. -->
+      <div class="flex items-center justify-between gap-4 px-5 py-6 sm:hidden">
+        <bt-logo tone="light" />
+        <p class="text-caption text-on-forest-deep/70">{{ 'footer.tagline' | t }}</p>
+      </div>
+      <div class="mx-auto hidden max-w-content-max gap-10 px-5 py-14 sm:grid sm:grid-cols-12 sm:px-18">
         <div class="flex flex-col gap-3 sm:col-span-5">
           <bt-logo tone="light" />
           <p class="max-w-xs text-small text-on-forest-deep/70">{{ 'footer.tagline' | t }}</p>

@@ -1,7 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { Farm, SellerDashboard } from '../../domain/models';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { DashboardApi } from '../../data-access/dashboard/dashboard.api';
@@ -13,6 +11,7 @@ import { TextFieldComponent } from '../../shared/ui/text-field/text-field.compon
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/portal` — per `Portal.dc.html`: KPI cards, active-cycle table and a
  * weekly reservations chart, all from `GET /farms/{farmId}/dashboard`.
@@ -25,7 +24,6 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
   selector: 'bt-portal-dashboard',
   imports: [
     FormsModule,
-    RouterLink,
     StatusBadgeComponent,
     CapacityBarComponent,
     TextFieldComponent,
@@ -58,50 +56,48 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
         </div>
       </div>
     } @else {
-      <div class="p-6 sm:p-8">
+      <div class="p-4 sm:p-8">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <h1 class="text-heading-2">{{ 'portal.greeting' | t: { name: myFarm()!.name } }}</h1>
-          <a routerLink="/portal/cycles" class="inline-flex">
-            <bt-button variant="solid">{{ 'portal.newCycleButton' | t }}</bt-button>
-          </a>
+          <bt-button variant="solid" href="/portal/cycles/new">{{ 'portal.newCycleButton' | t }}</bt-button>
         </div>
 
         @if (dashboard.value(); as d) {
-          <div class="mt-6 grid gap-4 sm:grid-cols-4">
-            <div class="rounded-lg border border-line bg-surface-card p-5">
+          <div class="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div class="order-1 rounded-lg border border-line bg-surface-card p-4 sm:p-5 lg:order-none">
               <span class="text-eyebrow text-ink-muted">{{ 'portal.kpiReservations' | t }}</span>
-              <p class="mt-2 text-number-xl">{{ d.reservationsThisPeriod }}</p>
+              <p class="mt-2 text-heading-2 sm:text-number-xl">{{ d.reservationsThisPeriod }}</p>
             </div>
-            <div class="rounded-lg border border-line bg-sky-soft p-5">
+            <div class="order-3 col-span-2 rounded-lg border border-line bg-sky-soft p-4 sm:p-5 lg:order-none lg:col-span-1">
               <span class="text-eyebrow text-sky">{{ 'portal.kpiEscrowHeld' | t }}</span>
-              <p class="mt-2 text-number-xl">{{ d.escrowHeldTotal | fcfa }}</p>
+              <p class="mt-2 text-heading-2 sm:text-number-xl">{{ d.escrowHeldTotal | fcfa }}</p>
             </div>
-            <div class="rounded-lg border border-line bg-forest-soft p-5">
+            <div class="order-4 col-span-2 rounded-lg border border-line bg-forest-soft p-4 sm:p-5 lg:order-none lg:col-span-1">
               <span class="text-eyebrow text-forest">{{ 'portal.kpiReleased' | t }}</span>
-              <p class="mt-2 text-number-xl">{{ d.releasedThisPeriod | fcfa }}</p>
+              <p class="mt-2 text-heading-2 sm:text-number-xl">{{ d.releasedThisPeriod | fcfa }}</p>
             </div>
-            <div class="rounded-lg bg-forest-deep p-5 text-on-forest-deep">
+            <div class="order-2 rounded-lg bg-forest-deep p-4 text-on-forest-deep sm:p-5 lg:order-none">
               <span class="text-eyebrow text-on-forest-deep/70">{{ 'portal.kpiTrustScore' | t }}</span>
-              <p class="mt-2 text-number-xl">{{ d.trustScore }}<span class="text-body text-on-forest-deep/70">/100</span></p>
+              <p class="mt-2 text-heading-2 sm:text-number-xl">{{ d.trustScore }}<span class="text-body text-on-forest-deep/70">/100</span></p>
             </div>
           </div>
 
           <div class="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
-            <section class="rounded-lg border border-line bg-surface-card p-6">
+            <section class="rounded-lg border border-line bg-surface-card p-4 sm:p-6">
               <h2 class="text-heading-4">{{ 'portal.activeCyclesTitle' | t }}</h2>
               @if (d.activeCycles.length === 0) {
                 <p class="mt-3 text-body text-ink-muted">{{ 'portal.noActiveCycles' | t }}</p>
               } @else {
                 <div class="mt-4 flex flex-col gap-3">
                   @for (c of d.activeCycles; track c.cycle.id) {
-                    <div class="grid grid-cols-[1fr_auto_1.4fr_auto] items-center gap-4 rounded-md border border-line p-3">
+                    <div class="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 rounded-md border border-line p-3 sm:grid-cols-[1fr_auto_1.4fr_auto]">
                       <div class="flex flex-col">
                         <span class="text-body-strong">{{ c.cycle.species }} · {{ c.cycle.type }}</span>
                         <span class="text-caption text-ink-muted">{{ c.cycle.id.slice(-6) }}</span>
                       </div>
                       <bt-status-badge kind="cycle" [status]="c.cycle.status" />
-                      <bt-capacity-bar [capacity]="c.cycle.capacity" [availableQuantity]="c.cycle.availableQuantity" />
-                      <span class="text-small text-ink-muted">{{ c.nextMilestone }}</span>
+                      <bt-capacity-bar class="col-span-2 sm:col-span-1" [capacity]="c.cycle.capacity" [availableQuantity]="c.cycle.availableQuantity" />
+                      <span class="col-span-2 text-small text-ink-muted sm:col-span-1">{{ c.nextMilestone }}</span>
                     </div>
                   }
                 </div>
@@ -121,7 +117,7 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
               </div>
             </section>
 
-            <section class="rounded-lg border border-line bg-surface-card p-6">
+            <section class="rounded-lg border border-line bg-surface-card p-4 sm:p-6">
               <h2 class="text-heading-4">{{ 'portal.latestReservationsTitle' | t }}</h2>
               @if (d.latestReservations.length === 0) {
                 <p class="mt-3 text-body text-ink-muted">{{ 'portal.noReservations' | t }}</p>
@@ -160,10 +156,10 @@ export class PortalDashboardComponent {
   private readonly farmsApi = inject(FarmsApi);
   private readonly dashboardApi = inject(DashboardApi);
 
-  protected readonly farms = httpResource<Farm[]>(() => this.farmsApi.mineUrl());
+  protected readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   protected readonly myFarm = computed(() => this.farms.value()?.[0]);
 
-  protected readonly dashboard = httpResource<SellerDashboard>(() => {
+  protected readonly dashboard = apiResource<SellerDashboard>(() => {
     const farmId = this.myFarm()?.id;
     return farmId ? this.dashboardApi.sellerDashboardUrl(farmId) : undefined;
   });

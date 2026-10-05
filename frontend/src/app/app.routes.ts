@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { guestGuard } from './core/auth/guest.guard';
 import { homeRedirectGuard } from './core/auth/home-redirect.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -21,8 +22,16 @@ export const routes: Routes = [
         path: 'marketplace/:id',
         loadComponent: () => import('./features/marketplace/listing-detail.component').then((m) => m.ListingDetailComponent)
       },
-      { path: 'login', loadComponent: () => import('./features/auth/login.component').then((m) => m.LoginComponent) },
-      { path: 'register', loadComponent: () => import('./features/auth/register.component').then((m) => m.RegisterComponent) },
+      {
+        path: 'login',
+        loadComponent: () => import('./features/auth/login.component').then((m) => m.LoginComponent),
+        canActivate: [guestGuard]
+      },
+      {
+        path: 'register',
+        loadComponent: () => import('./features/auth/register.component').then((m) => m.RegisterComponent),
+        canActivate: [guestGuard]
+      },
       {
         path: 'forum',
         loadComponent: () => import('./features/forum/forum-list.component').then((m) => m.ForumListComponent)

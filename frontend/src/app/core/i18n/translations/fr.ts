@@ -40,7 +40,15 @@ export const fr = {
     admin: 'Administration',
     signOut: 'Se déconnecter'
   },
+  moreSheet: {
+    language: 'Langue',
+    tab: 'Plus',
+    title: 'Plus',
+    darkMode: 'Mode sombre',
+    lightMode: 'Mode clair'
+  },
   bottomNav: {
+    label: 'Navigation principale',
     home: 'Accueil',
     market: 'Marché',
     publish: 'Publier',
@@ -443,6 +451,7 @@ export const fr = {
     empty: 'Aucun paiement pour le moment.'
   },
   portalNav: {
+    dashboardShort: 'Accueil',
     dashboard: 'Tableau de bord',
     cycles: 'Mes cycles',
     listings: 'Annonces',
@@ -507,6 +516,7 @@ export const fr = {
     notFound: 'Signalement introuvable.'
   },
   adminNav: {
+    overviewShort: 'Vue',
     overview: "Vue d'ensemble",
     users: 'Utilisateurs',
     listings: 'Cycles & annonces',

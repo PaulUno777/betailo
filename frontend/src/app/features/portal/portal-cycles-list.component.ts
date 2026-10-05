@@ -1,6 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
-import { RouterLink } from '@angular/router';
 import { Cycle, Farm } from '../../domain/models';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
@@ -11,21 +9,20 @@ import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.
 import { CapacityBarComponent } from '../../shared/ui/capacity-bar/capacity-bar.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/portal/cycles` — per `Portal.dc.html`'s cycle table, its own page:
  * list + status transitions + delete, backed by `GET/PATCH/DELETE
  * /cycles`. */
 @Component({
   selector: 'bt-portal-cycles-list',
-  imports: [RouterLink, StatusBadgeComponent, CapacityBarComponent, ButtonComponent, DialogComponent, TranslatePipe],
+  imports: [StatusBadgeComponent, CapacityBarComponent, ButtonComponent, DialogComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="p-6 sm:p-8">
       <div class="flex items-center justify-between gap-4">
         <h1 class="text-heading-2">{{ 'portalCycles.title' | t }}</h1>
-        <a routerLink="/portal/cycles/new" class="inline-flex">
-          <bt-button variant="solid">{{ 'portalCycles.newCycleButton' | t }}</bt-button>
-        </a>
+        <bt-button variant="solid" href="/portal/cycles/new">{{ 'portalCycles.newCycleButton' | t }}</bt-button>
       </div>
 
       @if (cycles.isLoading()) {
@@ -45,9 +42,9 @@ import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
                 <bt-capacity-bar [capacity]="c.capacity" [availableQuantity]="c.availableQuantity" />
               </div>
               <div class="flex flex-wrap gap-2">
-                <a [routerLink]="['/portal/listings/new']" [queryParams]="{ cycleId: c.id }" class="inline-flex">
-                  <bt-button variant="ghost" size="sm">{{ 'portalCycles.publishListingButton' | t }}</bt-button>
-                </a>
+                <bt-button variant="ghost" size="sm" href="/portal/listings/new" [queryParams]="{ cycleId: c.id }">
+                  {{ 'portalCycles.publishListingButton' | t }}
+                </bt-button>
                 @if (c.status === 'planned') {
                   <bt-button variant="outline" size="sm" [disabled]="acting() === c.id" (click)="setStatus(c.id, 'in_progress')">
                     {{ 'portalCycles.markInProgress' | t }}
@@ -89,10 +86,10 @@ export class PortalCyclesListComponent {
   private readonly cyclesApi = inject(CyclesApi);
   private readonly toast = inject(ToastService);
 
-  protected readonly farms = httpResource<Farm[]>(() => this.farmsApi.mineUrl());
+  protected readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   protected readonly myFarm = computed(() => this.farms.value()?.[0]);
 
-  protected readonly cycles = httpResource<Cycle[]>(() => {
+  protected readonly cycles = apiResource<Cycle[]>(() => {
     const farmId = this.myFarm()?.id;
     return farmId ? this.cyclesApi.byFarmUrl(farmId) : undefined;
   });

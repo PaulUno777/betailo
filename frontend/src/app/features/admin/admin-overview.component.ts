@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { AdminOverview } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/admin` — per `Admin.dc.html`: platform-wide KPIs and a 30-day
  * reservations chart, from `GET /admin/overview`. */
@@ -18,30 +18,30 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
       @if (overview.isLoading()) {
         <p class="mt-6 text-body text-ink-muted">{{ 'adminOverview.loading' | t }}</p>
       } @else if (overview.value(); as o) {
-        <div class="mt-6 grid gap-4 sm:grid-cols-5">
-          <div class="rounded-lg border border-line bg-surface-card p-5">
+        <div class="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          <div class="col-span-2 lg:col-span-1 rounded-lg border border-line bg-surface-card p-4 sm:p-5">
             <span class="text-eyebrow text-ink-muted">{{ 'adminOverview.volumeReserved' | t }}</span>
-            <p class="mt-2 text-number-xl">{{ o.volumeReserved | fcfa }}</p>
+            <p class="mt-2 text-heading-2 sm:text-number-xl">{{ o.volumeReserved | fcfa }}</p>
           </div>
-          <div class="rounded-lg border border-line bg-sky-soft p-5">
+          <div class="col-span-2 lg:col-span-1 rounded-lg border border-line bg-sky-soft p-4 sm:p-5">
             <span class="text-eyebrow text-sky">{{ 'adminOverview.escrowHeld' | t }}</span>
-            <p class="mt-2 text-number-xl">{{ o.escrowHeld | fcfa }}</p>
+            <p class="mt-2 text-heading-2 sm:text-number-xl">{{ o.escrowHeld | fcfa }}</p>
           </div>
-          <div class="rounded-lg border border-line bg-surface-card p-5">
+          <div class="rounded-lg border border-line bg-surface-card p-4 sm:p-5">
             <span class="text-eyebrow text-ink-muted">{{ 'adminOverview.cyclesPlanned' | t }}</span>
-            <p class="mt-2 text-number-xl">{{ o.activeCyclesPlanned }}</p>
+            <p class="mt-2 text-heading-2 sm:text-number-xl">{{ o.activeCyclesPlanned }}</p>
           </div>
-          <div class="rounded-lg border border-line bg-forest-soft p-5">
+          <div class="rounded-lg border border-line bg-forest-soft p-4 sm:p-5">
             <span class="text-eyebrow text-forest">{{ 'adminOverview.cyclesInProgress' | t }}</span>
-            <p class="mt-2 text-number-xl">{{ o.activeCyclesInProgress }}</p>
+            <p class="mt-2 text-heading-2 sm:text-number-xl">{{ o.activeCyclesInProgress }}</p>
           </div>
-          <div class="rounded-lg border border-line bg-alert-soft p-5">
+          <div class="col-span-2 lg:col-span-1 rounded-lg border border-line bg-alert-soft p-4 sm:p-5">
             <span class="text-eyebrow text-alert">{{ 'adminOverview.openReports' | t }}</span>
-            <p class="mt-2 text-number-xl">{{ o.openReports }}</p>
+            <p class="mt-2 text-heading-2 sm:text-number-xl">{{ o.openReports }}</p>
           </div>
         </div>
 
-        <div class="mt-6 rounded-lg border border-line bg-surface-card p-6">
+        <div class="mt-6 rounded-lg border border-line bg-surface-card p-4 sm:p-6">
           <p class="text-body-strong">{{ 'adminOverview.reservationsChartTitle' | t }}</p>
           <div class="mt-4 grid items-end gap-0.5" style="height: 100px; grid-template-columns: repeat(30, minmax(0, 1fr))">
             @for (v of o.reservationsPerDay; track $index) {
@@ -56,7 +56,7 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 export class AdminOverviewComponent {
   private readonly adminApi = inject(AdminApi);
 
-  protected readonly overview = httpResource<AdminOverview>(() => this.adminApi.overviewUrl());
+  protected readonly overview = apiResource<AdminOverview>(() => this.adminApi.overviewUrl());
 
   protected barHeightPct(value: number, all: number[]): number {
     const max = Math.max(1, ...all);

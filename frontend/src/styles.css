@@ -192,6 +192,10 @@
   line-height: 0.98;
   font-weight: 800;
   letter-spacing: -2.5px;
+  @media (width < 40rem) {
+    font-size: 44px;
+    letter-spacing: -1.2px;
+  }
 }
 @utility text-display-l {
   font-family: var(--font-display);
@@ -199,6 +203,10 @@
   line-height: 1.02;
   font-weight: 800;
   letter-spacing: -1.5px;
+  @media (width < 40rem) {
+    font-size: 36px;
+    letter-spacing: -1px;
+  }
 }
 @utility text-heading-1 {
   font-family: var(--font-display);
@@ -206,6 +214,10 @@
   line-height: 1.05;
   font-weight: 800;
   letter-spacing: -1px;
+  @media (width < 40rem) {
+    font-size: 32px;
+    letter-spacing: -0.8px;
+  }
 }
 @utility text-heading-2 {
   font-family: var(--font-display);
@@ -232,6 +244,9 @@
   line-height: 1;
   font-weight: 800;
   letter-spacing: -1px;
+  @media (width < 40rem) {
+    font-size: 36px;
+  }
 }
 @utility text-body-l {
   font-family: var(--font-sans);
@@ -288,6 +303,48 @@
 html,
 body {
   height: 100%;
+}
+
+html {
+  /* Phones: no grey flash on tap (every control has its own active
+   * state) and no font inflation in landscape. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Sticky headers would otherwise cover the target of an in-page anchor. */
+html {
+  scroll-padding-top: 72px;
+}
+
+/* Taps register instantly (no double-tap-zoom delay) on every control. */
+a,
+button,
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Horizontal chip rows and carousels scroll by swipe; the bar is noise. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 body {

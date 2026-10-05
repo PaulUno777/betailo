@@ -30,6 +30,7 @@ const SIZE_CLASSES: Readonly<Record<ButtonSize, string>> = {
     @if (href(); as link) {
       <a
         [routerLink]="link"
+        [queryParams]="queryParams()"
         [class]="classes()"
         [attr.aria-disabled]="disabled() || null"
       >
@@ -52,6 +53,7 @@ export class ButtonComponent {
   readonly block = input(false, { transform: booleanAttribute });
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly href = input<string>();
+  readonly queryParams = input<Record<string, string>>();
   readonly type = input<'button' | 'submit'>('button');
 
   protected readonly classes = computed(() =>
