@@ -162,8 +162,8 @@ func TestLoginAndMe_HTTP_FullFlow(t *testing.T) {
 	if meRec.Code != http.StatusOK {
 		t.Fatalf("GET /me status = %d, want %d; body = %s", meRec.Code, http.StatusOK, meRec.Body.String())
 	}
-	me := decodeJSON[meResponse](t, meRec)
-	if me.Email != "farmer@example.com" || me.Role != "farmer" || me.UserID != login.User.ID {
+	me := decodeJSON[profileResponse](t, meRec)
+	if me.Email != "farmer@example.com" || me.Role != "farmer" || me.ID != login.User.ID {
 		t.Errorf("GET /me = %+v, want it to describe the logged-in farmer", me)
 	}
 }

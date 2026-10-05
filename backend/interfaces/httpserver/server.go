@@ -54,7 +54,11 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// already expired.
 	mux.Handle("POST /auth/refresh", limit(deps.RateLimits.Refresh, handleRefresh(deps.RefreshToken, deps.Cookies)))
 	mux.HandleFunc("POST /auth/logout", handleLogout(deps.Logout, deps.Cookies))
-	mux.Handle("GET /me", chain(http.HandlerFunc(handleMe), auth))
+	mux.Handle("GET /me", chain(handleGetProfile(deps.GetProfile), auth))
+	mux.Handle("PATCH /me", chain(handleUpdateProfile(deps.UpdateProfile), auth))
+	// Guessing the current password is rate-limited like login.
+	mux.Handle("POST /me/password", limit(deps.RateLimits.Login, chain(handleChangePassword(deps.ChangePassword, deps.Login, deps.Cookies), auth)))
+	mux.Handle("POST /me/become-seller", chain(handleBecomeSeller(deps.BecomeSeller), auth))
 
 	mux.Handle("POST /farms", farmerOnly(handleCreateFarm(deps.CreateFarm)))
 	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer)))

@@ -12,22 +12,24 @@ import (
 // change to the JSON contract never forces a change to the usecase
 // layer, and vice versa.
 type registerRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	Role        string `json:"role"`
+	DisplayName string `json:"displayName,omitempty"`
 }
 
 // userResponse is what a user looks like over the wire — deliberately
 // not domain.User itself, so PasswordHash can never leak by omitting a
 // json tag by mistake on the domain type.
 type userResponse struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	Role        string `json:"role"`
+	DisplayName string `json:"displayName,omitempty"`
 }
 
 func toUserResponse(u *domain.User) userResponse {
-	return userResponse{ID: u.ID.Hex(), Email: u.Email, Role: string(u.Role)}
+	return userResponse{ID: u.ID.Hex(), Email: u.Email, Role: string(u.Role), DisplayName: u.DisplayName}
 }
 
 func handleRegister(uc *auth.Register) http.HandlerFunc {
@@ -38,9 +40,10 @@ func handleRegister(uc *auth.Register) http.HandlerFunc {
 		}
 
 		out, err := uc.Execute(r.Context(), auth.RegisterInput{
-			Email:    req.Email,
-			Password: req.Password,
-			Role:     domain.Role(req.Role),
+			Email:       req.Email,
+			Password:    req.Password,
+			Role:        domain.Role(req.Role),
+			DisplayName: req.DisplayName,
 		})
 		if err != nil {
 			writeError(w, err)
@@ -126,29 +129,4 @@ func handleLogout(uc *auth.Logout, cookies CookieConfig) http.HandlerFunc {
 		clearRefreshCookie(w, cookies)
 		w.WriteHeader(http.StatusNoContent)
 	}
-}
-
-// meResponse echoes back what RequireAuth verified — this route exists
-// specifically to demonstrate the JWT middleware protecting a route
-// end-to-end (see the roadmap's Phase 1 requirement), not because a
-// buyer or farmer needs a dedicated "who am I" endpoint yet.
-type meResponse struct {
-	UserID string `json:"userId"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
-}
-
-func handleMe(w http.ResponseWriter, r *http.Request) {
-	claims, ok := ClaimsFromContext(r.Context())
-	if !ok {
-		// Only reachable if this handler is wired without RequireAuth in
-		// front of it — a routing bug, not a client-triggerable state.
-		writeError(w, errUnauthorized)
-		return
-	}
-	writeJSON(w, http.StatusOK, meResponse{
-		UserID: claims.UserID.Hex(),
-		Email:  claims.Email,
-		Role:   string(claims.Role),
-	})
 }

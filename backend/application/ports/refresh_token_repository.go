@@ -74,4 +74,7 @@ type RefreshTokenRepository interface {
 	// kills the whole chain, not just the reused token, since a token
 	// being replayed after its rotation is the signal that it leaked.
 	RevokeFamily(ctx context.Context, familyID bson.ObjectID, reason string, revokedAt time.Time) error
+	// RevokeAllForUser ends every session the user has (a password
+	// change signs them out everywhere).
+	RevokeAllForUser(ctx context.Context, userID bson.ObjectID, reason string, revokedAt time.Time) error
 }

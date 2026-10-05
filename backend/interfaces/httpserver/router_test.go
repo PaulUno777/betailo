@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/account"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
@@ -144,6 +145,16 @@ func (f *fakeRefreshTokenRepo) RevokeFamily(_ context.Context, familyID bson.Obj
 	return nil
 }
 
+func (f *fakeRefreshTokenRepo) RevokeAllForUser(_ context.Context, userID bson.ObjectID, reason string, revokedAt time.Time) error {
+	for _, t := range f.byHash {
+		if t.UserID == userID && t.RevokedAt == nil {
+			t.RevokedAt = &revokedAt
+			t.RevokedReason = reason
+		}
+	}
+	return nil
+}
+
 // testFakes is every in-memory store newTestRouterAndFakes wires up —
 // exposed so a test can reach in directly when the HTTP surface alone
 // can't set up a scenario (promoting a user to admin: registration
@@ -233,9 +244,13 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Users: tf.users, RefreshTokens: tf.refreshTokens, Signer: tf.signer,
 			Clock: tf.clock, AccessTTL: time.Hour, RefreshTTL: 48 * time.Hour,
 		},
-		Logout:  &auth.Logout{RefreshTokens: tf.refreshTokens, Clock: tf.clock},
-		Signer:  tf.signer,
-		Cookies: CookieConfig{Secure: true, SameSite: http.SameSiteNoneMode},
+		Logout:         &auth.Logout{RefreshTokens: tf.refreshTokens, Clock: tf.clock},
+		Signer:         tf.signer,
+		Cookies:        CookieConfig{Secure: true, SameSite: http.SameSiteNoneMode},
+		GetProfile:     &account.GetProfile{Users: tf.users},
+		UpdateProfile:  &account.UpdateProfile{Users: tf.users},
+		ChangePassword: &auth.ChangePassword{Users: tf.users, Hasher: hasher, RefreshTokens: tf.refreshTokens, Clock: tf.clock},
+		BecomeSeller:   &farm.BecomeSeller{Users: tf.users, Farms: tf.farms, Trust: trustRecompute, Tx: fakeTxManager{}, Clock: tf.clock},
 
 		CreateFarm: &farm.CreateFarm{Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock},
 		GetFarmProfile: &farm.GetProfile{

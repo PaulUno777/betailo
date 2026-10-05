@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"
@@ -35,6 +36,8 @@ type RegisterInput struct {
 	Email    string
 	Password string
 	Role     domain.Role
+	// DisplayName is optional at sign-up (and editable later).
+	DisplayName string
 }
 
 // RegisterOutput wraps the usecase's result.
@@ -69,10 +72,16 @@ func (uc *Register) Execute(ctx context.Context, in RegisterInput) (*RegisterOut
 		return nil, err
 	}
 
+	displayName := strings.TrimSpace(in.DisplayName)
+	if utf8.RuneCountInString(displayName) > domain.MaxDisplayNameLen {
+		return nil, fmt.Errorf("auth: display name must be at most %d characters: %w", domain.MaxDisplayNameLen, domain.ErrInvalid)
+	}
+
 	user := &domain.User{
 		Email:        email,
 		PasswordHash: hash,
 		Role:         in.Role,
+		DisplayName:  displayName,
 		CreatedAt:    uc.Clock.Now(),
 	}
 
