@@ -8,6 +8,7 @@ import { IconButtonComponent } from '../ui/icon-button/icon-button.component';
 import { LocaleToggleComponent } from '../ui/locale-toggle/locale-toggle.component';
 import { LogoComponent } from '../ui/logo/logo.component';
 import { UserMenuComponent } from '../ui/user-menu/user-menu.component';
+import { NotificationBellComponent } from '../ui/notification-bell/notification-bell.component';
 import { ToastHostComponent } from '../ui/toast/toast-host.component';
 import { MoreSheetComponent, MoreSheetLink } from './more-sheet.component';
 
@@ -29,6 +30,7 @@ import { MoreSheetComponent, MoreSheetLink } from './more-sheet.component';
     LocaleToggleComponent,
     LogoComponent,
     UserMenuComponent,
+    NotificationBellComponent,
     ToastHostComponent,
     MoreSheetComponent,
     TranslatePipe
@@ -53,6 +55,7 @@ import { MoreSheetComponent, MoreSheetLink } from './more-sheet.component';
               [label]="'nav.theme' | t"
               (click)="theme.toggle()"
             />
+            <bt-notification-bell />
             <bt-user-menu />
           </div>
         </header>

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { Farm, Reservation } from '../../domain/models';
+import { Farm, ReservationList } from '../../domain/models';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -43,7 +43,7 @@ import { apiResource } from '../../core/http/api-resource';
           <div class="mt-6 flex flex-col gap-2">
             @for (r of withPayment(); track r.id) {
               <div class="flex items-center justify-between gap-4 rounded-md border border-line p-3">
-                <span class="text-caption text-ink-muted">RSV-{{ r.id.slice(-4).toUpperCase() }}</span>
+                <span class="text-mono-id text-ink-muted">{{ r.reference }}</span>
                 <span class="text-body-strong">{{ r.totalAmount | fcfa }}</span>
                 <bt-status-badge kind="escrow" [status]="r.payment!.status" />
               </div>
@@ -61,12 +61,12 @@ export class PortalPaymentsComponent {
   private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   private readonly myFarm = computed(() => this.farms.value()?.[0]);
 
-  protected readonly reservations = apiResource<Reservation[]>(() => {
+  protected readonly reservations = apiResource<ReservationList>(() => {
     const farmId = this.myFarm()?.id;
     return farmId ? this.reservationsApi.byFarmUrl(farmId) : undefined;
   });
 
-  protected readonly withPayment = computed(() => (this.reservations.value() ?? []).filter((r) => r.payment));
+  protected readonly withPayment = computed(() => (this.reservations.value()?.items ?? []).filter((r) => r.payment));
 
   protected readonly heldTotal = computed(() => this.sumByStatus('held'));
   protected readonly releasedTotal = computed(() => this.sumByStatus('released'));

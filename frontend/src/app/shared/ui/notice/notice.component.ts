@@ -39,12 +39,14 @@ const TONE_ICON: Readonly<Record<NoticeTone, IconName>> = {
 export class NoticeComponent {
   readonly tone = input<NoticeTone>('info');
   readonly title = input<string>();
+  /** Overrides the tone's default icon (e.g. a lock on an escrow note). */
+  readonly icon = input<IconName>();
 
   protected toneClass(): string {
     return TONE_CLASSES[this.tone()];
   }
 
   protected toneIcon(): IconName {
-    return TONE_ICON[this.tone()];
+    return this.icon() ?? TONE_ICON[this.tone()];
   }
 }
