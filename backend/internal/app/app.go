@@ -155,7 +155,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reviews: reviews, Trust: trustRecompute,
 		Clock: systemClock, Notifications: notifications,
 	}
-	listFarmReviews := &review.ListByFarm{Reviews: reviews}
+	listFarmReviews := &review.ListByFarm{Reviews: reviews, Store: reviews, Users: users, Reservations: reservations}
 
 	createReport := &report.CreateReport{Reports: reports, Listings: listings, Clock: systemClock}
 
@@ -240,7 +240,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			GetListing:    &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
 			GetListingDetail: &listing.GetDetail{
 				Listings: listings, Cycles: cycles, Farms: farms, Users: users, Reviews: reviews,
-				Reservations: reservations, Favorites: favorites, Clock: systemClock,
+				Reservations: reservations, Favorites: favorites, ReviewStore: reviews, Clock: systemClock,
 			},
 			UpdateListing:            &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
 			UnpublishListing:         &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
@@ -266,8 +266,11 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			ListMyReservations:     listMyReservations,
 			ListReservationsByFarm: listReservationsByFarm,
 
-			CreateReview:    createReview,
-			ListFarmReviews: listFarmReviews,
+			CreateReview:       createReview,
+			ListFarmReviews:    listFarmReviews,
+			PresignReviewPhoto: &review.PresignReviewPhoto{Reservations: reservations, Storage: storageProvider},
+			MarkReviewHelpful:  &review.MarkHelpful{Store: reviews},
+			ReplyToReview:      &review.Reply{Store: reviews, Farms: farms, Clock: systemClock, Notifications: notifications},
 
 			CreateReport: createReport,
 

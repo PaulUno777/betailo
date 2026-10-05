@@ -126,17 +126,13 @@ func handleGetListingDetail(uc *listing.GetDetail, storage ports.ObjectStorage) 
 		}
 		reviews := make([]reviewResponse, 0, len(d.TopReviews))
 		for _, rv := range d.TopReviews {
-			reviews = append(reviews, toReviewResponse(rv))
-		}
-		histogram := d.ReviewSummary.Histogram
-		if histogram == nil {
-			histogram = map[int]int{}
+			reviews = append(reviews, toReviewResponse(r.Context(), storage, rv))
 		}
 		writeJSON(w, http.StatusOK, listingDetailResponse{
 			Listing:       toListingResponse(r.Context(), storage, d.Listing),
 			Cycle:         cycleDetailResponse{cycleResponse: toCycleResponse(d.Cycle), Timeline: toTimelineResponse(d.Timeline)},
 			Farm:          toFarmProfileResponse(d.Farm, signedIn),
-			ReviewSummary: reviewSummaryResponse{Average: d.ReviewSummary.Average, Count: d.ReviewSummary.Count, Histogram: histogram},
+			ReviewSummary: toReviewSummaryResponse(d.ReviewSummary),
 			TopReviews:    reviews,
 			Favorited:     d.Favorited,
 			IsOwner:       d.IsOwner,

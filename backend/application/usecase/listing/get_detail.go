@@ -10,6 +10,7 @@ import (
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/farmstats"
+	"github.com/pauluno777/betailo/backend/application/usecase/reviewview"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -27,7 +28,7 @@ type Detail struct {
 	Farm     *farmstats.Profile
 
 	ReviewSummary ports.ReviewSummary
-	TopReviews    []*domain.Review
+	TopReviews    []reviewview.Item
 
 	// Viewer-specific, decided here rather than by the client.
 	Favorited  bool
@@ -45,6 +46,7 @@ type GetDetail struct {
 	Reviews      ports.ReviewRepository
 	Reservations ports.ReservationRepository
 	Favorites    ports.FavoriteRepository
+	ReviewStore  ports.ReviewStore
 	Clock        ports.Clock
 }
 
@@ -90,6 +92,11 @@ func (uc *GetDetail) Execute(ctx context.Context, listingID, viewerID bson.Objec
 		reviews = reviews[:detailTopReviews]
 	}
 
+	top, err := reviewview.Build(ctx, reviewview.Sources{Users: uc.Users, Reservations: uc.Reservations, Store: uc.ReviewStore}, reviews, viewerID)
+	if err != nil {
+		return nil, err
+	}
+
 	favorited := false
 	if !viewerID.IsZero() {
 		saved, err := uc.Favorites.FavoritedAmong(ctx, viewerID, []bson.ObjectID{l.ID})
@@ -105,7 +112,7 @@ func (uc *GetDetail) Execute(ctx context.Context, listingID, viewerID bson.Objec
 		Timeline:      domain.CycleTimeline(c, uc.Clock.Now()),
 		Farm:          profile,
 		ReviewSummary: summary,
-		TopReviews:    reviews,
+		TopReviews:    top,
 		Favorited:     favorited,
 		IsOwner:       isOwner,
 		CanReserve:    !isOwner && isPublic(l) && cycleOpenForReservation(c),

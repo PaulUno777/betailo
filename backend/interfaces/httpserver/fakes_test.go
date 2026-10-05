@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"slices"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -463,11 +464,12 @@ func (fakeObjectStorage) PresignDownload(_ context.Context, key string) (string,
 
 // fakeReviewRepo implements ports.ReviewRepository.
 type fakeReviewRepo struct {
-	byID map[bson.ObjectID]*domain.Review
+	byID  map[bson.ObjectID]*domain.Review
+	votes map[bson.ObjectID][]bson.ObjectID
 }
 
 func newFakeReviewRepo() *fakeReviewRepo {
-	return &fakeReviewRepo{byID: map[bson.ObjectID]*domain.Review{}}
+	return &fakeReviewRepo{byID: map[bson.ObjectID]*domain.Review{}, votes: map[bson.ObjectID][]bson.ObjectID{}}
 }
 
 func (f *fakeReviewRepo) Insert(_ context.Context, r *domain.Review) error {
@@ -506,6 +508,27 @@ func (f *fakeReviewRepo) Summary(_ context.Context, farmID bson.ObjectID) (ports
 	}
 	if s.Count > 0 {
 		s.Average = sum / float64(s.Count)
+	}
+	// Each criterion averages over the reviews that rated it, like the
+	// Mongo aggregation.
+	avg := func(get func(domain.ReviewCriteria) int) float64 {
+		var total, n int
+		for _, r := range f.byID {
+			if v := get(r.Criteria); r.FarmID == farmID && v > 0 {
+				total += v
+				n++
+			}
+		}
+		if n == 0 {
+			return 0
+		}
+		return float64(total) / float64(n)
+	}
+	s.Criteria = ports.CriteriaAverages{
+		Health:        avg(func(c domain.ReviewCriteria) int { return c.Health }),
+		Conformity:    avg(func(c domain.ReviewCriteria) int { return c.Conformity }),
+		Communication: avg(func(c domain.ReviewCriteria) int { return c.Communication }),
+		Timeliness:    avg(func(c domain.ReviewCriteria) int { return c.Timeliness }),
 	}
 	return s, nil
 }
@@ -730,4 +753,78 @@ func (f *fakeNotificationRepo) MarkAllRead(_ context.Context, userID bson.Object
 		}
 	}
 	return nil
+}
+
+// ReviewStore side of fakeReviewRepo.
+
+func (f *fakeReviewRepo) ListPage(_ context.Context, farmID bson.ObjectID, filter ports.ReviewFilter, page, pageSize int) ([]*domain.Review, int, error) {
+	var all []*domain.Review
+	for _, r := range f.byID {
+		if r.FarmID != farmID {
+			continue
+		}
+		switch filter {
+		case ports.ReviewFilterPhotos:
+			if len(r.Photos) == 0 {
+				continue
+			}
+		case ports.ReviewFilterFive:
+			if r.Rating != 5 {
+				continue
+			}
+		case ports.ReviewFilterCritical:
+			if r.Rating > 3 {
+				continue
+			}
+		}
+		all = append(all, r)
+	}
+	slices.SortFunc(all, func(a, b *domain.Review) int { return strings.Compare(b.ID.Hex(), a.ID.Hex()) })
+	start := min((page-1)*pageSize, len(all))
+	end := min(start+pageSize, len(all))
+	return all[start:end], len(all), nil
+}
+
+func (f *fakeReviewRepo) FindByID(_ context.Context, id bson.ObjectID) (*domain.Review, error) {
+	r, ok := f.byID[id]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	cp := *r
+	return &cp, nil
+}
+
+func (f *fakeReviewRepo) SetReply(_ context.Context, id bson.ObjectID, reply domain.ReviewReply) error {
+	r, ok := f.byID[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if r.Reply != nil {
+		return domain.ErrConflict
+	}
+	r.Reply = &reply
+	return nil
+}
+
+func (f *fakeReviewRepo) AddHelpfulVote(_ context.Context, id, userID bson.ObjectID) (bool, error) {
+	r, ok := f.byID[id]
+	if !ok {
+		return false, domain.ErrNotFound
+	}
+	if slices.Contains(f.votes[id], userID) {
+		return false, nil
+	}
+	f.votes[id] = append(f.votes[id], userID)
+	r.HelpfulCount++
+	return true, nil
+}
+
+func (f *fakeReviewRepo) VotedBy(_ context.Context, userID bson.ObjectID, ids []bson.ObjectID) (map[bson.ObjectID]bool, error) {
+	out := map[bson.ObjectID]bool{}
+	for _, id := range ids {
+		if slices.Contains(f.votes[id], userID) {
+			out[id] = true
+		}
+	}
+	return out, nil
 }

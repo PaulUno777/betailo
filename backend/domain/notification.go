@@ -53,6 +53,7 @@ const (
 	NotifEscrowRefunded       = "escrow_refunded"       // to the buyer
 	NotifDisputeOpened        = "dispute_opened"        // to the farmer
 	NotifReviewReceived       = "review_received"       // to the farmer
+	NotifReviewReply          = "review_reply"          // to the reviewer
 	NotifCycleUpdate          = "cycle_update"          // to buyers of the cycle
 	NotifForumReply           = "forum_reply"           // to the post's author
 	NotifBestAnswer           = "best_answer"           // to the reply's author
