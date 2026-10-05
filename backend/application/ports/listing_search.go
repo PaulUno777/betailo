@@ -23,12 +23,23 @@ type ListingSearchCriteria struct {
 	MaxPrice     float64
 	VerifiedOnly bool
 	Query        string // matched against the listing's title
-	// Sort is "availability" (default — soonest cycle start first),
-	// "price_asc", or "price_desc".
+	// Sort is one of the ListingSort* constants; anything else
+	// (including "") falls back to ListingSortAvailability.
 	Sort     string
 	Page     int
 	PageSize int
 }
+
+// Accepted ListingSearchCriteria.Sort values — the HTTP layer passes
+// the "sort" query parameter through verbatim, so these strings are the
+// public API contract.
+const (
+	ListingSortAvailability = "availability" // soonest cycle start first
+	ListingSortRecent       = "recent"       // newest listing first
+	ListingSortPriceAsc     = "price_asc"
+	ListingSortPriceDesc    = "price_desc"
+	ListingSortRating       = "rating" // best-reviewed farm first
+)
 
 // ListingSearchItem is the marketplace read model — a Listing enriched
 // with exactly the joined fields ListingCard/the listing detail page

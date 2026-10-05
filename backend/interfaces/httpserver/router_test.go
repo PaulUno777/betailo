@@ -150,16 +150,16 @@ func (f *fakeRefreshTokenRepo) RevokeFamily(_ context.Context, familyID bson.Obj
 type testFakes struct {
 	users         *fakeUserRepo
 	refreshTokens *fakeRefreshTokenRepo
-	farms        *fakeFarmRepo
-	cycles       *fakeCycleStore
-	listings     *fakeListingStore
-	reservations *fakeReservationRepo
-	reviews      *fakeReviewRepo
-	reports      *fakeReportRepo
-	forumPosts   *fakeForumRepo
-	storage      fakeObjectStorage
-	signer       *jwt.Signer
-	clock        clock.System
+	farms         *fakeFarmRepo
+	cycles        *fakeCycleStore
+	listings      *fakeListingStore
+	reservations  *fakeReservationRepo
+	reviews       *fakeReviewRepo
+	reports       *fakeReportRepo
+	forumPosts    *fakeForumRepo
+	storage       fakeObjectStorage
+	signer        *jwt.Signer
+	clock         clock.System
 }
 
 // promoteToAdmin flips a registered user's role directly in the fake

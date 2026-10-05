@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -95,8 +96,8 @@ func (r *ForumRepository) List(ctx context.Context, filter ports.ForumListFilter
 	}
 	if filter.Query != "" {
 		match["$or"] = bson.A{
-			bson.M{"title": bson.M{"$regex": filter.Query, "$options": "i"}},
-			bson.M{"body": bson.M{"$regex": filter.Query, "$options": "i"}},
+			bson.M{"title": bson.M{"$regex": regexp.QuoteMeta(filter.Query), "$options": "i"}},
+			bson.M{"body": bson.M{"$regex": regexp.QuoteMeta(filter.Query), "$options": "i"}},
 		}
 	}
 	if filter.Sort == "unanswered" {
