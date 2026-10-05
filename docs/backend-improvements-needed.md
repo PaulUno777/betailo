@@ -44,7 +44,7 @@ response.
 
 ## Admin surface needs backing data the current usecases don't compute
 
-Noted during the earlier backend-inventory pass, kept here for one list:
-`Moderation`'s risk score + signal breakdown and `Admin`'s system-health
-panel (API p95, worker goroutine count, outbox queue depth) aren't backed
-by any endpoint today. Out of scope until the Admin phase starts.
+`Admin`'s system-health panel (API p95, worker goroutine count, outbox
+queue depth) isn't backed by any endpoint today. (Moderation's risk score
+and signal breakdown already are: `GET /admin/reports/{id}` returns
+`riskScore` and `signals`.)

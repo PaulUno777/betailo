@@ -230,3 +230,36 @@ func TestAdmin_HTTP_ListingsWithPhotosResolveURLs(t *testing.T) {
 	}
 	t.Fatal("admin listings should include the created listing")
 }
+
+// A listing report's detail scores the listing's owner: a brand-new,
+// unverified farmer account trips both account signals.
+func TestAdmin_HTTP_ListingReportScoresOwnerRisk(t *testing.T) {
+	router, tf := newTestRouterAndFakes()
+	listingID, _ := setupListing(t, router, 120)
+	reporterToken, _ := registerAndLogin(t, router, uniqueEmail("reporter"), "buyer")
+	root := adminToken(t, router, tf)
+
+	reportRec := doJSON(t, router, http.MethodPost, "/reports", createReportRequest{
+		TargetID: listingID, TargetType: "listing", Reason: "photos volées",
+	}, reporterToken)
+	if reportRec.Code != http.StatusAccepted {
+		t.Fatalf("create report status = %d; body = %s", reportRec.Code, reportRec.Body.String())
+	}
+	report := decodeJSON[reportResponse](t, reportRec)
+
+	detailRec := doJSON(t, router, http.MethodGet, "/admin/reports/"+report.ID, nil, root)
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("report detail status = %d; body = %s", detailRec.Code, detailRec.Body.String())
+	}
+	detail := decodeJSON[reportDetailResponse](t, detailRec)
+	names := map[string]bool{}
+	for _, s := range detail.Signals {
+		names[s.Name] = true
+	}
+	if !names["Compte très récent"] || !names["Identité non vérifiée"] {
+		t.Fatalf("signals = %+v, want the new-account and unverified-identity signals", detail.Signals)
+	}
+	if detail.RiskScore <= 0 || detail.RiskScore > 100 {
+		t.Fatalf("riskScore = %d, want in (0, 100]", detail.RiskScore)
+	}
+}

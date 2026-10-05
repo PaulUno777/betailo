@@ -13,6 +13,8 @@ package integration
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
@@ -30,6 +32,7 @@ import (
 	"github.com/pauluno777/betailo/backend/infrastructure/clock"
 	"github.com/pauluno777/betailo/backend/infrastructure/mongodb"
 	"github.com/pauluno777/betailo/backend/infrastructure/payment"
+	"github.com/pauluno777/betailo/backend/internal/worker"
 )
 
 var client *mongo.Client
@@ -66,6 +69,7 @@ type env struct {
 	reservations *mongodb.ReservationRepository
 	reviews      *mongodb.ReviewRepository
 	reports      *mongodb.ReportRepository
+	notifs       *mongodb.NotificationRepository
 	tx           *mongodb.TxManager
 	trust        *trust.Recompute
 }
@@ -86,6 +90,7 @@ func newEnv(t *testing.T) *env {
 		reservations: &mongodb.ReservationRepository{Coll: db.Collection("reservations")},
 		reviews:      &mongodb.ReviewRepository{Coll: db.Collection("reviews")},
 		reports:      &mongodb.ReportRepository{Coll: db.Collection("reports")},
+		notifs:       &mongodb.NotificationRepository{Coll: db.Collection("notifications")},
 		tx:           &mongodb.TxManager{Client: client},
 	}
 	e.trust = &trust.Recompute{
@@ -324,5 +329,102 @@ func TestTrust_RecomputedFromRealSignals(t *testing.T) {
 	}
 	if afterReview := score(); afterReview <= afterSale {
 		t.Fatalf("score after a 5-star review = %v, want > %v", afterReview, afterSale)
+	}
+}
+
+type fixedClock struct{ t time.Time }
+
+func (c fixedClock) Now() time.Time { return c.t }
+
+// TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox runs the
+// real worker loop (Phase 5 DoD): it advances cycle statuses, expires
+// an unpaid reservation past its deadline (restoring stock), drains the
+// notification that expiry enqueued, and stops promptly on cancel.
+func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	_, cycle, listing := e.seed(t, 100)
+	buyer := e.buyer(t)
+
+	// A reservation made 25h ago is past the 24h unpaid grace period.
+	past := fixedClock{t: now.Add(-reservation.UnpaidReservationGrace - time.Hour)}
+	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: past}
+	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// One planned cycle that should have started, one in-progress cycle
+	// that should have ended.
+	farmID := cycle.FarmID
+	toStart := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porc", Type: "engraissement", Status: domain.CycleStatusPlanned, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-time.Hour)}
+	ended := now.Add(-time.Minute)
+	toEnd := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porc", Type: "engraissement", Status: domain.CycleStatusInProgress, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-48 * time.Hour), EndsAt: &ended}
+	for _, c := range []*domain.Cycle{toStart, toEnd} {
+		if err := e.cycles.Create(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	sys := clock.System{}
+	w := &worker.Worker{
+		Cycles:       e.cycles,
+		ExpireUnpaid: &reservation.ExpireUnpaidReservations{Reservations: e.reservations, Listings: e.listings, Cycles: e.cycles, Notifications: e.notifs, Clock: sys},
+		AutoRelease: &reservation.AutoReleaseDeliveries{
+			Reservations: e.reservations, Reports: e.reports, Listings: e.listings, Cycles: e.cycles,
+			Farms: e.farms, Trust: e.trust, Notifications: e.notifs, Clock: sys,
+		},
+		Notifications: e.notifs,
+		Clock:         sys,
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Interval:      50 * time.Millisecond,
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() { w.Run(runCtx); close(done) }()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		res, err := e.reservations.FindByID(ctx, out.Reservation.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pending, err := e.notifs.ListPending(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Status == domain.ReservationCancelled && len(pending) == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("worker didn't expire the reservation and drain the outbox in time: status=%q pending=%d", res.Status, len(pending))
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker.Run didn't return after cancel")
+	}
+
+	stored, err := e.cycles.FindByID(ctx, cycle.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.AvailableQuantity != stored.Capacity {
+		t.Errorf("availableQuantity = %d, want %d restored after expiry", stored.AvailableQuantity, stored.Capacity)
+	}
+	for c, want := range map[bson.ObjectID]domain.CycleStatus{toStart.ID: domain.CycleStatusInProgress, toEnd.ID: domain.CycleStatusDone} {
+		got, err := e.cycles.FindByID(ctx, c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Status != want {
+			t.Errorf("cycle %s status = %q, want %q", c.Hex(), got.Status, want)
+		}
 	}
 }
