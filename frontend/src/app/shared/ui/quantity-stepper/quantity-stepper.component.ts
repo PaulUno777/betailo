@@ -16,7 +16,7 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
           [attr.aria-label]="'quantityStepper.decrease' | t"
           (click)="decrement()"
           [disabled]="value() <= min()"
-          class="flex h-control-md w-control-md items-center justify-center rounded-sm border border-line-strong disabled:opacity-40"
+          class="flex h-control-md w-11 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40"
         >
           <bt-icon name="minus" [size]="16" />
         </button>
@@ -26,7 +26,7 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
           [attr.aria-label]="'quantityStepper.increase' | t"
           (click)="increment()"
           [disabled]="value() >= max()"
-          class="flex h-control-md w-control-md items-center justify-center rounded-sm border border-line-strong disabled:opacity-40"
+          class="flex h-control-md w-11 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40"
         >
           <bt-icon name="plus" [size]="16" />
         </button>

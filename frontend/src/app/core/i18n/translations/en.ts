@@ -5,6 +5,7 @@ import { TranslationDictionary } from './fr';
  * browser locale isn't French (see `locale.service.ts`). */
 export const en: TranslationDictionary = {
   common: {
+    retry: 'Try again',
     cancel: 'Cancel',
     close: 'Close',
     loading: 'Loading…'
@@ -27,6 +28,7 @@ export const en: TranslationDictionary = {
     chevres: 'Goats'
   },
   nav: {
+    favorites: 'Saved listings',
     marketplace: 'Marketplace',
     forum: 'Forum',
     howItWorks: 'How it works',
@@ -61,6 +63,11 @@ export const en: TranslationDictionary = {
     defaultCancel: 'Cancel'
   },
   home: {
+    mobileTitle: 'What are you looking for?',
+    mobileSearchPlaceholder: 'Brahma, chicks, piglets…',
+    verifiedBreeder: 'Verified breeder',
+    latestTitle: 'New in',
+    seeAll: 'See all',
     heroTrustChip: 'Payment held in escrow on every reservation',
     heroTitleStart: 'Reserve your next batch',
     heroTitleAccent: 'directly from the farm.',
@@ -105,6 +112,7 @@ export const en: TranslationDictionary = {
     forumTitle: 'Farmers answer each other’s questions.',
     forumBody: 'Health questions, feed, experience reports: a simple forum, moderated by the same rules as the marketplace.',
     forumCta: 'Open the forum',
+    forumReplyCount_one: '{count} reply',
     forumReplyCount: '{count} replies',
     farmerCtaEyebrow: 'For farmers',
     farmerCtaTitle: 'Are you a farmer?',
@@ -112,7 +120,15 @@ export const en: TranslationDictionary = {
     farmerCtaButton: 'Create a farmer account'
   },
   marketplace: {
+    titleShort: 'Market',
+    allChip: 'All',
+    resultsSorted_one: '{count} listing · {sort}',
+    resultsSorted: '{count} listings · {sort}',
+    showResults_one: 'Show {count} listing',
+    showResults: 'Show {count} listings',
+    loadMore: 'Show more listings',
     eyebrow: 'Marketplace',
+    eyebrowCount_one: 'Marketplace · {count} open cycle',
     eyebrowCount: 'Marketplace · {count} open cycles',
     title: 'Find your next batch',
     searchLabel: 'Search',
@@ -127,6 +143,7 @@ export const en: TranslationDictionary = {
     minPriceLabel: 'Min price (FCFA)',
     maxPriceLabel: 'Max price (FCFA)',
     verifiedOnlyLabel: 'Verified farmers only',
+    results_one: '{count} result',
     results: '{count} results',
     sortLabel: 'Sort by',
     sortRecent: 'Most recent',
@@ -141,10 +158,54 @@ export const en: TranslationDictionary = {
     pageOf: 'Page {page} of {total}'
   },
   listing: {
+    saved: 'Saved',
     verifiedBadge: 'Verified',
+    placesLeft_one: '{count} spot left',
     placesLeft: '{count} spots left'
   },
+  farmCard: {
+    sales_one: '{count} sale',
+    sales: '{count} sales',
+    since: 'since {year}',
+    trust: 'Trust',
+    verified: 'Verified farmer',
+    whatsapp: 'WhatsApp',
+    call: 'Call',
+    signInToContact: 'Sign in to contact the farmer'
+  },
+  gallery: {
+    label_one: '{count} photo',
+    label: '{count} photos',
+    goTo: 'Photo {n}',
+    noPhotos: 'No photo yet'
+  },
+  favorites: {
+    title: 'Saved listings',
+    count_one: '{count} saved listing',
+    count: '{count} saved listings',
+    emptyTitle: 'Nothing saved yet',
+    emptyBody: 'Tap the heart on a listing to find it here later.',
+    emptyCta: 'Browse the market',
+    error: 'Couldn’t load your saved listings.',
+  },
   listingDetail: {
+    back: 'Back',
+    share: 'Share',
+    favorite: 'Save',
+    unfavorite: 'Remove from saved',
+    savedTitle: 'Added to your saved listings',
+    favoriteFailed: 'Couldn’t update your saved listings.',
+    linkCopied: 'Link copied',
+    linkCopyFailed: 'Couldn’t copy the link.',
+    verifiedReviews_one: '{count} verified review',
+    verifiedReviews: '{count} verified reviews',
+    noReviews: 'No reviews for this farmer yet.',
+    priorityHint: 'Paid = priority · or reserve without paying',
+    soldOut: 'Sold out',
+    unavailable: 'Unavailable',
+    ownerManage: 'Manage my listing',
+    backToMarket: 'Back to the market',
+    whatsappMessage: 'Hello, I’m interested in your listing “{title}” on Betailo.',
     breadcrumbMarketplace: 'Marketplace',
     loading: 'Loading…',
     notFound: 'This listing can’t be found.',
@@ -226,6 +287,7 @@ export const en: TranslationDictionary = {
     submitLater: 'Reserve without paying',
     submitting: 'Confirming…',
     conflictTitle: 'Can’t reserve',
+    conflictBody_one: 'Only {count} spot is left for this listing. Adjust the quantity to continue.',
     conflictBody: 'Only {count} spots are left for this listing. Adjust the quantity to continue.',
     conflictReduce: 'Reduce to {count}',
     conflictClose: 'Close',
@@ -285,6 +347,7 @@ export const en: TranslationDictionary = {
     newPostButton: 'New topic',
     loading: 'Loading…',
     empty: 'No topic yet.',
+    repliesCount_one: '{count} reply',
     repliesCount: '{count} replies',
     postedOn: 'Posted on {date}',
     newPostDialogTitle: 'New topic',
@@ -318,12 +381,14 @@ export const en: TranslationDictionary = {
       'Your spot isn’t guaranteed: if demand is high, paid reservations go ahead of yours.'
   },
   capacity: {
+    remaining_one: '{count} spot left',
     remaining: '{count} spots left',
     complete: 'Full'
   },
   quantityStepper: {
     decrease: 'Decrease quantity',
     increase: 'Increase quantity',
+    maxHint_one: 'Maximum {count} spot available',
     maxHint: 'Maximum {count} spots available'
   },
   status: {
@@ -347,11 +412,19 @@ export const en: TranslationDictionary = {
     priorityUnpaid: 'Non-priority'
   },
   review: {
+    count_one: '{count} review',
     count: '{count} reviews',
     verified: 'Verified review · {id}',
     farmerReply: 'Farmer’s reply'
   },
   cycleTimeline: {
+    start: 'Cycle starts',
+    end: 'Cycle ends',
+    state: {
+      done: 'done',
+      current: 'in progress',
+      upcoming: 'upcoming'
+    },
     step1: 'Planned',
     step2: 'In progress',
     step3: 'Done',

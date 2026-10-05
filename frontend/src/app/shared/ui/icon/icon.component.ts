@@ -3,7 +3,8 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { inject } from '@angular/core';
 import { ICON_PATHS, IconName } from './icon-paths';
 
-/** 24px stroke icon, `currentColor` — only `star` renders filled. Sizes
+/** 24px stroke icon, `currentColor`. `star` always renders filled; any
+ * other glyph can be filled on demand (`filled`, e.g. a saved heart). Sizes
  * per the README: 14 in chips, 18 in buttons, 20-22 in navigation. */
 @Component({
   selector: 'bt-icon',
@@ -13,7 +14,7 @@ import { ICON_PATHS, IconName } from './icon-paths';
       [attr.width]="size()"
       [attr.height]="size()"
       viewBox="0 0 24 24"
-      [attr.fill]="isStar() ? 'currentColor' : 'none'"
+      [attr.fill]="isStar() || filled() ? 'currentColor' : 'none'"
       [attr.stroke]="isStar() ? 'none' : 'currentColor'"
       stroke-width="2"
       stroke-linecap="round"
@@ -32,6 +33,7 @@ export class IconComponent {
   readonly name = input.required<IconName>();
   readonly size = input(20);
   readonly label = input<string>();
+  readonly filled = input(false);
 
   protected readonly isStar = computed(() => this.name() === 'star');
   protected readonly markup = computed(() => this.sanitizer.bypassSecurityTrustHtml(ICON_PATHS[this.name()]));

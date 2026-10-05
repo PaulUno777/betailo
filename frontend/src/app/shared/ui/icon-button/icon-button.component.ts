@@ -13,7 +13,7 @@ import { IconName } from '../icon/icon-paths';
       type="button"
       [attr.aria-label]="label()"
       [disabled]="disabled()"
-      class="relative inline-flex h-control-md w-control-md items-center justify-center rounded-full text-ink hover:bg-surface-sunken transition disabled:opacity-50 disabled:pointer-events-none"
+      class="relative inline-flex h-control-md w-11 items-center justify-center rounded-full text-ink hover:bg-surface-sunken transition disabled:opacity-50 disabled:pointer-events-none"
     >
       <bt-icon [name]="icon()" [size]="22" />
       @if (badge()) {

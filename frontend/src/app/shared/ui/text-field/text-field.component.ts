@@ -42,6 +42,7 @@ let nextId = 0;
             [id]="id"
             [type]="type()"
             [attr.autocomplete]="autocomplete()"
+            [attr.inputmode]="inputmode()"
             [attr.placeholder]="placeholder()"
             [disabled]="disabled()"
             [value]="value()"
@@ -74,6 +75,9 @@ export class TextFieldComponent extends ValueAccessorBase<string> {
   readonly hint = input<string>();
   readonly error = input<string>();
   readonly autocomplete = input<string>();
+  /** The on-screen keyboard to show on phones ("numeric", "tel",
+   * "decimal", "email"...). */
+  readonly inputmode = input<string>();
 
   protected initialValue(): string {
     return '';

@@ -1,75 +1,70 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { CycleStatus } from '../../../domain/enums';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { TimelineStep } from '../../../domain/models';
 import { IconComponent } from '../icon/icon.component';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { LocalDatePipe } from '../../pipes/local-date.pipe';
 
-type StepState = 'done' | 'current' | 'todo';
-
-interface Step {
-  readonly labelKey: string;
-  readonly state: StepState;
-}
-
-const STEP_LABEL_KEYS = ['cycleTimeline.step1', 'cycleTimeline.step2', 'cycleTimeline.step3'] as const;
-const STEP_INDEX: Readonly<Record<Exclude<CycleStatus, 'cancelled'>, number>> = {
-  planned: 0,
-  in_progress: 1,
-  done: 2
-};
-
-/** The cycle's progress — responsive by itself (a row on wide screens, a
- * column on narrow ones) rather than needing a `direction` input, so one
- * component serves both the desktop and mobile boards. */
+/** "Déroulé du cycle": the server-built timeline (start, every health-log
+ * entry, end), rendered as a vertical rail. Which step is done, current
+ * or upcoming is decided by the API (`TimelineStep.state`), never here.
+ * Health entries show the farmer's own title and detail; start and end
+ * steps are labelled from the dictionary. */
 @Component({
   selector: 'bt-cycle-timeline',
-  imports: [IconComponent, TranslatePipe],
+  imports: [IconComponent, TranslatePipe, LocalDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (status() === 'cancelled') {
-      <div class="flex items-center gap-2 text-alert">
-        <bt-icon name="x" [size]="18" />
-        <span class="text-body-strong">{{ 'cycleTimeline.cancelled' | t }}</span>
-      </div>
-    } @else {
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-0">
-        @for (step of steps(); track step.labelKey; let last = $last) {
-          <div class="flex items-center gap-3 sm:flex-1">
-            <span
-              [class]="
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-caption ' +
-                (step.state === 'done'
-                  ? 'bg-forest text-on-forest'
-                  : step.state === 'current'
-                    ? 'bg-clay text-on-clay ring-4 ring-clay-soft'
-                    : 'bg-surface-sunken text-ink-muted')
-              "
-            >
-              @if (step.state === 'done') {
-                <bt-icon name="check" [size]="14" />
-              } @else {
-                {{ $index + 1 }}
-              }
-            </span>
-            <span [class]="step.state === 'todo' ? 'text-body text-ink-muted' : 'text-body-strong'">{{ step.labelKey | t }}</span>
-            @if (!last) {
-              <span class="hidden h-px flex-1 bg-line sm:block"></span>
-            }
-          </div>
-        }
+    @if (cancelled()) {
+      <div class="mb-4 flex items-center gap-2 rounded-md bg-alert-soft px-3 py-2 text-alert">
+        <bt-icon name="x" [size]="16" />
+        <span class="text-small">{{ 'cycleTimeline.cancelled' | t }}</span>
       </div>
     }
+    <ol class="flex flex-col">
+      @for (step of steps(); track $index; let last = $last) {
+        <li class="relative flex gap-4 pb-5 last:pb-0">
+          @if (!last) {
+            <span
+              class="absolute left-[11px] top-6 bottom-0 w-0.5"
+              [class]="step.state === 'done' ? 'bg-forest' : 'bg-line'"
+              aria-hidden="true"
+            ></span>
+          }
+          <span
+            class="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+            [class]="dotClass(step)"
+            aria-hidden="true"
+          >
+            @if (step.state === 'done') {
+              <bt-icon name="check" [size]="13" />
+            }
+          </span>
+          <div class="flex min-w-0 flex-col">
+            <span [class]="step.state === 'upcoming' ? 'text-body text-ink-muted' : 'text-body-strong text-ink'">
+              {{ step.kind === 'health' ? step.title : ((step.kind === 'start' ? 'cycleTimeline.start' : 'cycleTimeline.end') | t) }}
+            </span>
+            <span class="text-small text-ink-muted">
+              {{ step.date | localDate: 'dayMonth' }}@if (step.detail) { · {{ step.detail }} }
+            </span>
+            <span class="sr-only">{{ 'cycleTimeline.state.' + step.state | t }}</span>
+          </div>
+        </li>
+      }
+    </ol>
   `
 })
 export class CycleTimelineComponent {
-  readonly status = input.required<CycleStatus>();
+  readonly steps = input.required<readonly TimelineStep[]>();
+  readonly cancelled = input(false);
 
-  protected readonly steps = computed<Step[]>(() => {
-    const status = this.status();
-    if (status === 'cancelled') return [];
-    const currentIndex = STEP_INDEX[status];
-    return STEP_LABEL_KEYS.map((labelKey, index) => ({
-      labelKey,
-      state: index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'todo'
-    }));
-  });
+  protected dotClass(step: TimelineStep): string {
+    switch (step.state) {
+      case 'done':
+        return 'bg-forest text-on-forest';
+      case 'current':
+        return 'bg-clay ring-4 ring-clay-soft';
+      default:
+        return 'border-2 border-line-strong bg-surface-card';
+    }
+  }
 }

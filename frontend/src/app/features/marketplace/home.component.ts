@@ -27,7 +27,90 @@ import { apiResource } from '../../core/http/api-resource';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="mx-auto max-w-content-max px-5 py-16 sm:px-18 sm:py-22">
+    <!-- Phones: the app home from the mobile design. -->
+    <div class="flex flex-col gap-7 px-4 pb-4 pt-6 sm:hidden">
+      <header class="flex flex-col gap-1">
+        <h1 class="text-heading-1">{{ 'home.mobileTitle' | t }}</h1>
+      </header>
+
+      <form (submit)="$event.preventDefault(); searchQuery()" role="search">
+        <label for="home-q" class="sr-only">{{ 'marketplace.searchLabel' | t }}</label>
+        <div class="relative flex items-center">
+          <bt-icon name="search" [size]="20" class="pointer-events-none absolute left-4 text-ink-muted" />
+          <input
+            id="home-q"
+            type="search"
+            enterkeyhint="search"
+            autocomplete="off"
+            [placeholder]="'home.mobileSearchPlaceholder' | t"
+            [ngModel]="query()"
+            (ngModelChange)="query.set($event)"
+            name="q"
+            class="h-control-xl w-full rounded-full border border-line bg-surface-card pl-12 pr-4 text-body text-ink outline-none focus:border-forest"
+            style="box-shadow: var(--shadow-float)"
+          />
+        </div>
+      </form>
+
+      <nav class="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4" [attr.aria-label]="'home.searchSpeciesLabel' | t">
+        @for (opt of speciesOptions(); track opt.value; let i = $index) {
+          <a
+            [routerLink]="['/marketplace']"
+            [queryParams]="{ species: opt.value }"
+            class="flex h-control-md shrink-0 items-center gap-2 rounded-full border border-line bg-surface-card px-4 text-body-strong"
+          >
+            <span class="h-2.5 w-2.5 rounded-full" [class]="speciesDot[i % speciesDot.length]"></span>
+            {{ opt.label }}
+          </a>
+        }
+      </nav>
+
+      @if (topRated.value()?.items?.[0]; as top) {
+        <a [routerLink]="['/marketplace', top.listing.id]" class="relative block aspect-[16/11] overflow-hidden rounded-xl bg-forest-deep">
+          @if (top.listing.photos?.[0]; as photo) {
+            <img [src]="photo" [alt]="top.listing.title" class="absolute inset-0 h-full w-full object-cover" />
+          }
+          <div class="absolute inset-0 bg-gradient-to-t from-forest-deep via-forest-deep/40 to-transparent"></div>
+          @if (top.farmVerified) {
+            <span class="absolute left-4 top-4 rounded-full bg-clay px-3 py-1 text-caption text-on-clay">{{ 'home.verifiedBreeder' | t }}</span>
+          }
+          <div class="absolute inset-x-4 bottom-4 flex flex-col gap-1 text-on-forest-deep">
+            <span class="text-heading-3 leading-tight">{{ top.listing.title }}</span>
+            <span class="flex items-center gap-1 text-small text-on-forest-deep/85">
+              {{ top.farmName }} · {{ top.farmLocation }}
+              @if (top.reviewCount) {
+                · <bt-icon name="star" [size]="13" /> {{ top.reviewAverage.toFixed(1) }}
+              }
+            </span>
+          </div>
+        </a>
+      }
+
+      <section class="flex flex-col gap-3">
+        <div class="flex items-baseline justify-between">
+          <h2 class="text-heading-3">{{ 'home.latestTitle' | t }}</h2>
+          <a routerLink="/marketplace" class="text-body-strong text-forest underline">{{ 'home.seeAll' | t }}</a>
+        </div>
+        @if (featured.value()?.items?.length) {
+          <div class="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-1">
+            @for (item of featured.value()!.items; track item.listing.id) {
+              <div class="w-[72%] shrink-0 snap-start">
+                <bt-listing-card [item]="item" />
+              </div>
+            }
+          </div>
+        } @else if (featured.isLoading()) {
+          <div class="flex gap-3 overflow-hidden">
+            <div class="h-72 w-[72%] shrink-0 animate-pulse rounded-lg bg-surface-sunken"></div>
+            <div class="h-72 w-[72%] shrink-0 animate-pulse rounded-lg bg-surface-sunken"></div>
+          </div>
+        } @else {
+          <p class="rounded-lg border border-dashed border-line-strong p-6 text-body text-ink-muted">{{ 'home.featuredEmpty' | t }}</p>
+        }
+      </section>
+    </div>
+
+    <section class="mx-auto hidden max-w-content-max px-5 py-16 sm:block sm:px-18 sm:py-22">
       <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
         <div class="flex flex-col gap-6">
           <span class="inline-flex w-fit items-center gap-1.5 rounded-full bg-forest-soft px-3 py-1.5 text-caption text-forest">
@@ -140,12 +223,12 @@ import { apiResource } from '../../core/http/api-resource';
       </div>
     </section>
 
-    <section class="mx-auto max-w-content-max px-5 py-8 sm:px-18">
+    <section class="mx-auto hidden max-w-content-max px-5 py-8 sm:block sm:px-18">
       <span class="text-eyebrow text-clay-ink">{{ 'home.featuredEyebrow' | t }}</span>
       <h2 class="mt-2.5 text-heading-2">{{ 'home.featuredTitle' | t }}</h2>
       @if (featured.value()?.items?.length) {
         <div class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          @for (item of featured.value()!.items; track item.listing.id) {
+          @for (item of featured.value()!.items.slice(0, 4); track item.listing.id) {
             <bt-listing-card [item]="item" />
           }
         </div>
@@ -249,13 +332,21 @@ export class HomeComponent {
   );
   protected readonly categoryTone = categoryTone;
   protected readonly species = signal('');
+  protected readonly query = signal('');
+  protected readonly speciesDot = ['bg-clay', 'bg-forest', 'bg-amber', 'bg-sky', 'bg-alert', 'bg-plum'];
   protected readonly city = signal('');
 
   protected readonly featured = apiResource<ListingSearchResult>(() =>
-    this.listingsApi.searchUrl({ pageSize: 4, sort: 'recent' })
+    this.listingsApi.searchUrl({ pageSize: 8, sort: 'recent' })
   );
 
+  protected readonly topRated = apiResource<ListingSearchResult>(() => this.listingsApi.searchUrl({ pageSize: 1, sort: 'rating' }));
+
   protected readonly forumTeaser = apiResource<ForumPost[]>(() => this.forumApi.postsUrl({ sort: 'recent' }));
+
+  protected searchQuery(): void {
+    this.router.navigate(['/marketplace'], { queryParams: { q: this.query().trim() || null } });
+  }
 
   protected search(): void {
     this.router.navigate(['/marketplace'], {
