@@ -7,10 +7,13 @@ package forum
 import (
 	"context"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -65,7 +68,12 @@ func (uc *GetPost) Execute(ctx context.Context, id bson.ObjectID) (*domain.Forum
 type AddReply struct {
 	Forum ports.ForumRepository
 	Clock ports.Clock
+	// Notifications tells the post's author about the reply. Optional.
+	Notifications ports.NotificationRepository
 }
+
+// maxReplyLen bounds a reply's body.
+const maxReplyLen = 2000
 
 type AddReplyInput struct {
 	PostID   bson.ObjectID
@@ -74,21 +82,37 @@ type AddReplyInput struct {
 }
 
 func (uc *AddReply) Execute(ctx context.Context, in AddReplyInput) error {
-	if in.Body == "" {
+	body := strings.TrimSpace(in.Body)
+	if body == "" {
 		return fmt.Errorf("forum: reply body is required: %w", domain.ErrInvalid)
 	}
-	if _, err := uc.Forum.FindByID(ctx, in.PostID); err != nil {
+	if utf8.RuneCountInString(body) > maxReplyLen {
+		return fmt.Errorf("forum: reply must be at most %d characters: %w", maxReplyLen, domain.ErrInvalid)
+	}
+	post, err := uc.Forum.FindByID(ctx, in.PostID)
+	if err != nil {
 		return err
 	}
-	return uc.Forum.AddReply(ctx, in.PostID, domain.ForumReply{
-		AuthorID: in.AuthorID, Body: in.Body, CreatedAt: uc.Clock.Now(),
-	})
+	now := uc.Clock.Now()
+	if err := uc.Forum.AddReply(ctx, in.PostID, domain.ForumReply{AuthorID: in.AuthorID, Body: body, CreatedAt: now}); err != nil {
+		return err
+	}
+	if post.AuthorID != in.AuthorID {
+		notify.Send(ctx, uc.Notifications, now, notify.Notice{
+			UserID: post.AuthorID, Type: domain.NotifForumReply, Params: map[string]string{"title": post.Title},
+			Link: "/forum/" + post.ID.Hex(), Fallback: "Nouvelle réponse à « " + post.Title + " ».",
+		})
+	}
+	return nil
 }
 
 // MarkBestAnswer lets a post's author flag one reply as the answer that
 // resolved their question.
 type MarkBestAnswer struct {
 	Forum ports.ForumRepository
+	Clock ports.Clock
+	// Notifications tells the reply's author. Optional.
+	Notifications ports.NotificationRepository
 }
 
 type MarkBestAnswerInput struct {
@@ -110,5 +134,14 @@ func (uc *MarkBestAnswer) Execute(ctx context.Context, in MarkBestAnswerInput) e
 	if in.ReplyIndex < 0 || in.ReplyIndex >= len(p.Replies) {
 		return fmt.Errorf("forum: reply index out of range: %w", domain.ErrInvalid)
 	}
-	return uc.Forum.SetBestReplyIndex(ctx, in.PostID, in.ReplyIndex)
+	if err := uc.Forum.SetBestReplyIndex(ctx, in.PostID, in.ReplyIndex); err != nil {
+		return err
+	}
+	if replier := p.Replies[in.ReplyIndex].AuthorID; replier != p.AuthorID && uc.Clock != nil {
+		notify.Send(ctx, uc.Notifications, uc.Clock.Now(), notify.Notice{
+			UserID: replier, Type: domain.NotifBestAnswer, Params: map[string]string{"title": p.Title},
+			Link: "/forum/" + p.ID.Hex(), Fallback: "Votre réponse à « " + p.Title + " » a été choisie comme meilleure réponse.",
+		})
+	}
+	return nil
 }

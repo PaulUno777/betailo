@@ -17,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -45,6 +46,8 @@ type ReserveCycle struct {
 	Payments     ports.PaymentProvider
 	Tx           ports.TxManager
 	Clock        ports.Clock
+	// Notifications tells the farmer about the new reservation. Optional.
+	Notifications ports.NotificationRepository
 }
 
 // ReserveCycleInput is what a caller (an HTTP handler) supplies.
@@ -157,14 +160,21 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 		return nil, err
 	}
 
-	if !in.PayNow {
-		return &ReserveCycleOutput{Reservation: res}, nil
+	captured := false
+	if in.PayNow {
+		captured = capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, payment) == nil
 	}
 
-	if err := capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, payment); err != nil {
-		return &ReserveCycleOutput{Reservation: res, PaymentCaptured: false}, nil
+	typ, fallback := domain.NotifReservationCreated, "Nouvelle réservation %s."
+	if captured {
+		typ, fallback = domain.NotifReservationPaid, "Réservation %s payée, fonds en séquestre."
 	}
-	return &ReserveCycleOutput{Reservation: res, PaymentCaptured: true}, nil
+	notify.Send(ctx, uc.Notifications, now, notify.Notice{
+		UserID: farm.OwnerID, Type: typ, Params: reservationParams(res, l.Title),
+		Link: domain.LinkFarmerReservations, Fallback: fmt.Sprintf(fallback, res.Reference),
+	})
+
+	return &ReserveCycleOutput{Reservation: res, PaymentCaptured: captured}, nil
 }
 
 // capturePayment centralizes the pay-now transition shared by

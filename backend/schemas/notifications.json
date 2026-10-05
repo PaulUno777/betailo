@@ -7,6 +7,9 @@
     "message": { "bsonType": "string" },
     "status": { "enum": ["pending", "sent"] },
     "createdAt": { "bsonType": "date" },
-    "sentAt": { "bsonType": "date" }
+    "sentAt": { "bsonType": "date" },
+    "params": { "bsonType": "object" },
+    "link": { "bsonType": "string" },
+    "readAt": { "bsonType": "date" }
   }
 }

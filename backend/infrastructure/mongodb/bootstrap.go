@@ -139,6 +139,8 @@ func ensureIndexes(ctx context.Context, database *mongo.Database) error {
 		{"notifications", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "status", Value: 1}}},
 			{Keys: bson.D{{Key: "userId", Value: 1}}},
+			// The bell: a user's newest first, and the unread count.
+			{Keys: bson.D{{Key: "userId", Value: 1}, {Key: "createdAt", Value: -1}}},
 		}},
 	}
 

@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -29,6 +30,12 @@ type AddHealthEvent struct {
 	Farms  ports.FarmRepository
 	Cycles ports.CycleStore
 	Clock  ports.Clock
+
+	// Listings, Reservations and Notifications tell the buyers with an
+	// active reservation on this cycle. Optional as a group.
+	Listings      ports.ListingStore
+	Reservations  ports.ReservationRepository
+	Notifications ports.NotificationRepository
 }
 
 type AddHealthEventInput struct {
@@ -80,5 +87,35 @@ func (uc *AddHealthEvent) Execute(ctx context.Context, in AddHealthEventInput) (
 		return nil, err
 	}
 	c.HealthLog = append(c.HealthLog, event)
+	uc.notifyBuyers(ctx, c, event)
 	return c, nil
+}
+
+// notifyBuyers tells everyone holding an active reservation on the
+// cycle's listing about the new entry, best effort.
+func (uc *AddHealthEvent) notifyBuyers(ctx context.Context, c *domain.Cycle, e domain.HealthEvent) {
+	if uc.Notifications == nil || uc.Listings == nil || uc.Reservations == nil {
+		return
+	}
+	l, err := uc.Listings.FindByCycleID(ctx, c.ID)
+	if err != nil {
+		return
+	}
+	reservations, err := uc.Reservations.ListByListingIDs(ctx, []bson.ObjectID{l.ID})
+	if err != nil {
+		return
+	}
+	now := uc.Clock.Now()
+	told := map[bson.ObjectID]bool{}
+	for _, r := range reservations {
+		if domain.GroupOf(r) != domain.GroupActive || told[r.BuyerID] {
+			continue
+		}
+		told[r.BuyerID] = true
+		notify.Send(ctx, uc.Notifications, now, notify.Notice{
+			UserID: r.BuyerID, Type: domain.NotifCycleUpdate,
+			Params: map[string]string{"title": l.Title, "event": e.Type, "ref": r.Reference},
+			Link:   domain.LinkBuyerReservations, Fallback: fmt.Sprintf("%s : %s", l.Title, e.Type),
+		})
+	}
 }

@@ -15,9 +15,11 @@ import (
 // pending/unpaid to confirmed/held/priority via the same capturePayment
 // path ReserveCycle uses for pay-now.
 type PayReservation struct {
-	Reservations ports.ReservationRepository
-	Payments     ports.PaymentProvider
-	Clock        ports.Clock
+	Reservations  ports.ReservationRepository
+	Payments      ports.PaymentProvider
+	Clock         ports.Clock
+	Parties       Parties
+	Notifications ports.NotificationRepository
 }
 
 type PayReservationInput struct {
@@ -50,5 +52,6 @@ func (uc *PayReservation) Execute(ctx context.Context, in PayReservationInput) (
 	if err := capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, payment); err != nil {
 		return nil, err
 	}
+	uc.Parties.notifyFarmer(ctx, uc.Notifications, uc.Clock, res, domain.NotifReservationPaid, "Réservation %s payée, fonds en séquestre.")
 	return res, nil
 }

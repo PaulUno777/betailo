@@ -17,9 +17,11 @@ import (
 // before releasing escrow. An admin resolves the dispute via
 // application/usecase/admin's escrow release/refund actions.
 type OpenDispute struct {
-	Reservations ports.ReservationRepository
-	Reports      ports.ReportRepository
-	Clock        ports.Clock
+	Reservations  ports.ReservationRepository
+	Reports       ports.ReportRepository
+	Clock         ports.Clock
+	Parties       Parties
+	Notifications ports.NotificationRepository
 }
 
 type OpenDisputeInput struct {
@@ -58,5 +60,6 @@ func (uc *OpenDispute) Execute(ctx context.Context, in OpenDisputeInput) (*domai
 	if err := uc.Reports.Insert(ctx, report); err != nil {
 		return nil, err
 	}
+	uc.Parties.notifyFarmer(ctx, uc.Notifications, uc.Clock, res, domain.NotifDisputeOpened, "Un litige a été ouvert sur %s.")
 	return report, nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
 	"github.com/pauluno777/betailo/backend/application/usecase/favorite"
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
+	"github.com/pauluno777/betailo/backend/application/usecase/inbox"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
@@ -161,6 +162,7 @@ type testFakes struct {
 	storage       fakeObjectStorage
 	favorites     *fakeFavoriteRepo
 	sequencer     *fakeSequencer
+	notifications *fakeNotificationRepo
 	signer        *jwt.Signer
 	clock         clock.System
 }
@@ -196,7 +198,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 	tf := &testFakes{
 		users: newFakeUserRepo(), refreshTokens: newFakeRefreshTokenRepo(), farms: newFakeFarmRepo(), cycles: newFakeCycleStore(),
 		listings: newFakeListingStore(), reservations: newFakeReservationRepo(),
-		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(), sequencer: &fakeSequencer{},
+		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(), sequencer: &fakeSequencer{}, notifications: &fakeNotificationRepo{},
 		signer: &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")},
 		clock:  clock.System{},
 	}
@@ -209,6 +211,8 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		Users: tf.users, Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings,
 		Reservations: tf.reservations, Reviews: tf.reviews, Reports: tf.reports, Clock: tf.clock,
 	}
+
+	parties := reservation.Parties{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms}
 
 	deps := Dependencies{
 		Register: &auth.Register{Users: tf.users, Hasher: hasher, Clock: tf.clock},
@@ -232,9 +236,12 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		UpdateFarm:  &farm.UpdateFarm{Farms: tf.farms},
 		DeleteFarm:  &farm.DeleteFarm{Farms: tf.farms, Cycles: tf.cycles},
 
-		CreateCycle:       &cycle.CreateCycle{Farms: tf.farms, Cycles: tf.cycles, Sequencer: tf.sequencer},
-		GetCycle:          &cycle.GetCycle{Cycles: tf.cycles, Clock: tf.clock},
-		AddHealthEvent:    &cycle.AddHealthEvent{Farms: tf.farms, Cycles: tf.cycles, Clock: tf.clock},
+		CreateCycle: &cycle.CreateCycle{Farms: tf.farms, Cycles: tf.cycles, Sequencer: tf.sequencer},
+		GetCycle:    &cycle.GetCycle{Cycles: tf.cycles, Clock: tf.clock},
+		AddHealthEvent: &cycle.AddHealthEvent{
+			Farms: tf.farms, Cycles: tf.cycles, Clock: tf.clock,
+			Listings: tf.listings, Reservations: tf.reservations, Notifications: tf.notifications,
+		},
 		ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: tf.cycles},
 		UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: tf.farms, Cycles: tf.cycles},
 		DeleteCycle:       &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
@@ -257,16 +264,29 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 
 		ReserveCycle: &reservation.ReserveCycle{
 			Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Sequencer: tf.sequencer, Reservations: tf.reservations,
-			Payments: payments, Tx: fakeTxManager{}, Clock: tf.clock,
+			Payments: payments, Tx: fakeTxManager{}, Clock: tf.clock, Notifications: tf.notifications,
 		},
-		CancelReservation: &reservation.CancelReservation{Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Tx: fakeTxManager{}},
-		PayReservation:    &reservation.PayReservation{Reservations: tf.reservations, Payments: payments, Clock: tf.clock},
-		MarkDelivered:     &reservation.MarkDelivered{Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Clock: tf.clock},
+		CancelReservation: &reservation.CancelReservation{
+			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Tx: fakeTxManager{}, Clock: tf.clock,
+			Parties: parties, Notifications: tf.notifications,
+		},
+		ListNotifications:        &inbox.List{Inbox: tf.notifications},
+		UnreadNotifications:      &inbox.UnreadCount{Inbox: tf.notifications},
+		MarkNotificationRead:     &inbox.MarkRead{Inbox: tf.notifications, Clock: tf.clock},
+		MarkAllNotificationsRead: &inbox.MarkAllRead{Inbox: tf.notifications, Clock: tf.clock},
+		PayReservation: &reservation.PayReservation{
+			Reservations: tf.reservations, Payments: payments, Clock: tf.clock, Parties: parties, Notifications: tf.notifications,
+		},
+		MarkDelivered: &reservation.MarkDelivered{
+			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Clock: tf.clock, Notifications: tf.notifications,
+		},
 		ConfirmDelivery: &reservation.ConfirmDelivery{
 			Reservations: tf.reservations, Reports: tf.reports, Listings: tf.listings, Cycles: tf.cycles,
-			Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock,
+			Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock, Notifications: tf.notifications,
 		},
-		OpenDispute: &reservation.OpenDispute{Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
+		OpenDispute: &reservation.OpenDispute{
+			Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock, Parties: parties, Notifications: tf.notifications,
+		},
 		ListMyReservations: &reservation.ListMyReservations{
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reports: tf.reports, Reviews: tf.reviews,
 		},
@@ -276,6 +296,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 
 		CreateReview: &review.CreateReview{
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reviews: tf.reviews, Trust: trustRecompute,
+			Clock: tf.clock, Notifications: tf.notifications,
 		},
 		ListFarmReviews: &review.ListByFarm{Reviews: tf.reviews},
 
@@ -284,8 +305,8 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		CreateForumPost: &forum.CreatePost{Forum: tf.forumPosts, Clock: tf.clock},
 		ListForumPosts:  &forum.ListPosts{Forum: tf.forumPosts},
 		GetForumPost:    &forum.GetPost{Forum: tf.forumPosts},
-		AddForumReply:   &forum.AddReply{Forum: tf.forumPosts, Clock: tf.clock},
-		MarkBestAnswer:  &forum.MarkBestAnswer{Forum: tf.forumPosts},
+		AddForumReply:   &forum.AddReply{Forum: tf.forumPosts, Clock: tf.clock, Notifications: tf.notifications},
+		MarkBestAnswer:  &forum.MarkBestAnswer{Forum: tf.forumPosts, Clock: tf.clock, Notifications: tf.notifications},
 
 		SellerDashboard: &dashboard.SellerDashboard{
 			Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Users: tf.users, Clock: tf.clock,
@@ -301,8 +322,10 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		AdminReleaseEscrow: &reservation.AdminReleaseEscrow{
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock,
 		},
-		AdminRefundEscrow: &reservation.AdminRefundEscrow{Reservations: tf.reservations, Payments: payments, Clock: tf.clock},
-		AdminListReports:  &admin.ListReports{Reports: tf.reports},
+		AdminRefundEscrow: &reservation.AdminRefundEscrow{
+			Reservations: tf.reservations, Payments: payments, Clock: tf.clock, Parties: parties, Notifications: tf.notifications,
+		},
+		AdminListReports: &admin.ListReports{Reports: tf.reports},
 		AdminGetReportDetail: &admin.GetReportDetail{
 			Reports: tf.reports, Users: tf.users, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms,
 			Search: search, Clock: tf.clock,

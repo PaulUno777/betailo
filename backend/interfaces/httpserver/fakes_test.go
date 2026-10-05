@@ -674,3 +674,60 @@ func (f *fakeSequencer) Next(_ context.Context, key string) (int64, error) {
 	f.byKey[key]++
 	return f.byKey[key], nil
 }
+
+// fakeNotificationRepo is the outbox and the inbox at once, like the
+// real notifications collection.
+type fakeNotificationRepo struct{ all []*domain.Notification }
+
+func (f *fakeNotificationRepo) Enqueue(_ context.Context, n *domain.Notification) error {
+	if n.ID.IsZero() {
+		n.ID = bson.NewObjectID()
+	}
+	f.all = append(f.all, n)
+	return nil
+}
+
+func (f *fakeNotificationRepo) ListPending(context.Context) ([]*domain.Notification, error) {
+	return nil, nil
+}
+
+func (f *fakeNotificationRepo) MarkSent(context.Context, bson.ObjectID, time.Time) error { return nil }
+
+func (f *fakeNotificationRepo) ListByUser(_ context.Context, userID bson.ObjectID, limit int) ([]*domain.Notification, error) {
+	var out []*domain.Notification
+	for i := len(f.all) - 1; i >= 0 && len(out) < limit; i-- {
+		if f.all[i].UserID == userID {
+			out = append(out, f.all[i])
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeNotificationRepo) CountUnread(_ context.Context, userID bson.ObjectID) (int, error) {
+	n := 0
+	for _, x := range f.all {
+		if x.UserID == userID && x.ReadAt == nil {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeNotificationRepo) MarkRead(_ context.Context, userID, id bson.ObjectID, at time.Time) error {
+	for _, x := range f.all {
+		if x.ID == id && x.UserID == userID {
+			x.ReadAt = &at
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (f *fakeNotificationRepo) MarkAllRead(_ context.Context, userID bson.ObjectID, at time.Time) error {
+	for _, x := range f.all {
+		if x.UserID == userID && x.ReadAt == nil {
+			x.ReadAt = &at
+		}
+	}
+	return nil
+}

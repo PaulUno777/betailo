@@ -45,11 +45,7 @@ func (uc *ExpireUnpaidReservations) expireOne(ctx context.Context, res *domain.R
 		return err
 	}
 
-	return uc.Notifications.Enqueue(ctx, &domain.Notification{
-		UserID:    res.BuyerID,
-		Type:      "reservation_expired",
-		Message:   "Votre réservation non payée a expiré et la place a été libérée.",
-		Status:    domain.NotificationPending,
-		CreatedAt: uc.Clock.Now(),
-	})
+	Parties{}.notifyBuyer(ctx, uc.Notifications, uc.Clock, res, domain.NotifReservationExpired,
+		"Votre réservation %s non payée a expiré et les places ont été libérées.", nil)
+	return nil
 }

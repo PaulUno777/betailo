@@ -561,3 +561,41 @@ func TestCounters_ConcurrentReferencesAreUniqueAndBackfillFillsGaps(t *testing.T
 		t.Fatalf("backfill isn't idempotent: %q", again.Reference)
 	}
 }
+
+func TestNotificationInbox_NewestFirstUnreadAndScopedMarkRead(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	alice, bob := bson.NewObjectID(), bson.NewObjectID()
+	t0 := time.Now().UTC()
+	for i, u := range []bson.ObjectID{alice, alice, bob} {
+		if err := e.notifs.Enqueue(ctx, &domain.Notification{
+			UserID: u, Type: domain.NotifReservationPaid, Message: "x", Status: domain.NotificationPending,
+			CreatedAt: t0.Add(time.Duration(i) * time.Minute), Params: map[string]string{"ref": "RSV-000" + string(rune('1'+i))},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	items, err := e.notifs.ListByUser(ctx, alice, 10)
+	if err != nil || len(items) != 2 || items[0].Params["ref"] != "RSV-0002" {
+		t.Fatalf("ListByUser = %+v, %v; want alice's two, newest first", items, err)
+	}
+	if err := e.notifs.MarkRead(ctx, bob, items[0].ID, t0); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("marking someone else's notification: %v, want ErrNotFound", err)
+	}
+	if err := e.notifs.MarkRead(ctx, alice, items[0].ID, t0); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := e.notifs.CountUnread(ctx, alice); n != 1 {
+		t.Fatalf("alice unread = %d, want 1", n)
+	}
+	if err := e.notifs.MarkAllRead(ctx, alice, t0); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := e.notifs.CountUnread(ctx, alice); n != 0 {
+		t.Fatalf("alice unread after read-all = %d, want 0", n)
+	}
+	if n, _ := e.notifs.CountUnread(ctx, bob); n != 1 {
+		t.Fatalf("bob unread = %d, want 1 (read-all is per user)", n)
+	}
+}

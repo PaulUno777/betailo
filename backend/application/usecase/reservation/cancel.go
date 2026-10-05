@@ -19,6 +19,10 @@ type CancelReservation struct {
 	Listings     ports.ListingRepository
 	Cycles       ports.CycleRepository
 	Tx           ports.TxManager
+	Clock        ports.Clock
+
+	Parties       Parties
+	Notifications ports.NotificationRepository
 }
 
 type CancelReservationInput struct {
@@ -43,6 +47,7 @@ func (uc *CancelReservation) Execute(ctx context.Context, in CancelReservationIn
 	if err := releasePlaces(ctx, uc.Tx, uc.Listings, uc.Cycles, uc.Reservations, res, domain.PaymentFailed); err != nil {
 		return nil, err
 	}
+	uc.Parties.notifyFarmer(ctx, uc.Notifications, uc.Clock, res, domain.NotifReservationCancelled, "Réservation %s annulée par l'acheteur.")
 	return res, nil
 }
 

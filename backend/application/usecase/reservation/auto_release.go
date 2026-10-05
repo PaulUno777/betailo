@@ -56,13 +56,10 @@ func (uc *AutoReleaseDeliveries) Execute(ctx context.Context) (int, error) {
 		if ownerID, err := farmOwner(ctx, uc.Listings, uc.Cycles, uc.Farms, res.ListingID); err == nil {
 			_ = uc.Trust.Execute(ctx, ownerID)
 		}
-		_ = uc.Notifications.Enqueue(ctx, &domain.Notification{
-			UserID:    res.BuyerID,
-			Type:      "escrow_auto_released",
-			Message:   "Le séquestre a été libéré automatiquement, 48 h après la livraison, faute de confirmation ou de litige.",
-			Status:    domain.NotificationPending,
-			CreatedAt: uc.Clock.Now(),
-		})
+		parties := Parties{Listings: uc.Listings, Cycles: uc.Cycles, Farms: uc.Farms}
+		parties.notifyBuyer(ctx, uc.Notifications, uc.Clock, res, domain.NotifEscrowAutoReleased,
+			"Le séquestre de %s a été libéré automatiquement, faute de confirmation ou de litige.", nil)
+		parties.notifyFarmer(ctx, uc.Notifications, uc.Clock, res, domain.NotifEscrowReleased, "Séquestre libéré pour %s.")
 		count++
 	}
 	return count, nil
