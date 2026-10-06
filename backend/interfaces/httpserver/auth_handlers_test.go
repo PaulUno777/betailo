@@ -42,6 +42,33 @@ func decodeJSON[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 	return out
 }
 
+// doJSONWithCookie is doJSON for the two endpoints (/auth/refresh,
+// /auth/logout) that authenticate via the refresh cookie instead of a
+// bearer token.
+func doJSONWithCookie(t *testing.T, router http.Handler, method, path string, cookie *http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, bytes.NewBuffer(nil))
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+// refreshCookieFrom finds the refresh_token cookie among a response's
+// Set-Cookie headers, failing the test if there isn't exactly one.
+func refreshCookieFrom(t *testing.T, rec *httptest.ResponseRecorder) *http.Cookie {
+	t.Helper()
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == refreshCookieName {
+			return c
+		}
+	}
+	t.Fatalf("no %q cookie in response (Set-Cookie headers: %v)", refreshCookieName, rec.Result().Header.Values("Set-Cookie"))
+	return nil
+}
+
 func TestRegister_HTTP_Success(t *testing.T) {
 	router := newTestRouter()
 
@@ -215,5 +242,130 @@ func TestMe_HTTP_TokenFromDifferentSecretRejected(t *testing.T) {
 	rec := doJSON(t, router, http.MethodGet, "/me", nil, tampered)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d for a tampered token", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestLogin_HTTP_SetsRefreshCookie(t *testing.T) {
+	router := newTestRouter()
+	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
+		Email: "farmer@example.com", Password: "correct-horse-battery", Role: "farmer",
+	}, "")
+
+	rec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
+		Email: "farmer@example.com", Password: "correct-horse-battery", Remember: true,
+	}, "")
+	cookie := refreshCookieFrom(t, rec)
+
+	if cookie.Value == "" {
+		t.Error("cookie value is empty, want the raw refresh secret")
+	}
+	if !cookie.HttpOnly {
+		t.Error("HttpOnly = false, want true")
+	}
+	if cookie.SameSite != http.SameSiteNoneMode {
+		t.Errorf("SameSite = %v, want %v (newTestRouter wires CookieConfig with None)", cookie.SameSite, http.SameSiteNoneMode)
+	}
+	if cookie.Path != refreshCookiePath {
+		t.Errorf("Path = %q, want %q", cookie.Path, refreshCookiePath)
+	}
+	if cookie.Expires.IsZero() {
+		t.Error("Expires is zero, want it set (Remember: true)")
+	}
+
+	// The access token in the JSON body is unaffected by any of this.
+	login := decodeJSON[loginResponse](t, rec)
+	if login.AccessToken == "" {
+		t.Error("login response has no accessToken")
+	}
+}
+
+func TestLogin_HTTP_NotRemembered_SessionCookie(t *testing.T) {
+	router := newTestRouter()
+	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
+		Email: "buyer@example.com", Password: "correct-horse-battery", Role: "buyer",
+	}, "")
+
+	rec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
+		Email: "buyer@example.com", Password: "correct-horse-battery", Remember: false,
+	}, "")
+	cookie := refreshCookieFrom(t, rec)
+
+	if !cookie.Expires.IsZero() {
+		t.Errorf("Expires = %v, want zero (Remember: false should be a session-only cookie)", cookie.Expires)
+	}
+}
+
+// TestRefreshLogoutFlow_HTTP exercises the full lifecycle through the
+// real router: login, rotate via refresh, detect reuse of the
+// now-stale cookie (and confirm it kills the token refresh issued
+// too), then logout.
+func TestRefreshLogoutFlow_HTTP(t *testing.T) {
+	router := newTestRouter()
+	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
+		Email: "farmer@example.com", Password: "correct-horse-battery", Role: "farmer",
+	}, "")
+	loginRec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
+		Email: "farmer@example.com", Password: "correct-horse-battery", Remember: true,
+	}, "")
+	cookie1 := refreshCookieFrom(t, loginRec)
+
+	// Rotate.
+	refreshRec := doJSONWithCookie(t, router, http.MethodPost, "/auth/refresh", cookie1)
+	if refreshRec.Code != http.StatusOK {
+		t.Fatalf("refresh status = %d, want %d; body = %s", refreshRec.Code, http.StatusOK, refreshRec.Body.String())
+	}
+	refreshed := decodeJSON[refreshResponse](t, refreshRec)
+	if refreshed.AccessToken == "" {
+		t.Fatal("refresh response has no accessToken")
+	}
+	cookie2 := refreshCookieFrom(t, refreshRec)
+	if cookie2.Value == cookie1.Value {
+		t.Fatal("refresh did not rotate the cookie value")
+	}
+
+	// The rotated-away cookie1 is now dead.
+	reuseRec := doJSONWithCookie(t, router, http.MethodPost, "/auth/refresh", cookie1)
+	if reuseRec.Code != http.StatusUnauthorized {
+		t.Fatalf("reuse status = %d, want %d", reuseRec.Code, http.StatusUnauthorized)
+	}
+
+	// And reuse detection took the whole family down: cookie2, never
+	// itself reused, is now also dead.
+	afterReuseRec := doJSONWithCookie(t, router, http.MethodPost, "/auth/refresh", cookie2)
+	if afterReuseRec.Code != http.StatusUnauthorized {
+		t.Fatalf("post-reuse status with the other valid cookie = %d, want %d", afterReuseRec.Code, http.StatusUnauthorized)
+	}
+
+	// Fresh login, then logout — the cookie it issued must stop
+	// working for refresh afterward.
+	loginRec2 := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
+		Email: "farmer@example.com", Password: "correct-horse-battery", Remember: true,
+	}, "")
+	cookie3 := refreshCookieFrom(t, loginRec2)
+
+	logoutRec := doJSONWithCookie(t, router, http.MethodPost, "/auth/logout", cookie3)
+	if logoutRec.Code != http.StatusNoContent {
+		t.Fatalf("logout status = %d, want %d", logoutRec.Code, http.StatusNoContent)
+	}
+
+	postLogoutRec := doJSONWithCookie(t, router, http.MethodPost, "/auth/refresh", cookie3)
+	if postLogoutRec.Code != http.StatusUnauthorized {
+		t.Fatalf("refresh after logout status = %d, want %d", postLogoutRec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestRefresh_HTTP_NoCookie(t *testing.T) {
+	router := newTestRouter()
+	rec := doJSONWithCookie(t, router, http.MethodPost, "/auth/refresh", nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestLogout_HTTP_NoCookie(t *testing.T) {
+	router := newTestRouter()
+	rec := doJSONWithCookie(t, router, http.MethodPost, "/auth/logout", nil)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d (logout with no cookie is a no-op, not an error)", rec.Code, http.StatusNoContent)
 	}
 }

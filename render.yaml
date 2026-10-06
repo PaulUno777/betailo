@@ -47,6 +47,17 @@ services:
         generateValue: true
       - key: ACCESS_TOKEN_TTL
         value: 24h
+      # Refresh-token session (see docs/adr/0008). TTL and cookie
+      # attributes are plain config, not secrets — only SAMESITE is
+      # "none" rather than "lax" because the frontend and backend are
+      # on different origins in production today (no nginx /api proxy
+      # is actually wired up yet, despite the architecture doc).
+      - key: REFRESH_TOKEN_TTL
+        value: 720h
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: none
       # The deployed frontend's real origin — set this once that's
       # known; it defaults to http://localhost:4200 otherwise, which is
       # wrong for anything but local dev (see

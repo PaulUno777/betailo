@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
@@ -86,23 +87,79 @@ func (f *fakeUserRepo) List(_ context.Context) ([]*domain.User, error) {
 	return out, nil
 }
 
+// fakeRefreshTokenRepo is an in-memory ports.RefreshTokenRepository,
+// keyed by hash like the real Mongo repository's unique index — used
+// here (rather than the application/usecase/auth package's own fake)
+// because this layer's tests go through the real HTTP handlers, not
+// the usecase directly.
+type fakeRefreshTokenRepo struct {
+	byHash map[string]*ports.RefreshToken
+}
+
+func newFakeRefreshTokenRepo() *fakeRefreshTokenRepo {
+	return &fakeRefreshTokenRepo{byHash: map[string]*ports.RefreshToken{}}
+}
+
+func (f *fakeRefreshTokenRepo) Create(_ context.Context, t *ports.RefreshToken) error {
+	f.byHash[t.TokenHash] = t
+	return nil
+}
+
+func (f *fakeRefreshTokenRepo) FindByHash(_ context.Context, tokenHash string) (*ports.RefreshToken, error) {
+	t, ok := f.byHash[tokenHash]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	return t, nil
+}
+
+func (f *fakeRefreshTokenRepo) Rotate(_ context.Context, oldID bson.ObjectID, next *ports.RefreshToken) error {
+	var old *ports.RefreshToken
+	for _, t := range f.byHash {
+		if t.ID == oldID {
+			old = t
+			break
+		}
+	}
+	if old == nil || old.RevokedAt != nil {
+		return domain.ErrConflict
+	}
+	now := next.IssuedAt
+	old.RevokedAt = &now
+	old.RevokedReason = "rotated"
+	old.ReplacedBy = &next.ID
+	f.byHash[next.TokenHash] = next
+	return nil
+}
+
+func (f *fakeRefreshTokenRepo) RevokeFamily(_ context.Context, familyID bson.ObjectID, reason string, revokedAt time.Time) error {
+	for _, t := range f.byHash {
+		if t.FamilyID == familyID && t.RevokedAt == nil {
+			t.RevokedAt = &revokedAt
+			t.RevokedReason = reason
+		}
+	}
+	return nil
+}
+
 // testFakes is every in-memory store newTestRouterAndFakes wires up —
 // exposed so a test can reach in directly when the HTTP surface alone
 // can't set up a scenario (promoting a user to admin: registration
 // itself refuses the admin role, on purpose — see
 // TestRegister_HTTP_RejectsAdminRole).
 type testFakes struct {
-	users        *fakeUserRepo
-	farms        *fakeFarmRepo
-	cycles       *fakeCycleStore
-	listings     *fakeListingStore
-	reservations *fakeReservationRepo
-	reviews      *fakeReviewRepo
-	reports      *fakeReportRepo
-	forumPosts   *fakeForumRepo
-	storage      fakeObjectStorage
-	signer       *jwt.Signer
-	clock        clock.System
+	users         *fakeUserRepo
+	refreshTokens *fakeRefreshTokenRepo
+	farms         *fakeFarmRepo
+	cycles        *fakeCycleStore
+	listings      *fakeListingStore
+	reservations  *fakeReservationRepo
+	reviews       *fakeReviewRepo
+	reports       *fakeReportRepo
+	forumPosts    *fakeForumRepo
+	storage       fakeObjectStorage
+	signer        *jwt.Signer
+	clock         clock.System
 }
 
 // promoteToAdmin flips a registered user's role directly in the fake
@@ -134,7 +191,7 @@ func newTestRouter() http.Handler {
 
 func newTestRouterAndFakes() (http.Handler, *testFakes) {
 	tf := &testFakes{
-		users: newFakeUserRepo(), farms: newFakeFarmRepo(), cycles: newFakeCycleStore(),
+		users: newFakeUserRepo(), refreshTokens: newFakeRefreshTokenRepo(), farms: newFakeFarmRepo(), cycles: newFakeCycleStore(),
 		listings: newFakeListingStore(), reservations: newFakeReservationRepo(),
 		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(),
 		signer: &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")},
@@ -152,8 +209,17 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 
 	deps := Dependencies{
 		Register: &auth.Register{Users: tf.users, Hasher: hasher, Clock: tf.clock},
-		Login:    &auth.Login{Users: tf.users, Hasher: hasher, Signer: tf.signer, Clock: tf.clock, TTL: time.Hour},
-		Signer:   tf.signer,
+		Login: &auth.Login{
+			Users: tf.users, RefreshTokens: tf.refreshTokens, Hasher: hasher, Signer: tf.signer,
+			Clock: tf.clock, AccessTTL: time.Hour, RefreshTTL: 48 * time.Hour,
+		},
+		RefreshToken: &auth.RefreshToken{
+			Users: tf.users, RefreshTokens: tf.refreshTokens, Signer: tf.signer,
+			Clock: tf.clock, AccessTTL: time.Hour, RefreshTTL: 48 * time.Hour,
+		},
+		Logout:  &auth.Logout{RefreshTokens: tf.refreshTokens, Clock: tf.clock},
+		Signer:  tf.signer,
+		Cookies: CookieConfig{Secure: true, SameSite: http.SameSiteNoneMode},
 
 		CreateFarm:  &farm.CreateFarm{Farms: tf.farms, Clock: tf.clock},
 		GetFarm:     &farm.GetFarm{Farms: tf.farms},

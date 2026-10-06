@@ -21,6 +21,7 @@ var files embed.FS
 // another comes first, though Mongo itself does not enforce it).
 var Names = []string{
 	"users",
+	"refresh_tokens",
 	"farms",
 	"cycles",
 	"listings",

@@ -6,29 +6,49 @@ import (
 	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
-// Login is the usecase: verify credentials and issue an access token.
+// defaultRefreshTTL is 30 days — long enough that a "remembered" buyer
+// or farmer isn't asked to re-login constantly, short enough that a
+// stale, never-used cookie eventually falls out of Mongo's TTL index
+// (see infrastructure/mongodb.ensureIndexes) on its own.
+const defaultRefreshTTL = 30 * 24 * time.Hour
+
+// Login is the usecase: verify credentials, issue an access token, and
+// start a new refresh-token family (see docs/adr/0008 for why a
+// refresh token exists at all — ADR-0006 originally deferred this).
 type Login struct {
-	Users  ports.UserRepository
-	Hasher ports.PasswordHasher
-	Signer ports.TokenSigner
-	Clock  ports.Clock
-	TTL    time.Duration // access token lifetime; defaults to 24h if zero
+	Users         ports.UserRepository
+	RefreshTokens ports.RefreshTokenRepository
+	Hasher        ports.PasswordHasher
+	Signer        ports.TokenSigner
+	Clock         ports.Clock
+	AccessTTL     time.Duration // access token lifetime; defaults to 24h if zero
+	RefreshTTL    time.Duration // refresh token lifetime; defaults to defaultRefreshTTL if zero
 }
 
 // LoginInput is what a caller (the HTTP handler) supplies.
 type LoginInput struct {
 	Email    string
 	Password string
+	// Remember carried onto the new refresh-token record as
+	// Persistent — the HTTP handler reads it back to decide whether
+	// the cookie gets a real Expires or is session-only. The usecase
+	// doesn't touch cookies itself (see ports.RefreshTokenRepository's
+	// comment on why delivery stays in the handler).
+	Remember bool
 }
 
 // LoginOutput wraps the usecase's result.
 type LoginOutput struct {
-	AccessToken string
-	User        *domain.User
+	AccessToken      string
+	RefreshToken     string // the raw secret; the handler puts it in the cookie, never logs it
+	RefreshExpiresAt time.Time
+	User             *domain.User
 }
 
 // Execute verifies the email/password pair and, on success, signs an
@@ -52,9 +72,13 @@ func (uc *Login) Execute(ctx context.Context, in LoginInput) (*LoginOutput, erro
 		return nil, fmt.Errorf("auth: invalid credentials: %w", domain.ErrUnauthorized)
 	}
 
-	ttl := uc.TTL
-	if ttl <= 0 {
-		ttl = 24 * time.Hour
+	accessTTL := uc.AccessTTL
+	if accessTTL <= 0 {
+		accessTTL = 24 * time.Hour
+	}
+	refreshTTL := uc.RefreshTTL
+	if refreshTTL <= 0 {
+		refreshTTL = defaultRefreshTTL
 	}
 	now := uc.Clock.Now()
 
@@ -62,11 +86,33 @@ func (uc *Login) Execute(ctx context.Context, in LoginInput) (*LoginOutput, erro
 		UserID:    user.ID,
 		Email:     user.Email,
 		Role:      user.Role,
-		ExpiresAt: now.Add(ttl),
+		ExpiresAt: now.Add(accessTTL),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return &LoginOutput{AccessToken: token, User: user}, nil
+	rawRefresh, err := newRefreshSecret()
+	if err != nil {
+		return nil, err
+	}
+	refreshExpiresAt := now.Add(refreshTTL)
+	if err := uc.RefreshTokens.Create(ctx, &ports.RefreshToken{
+		ID:         bson.NewObjectID(),
+		UserID:     user.ID,
+		FamilyID:   bson.NewObjectID(),
+		TokenHash:  hashRefreshToken(rawRefresh),
+		IssuedAt:   now,
+		ExpiresAt:  refreshExpiresAt,
+		Persistent: in.Remember,
+	}); err != nil {
+		return nil, err
+	}
+
+	return &LoginOutput{
+		AccessToken:      token,
+		RefreshToken:     rawRefresh,
+		RefreshExpiresAt: refreshExpiresAt,
+		User:             user,
+	}, nil
 }

@@ -1,0 +1,15 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "familyId", "tokenHash", "issuedAt", "expiresAt", "persistent"],
+  "properties": {
+    "userId": { "bsonType": "objectId" },
+    "familyId": { "bsonType": "objectId" },
+    "tokenHash": { "bsonType": "string" },
+    "issuedAt": { "bsonType": "date" },
+    "expiresAt": { "bsonType": "date" },
+    "persistent": { "bsonType": "bool" },
+    "revokedAt": { "bsonType": "date" },
+    "revokedReason": { "bsonType": "string" },
+    "replacedBy": { "bsonType": "objectId" }
+  }
+}

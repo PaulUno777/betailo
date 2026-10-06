@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -86,6 +88,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	}
 
 	users := &mongodb.UserRepository{Coll: database.Collection("users")}
+	refreshTokens := &mongodb.RefreshTokenRepository{Coll: database.Collection("refresh_tokens")}
 	farms := &mongodb.FarmRepository{Coll: database.Collection("farms")}
 	cycles := &mongodb.CycleRepository{Coll: database.Collection("cycles")}
 	listings := &mongodb.ListingRepository{Coll: database.Collection("listings")}
@@ -99,7 +102,15 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	sandboxPayments := payment.Sandbox{}
 
 	register := &auth.Register{Users: users, Hasher: hasher, Clock: systemClock}
-	login := &auth.Login{Users: users, Hasher: hasher, Signer: signer, Clock: systemClock, TTL: accessTokenTTL()}
+	login := &auth.Login{
+		Users: users, RefreshTokens: refreshTokens, Hasher: hasher, Signer: signer,
+		Clock: systemClock, AccessTTL: accessTokenTTL(), RefreshTTL: refreshTokenTTL(),
+	}
+	refreshToken := &auth.RefreshToken{
+		Users: users, RefreshTokens: refreshTokens, Signer: signer,
+		Clock: systemClock, AccessTTL: accessTokenTTL(), RefreshTTL: refreshTokenTTL(),
+	}
+	logout := &auth.Logout{RefreshTokens: refreshTokens, Clock: systemClock}
 
 	trustRecompute := &trust.Recompute{
 		Users: users, Farms: farms, Cycles: cycles, Listings: listings,
@@ -175,9 +186,12 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	server := &http.Server{
 		Addr: ":" + port,
 		Handler: httpserver.NewRouter(logger, httpserver.Dependencies{
-			Register: register,
-			Login:    login,
-			Signer:   signer,
+			Register:     register,
+			Login:        login,
+			RefreshToken: refreshToken,
+			Logout:       logout,
+			Signer:       signer,
+			Cookies:      cookieConfig(),
 
 			CreateFarm:  &farm.CreateFarm{Farms: farms, Clock: systemClock},
 			GetFarm:     &farm.GetFarm{Farms: farms},
@@ -329,11 +343,12 @@ func connectMongo(ctx context.Context) (*mongo.Client, *mongo.Database, error) {
 // "Concepts & Architecture" document's deployment architecture section).
 func connectStorage(ctx context.Context) (*objectstorage.S3Provider, error) {
 	provider, err := objectstorage.NewS3Provider(ctx, objectstorage.Config{
-		Endpoint:  os.Getenv("STORAGE_ENDPOINT"),
-		Bucket:    os.Getenv("STORAGE_BUCKET"),
-		AccessKey: os.Getenv("STORAGE_ACCESS_KEY"),
-		SecretKey: os.Getenv("STORAGE_SECRET_KEY"),
-		Region:    os.Getenv("STORAGE_REGION"),
+		Endpoint:       os.Getenv("STORAGE_ENDPOINT"),
+		PublicEndpoint: os.Getenv("STORAGE_PUBLIC_ENDPOINT"),
+		Bucket:         os.Getenv("STORAGE_BUCKET"),
+		AccessKey:      os.Getenv("STORAGE_ACCESS_KEY"),
+		SecretKey:      os.Getenv("STORAGE_SECRET_KEY"),
+		Region:         os.Getenv("STORAGE_REGION"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("app: connect storage: %w", err)
@@ -368,4 +383,44 @@ func accessTokenTTL() time.Duration {
 		return 0
 	}
 	return d
+}
+
+// refreshTokenTTL reads REFRESH_TOKEN_TTL (a Go duration string, e.g.
+// "720h"); auth.Login/auth.RefreshToken fall back to their own 30-day
+// default when this returns zero, same non-fatal pattern as
+// accessTokenTTL.
+func refreshTokenTTL() time.Duration {
+	raw := os.Getenv("REFRESH_TOKEN_TTL")
+	if raw == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0
+	}
+	return d
+}
+
+// cookieConfig reads COOKIE_SECURE (default true) and COOKIE_SAMESITE
+// (default "none") — see docs/adr/0008 for why "none" is the right
+// default given the frontend and backend are on different origins in
+// production today, and httpserver.CookieConfig's comment for how to
+// flip this once that changes.
+func cookieConfig() httpserver.CookieConfig {
+	secure := true
+	if raw := os.Getenv("COOKIE_SECURE"); raw != "" {
+		if parsed, err := strconv.ParseBool(raw); err == nil {
+			secure = parsed
+		}
+	}
+
+	sameSite := http.SameSiteNoneMode
+	switch strings.ToLower(os.Getenv("COOKIE_SAMESITE")) {
+	case "lax":
+		sameSite = http.SameSiteLaxMode
+	case "strict":
+		sameSite = http.SameSiteStrictMode
+	}
+
+	return httpserver.CookieConfig{Secure: secure, SameSite: sameSite}
 }

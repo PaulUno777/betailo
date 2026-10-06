@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/domain"
@@ -110,7 +111,7 @@ func handleAdminListCycles(uc *admin.ListAllCycles) http.HandlerFunc {
 	}
 }
 
-func handleAdminListListings(uc *admin.ListAllListings) http.HandlerFunc {
+func handleAdminListListings(uc *admin.ListAllListings, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		listings, err := uc.Execute(r.Context())
 		if err != nil {
@@ -119,7 +120,7 @@ func handleAdminListListings(uc *admin.ListAllListings) http.HandlerFunc {
 		}
 		out := make([]listingResponse, 0, len(listings))
 		for _, l := range listings {
-			out = append(out, toListingResponse(r.Context(), nil, l))
+			out = append(out, toListingResponse(r.Context(), storage, l))
 		}
 		writeJSON(w, http.StatusOK, out)
 	}
