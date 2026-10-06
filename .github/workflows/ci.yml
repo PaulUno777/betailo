@@ -28,7 +28,9 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          # Read from go.mod so CI's toolchain (and its gofmt) can't drift
+          # from the module's declared version.
+          go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
       - name: Format check (gofmt)
