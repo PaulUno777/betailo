@@ -99,6 +99,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// always come from the token, never a request body field.
 	mux.Handle("POST /listings/{id}/quote", chain(handleQuoteReservation(deps.QuoteReservation), auth))
 	mux.Handle("POST /listings/{id}/reservations", chain(handleCreateReservation(deps.ReserveCycle), auth))
+	mux.Handle("GET /me/nav-counts", chain(handleNavCounts(deps.NavCounts), auth))
 	mux.Handle("GET /reservations/mine", chain(handleListMyReservations(deps.ListMyReservations, deps.Storage), auth))
 	mux.Handle("POST /reservations/{id}/pay", chain(handlePayReservation(deps.PayReservation), auth))
 	mux.Handle("POST /reservations/{id}/mark-delivered", chain(handleMarkDelivered(deps.MarkDelivered), auth))

@@ -282,3 +282,40 @@ func TestReservation_HTTP_QuoteMatchesTheReservation(t *testing.T) {
 		t.Errorf("quote on your own listing: status = %d, want 403", rec.Code)
 	}
 }
+
+func TestNavCounts_HTTP_CountWhatWaitsOnEachSide(t *testing.T) {
+	router := newTestRouter()
+	listingID, farmerToken := setupListing(t, router, 120)
+	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
+
+	counts := func(token string) navCountsResponse {
+		t.Helper()
+		rec := doJSON(t, router, http.MethodGet, "/me/nav-counts", nil, token)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("nav-counts status = %d; body = %s", rec.Code, rec.Body.String())
+		}
+		return decodeJSON[navCountsResponse](t, rec)
+	}
+
+	if got := counts(buyerToken); got != (navCountsResponse{}) {
+		t.Fatalf("before any reservation: %+v, want zeros", got)
+	}
+
+	// Unpaid: the buyer has to pay; nothing for the farmer to do yet.
+	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 5}, buyerToken)
+	// Paid: the farmer has to deliver.
+	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{
+		Quantity: 5, PayNow: true, PaymentMethod: "mtn_momo", PayerPhone: "690123456",
+	}, buyerToken)
+
+	if got := counts(buyerToken); got.Buyer != 1 || got.Seller != 0 {
+		t.Errorf("buyer counts = %+v, want {Buyer:1 Seller:0}", got)
+	}
+	if got := counts(farmerToken); got.Buyer != 0 || got.Seller != 1 {
+		t.Errorf("farmer counts = %+v, want {Buyer:0 Seller:1}", got)
+	}
+
+	if rec := doJSON(t, router, http.MethodGet, "/me/nav-counts", nil, ""); rec.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous status = %d, want 401", rec.Code)
+	}
+}

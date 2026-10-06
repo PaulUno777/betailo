@@ -83,6 +83,7 @@ type Dependencies struct {
 	OpenDispute            *reservation.OpenDispute
 	ListMyReservations     *reservation.ListMyReservations
 	ListReservationsByFarm *reservation.ListReservationsByFarm
+	NavCounts              *reservation.NavCounts
 
 	CreateReview       *review.CreateReview
 	ListFarmReviews    *review.ListByFarm
