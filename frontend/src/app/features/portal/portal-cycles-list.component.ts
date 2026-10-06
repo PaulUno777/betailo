@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Cycle, Farm } from '../../domain/models';
+import { speciesLabelKey } from '../../domain/reference/species';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
 import { AppError } from '../../core/http/app-error';
@@ -12,11 +14,11 @@ import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { apiResource } from '../../core/http/api-resource';
 
 /** `/portal/cycles` — per `Portal.dc.html`'s cycle table, its own page:
- * list + status transitions + delete, backed by `GET/PATCH/DELETE
- * /cycles`. */
+ * list + delete, backed by `GET/DELETE /cycles`. Status changes live on
+ * each cycle's page, where the API lists the ones allowed next. */
 @Component({
   selector: 'bt-portal-cycles-list',
-  imports: [StatusBadgeComponent, CapacityBarComponent, ButtonComponent, DialogComponent, TranslatePipe],
+  imports: [RouterLink, StatusBadgeComponent, CapacityBarComponent, ButtonComponent, DialogComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="p-6 sm:p-8">
@@ -33,10 +35,10 @@ import { apiResource } from '../../core/http/api-resource';
         <div class="mt-6 flex flex-col gap-3">
           @for (c of cycles.value()!; track c.id) {
             <div class="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface-card p-4">
-              <div class="flex min-w-[160px] flex-col">
-                <span class="text-body-strong">{{ c.species }} · {{ c.type }}</span>
-                <span class="text-caption text-ink-muted">{{ c.id.slice(-6) }}</span>
-              </div>
+              <a [routerLink]="['/portal/cycles', c.id]" class="flex min-w-[160px] flex-col">
+                <span class="text-body-strong">{{ speciesKey(c.species) | t }} · {{ c.type }}</span>
+                <span class="text-caption text-ink-muted">{{ c.reference || c.id.slice(-6) }}</span>
+              </a>
               <bt-status-badge kind="cycle" [status]="c.status" />
               <div class="min-w-[160px] flex-1">
                 <bt-capacity-bar [capacity]="c.capacity" [availableQuantity]="c.availableQuantity" />
@@ -45,19 +47,7 @@ import { apiResource } from '../../core/http/api-resource';
                 <bt-button variant="ghost" size="sm" href="/portal/listings/new" [queryParams]="{ cycleId: c.id }">
                   {{ 'portalCycles.publishListingButton' | t }}
                 </bt-button>
-                @if (c.status === 'planned') {
-                  <bt-button variant="outline" size="sm" [disabled]="acting() === c.id" (click)="setStatus(c.id, 'in_progress')">
-                    {{ 'portalCycles.markInProgress' | t }}
-                  </bt-button>
-                }
-                @if (c.status === 'in_progress') {
-                  <bt-button variant="outline" size="sm" [disabled]="acting() === c.id" (click)="setStatus(c.id, 'done')">
-                    {{ 'portalCycles.markDone' | t }}
-                  </bt-button>
-                  <bt-button variant="ghost" size="sm" [disabled]="acting() === c.id" (click)="setStatus(c.id, 'cancelled')">
-                    {{ 'portalCycles.markCancelled' | t }}
-                  </bt-button>
-                }
+                <bt-button variant="outline" size="sm" [href]="'/portal/cycles/' + c.id">{{ 'portalCycles.open' | t }}</bt-button>
                 <bt-button variant="ghost" size="sm" (click)="confirmDeleteId.set(c.id)">{{ 'portalCycles.deleteButton' | t }}</bt-button>
               </div>
             </div>
@@ -94,21 +84,10 @@ export class PortalCyclesListComponent {
     return farmId ? this.cyclesApi.byFarmUrl(farmId) : undefined;
   });
 
-  protected readonly acting = signal<string | null>(null);
   protected readonly confirmDeleteId = signal<string | null>(null);
 
-  protected setStatus(cycleId: string, status: Cycle['status']): void {
-    this.acting.set(cycleId);
-    this.cyclesApi.updateStatus(cycleId, status).subscribe({
-      next: () => {
-        this.acting.set(null);
-        this.cycles.reload();
-      },
-      error: (err: AppError) => {
-        this.acting.set(null);
-        this.toast.show({ tone: 'danger', title: 'portalCycles.actionFailedTitle', detail: err.message });
-      }
-    });
+  protected speciesKey(value: string): string {
+    return speciesLabelKey(value);
   }
 
   protected deleteCycle(): void {

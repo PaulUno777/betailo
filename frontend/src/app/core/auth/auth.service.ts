@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, finalize, map, of, shareReplay } from 'rxjs';
+import { Observable, catchError, finalize, map, of, shareReplay, switchMap } from 'rxjs';
 import { AuthApi } from '../../data-access/auth/auth.api';
+import { AccountApi } from '../../data-access/account/account.api';
 import { Role } from '../../domain/enums';
 import { User } from '../../domain/models';
 
@@ -51,6 +52,7 @@ function persistUser(user: User | null): void {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly authApi = inject(AuthApi);
+  private readonly accountApi = inject(AccountApi);
 
   private readonly tokenSignal = signal<string | null>(null);
   private readonly userSignal = signal<User | null>(readStoredUser());
@@ -112,6 +114,33 @@ export class AuthService {
       );
     }
     return this.refreshInFlight;
+  }
+
+  /** Patches the cached display user after the account changed (a new
+   * display name). The role is never patched here: it only changes
+   * through `reloadSession`, with a token that carries it. */
+  updateUser(change: Pick<Partial<User>, 'displayName' | 'email'>): void {
+    const user = this.userSignal();
+    if (!user) return;
+    const next = { ...user, ...change };
+    this.userSignal.set(next);
+    persistUser(next);
+  }
+
+  /** After the server changed who the user is (they became a seller):
+   * mint a new access token, whose claims the API rebuilds from the
+   * stored account, then re-read the account for the display user. */
+  reloadSession(): Observable<User | null> {
+    return this.refreshSession().pipe(
+      switchMap((token) => (token ? this.accountApi.profile() : of(null))),
+      map((p) => {
+        if (!p) return null;
+        const user: User = { id: p.id, email: p.email, role: p.role, displayName: p.displayName };
+        this.userSignal.set(user);
+        persistUser(user);
+        return user;
+      })
+    );
   }
 
   /** Clears local state immediately (never block the UI on the

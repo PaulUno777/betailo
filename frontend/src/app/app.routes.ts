@@ -47,8 +47,7 @@ export const routes: Routes = [
       },
       {
         path: 'account',
-        loadComponent: () => import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent),
-        data: { titleKey: 'comingSoon.myAccount' },
+        loadComponent: () => import('./features/account/account.component').then((m) => m.AccountComponent),
         canActivate: [authGuard]
       },
       {
@@ -77,10 +76,11 @@ export const routes: Routes = [
         canActivate: [authGuard]
       },
       {
+        // Open to any signed-in user: a buyer presents their farm first.
         path: 'sell',
-        loadComponent: () => import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent),
-        data: { titleKey: 'comingSoon.publish' },
-        canActivate: [authGuard, roleGuard('farmer')]
+        loadComponent: () => import('./features/sell/sell-wizard.component').then((m) => m.SellWizardComponent),
+        canActivate: [authGuard],
+        data: { focus: true }
       }
     ]
   },
@@ -102,13 +102,24 @@ export const routes: Routes = [
         loadComponent: () => import('./features/portal/cycle-form.component').then((m) => m.CycleFormComponent)
       },
       {
+        path: 'cycles/:id',
+        loadComponent: () => import('./features/portal/cycle-detail.component').then((m) => m.CycleDetailComponent)
+      },
+      {
         path: 'listings',
-        loadComponent: () => import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent),
-        data: { titleKey: 'portalNav.listings' }
+        loadComponent: () => import('./features/portal/portal-listings.component').then((m) => m.PortalListingsComponent)
       },
       {
         path: 'listings/new',
         loadComponent: () => import('./features/portal/listing-form.component').then((m) => m.ListingFormComponent)
+      },
+      {
+        path: 'listings/:id',
+        loadComponent: () => import('./features/portal/listing-edit.component').then((m) => m.ListingEditComponent)
+      },
+      {
+        path: 'farm',
+        loadComponent: () => import('./features/portal/farm-settings.component').then((m) => m.FarmSettingsComponent)
       },
       {
         path: 'reservations',

@@ -20,6 +20,16 @@ export interface User {
   id: string;
   email: string;
   role: Role;
+  displayName?: string;
+}
+
+/** `GET /me`: the signed-in user's own account. */
+export interface Profile extends User {
+  phone?: string;
+  city?: string;
+  verified: boolean;
+  trustScore: number;
+  memberSince: string;
 }
 
 export interface Farm {
@@ -74,6 +84,8 @@ export interface TimelineStep {
 
 export interface CycleDetail extends Cycle {
   timeline: TimelineStep[];
+  /** What the owner may move the cycle to next, decided server-side. */
+  nextStatuses: CycleStatus[];
 }
 
 export interface Listing {
@@ -85,6 +97,29 @@ export interface Listing {
   unit?: string;
   status: ListingStatus;
   photos?: string[];
+  breed?: string;
+  ageWeeks?: number;
+  deliveryAvailable?: boolean;
+}
+
+/** `GET /farms/{farmId}/listings`: the owner's view, every status. */
+export interface FarmListing {
+  listing: Listing;
+  cycle: Cycle;
+  activeReservations: number;
+  /** Storage keys behind `listing.photos`, same order. */
+  photoKeys: string[];
+}
+
+/** `GET /listings/price-hint`: what comparable published listings ask
+ * per unit (quartiles). Absent (204) below the API's sample minimum. */
+export interface PriceHint {
+  count: number;
+  low: number;
+  median: number;
+  high: number;
+  /** True when the range is national because the region had too few. */
+  regional: boolean;
 }
 
 /** The search-result shape returned by `GET /listings` — a listing joined
@@ -308,6 +343,16 @@ export interface CycleSummary {
   nextMilestoneDate?: string;
 }
 
+export type DashboardTodoKind = 'mark_delivered' | 'health_log' | 'awaiting_payment';
+
+/** One "À faire aujourd'hui" item, decided server-side. */
+export interface DashboardTodo {
+  kind: DashboardTodoKind;
+  count?: number;
+  cycleId?: string;
+  cycleRef?: string;
+}
+
 export interface SellerDashboard {
   trustScore: number;
   reservationsThisPeriod: number;
@@ -316,6 +361,7 @@ export interface SellerDashboard {
   weeklyReservationCounts: number[];
   activeCycles: CycleSummary[];
   latestReservations: Reservation[];
+  todos: DashboardTodo[];
 }
 
 export interface AdminOverview {
