@@ -52,7 +52,8 @@ func toTimelineResponse(steps []domain.TimelineStep) []timelineStepResponse {
 // cycleDetailResponse is a single cycle with its server-built timeline.
 type cycleDetailResponse struct {
 	cycleResponse
-	Timeline []timelineStepResponse `json:"timeline"`
+	Timeline     []timelineStepResponse `json:"timeline"`
+	NextStatuses []string               `json:"nextStatuses"`
 }
 
 type healthEventRequest struct {
@@ -136,7 +137,11 @@ func handleGetCycle(uc *cycle.GetCycle) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, cycleDetailResponse{cycleResponse: toCycleResponse(v.Cycle), Timeline: toTimelineResponse(v.Timeline)})
+		next := make([]string, 0, len(v.NextStatuses))
+		for _, s := range v.NextStatuses {
+			next = append(next, string(s))
+		}
+		writeJSON(w, http.StatusOK, cycleDetailResponse{cycleResponse: toCycleResponse(v.Cycle), Timeline: toTimelineResponse(v.Timeline), NextStatuses: next})
 	}
 }
 

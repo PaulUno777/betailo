@@ -26,6 +26,27 @@ var allowedCycleTransitions = map[domain.CycleStatus]map[domain.CycleStatus]bool
 	},
 }
 
+// nextStatusOrder fixes the order NextStatuses lists transitions in, so
+// clients render the forward step before cancellation.
+var nextStatusOrder = []domain.CycleStatus{
+	domain.CycleStatusInProgress,
+	domain.CycleStatusDone,
+	domain.CycleStatusCancelled,
+}
+
+// NextStatuses lists what a cycle in status s may move to, in a stable
+// order. Clients show these as the cycle's actions instead of keeping
+// their own copy of the state machine.
+func NextStatuses(s domain.CycleStatus) []domain.CycleStatus {
+	out := []domain.CycleStatus{}
+	for _, next := range nextStatusOrder {
+		if allowedCycleTransitions[s][next] {
+			out = append(out, next)
+		}
+	}
+	return out
+}
+
 // UpdateCycleStatus is the usecase: transition a cycle's status,
 // enforcing the state machine above, after confirming the caller owns
 // the cycle's farm.

@@ -85,3 +85,34 @@ func TestUpdateCycleStatus_Execute_NotFarmOwner(t *testing.T) {
 		t.Fatalf("Execute() error = %v, want domain.ErrForbidden", err)
 	}
 }
+
+func TestNextStatuses(t *testing.T) {
+	tests := []struct {
+		from domain.CycleStatus
+		want []domain.CycleStatus
+	}{
+		{domain.CycleStatusPlanned, []domain.CycleStatus{domain.CycleStatusInProgress, domain.CycleStatusCancelled}},
+		{domain.CycleStatusInProgress, []domain.CycleStatus{domain.CycleStatusDone, domain.CycleStatusCancelled}},
+		{domain.CycleStatusDone, []domain.CycleStatus{}},
+		{domain.CycleStatusCancelled, []domain.CycleStatus{}},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.from), func(t *testing.T) {
+			got := NextStatuses(tt.from)
+			if len(got) != len(tt.want) {
+				t.Fatalf("NextStatuses(%q) = %v, want %v", tt.from, got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("NextStatuses(%q) = %v, want %v", tt.from, got, tt.want)
+				}
+			}
+			// Every listed status must be one Execute accepts.
+			for _, next := range got {
+				if !allowedCycleTransitions[tt.from][next] {
+					t.Errorf("NextStatuses(%q) lists %q, which the state machine rejects", tt.from, next)
+				}
+			}
+		})
+	}
+}
