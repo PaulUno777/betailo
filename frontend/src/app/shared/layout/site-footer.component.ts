@@ -28,17 +28,19 @@ import { LogoComponent } from '../ui/logo/logo.component';
         <div class="flex flex-col gap-2.5 sm:col-span-2">
           <span class="text-small font-medium">{{ 'footer.marketplaceHeading' | t }}</span>
           <a routerLink="/marketplace" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.allCycles' | t }}</a>
-          <a routerLink="/marketplace" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.poultry' | t }}</a>
-          <a routerLink="/marketplace" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.pigs' | t }}</a>
+          <a routerLink="/marketplace" [queryParams]="{ species: 'jeunes-poulets' }" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.poultry' | t }}</a>
+          <a routerLink="/marketplace" [queryParams]="{ species: 'porcs' }" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.pigs' | t }}</a>
         </div>
         <div class="flex flex-col gap-2.5 sm:col-span-2">
           <span class="text-small font-medium">{{ 'footer.farmersHeading' | t }}</span>
-          <a routerLink="/register" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.publishCycle' | t }}</a>
+          <a routerLink="/sell" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.publishCycle' | t }}</a>
+          <a routerLink="/" fragment="eleveurs" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'nav.farmers' | t }}</a>
           <span class="text-small text-on-forest-deep/70">{{ 'footer.pricing' | t }}</span>
           <span class="text-small text-on-forest-deep/70">{{ 'footer.healthGuide' | t }}</span>
         </div>
         <div class="flex flex-col gap-2.5 sm:col-span-3">
           <span class="text-small font-medium">{{ 'footer.trustHeading' | t }}</span>
+          <a routerLink="/" fragment="how" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'nav.howItWorks' | t }}</a>
           <span class="text-small text-on-forest-deep/70">{{ 'footer.howEscrowWorks' | t }}</span>
           <span class="text-small text-on-forest-deep/70">{{ 'footer.reportScam' | t }}</span>
           <span class="text-small text-on-forest-deep/70">{{ 'footer.terms' | t }}</span>

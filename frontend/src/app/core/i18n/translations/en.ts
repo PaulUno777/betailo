@@ -29,6 +29,10 @@ export const en: TranslationDictionary = {
     chevres: 'Goats'
   },
   nav: {
+    newListing: 'New listing',
+    sell: 'Sell',
+    categories: 'Categories',
+    allAnimals: 'All animals',
     favorites: 'Saved listings',
     marketplace: 'Marketplace',
     forum: 'Forum',
@@ -39,9 +43,9 @@ export const en: TranslationDictionary = {
     notifications: 'Notifications',
     theme: 'Switch theme',
     language: 'Switch language',
-    myReservations: 'My reservations',
+    myReservations: 'My purchases',
     myAccount: 'My account',
-    sellerSpace: 'Farmer space',
+    sellerSpace: 'Seller mode',
     admin: 'Admin',
     signOut: 'Sign out'
   },
@@ -55,10 +59,12 @@ export const en: TranslationDictionary = {
   bottomNav: {
     label: 'Main navigation',
     home: 'Home',
-    market: 'Market',
-    publish: 'Publish',
-    reservations: 'Reservations',
-    profile: 'Profile'
+    buy: 'Buy',
+    sell: 'Sell',
+    purchases: 'My purchases',
+    account: 'Account',
+    badge: '{count} waiting on you',
+    badge_one: '{count} waiting on you'
   },
   dialog: {
     defaultCancel: 'Cancel'
@@ -576,7 +582,7 @@ export const en: TranslationDictionary = {
     farmSaving: 'Saving…',
     farmSaveFailedTitle: 'Couldn’t save',
     greeting: 'Hello, {name}',
-    sellButton: 'Sell',
+    sellButton: 'New listing',
     todoTitle: 'To do today',
     todo: {
       mark_delivered: '{count} orders to mark as delivered',
@@ -591,7 +597,7 @@ export const en: TranslationDictionary = {
     kpiEscrowHeld: 'Held in escrow',
     kpiReleased: 'Released this month',
     kpiTrustScore: 'Trust score',
-    activeCyclesTitle: 'Active cycles',
+    activeCyclesTitle: 'Active batches',
     cycleColHeader: 'Cycle',
     statusColHeader: 'Status',
     fillColHeader: 'Fill rate',
@@ -603,7 +609,7 @@ export const en: TranslationDictionary = {
     loading: 'Loading…'
   },
   portalCycles: {
-    title: 'My cycles',
+    title: 'My batches',
     newCycleButton: 'New cycle',
     empty: 'You haven’t created a cycle yet.',
     loading: 'Loading…',
@@ -672,13 +678,16 @@ export const en: TranslationDictionary = {
     empty: 'No payment yet.'
   },
   portalNav: {
+    listingsShort: 'Listings',
+    space: 'Seller',
     dashboardShort: 'Home',
     dashboard: 'Dashboard',
-    cycles: 'My cycles',
-    listings: 'Listings',
-    reservations: 'Reservations',
+    listings: 'My listings',
+    sales: 'Sales',
+    cycles: 'My batches',
     payments: 'Payments',
-    forum: 'Forum'
+    farm: 'My farm',
+    buyMode: 'Switch to buying'
   },
   adminOverview: {
     title: 'Overview',
@@ -737,6 +746,8 @@ export const en: TranslationDictionary = {
     notFound: 'Report not found.'
   },
   adminNav: {
+    space: 'Admin',
+    viewSite: 'View the site',
     overviewShort: 'Overview',
     overview: 'Overview',
     users: 'Users',
@@ -938,6 +949,16 @@ export const en: TranslationDictionary = {
       becomeTitle: 'Sell my animals',
       becomeBody: 'Free, in a few minutes'
     }
+  },
+  modeSwitch: {
+    label: 'Buy or sell',
+    buy: 'Buy',
+    sell: 'Sell'
+  },
+  headerSearch: {
+    label: 'Search for animals',
+    placeholder: 'Chicks, goats, piglets… or a town',
+    submit: 'Search'
   },
   comingSoon: {
     body: 'This space is coming in a future phase.',

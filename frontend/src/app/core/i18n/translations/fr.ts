@@ -27,6 +27,10 @@ export const fr = {
     chevres: 'Chèvres'
   },
   nav: {
+    newListing: 'Nouvelle annonce',
+    sell: 'Vendre',
+    categories: 'Catégories',
+    allAnimals: 'Tous les animaux',
     favorites: 'Mes favoris',
     marketplace: 'Marché',
     forum: 'Forum',
@@ -37,9 +41,9 @@ export const fr = {
     notifications: 'Notifications',
     theme: 'Changer de thème',
     language: 'Changer de langue',
-    myReservations: 'Mes réservations',
+    myReservations: 'Mes achats',
     myAccount: 'Mon compte',
-    sellerSpace: 'Espace éleveur',
+    sellerSpace: 'Mode vendeur',
     admin: 'Administration',
     signOut: 'Se déconnecter'
   },
@@ -53,10 +57,12 @@ export const fr = {
   bottomNav: {
     label: 'Navigation principale',
     home: 'Accueil',
-    market: 'Marché',
-    publish: 'Publier',
-    reservations: 'Réservations',
-    profile: 'Profil'
+    buy: 'Acheter',
+    sell: 'Vendre',
+    purchases: 'Mes achats',
+    account: 'Compte',
+    badge: '{count} en attente de vous',
+    badge_one: '{count} en attente de vous'
   },
   dialog: {
     defaultCancel: 'Annuler'
@@ -575,7 +581,7 @@ export const fr = {
     farmSaving: 'Enregistrement…',
     farmSaveFailedTitle: "Échec de l'enregistrement",
     greeting: 'Bonjour, {name}',
-    sellButton: 'Vendre',
+    sellButton: 'Nouvelle annonce',
     todoTitle: "À faire aujourd'hui",
     todo: {
       mark_delivered: '{count} commandes à marquer livrées',
@@ -590,7 +596,7 @@ export const fr = {
     kpiEscrowHeld: 'Sous séquestre',
     kpiReleased: 'Libéré ce mois',
     kpiTrustScore: 'Score de confiance',
-    activeCyclesTitle: 'Cycles actifs',
+    activeCyclesTitle: 'Lots en cours',
     cycleColHeader: 'Cycle',
     statusColHeader: 'Statut',
     fillColHeader: 'Remplissage',
@@ -602,7 +608,7 @@ export const fr = {
     loading: 'Chargement…'
   },
   portalCycles: {
-    title: 'Mes cycles',
+    title: 'Mes lots',
     newCycleButton: 'Nouveau cycle',
     empty: "Vous n'avez pas encore créé de cycle.",
     loading: 'Chargement…',
@@ -671,13 +677,16 @@ export const fr = {
     empty: 'Aucun paiement pour le moment.'
   },
   portalNav: {
+    listingsShort: 'Annonces',
+    space: 'Vendeur',
     dashboardShort: 'Accueil',
     dashboard: 'Tableau de bord',
-    cycles: 'Mes cycles',
-    listings: 'Annonces',
-    reservations: 'Réservations',
+    listings: 'Mes annonces',
+    sales: 'Ventes',
+    cycles: 'Mes lots',
     payments: 'Paiements',
-    forum: 'Forum'
+    farm: 'Ma ferme',
+    buyMode: 'Passer en mode acheteur'
   },
   adminOverview: {
     title: "Vue d'ensemble",
@@ -736,6 +745,8 @@ export const fr = {
     notFound: 'Signalement introuvable.'
   },
   adminNav: {
+    space: 'Admin',
+    viewSite: 'Voir le site',
     overviewShort: 'Vue',
     overview: "Vue d'ensemble",
     users: 'Utilisateurs',
@@ -938,12 +949,22 @@ export const fr = {
       becomeBody: 'Gratuit, en quelques minutes'
     }
   },
+  modeSwitch: {
+    label: 'Acheter ou vendre',
+    buy: 'Acheter',
+    sell: 'Vendre'
+  },
+  headerSearch: {
+    label: 'Rechercher des animaux',
+    placeholder: 'Poussins, chèvres, porcelets… ou une ville',
+    submit: 'Rechercher'
+  },
   comingSoon: {
     body: 'Cet espace arrive dans une prochaine phase.',
     forum: 'Forum',
     payment: 'Paiement',
     myAccount: 'Mon compte',
-    myReservations: 'Mes réservations',
+    myReservations: 'Mes achats',
     publish: 'Publier une annonce',
     farmerSpace: 'Espace éleveur',
     admin: 'Administration',

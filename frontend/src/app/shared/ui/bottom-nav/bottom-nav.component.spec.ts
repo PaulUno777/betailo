@@ -45,4 +45,16 @@ describe('BottomNavComponent', () => {
     (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('nav button')!.click();
     expect(emitted).toBe(1);
   });
+
+  it('shows a badge only on tabs with something waiting', () => {
+    const fixture = TestBed.createComponent(BottomNavComponent);
+    fixture.componentRef.setInput('items', [
+      { kind: 'link', labelKey: 'a', icon: 'home', route: '/a', badge: 0 },
+      { kind: 'link', labelKey: 'b', icon: 'calendar', route: '/b', badge: 12 }
+    ] satisfies BottomNavItem[]);
+    fixture.detectChanges();
+    const tabs = (fixture.nativeElement as HTMLElement).querySelectorAll('nav a');
+    expect(tabs[0].querySelector('.bg-clay')).toBeNull();
+    expect(tabs[1].querySelector('.bg-clay')?.textContent?.trim()).toBe('9+');
+  });
 });

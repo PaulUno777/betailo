@@ -12,6 +12,12 @@ export interface ProfileInput {
   readonly city: string;
 }
 
+/** `GET /me/nav-counts`: reservations waiting on the user, per side. */
+export interface NavCounts {
+  readonly buyer: number;
+  readonly seller: number;
+}
+
 export interface ChangePasswordInput {
   readonly currentPassword: string;
   readonly newPassword: string;
@@ -30,6 +36,10 @@ export class AccountApi {
 
   profile(): Observable<Profile> {
     return this.api.get<Profile>('/me');
+  }
+
+  navCounts(): Observable<NavCounts> {
+    return this.api.get<NavCounts>('/me/nav-counts');
   }
 
   updateProfile(input: ProfileInput): Observable<Profile> {
