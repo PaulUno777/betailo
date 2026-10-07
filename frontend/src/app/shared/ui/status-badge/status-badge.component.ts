@@ -58,7 +58,9 @@ export class StatusBadgeComponent {
 
   protected readonly label = computed(() => {
     const { labelKey } = this.entry();
-    const base = labelKey ? this.locale.t(labelKey) : `${this.status()}`;
+    // A trust score is shown as a whole number ("50", not "49.5").
+    const raw = this.status();
+    const base = labelKey ? this.locale.t(labelKey) : typeof raw === 'number' ? `${Math.round(raw)}` : `${raw}`;
     const suffix = this.suffix();
     return suffix ? `${base} · ${suffix}` : base;
   });

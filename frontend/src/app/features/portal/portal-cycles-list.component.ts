@@ -1,3 +1,4 @@
+import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Cycle, Farm } from '../../domain/models';
@@ -36,7 +37,7 @@ import { apiResource } from '../../core/http/api-resource';
           @for (c of cycles.value()!; track c.id) {
             <div class="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface-card p-4">
               <a [routerLink]="['/portal/cycles', c.id]" class="flex min-w-[160px] flex-col">
-                <span class="text-body-strong">{{ speciesKey(c.species) | t }} · {{ c.type }}</span>
+                <span class="text-body-strong">{{ speciesKey(c.species) | t }} · {{ typeKey(c.type) | t }}</span>
                 <span class="text-caption text-ink-muted">{{ c.reference || c.id.slice(-6) }}</span>
               </a>
               <bt-status-badge kind="cycle" [status]="c.status" />
@@ -72,6 +73,10 @@ import { apiResource } from '../../core/http/api-resource';
   `
 })
 export class PortalCyclesListComponent {
+  protected typeKey(type: string): string {
+    return cycleTypeLabelKey(type);
+  }
+
   private readonly farmsApi = inject(FarmsApi);
   private readonly cyclesApi = inject(CyclesApi);
   private readonly toast = inject(ToastService);

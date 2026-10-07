@@ -9,10 +9,11 @@ import { apiResource } from '../../../core/http/api-resource';
 import { SelectFieldComponent, SelectOption } from '../select-field/select-field.component';
 import { TextFieldComponent } from '../text-field/text-field.component';
 
-/** Where a farm is: country, region, town. The region is a list where
- * the API knows the country's regions (Cameroon's ten) and free text
- * anywhere else, so a farmer in any country can sell, and buyers can
- * filter by an exact region. Town is what buyers see on cards. */
+/** Where a farm is and how to reach it: country, region, town, phone.
+ * The region is a list where the API knows the country's regions
+ * (Cameroon's ten) and free text anywhere else, so a farmer in any
+ * country can sell, and buyers can filter by an exact region. Town is
+ * what buyers see on cards; the phone shows its country's prefix. */
 @Component({
   selector: 'bt-place-fields',
   imports: [FormsModule, SelectFieldComponent, TextFieldComponent, TranslatePipe],
@@ -56,6 +57,19 @@ import { TextFieldComponent } from '../text-field/text-field.component';
         [ngModel]="location()"
         (ngModelChange)="location.set($event)"
       />
+      <!-- The prefix follows the country: a number typed without it is
+           read as a national number there (the API does the same). -->
+      <bt-text-field
+        [label]="'sellerOnboarding.phoneLabel' | t"
+        [hint]="'sellerOnboarding.phoneHint' | t"
+        type="tel"
+        inputmode="tel"
+        autocomplete="tel-national"
+        [prefix]="phonePrefix()"
+        name="phone"
+        [ngModel]="phone()"
+        (ngModelChange)="phone.set($event)"
+      />
     </div>
   `
 })
@@ -66,6 +80,7 @@ export class PlaceFieldsComponent {
   readonly country = model('');
   readonly region = model('');
   readonly location = model('');
+  readonly phone = model('');
 
   private readonly geo = apiResource<GeoReference>(() => this.geoApi.referenceUrl());
 
@@ -83,6 +98,12 @@ export class PlaceFieldsComponent {
   protected readonly regionOptions = computed<SelectOption[] | null>(() => {
     const regions = this.geo.value()?.countries.find((c) => c.code === this.country())?.regions;
     return regions ? regions.map((r) => ({ value: r, label: r })) : null;
+  });
+
+  /** "+233" for Ghana; none once the number carries its own "+". */
+  protected readonly phonePrefix = computed(() => {
+    const code = this.geo.value()?.callingCodes?.[this.country()];
+    return code && !this.phone().trim().startsWith('+') ? `+${code}` : undefined;
   });
 
   constructor() {

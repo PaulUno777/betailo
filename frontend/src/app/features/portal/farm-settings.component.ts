@@ -28,16 +28,7 @@ import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.
       @if (farm(); as f) {
         <form class="mt-6 flex flex-col gap-5" (submit)="$event.preventDefault(); save(f)">
           <bt-text-field [label]="'sellerOnboarding.nameLabel' | t" name="name" [ngModel]="name()" (ngModelChange)="name.set($event)" />
-          <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" />
-          <bt-text-field
-            [label]="'sellerOnboarding.phoneLabel' | t"
-            [hint]="'sellerOnboarding.phoneHint' | t"
-            type="tel"
-            inputmode="tel"
-            name="phone"
-            [ngModel]="phone()"
-            (ngModelChange)="phone.set($event)"
-          />
+          <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" [(phone)]="phone" />
           <fieldset class="flex flex-col gap-3">
             <legend class="mb-3 text-small font-bold text-ink">{{ 'sellerOnboarding.speciesLabel' | t }}</legend>
             <div class="flex flex-wrap gap-2">
