@@ -8,8 +8,10 @@ import { ApiClient } from '../../core/http/api-client';
 export class ReservationsApi {
   private readonly api = inject(ApiClient);
 
-  quote(listingId: string, quantity: number): Observable<ReservationQuote> {
-    return this.api.post<ReservationQuote>(`/listings/${listingId}/quote`, { quantity });
+  /** `payNow` quotes against the places left now; the waiting list
+   * (false) only has to fit the cycle. */
+  quote(listingId: string, quantity: number, payNow: boolean): Observable<ReservationQuote> {
+    return this.api.post<ReservationQuote>(`/listings/${listingId}/quote`, { quantity, payNow });
   }
 
   create(listingId: string, input: ReservationRequest): Observable<ReservationResult> {

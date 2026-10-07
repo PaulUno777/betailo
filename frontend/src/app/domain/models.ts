@@ -181,7 +181,6 @@ export interface Reservation {
   totalAmount: number;
   status: ReservationStatus;
   priority: boolean;
-  paymentDeadline?: string;
   deliveredAt?: string;
   createdAt: string;
   payment?: ReservationPayment;
@@ -222,7 +221,6 @@ export interface ReservationQuote {
   min: number;
   max: number;
   available: number;
-  unpaidHours: number;
 }
 
 export interface AppNotification {

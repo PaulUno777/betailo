@@ -11,9 +11,88 @@ export const en: TranslationDictionary = {
     close: 'Close',
     loading: 'Loading…'
   },
-  errors: {
-    network: 'Couldn’t reach the server.',
-    server: 'Something went wrong.'
+  apiErrors: {
+    network: 'No connection. Check your network and try again.',
+    server: 'Something went wrong on our side. Try again in a moment.',
+    validation: 'Some information is not valid. Check it and try again.',
+    unauthorized: 'Your session has expired. Sign in again.',
+    forbidden: "You're not allowed to do that.",
+    'not-found': 'This item no longer exists.',
+    conflict: 'This action is no longer possible.',
+    account_suspended: 'This account is suspended. Contact Betailo support.',
+    email_taken: 'An account already exists with this email.',
+    insufficient_capacity: 'There are not enough places left.',
+    auth: {
+      email_invalid: 'Enter a valid email address.',
+      password_too_short: 'The password needs at least {min} characters.',
+      password_unchanged: 'The new password must differ from the current one.',
+      current_password_wrong: 'The current password is wrong.'
+    },
+    account: {
+      display_name_required: 'Enter your name.',
+      display_name_too_long: 'The name can be at most {max} characters.'
+    },
+    farm: {
+      already_seller: 'You are already a seller.',
+      admin_cannot_sell: 'An admin account cannot sell.',
+      name_location_required: "Enter the farm's name and town.",
+      name_required: "Enter the farm's name.",
+      location_required: "Enter the farm's town.",
+      has_cycles: "Delete this farm's batches first."
+    },
+    cycle: {
+      invalid_transition: "This step change isn't possible.",
+      closed: 'This batch is closed and can no longer be edited.',
+      cancelled: 'This batch is cancelled.',
+      end_before_start: 'The end date must be after the start date.',
+      capacity_positive: 'The number of animals must be above zero.',
+      capacity_below_reserved: 'Not possible: buyers have already paid for more animals.',
+      max_above_capacity: "The maximum per purchase can't exceed the number of animals.",
+      min_above_max: "The minimum per purchase can't exceed the maximum.",
+      has_listing: 'This batch has a listing: take it down first.',
+      health_title_required: 'Say what was done (vaccine, treatment…).',
+      health_date_too_far: 'This date is too far in the future.'
+    },
+    listing: {
+      photo_required: 'Add at least one photo before publishing.',
+      photo_count: 'Add between {min} and {max} photos.',
+      cycle_closed: 'This batch is closed: the listing can no longer be published.',
+      title_required: 'Enter a title.',
+      quantity_positive: 'The number of animals must be above zero.',
+      price_positive: 'The price must be above zero.',
+      date_past: 'The availability date has already passed.'
+    },
+    reservation: {
+      sold_out: 'Sold out: buyers who paid have taken every place.',
+      not_enough_places: 'Only {available} places left.',
+      above_capacity: 'This batch only has {max} animals.',
+      below_min: 'The farmer asks for at least {min} animals per purchase.',
+      above_max: 'The farmer limits purchases to {max} animals.',
+      own_listing: "You can't reserve your own listing.",
+      cycle_closed: 'This batch is no longer open for reservations.',
+      cancel_paid: "A paid reservation can't be cancelled: open a dispute.",
+      not_awaiting_payment: 'This reservation is no longer awaiting payment.',
+      not_delivered: "The farmer hasn't marked the delivery yet.",
+      not_paid: "This order isn't paid yet.",
+      dispute_open: 'A dispute is open on this order.',
+      dispute_not_paid: 'Disputes only apply to paid orders.',
+      dispute_reason_required: 'Explain the problem.'
+    },
+    payment: {
+      phone_invalid: 'Enter a valid Cameroonian Mobile Money number.'
+    },
+    review: {
+      not_released: 'You can review once you have confirmed receipt.',
+      rating_range: 'Pick a rating from 1 to 5.',
+      own_review: "You can't vote for your own review."
+    },
+    report: {
+      reason_required: 'Explain why you are reporting this.'
+    },
+    forum: {
+      post_required: 'Pick a category, a title and write your question.',
+      reply_required: 'Write your reply.'
+    }
   },
   paymentMethod: {
     mtnMomo: 'MTN Mobile Money',
@@ -196,6 +275,7 @@ export const en: TranslationDictionary = {
     error: 'Couldn’t load your saved listings.',
   },
   listingDetail: {
+    joinWaitlist: 'Join the waiting list',
     seeAllReviews: 'See all {count}',
     seeAllReviews_one: 'See the review',
     back: 'Back',
@@ -252,11 +332,13 @@ export const en: TranslationDictionary = {
     loginCreateAccount: 'Create an account',
     loginErrorInvalid: 'Incorrect email or password.',
     registerTitle: 'Create an account',
+    registerNameLabel: 'Your name (optional)',
+    registerNameHint: 'Shown on your reviews and reservations.',
     registerRoleLegend: 'I am a',
     registerRoleBuyerTitle: 'Buyer',
     registerRoleBuyerDesc: 'I reserve animals from farmers.',
     registerRoleFarmerTitle: 'Farmer',
-    registerRoleFarmerDesc: 'I publish breeding cycles to be reserved.',
+    registerRoleFarmerDesc: 'I sell my animals.',
     registerEmailLabel: 'Email address',
     registerPasswordLabel: 'Password',
     registerConfirmLabel: 'Confirm password',
@@ -274,7 +356,7 @@ export const en: TranslationDictionary = {
     passwordStrengthStrong: 'Strong'
   },
   checkout: {
-    paymentFailedDetail: 'Your reservation is saved unpaid: try again from My reservations.',
+    paymentFailedDetail: 'Your reservation is saved unpaid: try again from My purchases.',
     paymentFailedTitle: 'Payment didn’t go through',
     unavailable: 'This listing can no longer be reserved.',
     payAmount: 'Pay {amount}',
@@ -302,7 +384,7 @@ export const en: TranslationDictionary = {
     payNowTitle: 'Pay now',
     payNowDesc: 'Places guaranteed, served first.',
     laterTitle: 'Reserve without paying',
-    laterDesc: 'Free · comes after paid reservations · {hours} h to pay.',
+    laterDesc: 'Free · waiting list: your places are only confirmed when you pay, after buyers who paid.',
     paymentMethodLabel: 'Payment method',
     subtotalLabel: 'Subtotal',
     feeNote: 'Service fee calculated at confirmation.',
@@ -332,7 +414,7 @@ export const en: TranslationDictionary = {
       reservation_created: 'New reservation {ref}: {quantity} × {title}',
       reservation_paid: '{ref} paid ({amount} FCFA in escrow): {title}',
       reservation_cancelled: '{ref} cancelled by the buyer: {title}',
-      reservation_expired: 'Unpaid {ref} expired: the places were released',
+      reservation_expired: 'Unpaid {ref} was cancelled: the batch is closed',
       reservation_delivered: '{ref} delivered: confirm receipt within {hours} h',
       escrow_released: 'Escrow released for {ref}: {amount} FCFA',
       escrow_auto_released: 'Escrow for {ref} released automatically',
@@ -345,7 +427,7 @@ export const en: TranslationDictionary = {
     }
   },
   reservations: {
-    title: 'My reservations',
+    title: 'My purchases',
     tabActive: 'Ongoing',
     tabCompleted: 'Completed',
     tabCancelled: 'Cancelled',
@@ -363,7 +445,7 @@ export const en: TranslationDictionary = {
     status: {
       unpaidShort: 'unpaid',
       awaitingBuyer: 'Delivered · awaiting the buyer’s confirmation',
-      unpaid: 'Reserved · payment pending',
+      unpaid: 'Waiting list · pay to confirm your places',
       awaitingDelivery: 'Paid · awaiting delivery',
       toConfirm: 'Delivered · please confirm',
       released: 'Released',
@@ -371,7 +453,6 @@ export const en: TranslationDictionary = {
       cancelled: 'Cancelled',
       refunded: 'Refunded'
     },
-    payWithin: 'pay',
     autoReleaseIn: 'auto-release',
     action: {
       pay: 'Pay',
@@ -450,9 +531,8 @@ export const en: TranslationDictionary = {
     payNowNoticeTitle: 'Priority reservation',
     payNowNoticeBody: 'Your spot is guaranteed as soon as you pay, held in escrow until delivery.',
     laterTitle: 'Reserve without paying',
-    laterNoticeTitle: 'Non-priority reservation',
-    laterNoticeBody:
-      'Your spot isn’t guaranteed: if demand is high, paid reservations go ahead of yours.'
+    laterNoticeTitle: 'Waiting list',
+    laterNoticeBody: 'Nothing is held for you: places go to those who pay. Pay while some remain to confirm your reservation. If the batch ends first, it is cancelled.'
   },
   capacity: {
     remaining_one: '{count} spot left',
@@ -563,7 +643,7 @@ export const en: TranslationDictionary = {
     end: 'Cycle ends',
     state: {
       done: 'done',
-      current: 'in progress',
+      current: 'next step',
       upcoming: 'upcoming'
     },
     step1: 'Planned',
@@ -662,7 +742,7 @@ export const en: TranslationDictionary = {
   portalReservations: {
     escrowBanner: 'held in escrow, paid out when the buyer confirms.',
     deliveredToast: 'Marked delivered: the buyer has 48 h to confirm',
-    title: 'Reservations received',
+    title: 'My sales',
     empty: 'No reservation yet.',
     loading: 'Loading…',
     buyerLabel: 'Buyer',
@@ -959,6 +1039,23 @@ export const en: TranslationDictionary = {
     label: 'Search for animals',
     placeholder: 'Chicks, goats, piglets… or a town',
     submit: 'Search'
+  },
+  reportStatus: {
+    open: 'Open',
+    under_review: 'Under review',
+    handled: 'Handled',
+    rejected: 'Rejected'
+  },
+  reportTarget: {
+    listing: 'Listing',
+    profile: 'Profile',
+    forum_post: 'Forum',
+    reservation: 'Reservation'
+  },
+  role: {
+    buyer: 'Buyer',
+    farmer: 'Farmer',
+    admin: 'Admin'
   },
   comingSoon: {
     body: 'This space is coming in a future phase.',

@@ -28,7 +28,7 @@ import { apiResource } from '../../core/http/api-resource';
           @for (u of users.value()!; track u.id) {
             <div class="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface-card p-4">
               <span class="min-w-[200px] flex-1 text-body-strong">{{ u.email }}</span>
-              <bt-badge tone="stone">{{ u.role }}</bt-badge>
+              <bt-badge tone="stone">{{ 'role.' + u.role | t }}</bt-badge>
               <bt-status-badge kind="trust" [status]="u.trustScore" />
               @if (u.isVerified) {
                 <bt-badge tone="forest-solid">{{ 'adminUsers.verifiedBadge' | t }}</bt-badge>

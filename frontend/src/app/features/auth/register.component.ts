@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Role } from '../../domain/enums';
 import { passwordStrength } from '../../domain/rules/password-strength';
 import { AuthApi } from '../../data-access/auth/auth.api';
@@ -16,6 +16,7 @@ import { ChoiceCardComponent } from '../../shared/ui/choice-card/choice-card.com
 
 interface RegisterForm {
   role: FormControl<Role>;
+  displayName: FormControl<string>;
   email: FormControl<string>;
   password: FormControl<string>;
   confirmPassword: FormControl<string>;
@@ -65,6 +66,12 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
             (selected)="form.controls.role.setValue('farmer')"
           />
         </div>
+        <bt-text-field
+          [label]="'auth.registerNameLabel' | t"
+          [hint]="'auth.registerNameHint' | t"
+          autocomplete="name"
+          formControlName="displayName"
+        />
         <bt-text-field [label]="'auth.registerEmailLabel' | t" type="email" autocomplete="email" formControlName="email" />
         <div class="flex flex-col gap-1.5">
           <bt-text-field [label]="'auth.registerPasswordLabel' | t" type="password" autocomplete="new-password" formControlName="password" />
@@ -99,7 +106,7 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
         </bt-button>
         <p class="text-center text-small text-ink-muted">
           {{ 'auth.registerHasAccount' | t }}
-          <a routerLink="/login" class="text-forest">{{ 'auth.registerLogin' | t }}</a>
+          <a routerLink="/login" queryParamsHandling="preserve" class="text-forest">{{ 'auth.registerLogin' | t }}</a>
         </p>
       </form>
     </bt-auth-layout>
@@ -109,6 +116,7 @@ export class RegisterComponent {
   private readonly authApi = inject(AuthApi);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -116,6 +124,7 @@ export class RegisterComponent {
   protected readonly form = new FormGroup<RegisterForm>(
     {
       role: new FormControl<Role>('buyer', { nonNullable: true }),
+      displayName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(60)] }),
       email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
       password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(8)] }),
       confirmPassword: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -144,13 +153,16 @@ export class RegisterComponent {
     }
     this.submitting.set(true);
     this.error.set(null);
-    const { role, email, password } = this.form.getRawValue();
-    this.authApi.register({ email, password, role }).subscribe({
+    const { role, displayName, email, password } = this.form.getRawValue();
+    this.authApi.register({ email, password, role, displayName: displayName.trim() || undefined }).subscribe({
       next: () => {
         this.authApi.login({ email, password, remember: true }).subscribe({
           next: ({ accessToken, user }) => {
             this.authService.setSession(accessToken, user);
-            this.router.navigateByUrl('/');
+            // Back to what they were doing (Vendre, a checkout…); a new
+            // farmer otherwise goes straight to presenting their farm.
+            const redirectTo = this.route.snapshot.queryParamMap.get('redirectTo');
+            this.router.navigateByUrl(redirectTo ?? (role === 'farmer' ? '/sell' : '/'));
           },
           error: (err: AppError) => {
             this.submitting.set(false);

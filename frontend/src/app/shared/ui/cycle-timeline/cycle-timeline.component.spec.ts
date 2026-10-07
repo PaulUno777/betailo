@@ -25,7 +25,7 @@ describe('CycleTimelineComponent', () => {
     expect(items[0]).toContain('Démarrage du cycle');
     expect(items[1]).toContain('Mirage J+12');
     expect(items[1]).toContain('162 œufs fécondés');
-    expect(items[1]).toContain('en cours');
+    expect(items[1]).toContain('prochaine étape');
     expect(items[2]).toContain('Fin du cycle');
     expect(items[2]).toContain('à venir');
   });

@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ReportStatus } from '../../domain/enums';
 import { Report } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LocaleService } from '../../core/i18n/locale.service';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
 import { apiResource } from '../../core/http/api-resource';
@@ -30,7 +31,7 @@ const STATUS_TONE: Readonly<Record<ReportStatus, 'amber' | 'sky' | 'forest' | 's
         <div class="w-56">
           <bt-select-field
             [label]="'adminReports.statusFilterLabel' | t"
-            [options]="statusOptions"
+            [options]="statusOptions()"
             [placeholder]="'adminReports.allStatuses' | t"
             [ngModel]="status()"
             (ngModelChange)="status.set($event)"
@@ -49,9 +50,9 @@ const STATUS_TONE: Readonly<Record<ReportStatus, 'amber' | 'sky' | 'forest' | 's
               [routerLink]="['/admin/reports', r.id]"
               class="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface-card p-4 text-ink no-underline hover:border-line-strong"
             >
-              <bt-badge tone="stone">{{ r.targetType }}</bt-badge>
+              <bt-badge tone="stone">{{ 'reportTarget.' + r.targetType | t }}</bt-badge>
               <span class="min-w-[200px] flex-1 text-body-strong">{{ r.reason }}</span>
-              <bt-badge [tone]="statusTone(r.status)">{{ r.status }}</bt-badge>
+              <bt-badge [tone]="statusTone(r.status)">{{ 'reportStatus.' + r.status | t }}</bt-badge>
             </a>
           }
         </div>
@@ -62,12 +63,11 @@ const STATUS_TONE: Readonly<Record<ReportStatus, 'amber' | 'sky' | 'forest' | 's
 export class AdminReportsListComponent {
   private readonly adminApi = inject(AdminApi);
 
-  protected readonly statusOptions = [
-    { value: 'open', label: 'open' },
-    { value: 'under_review', label: 'under_review' },
-    { value: 'handled', label: 'handled' },
-    { value: 'rejected', label: 'rejected' }
-  ];
+  private readonly locale = inject(LocaleService);
+
+  protected readonly statusOptions = computed(() =>
+    (['open', 'under_review', 'handled', 'rejected'] as const).map((value) => ({ value, label: this.locale.t(`reportStatus.${value}`) }))
+  );
 
   protected readonly status = signal('');
 

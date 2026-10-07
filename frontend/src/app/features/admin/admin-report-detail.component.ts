@@ -25,9 +25,9 @@ import { apiResource } from '../../core/http/api-resource';
 
       @if (detail.value(); as d) {
         <div class="mt-4 flex flex-col gap-2 border-b border-line pb-6">
-          <bt-badge tone="stone" class="w-fit">{{ d.report.targetType }}</bt-badge>
+          <bt-badge tone="stone" class="w-fit">{{ 'reportTarget.' + d.report.targetType | t }}</bt-badge>
           <h1 class="text-heading-2">{{ d.report.reason }}</h1>
-          <bt-badge tone="amber" class="w-fit">{{ d.report.status }}</bt-badge>
+          <bt-badge tone="amber" class="w-fit">{{ 'reportStatus.' + d.report.status | t }}</bt-badge>
         </div>
 
         <div class="mt-6 flex items-center gap-4 rounded-lg border border-line bg-surface-card p-5">

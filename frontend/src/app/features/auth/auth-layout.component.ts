@@ -7,7 +7,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 /** The split layout Auth.dc.html shows for both Login and Register — kept
  * as one shell so the brand panel and the Connexion/Inscription tabs
- * aren't duplicated across the two routed pages. */
+ * aren't duplicated across the two routed pages. Switching tabs keeps
+ * `redirectTo`, so a visitor who tapped "Vendre" lands back on it after
+ * signing up as well as after signing in. Bottom padding clears the
+ * phone tab bar so its raised button never covers the last link. */
 @Component({
   selector: 'bt-auth-layout',
   imports: [RouterLink, RouterLinkActive, LogoComponent, IconComponent, SegmentedControlComponent, TranslatePipe],
@@ -26,11 +29,12 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         </div>
         <p class="text-eyebrow opacity-70">{{ 'auth.brandFootnote' | t }}</p>
       </div>
-      <div class="flex flex-col justify-center px-5 py-12 sm:px-18">
+      <div class="flex flex-col justify-center px-5 pb-[calc(var(--height-bottom-nav)+3rem)] pt-12 sm:px-18 lg:pb-12">
         <div class="mx-auto w-full max-w-sm">
           <bt-segmented-control class="mb-8">
             <a
               routerLink="/login"
+              queryParamsHandling="preserve"
               routerLinkActive
               #loginTab="routerLinkActive"
               [class]="
@@ -41,6 +45,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             >
             <a
               routerLink="/register"
+              queryParamsHandling="preserve"
               routerLinkActive
               #registerTab="routerLinkActive"
               [class]="

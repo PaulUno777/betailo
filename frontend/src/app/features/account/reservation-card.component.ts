@@ -14,7 +14,7 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
 
 /** One "Mes réservations" card, per the mobile design: what was reserved
  * and from whom, the escrow progress bar, a status line (with a live
- * countdown to auto-release or the payment deadline), and exactly the
+ * countdown to auto-release), and exactly the
  * buttons the API lists in `actions`. Purely presentational: it emits
  * the chosen action and the page carries it out. */
 @Component({
@@ -57,13 +57,14 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
             @for (step of view().steps; track step.key) {
               <span
                 class="h-1.5 rounded-full"
-                [class]="step.state === 'done' ? 'bg-forest' : step.state === 'current' ? 'bg-clay' : 'bg-surface-sunken'"
+                [class]="step.state === 'done' ? 'bg-forest' : step.state === 'current' ? 'animate-pulse bg-clay-soft ring-1 ring-inset ring-clay' : 'bg-surface-sunken'"
               ></span>
             }
           </div>
           <div class="hidden grid-cols-4 gap-1.5 sm:grid">
             @for (step of view().steps; track step.key) {
-              <span class="text-caption" [class]="step.state === 'upcoming' ? 'text-ink-muted' : 'text-ink'">
+              <!-- The current step is what we're waiting for, not done yet. -->
+              <span class="text-caption" [class]="step.state === 'upcoming' ? 'text-ink-muted' : step.state === 'current' ? 'font-semibold text-clay-ink' : 'text-ink'">
                 {{ 'reservations.step.' + step.key | t }}
               </span>
             }
@@ -154,7 +155,8 @@ export class ReservationCardComponent {
     if (v.group === 'done') return { key: 'reservations.status.released', tone: 'forest' };
     if (v.disputeOpen) return { key: 'reservations.status.disputed', tone: 'alert' };
     if (v.payment?.status === 'pending') {
-      return { key: 'reservations.status.unpaid', tone: 'clay', countdown: v.paymentDeadline, countdownKey: 'reservations.payWithin' };
+      // On the waiting list: no deadline, the places go to whoever pays.
+      return { key: 'reservations.status.unpaid', tone: 'clay' };
     }
     const current = v.steps.find((s) => s.state === 'current')?.key;
     if (current === 'confirmed') {

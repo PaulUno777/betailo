@@ -213,7 +213,11 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
         @if (d.isOwner) {
           <bt-button variant="outline" size="lg" [block]="block" href="/portal">{{ 'listingDetail.ownerManage' | t }}</bt-button>
         } @else if (d.canReserve) {
-          <bt-button size="lg" [block]="block" (click)="reserve(d.listing.id)">{{ 'listingDetail.reserveButton' | t }}</bt-button>
+          <!-- Full: paid buyers took every place, but anyone can still
+               join the waiting list and pay if places free up. -->
+          <bt-button size="lg" [block]="block" (click)="reserve(d.listing.id, d.cycle.availableQuantity === 0)">
+            {{ (d.cycle.availableQuantity === 0 ? 'listingDetail.joinWaitlist' : 'listingDetail.reserveButton') | t }}
+          </bt-button>
         } @else {
           <bt-button size="lg" [block]="block" disabled>
             {{ (d.cycle.availableQuantity === 0 ? 'listingDetail.soldOut' : 'listingDetail.unavailable') | t }}
@@ -323,12 +327,13 @@ export class ListingDetailComponent {
     });
   }
 
-  protected reserve(listingId: string): void {
+  protected reserve(listingId: string, waitlist = false): void {
+    const target = `/checkout/${listingId}${waitlist ? '?waitlist=1' : ''}`;
     if (!this.auth.isAuthenticated()) {
-      this.router.navigate(['/login'], { queryParams: { redirectTo: `/checkout/${listingId}` } });
+      this.router.navigate(['/login'], { queryParams: { redirectTo: target } });
       return;
     }
-    this.router.navigate(['/checkout', listingId]);
+    this.router.navigateByUrl(target);
   }
 
   protected openReport(): void {
