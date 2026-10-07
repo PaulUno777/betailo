@@ -762,3 +762,94 @@ func TestMigrateUnpaidToWaitingList_ReturnsPlacesOnce(t *testing.T) {
 		t.Errorf("availableQuantity = %d, want 100: the waiting list holds no places", stored.AvailableQuantity)
 	}
 }
+
+// The marketplace search against real MongoDB: open cycles only by
+// default, multi-value filters, word-by-word query, an availability
+// window, and facets counted without their own filter.
+func TestListingSearch_FiltersAndFacets(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	owner := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", Role: domain.RoleFarmer, CreatedAt: now}
+	if err := e.users.Create(ctx, owner); err != nil {
+		t.Fatal(err)
+	}
+	farm := func(town, region string) *domain.Farm {
+		f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner.ID, Name: "Ferme " + town, Location: town, Country: "CM", Region: region, CreatedAt: now}
+		if err := e.farms.Create(ctx, f); err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	ouest, littoral := farm("Dschang", "Ouest"), farm("Douala", "Littoral")
+
+	list := func(f *domain.Farm, species, typ string, status domain.CycleStatus, price float64, starts time.Time) {
+		c := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f.ID, Species: species, Type: typ, Status: status, Capacity: 10, AvailableQuantity: 10, StartsAt: starts}
+		if err := e.cycles.Create(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+		l := &domain.Listing{ID: bson.NewObjectID(), CycleID: &c.ID, Title: "Lot de " + species, UnitPrice: price, Status: domain.ListingPublished}
+		if err := e.listings.Create(ctx, l); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list(ouest, "poussins", "couvee", domain.CycleStatusInProgress, 800, now)
+	list(ouest, "porcs", "engraissement", domain.CycleStatusPlanned, 30000, now.AddDate(0, 2, 0))
+	list(littoral, "poussins", "Couvee", domain.CycleStatusPlanned, 900, now)
+	list(littoral, "poussins", "couvee", domain.CycleStatusDone, 700, now.AddDate(0, -2, 0))
+
+	search := func(c ports.ListingSearchCriteria) ports.ListingSearchResult {
+		t.Helper()
+		res, err := e.listings.Search(ctx, c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+	counts := func(fs []ports.FacetCount) map[string]int {
+		m := map[string]int{}
+		for _, f := range fs {
+			m[f.Value] = f.Count
+		}
+		return m
+	}
+
+	all := search(ports.ListingSearchCriteria{})
+	if all.Total != 3 {
+		t.Fatalf("default total = %d, want 3 (the done cycle is hidden)", all.Total)
+	}
+	if got := counts(all.Facets.CycleTypes); got["couvee"] != 2 {
+		t.Errorf("type facet = %v, want couvee:2 (case folded)", got)
+	}
+	if all.Facets.PriceMin != 800 || all.Facets.PriceMax != 30000 {
+		t.Errorf("price range = %v..%v, want 800..30000", all.Facets.PriceMin, all.Facets.PriceMax)
+	}
+
+	poussins := search(ports.ListingSearchCriteria{Species: []string{"poussins"}})
+	if poussins.Total != 2 {
+		t.Errorf("species total = %d, want 2", poussins.Total)
+	}
+	if got := counts(poussins.Facets.Species); got["porcs"] != 1 || got["poussins"] != 2 {
+		t.Errorf("species facet with a species picked = %v, want the other species still counted", got)
+	}
+
+	inOuest := search(ports.ListingSearchCriteria{Country: "CM", Region: "Ouest"})
+	if inOuest.Total != 2 || len(inOuest.Facets.Regions) != 2 {
+		t.Errorf("region filter: total %d, region facets %v; want 2 lots and both regions offered", inOuest.Total, inOuest.Facets.Regions)
+	}
+
+	if got := search(ports.ListingSearchCriteria{Query: "poussins Douala"}).Total; got != 1 {
+		t.Errorf("query by species and town = %d, want 1", got)
+	}
+
+	soon := search(ports.ListingSearchCriteria{AvailableFrom: now.AddDate(0, 0, -1), AvailableTo: now.AddDate(0, 0, 7)})
+	if soon.Total != 2 {
+		t.Errorf("available this week = %d, want 2 (the pigs start in two months)", soon.Total)
+	}
+
+	done := search(ports.ListingSearchCriteria{Statuses: []domain.CycleStatus{domain.CycleStatusDone}})
+	if done.Total != 1 {
+		t.Errorf("explicit done status = %d, want 1", done.Total)
+	}
+}

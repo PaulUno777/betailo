@@ -25,6 +25,8 @@ type UpdateFarmInput struct {
 	OwnerID  bson.ObjectID
 	Name     string
 	Location string
+	Country  string
+	Region   string
 	Species  []string
 
 	Description  string
@@ -55,9 +57,15 @@ func (uc *UpdateFarm) Execute(ctx context.Context, in UpdateFarmInput) (*domain.
 	if err != nil {
 		return nil, err
 	}
+	country, region, err := normalizePlace(in.Country, in.Region)
+	if err != nil {
+		return nil, err
+	}
 
 	f.Name = name
 	f.Location = location
+	f.Country = country
+	f.Region = region
 	f.Species = in.Species
 	f.Description = description
 	f.ContactPhone = phone

@@ -184,3 +184,32 @@ func TestUnpublishListing_HTTP_RemovesFromPublicBrowse(t *testing.T) {
 		}
 	}
 }
+
+func TestFarm_HTTP_CountryAndRegion(t *testing.T) {
+	router := newTestRouter()
+	token, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
+
+	rec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Dschang", Region: "ouest"}, token)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d; body = %s", rec.Code, rec.Body.String())
+	}
+	if f := decodeJSON[farmResponse](t, rec); f.Country != "CM" || f.Region != "Ouest" {
+		t.Errorf("farm = %s/%s, want the default country and the canonical region CM/Ouest", f.Country, f.Region)
+	}
+
+	bad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Region: "Atlantique"}, token)
+	if bad.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, bad).Code != "farm.region_invalid" {
+		t.Errorf("unknown Cameroonian region: status = %d, body = %s; want 400 farm.region_invalid", bad.Code, bad.Body.String())
+	}
+
+	// Any other country takes its region as typed.
+	abroad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Libreville", Country: "ga", Region: "Estuaire"}, token)
+	if f := decodeJSON[farmResponse](t, abroad); abroad.Code != http.StatusCreated || f.Country != "GA" || f.Region != "Estuaire" {
+		t.Errorf("farm abroad: status = %d, farm = %+v", abroad.Code, f)
+	}
+
+	geo := doJSON(t, router, http.MethodGet, "/reference/geo", nil, "")
+	if out := decodeJSON[geoResponse](t, geo); geo.Code != http.StatusOK || out.DefaultCountry != "CM" || len(out.Countries) == 0 || len(out.Countries[0].Regions) != 10 {
+		t.Errorf("geo reference: status = %d, body = %s", geo.Code, geo.Body.String())
+	}
+}

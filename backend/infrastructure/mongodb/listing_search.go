@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"regexp"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -37,6 +38,8 @@ type searchRow struct {
 		ID       bson.ObjectID `bson:"_id"`
 		Name     string        `bson:"name"`
 		Location string        `bson:"location"`
+		Country  string        `bson:"country"`
+		Region   string        `bson:"region"`
 	} `bson:"farm"`
 	Owner struct {
 		IsVerified bool    `bson:"isVerified"`
@@ -47,69 +50,53 @@ type searchRow struct {
 }
 
 // Search implements ports.ListingSearchRepository via one aggregation:
-// join each published, unflagged listing to its cycle, farm, farm
-// owner and review summary, apply every filter server-side, then page
-// and sort — a single round trip rather than N+1 calls per listing
-// card.
+// join each published, unflagged listing to its cycle, farm and farm
+// owner, apply the filters that aren't facets (query, verified, dates),
+// then one $facet computes the page, the total and every facet's counts
+// — each facet with all the other dimension filters but its own — in a
+// single round trip.
 func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCriteria) (ports.ListingSearchResult, error) {
 	match := bson.M{"status": domain.ListingPublished, "flagged": bson.M{"$ne": true}}
 	if len(c.IDs) > 0 {
 		match["_id"] = bson.M{"$in": c.IDs}
-	}
-	if c.Query != "" {
-		match["title"] = bson.M{"$regex": regexp.QuoteMeta(c.Query), "$options": "i"}
-	}
-	if c.MinPrice > 0 || c.MaxPrice > 0 {
-		price := bson.M{}
-		if c.MinPrice > 0 {
-			price["$gte"] = c.MinPrice
-		}
-		if c.MaxPrice > 0 {
-			price["$lte"] = c.MaxPrice
-		}
-		match["unitPrice"] = price
 	}
 
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: match}},
 		{{Key: "$lookup", Value: bson.M{"from": "cycles", "localField": "cycleId", "foreignField": "_id", "as": "cycle"}}},
 		{{Key: "$unwind", Value: "$cycle"}},
+		{{Key: "$lookup", Value: bson.M{"from": "farms", "localField": "cycle.farmId", "foreignField": "_id", "as": "farm"}}},
+		{{Key: "$unwind", Value: "$farm"}},
+		{{Key: "$lookup", Value: bson.M{"from": "users", "localField": "farm.ownerId", "foreignField": "_id", "as": "owner"}}},
+		{{Key: "$unwind", Value: bson.M{"path": "$owner", "preserveNullAndEmptyArrays": true}}},
+	}
+	if common := commonConditions(c); len(common) > 0 {
+		pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.M{"$and": common}}})
 	}
 
-	cycleMatch := bson.M{}
-	if c.Species != "" {
-		cycleMatch["cycle.species"] = c.Species
+	dims := dimensionConditions(c)
+	except := func(skip string) bson.D {
+		var conds bson.A
+		for _, name := range dimensionOrder {
+			if name != skip && dims[name] != nil {
+				conds = append(conds, dims[name])
+			}
+		}
+		if len(conds) == 0 {
+			return bson.D{{Key: "$match", Value: bson.M{}}}
+		}
+		return bson.D{{Key: "$match", Value: bson.M{"$and": conds}}}
 	}
-	if c.CycleType != "" {
-		cycleMatch["cycle.type"] = c.CycleType
-	}
-	if len(cycleMatch) > 0 {
-		pipeline = append(pipeline, bson.D{{Key: "$match", Value: cycleMatch}})
-	}
+	all := except("")
 
-	pipeline = append(pipeline,
-		bson.D{{Key: "$lookup", Value: bson.M{"from": "farms", "localField": "cycle.farmId", "foreignField": "_id", "as": "farm"}}},
-		bson.D{{Key: "$unwind", Value: "$farm"}},
-	)
-	if c.Region != "" {
-		pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.M{"farm.location": bson.M{"$regex": regexp.QuoteMeta(c.Region), "$options": "i"}}}})
-	}
-
-	pipeline = append(pipeline,
-		bson.D{{Key: "$lookup", Value: bson.M{"from": "users", "localField": "farm.ownerId", "foreignField": "_id", "as": "owner"}}},
-		bson.D{{Key: "$unwind", Value: bson.M{"path": "$owner", "preserveNullAndEmptyArrays": true}}},
-	)
-	if c.VerifiedOnly {
-		pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.M{"owner.isVerified": true}}})
-	}
-
-	pipeline = append(pipeline,
+	reviews := bson.A{
 		bson.D{{Key: "$lookup", Value: bson.M{"from": "reviews", "localField": "farm._id", "foreignField": "farmId", "as": "reviews"}}},
 		bson.D{{Key: "$addFields", Value: bson.M{
 			"reviewCount":   bson.M{"$size": "$reviews"},
 			"reviewAverage": bson.M{"$ifNull": bson.A{bson.M{"$avg": "$reviews.rating"}, 0}},
 		}}},
-	)
+		bson.D{{Key: "$project", Value: bson.M{"reviews": 0}}},
+	}
 
 	// _id is always the last sort key: a stable tie-break keeps paging
 	// deterministic (no listing shown twice or skipped across pages),
@@ -140,13 +127,36 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 		pageSize = maxSearchPageSize
 	}
 
+	// Reviews are joined only for the page, unless the sort needs them.
+	data := bson.A{all}
+	if c.Sort == ports.ListingSortRating {
+		data = append(data, reviews...)
+	}
+	data = append(data,
+		bson.D{{Key: "$sort", Value: sort}},
+		bson.D{{Key: "$skip", Value: (page - 1) * pageSize}},
+		bson.D{{Key: "$limit", Value: pageSize}},
+	)
+	if c.Sort != ports.ListingSortRating {
+		data = append(data, reviews...)
+	}
+
+	countBy := func(skip string, key any) bson.A {
+		return bson.A{except(skip),
+			bson.D{{Key: "$group", Value: bson.M{"_id": key, "count": bson.M{"$sum": 1}}}},
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
+		}
+	}
 	pipeline = append(pipeline, bson.D{{Key: "$facet", Value: bson.M{
-		"data": bson.A{
-			bson.D{{Key: "$sort", Value: sort}},
-			bson.D{{Key: "$skip", Value: (page - 1) * pageSize}},
-			bson.D{{Key: "$limit", Value: pageSize}},
-		},
-		"totalCount": bson.A{bson.D{{Key: "$count", Value: "count"}}},
+		"data":       data,
+		"totalCount": bson.A{all, bson.D{{Key: "$count", Value: "count"}}},
+		"species":    countBy("species", "$cycle.species"),
+		"types":      countBy("types", bson.M{"$toLower": "$cycle.type"}),
+		"statuses":   countBy("statuses", "$cycle.status"),
+		"regions":    countBy("place", bson.M{"country": "$farm.country", "region": "$farm.region"}),
+		"price": bson.A{except("price"), bson.D{{Key: "$group", Value: bson.M{
+			"_id": nil, "min": bson.M{"$min": "$unitPrice"}, "max": bson.M{"$max": "$unitPrice"},
+		}}}},
 	}}})
 
 	cur, err := r.Coll.Aggregate(ctx, pipeline)
@@ -155,11 +165,29 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 	}
 	defer cur.Close(ctx)
 
+	type count struct {
+		Value string `bson:"_id"`
+		Count int    `bson:"count"`
+	}
 	var facet struct {
 		Data       []searchRow `bson:"data"`
 		TotalCount []struct {
 			Count int `bson:"count"`
 		} `bson:"totalCount"`
+		Species  []count `bson:"species"`
+		Types    []count `bson:"types"`
+		Statuses []count `bson:"statuses"`
+		Regions  []struct {
+			ID struct {
+				Country string `bson:"country"`
+				Region  string `bson:"region"`
+			} `bson:"_id"`
+			Count int `bson:"count"`
+		} `bson:"regions"`
+		Price []struct {
+			Min float64 `bson:"min"`
+			Max float64 `bson:"max"`
+		} `bson:"price"`
 	}
 	if cur.Next(ctx) {
 		if err := cur.Decode(&facet); err != nil {
@@ -170,14 +198,34 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 		return ports.ListingSearchResult{}, err
 	}
 
-	total := 0
+	out := ports.ListingSearchResult{Items: make([]ports.ListingSearchItem, 0, len(facet.Data))}
 	if len(facet.TotalCount) > 0 {
-		total = facet.TotalCount[0].Count
+		out.Total = facet.TotalCount[0].Count
+	}
+	toCounts := func(in []count) []ports.FacetCount {
+		res := make([]ports.FacetCount, 0, len(in))
+		for _, c := range in {
+			if c.Value != "" {
+				res = append(res, ports.FacetCount{Value: c.Value, Count: c.Count})
+			}
+		}
+		return res
+	}
+	out.Facets.Species = toCounts(facet.Species)
+	out.Facets.CycleTypes = toCounts(facet.Types)
+	out.Facets.Statuses = toCounts(facet.Statuses)
+	out.Facets.Regions = make([]ports.RegionFacet, 0, len(facet.Regions))
+	for _, rg := range facet.Regions {
+		if rg.ID.Region != "" {
+			out.Facets.Regions = append(out.Facets.Regions, ports.RegionFacet{Country: rg.ID.Country, Region: rg.ID.Region, Count: rg.Count})
+		}
+	}
+	if len(facet.Price) > 0 {
+		out.Facets.PriceMin, out.Facets.PriceMax = facet.Price[0].Min, facet.Price[0].Max
 	}
 
-	items := make([]ports.ListingSearchItem, 0, len(facet.Data))
 	for _, row := range facet.Data {
-		items = append(items, ports.ListingSearchItem{
+		out.Items = append(out.Items, ports.ListingSearchItem{
 			Listing:        row.Listing.toDomain(),
 			Species:        row.Cycle.Species,
 			CycleType:      row.Cycle.Type,
@@ -189,14 +237,90 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 			FarmID:         row.Farm.ID,
 			FarmName:       row.Farm.Name,
 			FarmLocation:   row.Farm.Location,
+			FarmCountry:    row.Farm.Country,
+			FarmRegion:     row.Farm.Region,
 			FarmVerified:   row.Owner.IsVerified,
 			FarmTrustScore: row.Owner.TrustScore,
 			ReviewAverage:  row.ReviewAverage,
 			ReviewCount:    row.ReviewCount,
 		})
 	}
+	return out, nil
+}
 
-	return ports.ListingSearchResult{Items: items, Total: total}, nil
+// dimensionOrder lists the facet dimensions; each is left out of its
+// own facet's counts.
+var dimensionOrder = []string{"species", "types", "statuses", "place", "price"}
+
+// dimensionConditions is one $match condition per facet dimension (nil
+// when that filter is off).
+func dimensionConditions(c ports.ListingSearchCriteria) map[string]any {
+	dims := map[string]any{}
+	if len(c.Species) > 0 {
+		dims["species"] = bson.M{"cycle.species": bson.M{"$in": c.Species}}
+	}
+	if len(c.CycleTypes) > 0 {
+		lower := make(bson.A, 0, len(c.CycleTypes))
+		for _, t := range c.CycleTypes {
+			lower = append(lower, strings.ToLower(t))
+		}
+		dims["types"] = bson.M{"$expr": bson.M{"$in": bson.A{bson.M{"$toLower": "$cycle.type"}, lower}}}
+	}
+	statuses := c.Statuses
+	if len(statuses) == 0 && len(c.IDs) == 0 {
+		statuses = []domain.CycleStatus{domain.CycleStatusPlanned, domain.CycleStatusInProgress}
+	}
+	if len(statuses) > 0 {
+		dims["statuses"] = bson.M{"cycle.status": bson.M{"$in": statuses}}
+	}
+	place := bson.M{}
+	if c.Country != "" {
+		place["farm.country"] = c.Country
+	}
+	if c.Region != "" {
+		place["farm.region"] = c.Region
+	}
+	if len(place) > 0 {
+		dims["place"] = place
+	}
+	if c.MinPrice > 0 || c.MaxPrice > 0 {
+		price := bson.M{}
+		if c.MinPrice > 0 {
+			price["$gte"] = c.MinPrice
+		}
+		if c.MaxPrice > 0 {
+			price["$lte"] = c.MaxPrice
+		}
+		dims["price"] = bson.M{"unitPrice": price}
+	}
+	return dims
+}
+
+// commonConditions are the filters with no facet: they narrow every
+// count alike.
+func commonConditions(c ports.ListingSearchCriteria) bson.A {
+	var conds bson.A
+	for _, word := range strings.Fields(c.Query) {
+		re := bson.M{"$regex": regexp.QuoteMeta(word), "$options": "i"}
+		conds = append(conds, bson.M{"$or": bson.A{
+			bson.M{"title": re}, bson.M{"farm.name": re}, bson.M{"farm.location": re},
+			bson.M{"farm.region": re}, bson.M{"cycle.species": re},
+		}})
+	}
+	if c.VerifiedOnly {
+		conds = append(conds, bson.M{"owner.isVerified": true})
+	}
+	if !c.AvailableTo.IsZero() {
+		conds = append(conds, bson.M{"cycle.startsAt": bson.M{"$lte": c.AvailableTo}})
+	}
+	if !c.AvailableFrom.IsZero() {
+		conds = append(conds, bson.M{"$or": bson.A{
+			bson.M{"cycle.endsAt": bson.M{"$exists": false}},
+			bson.M{"cycle.endsAt": nil},
+			bson.M{"cycle.endsAt": bson.M{"$gte": c.AvailableFrom}},
+		}})
+	}
+	return conds
 }
 
 // PublishedPrices implements ports.ListingSearchRepository.

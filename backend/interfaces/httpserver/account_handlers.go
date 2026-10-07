@@ -125,7 +125,7 @@ func handleBecomeSeller(uc *farm.BecomeSeller) http.HandlerFunc {
 			return
 		}
 		f, err := uc.Execute(r.Context(), farm.BecomeSellerInput{
-			UserID: claims.UserID, FarmName: req.Farm.Name, Location: req.Farm.Location, Species: req.Farm.Species,
+			UserID: claims.UserID, FarmName: req.Farm.Name, Location: req.Farm.Location, Country: req.Farm.Country, Region: req.Farm.Region, Species: req.Farm.Species,
 			Description: req.Farm.Description, ContactPhone: req.Farm.ContactPhone,
 		})
 		if err != nil {

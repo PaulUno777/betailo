@@ -8,6 +8,21 @@ import (
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
+// normalizePlace validates where the farm is: a country code (the
+// default when empty) and a region that, for a country with a known
+// list, must be one of its regions.
+func normalizePlace(country, region string) (string, string, error) {
+	c, err := domain.NormalizeCountry(country)
+	if err != nil {
+		return "", "", err
+	}
+	r, err := domain.CanonicalRegion(c, region)
+	if err != nil {
+		return "", "", err
+	}
+	return c, r, nil
+}
+
 // normalizeProfileFields validates the optional public-profile fields
 // shared by create and update: a bounded description and a contact
 // phone stored in E.164.

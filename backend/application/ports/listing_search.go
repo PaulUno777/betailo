@@ -16,13 +16,26 @@ import (
 // implementation, never something the API and a client could disagree
 // on. Every field's zero value means "no filter"/"default".
 type ListingSearchCriteria struct {
-	Species      string
-	CycleType    string
-	Region       string // matched against the farm's location
+	// Species, CycleTypes and Statuses match any of their values. An
+	// empty Statuses means the cycles open for reservation (planned and
+	// in progress) — except for an IDs lookup, which shows every status.
+	Species    []string
+	CycleTypes []string
+	Statuses   []domain.CycleStatus
+	// Country and Region match the farm's exactly (see domain.Farm).
+	Country      string
+	Region       string
 	MinPrice     float64
 	MaxPrice     float64
 	VerifiedOnly bool
-	Query        string // matched against the listing's title
+	// AvailableFrom/AvailableTo keep lots open at some point in the
+	// window: started by its end, not ended before its start. Either
+	// bound may be zero.
+	AvailableFrom time.Time
+	AvailableTo   time.Time
+	// Query is matched word by word: every word must appear in the
+	// title, the farm's name or town, its region, or the species.
+	Query string
 	// IDs, when non-empty, restricts results to these listings (still
 	// only published, unflagged ones). Backs "my favorites".
 	IDs []bson.ObjectID
@@ -62,6 +75,8 @@ type ListingSearchItem struct {
 	FarmID         bson.ObjectID
 	FarmName       string
 	FarmLocation   string
+	FarmCountry    string
+	FarmRegion     string
 	FarmVerified   bool
 	FarmTrustScore float64
 
@@ -75,8 +90,35 @@ type ListingSearchItem struct {
 // ListingSearchResult carries the page plus the total match count, for
 // pagination controls.
 type ListingSearchResult struct {
-	Items []ListingSearchItem
-	Total int
+	Items  []ListingSearchItem
+	Total  int
+	Facets SearchFacets
+}
+
+// SearchFacets are the counts behind each filter, so a buyer sees how
+// many lots a choice leads to before making it. Each dimension is
+// counted with every other active filter applied but not its own, so
+// picking a species still shows how many lots the other species have.
+type SearchFacets struct {
+	Species    []FacetCount
+	CycleTypes []FacetCount
+	Statuses   []FacetCount
+	Regions    []RegionFacet
+	// PriceMin/PriceMax bound the unit prices the price filter can
+	// select from (zero when nothing matches).
+	PriceMin float64
+	PriceMax float64
+}
+
+type FacetCount struct {
+	Value string
+	Count int
+}
+
+type RegionFacet struct {
+	Country string
+	Region  string
+	Count   int
 }
 
 // ListingSearchRepository is the public marketplace's read path — kept

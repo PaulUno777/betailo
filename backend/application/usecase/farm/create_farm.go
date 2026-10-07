@@ -33,6 +33,8 @@ type CreateFarmInput struct {
 	OwnerID  bson.ObjectID
 	Name     string
 	Location string
+	Country  string
+	Region   string
 	Species  []string
 
 	Description  string
@@ -59,11 +61,17 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 	if err != nil {
 		return nil, err
 	}
+	country, region, err := normalizePlace(in.Country, in.Region)
+	if err != nil {
+		return nil, err
+	}
 
 	f := &domain.Farm{
 		OwnerID:   in.OwnerID,
 		Name:      name,
 		Location:  location,
+		Country:   country,
+		Region:    region,
 		Species:   in.Species,
 		CreatedAt: uc.Clock.Now(),
 
