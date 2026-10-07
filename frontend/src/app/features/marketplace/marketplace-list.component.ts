@@ -4,61 +4,87 @@ import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
-import { ListingSearchParams, ListingSearchResult, MarketplaceListing } from '../../domain/models';
-import { SPECIES_LABEL_KEYS, SPECIES_VALUES } from '../../domain/reference/species';
+import { ListingSearchParams, ListingSearchResult, MarketplaceListing, SearchFacets } from '../../domain/models';
+import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_VALUES, isSpecies } from '../../domain/reference/species';
+import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
+import { countryName } from '../../domain/reference/countries';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { apiResource } from '../../core/http/api-resource';
 import { ListingCardComponent } from '../../shared/ui/listing-card/listing-card.component';
-import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
-import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
+import { SelectFieldComponent, SelectOption } from '../../shared/ui/select-field/select-field.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { BottomSheetComponent } from '../../shared/ui/bottom-sheet/bottom-sheet.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { PriceRangeComponent, PriceRangeValue } from '../../shared/ui/price-range/price-range.component';
 
 // Must match the backend's ports.ListingSort* constants verbatim.
-const SORT_VALUES = ['recent', 'rating', 'price_asc', 'price_desc'] as const;
+const SORT_VALUES = ['availability', 'recent', 'rating', 'price_asc', 'price_desc'] as const;
 type SortValue = (typeof SORT_VALUES)[number];
 const SORT_LABEL_KEYS: Readonly<Record<SortValue, string>> = {
+  availability: 'marketplace.sortAvailability',
   recent: 'marketplace.sortRecent',
   rating: 'marketplace.sortRating',
   price_asc: 'marketplace.sortPriceAsc',
   price_desc: 'marketplace.sortPriceDesc'
 };
 
+/** The statuses a buyer can filter on: closed cycles aren't for sale. */
+const OPEN_STATUSES = ['planned', 'in_progress'] as const;
+
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 300;
+const AVAILABILITY_MONTHS = 6;
 
 interface Filters {
   q: string;
-  species: string;
-  cycleType: string;
-  region: string;
-  minPrice: string;
-  maxPrice: string;
+  species: string[];
+  cycleTypes: string[];
+  statuses: string[];
+  /** `CM|Ouest`: a region is only unique within its country. */
+  place: string;
+  /** `2026-10`: lots open at some point that month. */
+  available: string;
+  minPrice: number | null;
+  maxPrice: number | null;
   verifiedOnly: boolean;
   sort: SortValue;
 }
 
 const EMPTY_FILTERS: Filters = {
   q: '',
-  species: '',
-  cycleType: '',
-  region: '',
-  minPrice: '',
-  maxPrice: '',
+  species: [],
+  cycleTypes: [],
+  statuses: [],
+  place: '',
+  available: '',
+  minPrice: null,
+  maxPrice: null,
   verifiedOnly: false,
-  sort: 'recent'
+  sort: 'availability'
 };
 
-/** The marketplace, mobile-first per the design: a search pill with a
- * filter button (badged with the number of active filters) opening a
- * bottom sheet, a species chip row, and compact row cards. From `lg` up
- * the same filters sit in a sidebar beside a card grid.
+/** One removable chip above the results, per active filter. */
+interface ActiveChip {
+  readonly id: string;
+  readonly label: string;
+  readonly remove: Partial<Filters>;
+}
+
+const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], regions: [], priceMin: 0, priceMax: 0 };
+
+/** The marketplace, per the design: a search, the active filters as
+ * removable chips, and the filters themselves — species (with how many
+ * lots each), cycle type, region, month of availability, price range,
+ * status and verified farmers. From `lg` up they sit in a sidebar beside
+ * a card grid; on phones and tablets in a sheet behind the filter
+ * button, with a species chip row for the most common choice.
  *
- * Filters live in the URL, so a search is shareable and coming back from
- * a listing restores it. Results load page by page with "Voir plus";
+ * Every count comes from the API's facets for the current search, each
+ * computed without its own filter, so a buyer sees where a choice leads
+ * before making it. Filters live in the URL, so a search is shareable
+ * and coming back from a listing restores it. Results load page by page;
  * any filter change starts again from page 1. */
 @Component({
   selector: 'bt-marketplace-list',
@@ -67,10 +93,10 @@ const EMPTY_FILTERS: Filters = {
     NgTemplateOutlet,
     ListingCardComponent,
     SelectFieldComponent,
-    TextFieldComponent,
     IconComponent,
     BottomSheetComponent,
     ButtonComponent,
+    PriceRangeComponent,
     TranslatePipe
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,13 +104,13 @@ const EMPTY_FILTERS: Filters = {
     <div class="mx-auto max-w-content-max px-4 pb-8 pt-5 sm:px-8 lg:px-18 lg:py-10">
       <header class="flex items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
-          <span class="hidden text-eyebrow text-clay-ink lg:block">{{ 'marketplace.eyebrowCount' | t: { count: total() } }}</span>
+          <span class="text-eyebrow text-clay-ink">{{ 'marketplace.eyebrowCount' | t: { count: total() } }}</span>
           <h1 class="text-heading-1">
             <span class="lg:hidden">{{ 'marketplace.titleShort' | t }}</span>
             <span class="hidden lg:inline">{{ 'marketplace.title' | t }}</span>
           </h1>
         </div>
-        <div class="hidden w-56 lg:block">
+        <div class="hidden w-60 lg:block">
           <bt-select-field [label]="'marketplace.sortLabel' | t" [options]="sortOptions()" [ngModel]="filters().sort" (ngModelChange)="patch({ sort: $event })" />
         </div>
       </header>
@@ -103,42 +129,61 @@ const EMPTY_FILTERS: Filters = {
             [placeholder]="'marketplace.searchPlaceholder' | t"
             [ngModel]="queryInput()"
             (ngModelChange)="queryInput.set($event)"
-            class="h-control-xl w-full rounded-full border border-line bg-surface-card pl-12 pr-4 text-body text-ink outline-none focus:border-forest"
+            class="h-control-xl w-full rounded-full border border-line bg-surface-card pl-12 pr-4 text-[16px] text-ink outline-none focus:border-forest"
           />
         </div>
         <button
           type="button"
           (click)="filtersOpen.set(true)"
           [attr.aria-label]="'marketplace.filtersTitle' | t"
-          class="relative flex h-control-xl w-14 shrink-0 items-center justify-center rounded-full bg-ink text-surface lg:hidden"
+          class="relative flex h-control-xl w-14 shrink-0 items-center justify-center rounded-full bg-ink text-surface"
         >
           <bt-icon name="filter" [size]="22" />
-          @if (activeFilterCount()) {
+          @if (activeChips().length) {
             <span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-clay px-1 text-caption text-on-clay">
-              {{ activeFilterCount() }}
+              {{ activeChips().length }}
             </span>
           }
         </button>
       </div>
 
       <div class="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 lg:hidden" role="group" [attr.aria-label]="'marketplace.speciesLabel' | t">
-        <button type="button" [class]="chipClass(!filters().species)" (click)="patch({ species: '' })">{{ 'marketplace.allChip' | t }}</button>
+        <button type="button" [class]="chipClass(!filters().species.length)" (click)="patch({ species: [] })">{{ 'marketplace.allChip' | t }}</button>
         @for (opt of speciesOptions(); track opt.value) {
-          <button type="button" [class]="chipClass(filters().species === opt.value)" (click)="patch({ species: opt.value })">
+          <button type="button" [attr.aria-pressed]="filters().species.includes(opt.value)" [class]="chipClass(filters().species.includes(opt.value))" (click)="toggle('species', opt.value)">
             {{ opt.label }}
           </button>
         }
       </div>
 
-      <div class="mt-5 grid gap-8 lg:mt-8 lg:grid-cols-[280px_1fr]">
+      @if (activeChips().length) {
+        <div class="mt-4 flex flex-wrap items-center gap-2 lg:mt-6" [attr.aria-label]="'marketplace.activeFilters' | t" role="group">
+          @for (chip of activeChips(); track chip.id) {
+            <button
+              type="button"
+              (click)="patch(chip.remove)"
+              [attr.aria-label]="'marketplace.removeFilter' | t: { label: chip.label }"
+              class="inline-flex h-9 items-center gap-1.5 rounded-full bg-ink pl-3.5 pr-2.5 text-small font-semibold text-surface"
+            >
+              {{ chip.label }}
+              <bt-icon name="x" [size]="14" />
+            </button>
+          }
+          <button type="button" (click)="resetFilters()" class="h-9 px-2 text-small font-semibold text-forest">{{ 'marketplace.clearAll' | t }}</button>
+        </div>
+      }
+
+      <!-- minmax(0, 1fr): a long unbreakable line in a card can't widen
+           the column past the screen. -->
+      <div class="mt-5 grid grid-cols-[minmax(0,1fr)] gap-8 lg:mt-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside class="hidden self-start rounded-lg border border-line bg-surface-card p-6 lg:block">
           <div class="mb-5 flex items-center justify-between">
             <span class="text-heading-4">{{ 'marketplace.filtersTitle' | t }}</span>
-            <button type="button" (click)="resetFilters()" class="text-small font-semibold text-forest hover:text-forest-deep">
+            <button type="button" (click)="resetFilters()" class="text-small font-semibold text-forest underline-offset-2 hover:underline">
               {{ 'marketplace.filtersReset' | t }}
             </button>
           </div>
-          <ng-container *ngTemplateOutlet="filterFields; context: { $implicit: true }" />
+          <ng-container *ngTemplateOutlet="filterFields" />
         </aside>
 
         <section aria-live="polite">
@@ -147,9 +192,9 @@ const EMPTY_FILTERS: Filters = {
           </p>
 
           @if (items().length === 0 && result.isLoading()) {
-            <div class="grid gap-3 lg:grid-cols-2 xl:grid-cols-3 lg:gap-5" aria-busy="true">
+            <div class="grid gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3" aria-busy="true">
               @for (i of skeletons; track i) {
-                <div class="h-[122px] animate-pulse rounded-lg bg-surface-sunken lg:h-[380px]"></div>
+                <div class="h-[122px] animate-pulse rounded-lg bg-surface-sunken sm:h-[380px]"></div>
               }
             </div>
           } @else if (result.error() && items().length === 0) {
@@ -161,17 +206,17 @@ const EMPTY_FILTERS: Filters = {
             <div class="flex flex-col items-center gap-3 py-16 text-center">
               <bt-icon name="search" [size]="36" class="text-ink-muted" />
               <p class="text-body text-ink">{{ 'marketplace.empty' | t }}</p>
-              @if (activeFilterCount() || filters().q) {
+              @if (activeChips().length || filters().q) {
                 <bt-button variant="outline" (click)="resetFilters()">{{ 'marketplace.filtersReset' | t }}</bt-button>
               }
             </div>
           } @else {
-            <div class="flex flex-col gap-3 lg:hidden">
+            <div class="flex flex-col gap-3 sm:hidden">
               @for (item of items(); track item.listing.id) {
                 <bt-listing-card [item]="item" layout="row" />
               }
             </div>
-            <div class="hidden gap-5 lg:grid lg:grid-cols-2 xl:grid-cols-3">
+            <div class="hidden gap-5 sm:grid sm:grid-cols-2 xl:grid-cols-3">
               @for (item of items(); track item.listing.id) {
                 <bt-listing-card [item]="item" />
               }
@@ -189,9 +234,9 @@ const EMPTY_FILTERS: Filters = {
     </div>
 
     <bt-bottom-sheet [open]="filtersOpen()" [title]="'marketplace.filtersTitle' | t" (closed)="filtersOpen.set(false)">
-      <div class="flex flex-col gap-5">
+      <div class="flex flex-col gap-6">
         <bt-select-field [label]="'marketplace.sortLabel' | t" [options]="sortOptions()" [ngModel]="filters().sort" (ngModelChange)="patch({ sort: $event })" />
-        <ng-container *ngTemplateOutlet="filterFields; context: { $implicit: false }" />
+        <ng-container *ngTemplateOutlet="filterFields" />
       </div>
       <div sheetFooter class="flex gap-3 border-t border-line px-5 pt-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
         <bt-button variant="outline" (click)="resetFilters()">{{ 'marketplace.filtersReset' | t }}</bt-button>
@@ -201,40 +246,79 @@ const EMPTY_FILTERS: Filters = {
       </div>
     </bt-bottom-sheet>
 
-    <ng-template #filterFields let-withSpecies>
-      <div class="flex flex-col gap-5">
-        @if (withSpecies) {
-          <bt-select-field
-            [label]="'marketplace.speciesLabel' | t"
-            [options]="speciesOptions()"
-            [placeholder]="'marketplace.allSpecies' | t"
-            [ngModel]="filters().species"
-            (ngModelChange)="patch({ species: $event })"
-          />
+    <ng-template #filterFields>
+      <div class="flex flex-col gap-6">
+        <fieldset class="flex flex-col gap-1">
+          <legend class="mb-2 text-eyebrow text-ink-muted">{{ 'marketplace.speciesLabel' | t }}</legend>
+          @for (opt of speciesOptions(); track opt.value) {
+            <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-body hover:bg-surface-sunken" [class.opacity-50]="!opt.count && !filters().species.includes(opt.value)">
+              <input
+                type="checkbox"
+                [checked]="filters().species.includes(opt.value)"
+                (change)="toggle('species', opt.value)"
+                class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest"
+              />
+              @if (opt.dot) {
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="opt.dot"></span>
+              }
+              <span class="flex-1">{{ opt.label }}</span>
+              <span class="font-mono text-small text-ink-muted">{{ opt.count }}</span>
+            </label>
+          }
+        </fieldset>
+
+        @if (typeOptions().length) {
+          <fieldset>
+            <legend class="mb-3 text-eyebrow text-ink-muted">{{ 'marketplace.cycleTypeLabel' | t }}</legend>
+            <div class="flex flex-wrap gap-2">
+              @for (opt of typeOptions(); track opt.value) {
+                <button type="button" [attr.aria-pressed]="filters().cycleTypes.includes(opt.value)" (click)="toggle('cycleTypes', opt.value)" [class]="smallChipClass(filters().cycleTypes.includes(opt.value))">
+                  {{ opt.label }} <span class="font-mono opacity-70">{{ opt.count }}</span>
+                </button>
+              }
+            </div>
+          </fieldset>
         }
-        <bt-text-field
-          [label]="'marketplace.cycleTypeLabel' | t"
-          [placeholder]="'marketplace.cycleTypePlaceholder' | t"
-          [ngModel]="filters().cycleType"
-          (ngModelChange)="patch({ cycleType: $event })"
+
+        <bt-select-field
+          [label]="'marketplace.regionLabel' | t"
+          [options]="regionOptions()"
+          [placeholder]="'marketplace.allRegions' | t"
+          [ngModel]="filters().place"
+          (ngModelChange)="patch({ place: $event })"
         />
-        <bt-text-field [label]="'marketplace.regionLabel' | t" autocomplete="address-level2" [ngModel]="filters().region" (ngModelChange)="patch({ region: $event })" />
-        <div class="grid grid-cols-2 gap-3">
-          <bt-text-field
-            [label]="'marketplace.minPriceLabel' | t"
-            type="number"
-            inputmode="numeric"
-            [ngModel]="filters().minPrice"
-            (ngModelChange)="patch({ minPrice: $event })"
-          />
-          <bt-text-field
-            [label]="'marketplace.maxPriceLabel' | t"
-            type="number"
-            inputmode="numeric"
-            [ngModel]="filters().maxPrice"
-            (ngModelChange)="patch({ maxPrice: $event })"
-          />
-        </div>
+
+        <bt-select-field
+          [label]="'marketplace.availableLabel' | t"
+          [options]="monthOptions()"
+          [placeholder]="'marketplace.anyDate' | t"
+          [ngModel]="filters().available"
+          (ngModelChange)="patch({ available: $event })"
+        />
+
+        @if (priceBounds(); as bounds) {
+          <div class="flex flex-col gap-3">
+            <span class="text-eyebrow text-ink-muted">{{ 'marketplace.priceLabel' | t }}</span>
+            <bt-price-range [bounds]="bounds" [value]="{ min: filters().minPrice, max: filters().maxPrice }" (valueChange)="setPrice($event)" />
+          </div>
+        }
+
+        <fieldset class="flex flex-col gap-1">
+          <legend class="mb-2 text-eyebrow text-ink-muted">{{ 'marketplace.statusLabel' | t }}</legend>
+          @for (opt of statusOptions(); track opt.value) {
+            <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-body hover:bg-surface-sunken">
+              <input
+                type="checkbox"
+                [checked]="filters().statuses.includes(opt.value)"
+                (change)="toggle('statuses', opt.value)"
+                class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest"
+              />
+              <span class="flex-1">{{ opt.label }}</span>
+              <span class="font-mono text-small text-ink-muted">{{ opt.count }}</span>
+            </label>
+          }
+        </fieldset>
+
         <label class="flex min-h-control-lg items-center justify-between gap-3 rounded-md bg-forest-soft p-3.5">
           <span class="text-small font-semibold text-forest-deep">{{ 'marketplace.verifiedOnlyLabel' | t }}</span>
           <span class="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full transition" [class]="filters().verifiedOnly ? 'bg-forest' : 'bg-line-strong'">
@@ -263,9 +347,6 @@ export class MarketplaceListComponent {
 
   protected readonly skeletons = [1, 2, 3, 4, 5, 6];
 
-  protected readonly speciesOptions = computed(() =>
-    SPECIES_VALUES.map((value) => ({ value, label: this.locale.t(SPECIES_LABEL_KEYS[value]) }))
-  );
   protected readonly sortOptions = computed(() =>
     SORT_VALUES.map((value) => ({ value, label: this.locale.t(SORT_LABEL_KEYS[value]) }))
   );
@@ -286,13 +367,17 @@ export class MarketplaceListComponent {
 
   private readonly params = computed<ListingSearchParams>(() => {
     const f = this.filters();
+    const [country, region] = f.place ? f.place.split('|') : [undefined, undefined];
     return {
       q: f.q || undefined,
-      species: f.species || undefined,
-      cycleType: f.cycleType || undefined,
-      region: f.region || undefined,
-      minPrice: f.minPrice ? Number(f.minPrice) : undefined,
-      maxPrice: f.maxPrice ? Number(f.maxPrice) : undefined,
+      species: f.species.join(',') || undefined,
+      cycleType: f.cycleTypes.join(',') || undefined,
+      status: f.statuses.join(',') || undefined,
+      country: country || undefined,
+      region: region || undefined,
+      available: f.available || undefined,
+      minPrice: f.minPrice ?? undefined,
+      maxPrice: f.maxPrice ?? undefined,
       verifiedOnly: f.verifiedOnly || undefined,
       sort: f.sort,
       page: this.page(),
@@ -321,9 +406,97 @@ export class MarketplaceListComponent {
   });
   protected readonly hasMore = computed(() => this.items().length < this.total());
 
-  protected readonly activeFilterCount = computed(() => {
+  /** The last facets, kept while the next search loads. */
+  private readonly facets = linkedSignal<SearchFacets | undefined, SearchFacets>({
+    source: () => this.result.value()?.facets,
+    computation: (facets, previous) => facets ?? previous?.value ?? EMPTY_FACETS
+  });
+
+  /** Every known species (with its count, 0 included so the list never
+   * jumps), then any other species the data holds. */
+  protected readonly speciesOptions = computed(() => {
+    const counts = new Map(this.facets().species.map((f) => [f.value, f.count]));
+    const known = SPECIES_VALUES.map((value) => ({
+      value,
+      label: this.locale.t(SPECIES_LABEL_KEYS[value]),
+      dot: SPECIES_DOT[value] as string | undefined,
+      count: counts.get(value) ?? 0
+    }));
+    const other = this.facets()
+      .species.filter((f) => !isSpecies(f.value))
+      .map((f) => ({ value: f.value, label: f.value, dot: undefined, count: f.count }));
+    return [...known, ...other];
+  });
+
+  protected readonly typeOptions = computed(() =>
+    this.facets().cycleTypes.map((f) => ({ value: f.value, label: this.locale.t(cycleTypeLabelKey(f.value)), count: f.count }))
+  );
+
+  protected readonly statusOptions = computed(() => {
+    const counts = new Map(this.facets().statuses.map((f) => [f.value, f.count]));
+    return OPEN_STATUSES.map((value) => ({ value, label: this.locale.t(STATUS_LABEL_KEYS[value]), count: counts.get(value) ?? 0 }));
+  });
+
+  /** Regions that have lots, with their count; prefixed with the
+   * country once the platform spans several. */
+  protected readonly regionOptions = computed<SelectOption[]>(() => {
+    const regions = this.facets().regions;
+    const multi = new Set(regions.map((r) => r.country)).size > 1;
+    const lang = this.locale.locale();
+    const options = regions.map((r) => ({
+      value: `${r.country}|${r.region}`,
+      label: `${multi ? countryName(r.country, lang) + ' · ' : ''}${r.region} (${r.count})`
+    }));
+    // Keep the active region listed even when the other filters leave it empty.
+    const place = this.filters().place;
+    if (place && !options.some((o) => o.value === place)) {
+      options.unshift({ value: place, label: this.placeLabel(place) });
+    }
+    return options;
+  });
+
+  /** This month and the next few, for "available in". */
+  protected readonly monthOptions = computed<SelectOption[]>(() => {
+    const lang = this.locale.locale();
+    const now = new Date();
+    return Array.from({ length: AVAILABILITY_MONTHS }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      return { value: monthValue(d), label: this.monthLabel(monthValue(d), lang) };
+    });
+  });
+
+  protected readonly priceBounds = computed(() => {
+    const f = this.facets();
+    return f.priceMax > f.priceMin ? { min: f.priceMin, max: f.priceMax } : null;
+  });
+
+  protected readonly activeChips = computed<ActiveChip[]>(() => {
     const f = this.filters();
-    return [f.species, f.cycleType, f.region, f.minPrice || f.maxPrice, f.verifiedOnly].filter(Boolean).length;
+    const lang = this.locale.locale();
+    const chips: ActiveChip[] = [];
+    for (const v of f.species) {
+      chips.push({ id: 's-' + v, label: isSpecies(v) ? this.locale.t(SPECIES_LABEL_KEYS[v]) : v, remove: { species: f.species.filter((x) => x !== v) } });
+    }
+    for (const v of f.cycleTypes) {
+      chips.push({ id: 't-' + v, label: this.locale.t(cycleTypeLabelKey(v)), remove: { cycleTypes: f.cycleTypes.filter((x) => x !== v) } });
+    }
+    if (f.place) chips.push({ id: 'place', label: this.placeLabel(f.place), remove: { place: '' } });
+    if (f.available) chips.push({ id: 'available', label: this.monthLabel(f.available, lang), remove: { available: '' } });
+    if (f.minPrice !== null || f.maxPrice !== null) {
+      const fmt = (n: number) => new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US').format(n);
+      const label =
+        f.minPrice !== null && f.maxPrice !== null
+          ? `${fmt(f.minPrice)} – ${fmt(f.maxPrice)} FCFA`
+          : f.minPrice !== null
+            ? this.locale.t('marketplace.priceFrom', { price: fmt(f.minPrice) })
+            : this.locale.t('marketplace.priceUpTo', { price: fmt(f.maxPrice!) });
+      chips.push({ id: 'price', label, remove: { minPrice: null, maxPrice: null } });
+    }
+    for (const v of f.statuses) {
+      chips.push({ id: 'st-' + v, label: this.locale.t(STATUS_LABEL_KEYS[v] ?? v), remove: { statuses: f.statuses.filter((x) => x !== v) } });
+    }
+    if (f.verifiedOnly) chips.push({ id: 'verified', label: this.locale.t('marketplace.verifiedChip'), remove: { verifiedOnly: false } });
+    return chips;
   });
 
   protected readonly sortLabelKey = computed(() => SORT_LABEL_KEYS[this.filters().sort]);
@@ -348,18 +521,22 @@ export class MarketplaceListComponent {
     // Mirror the filters into the URL (replacing, not pushing, history).
     effect(() => {
       const f = this.filters();
+      const [country, region] = f.place ? f.place.split('|') : [null, null];
       this.router.navigate([], {
         relativeTo: this.route,
         replaceUrl: true,
         queryParams: {
           q: f.q || null,
-          species: f.species || null,
-          cycleType: f.cycleType || null,
-          region: f.region || null,
-          minPrice: f.minPrice || null,
-          maxPrice: f.maxPrice || null,
+          species: f.species.join(',') || null,
+          cycleType: f.cycleTypes.join(',') || null,
+          status: f.statuses.join(',') || null,
+          country: country || null,
+          region: region || null,
+          available: f.available || null,
+          minPrice: f.minPrice ?? null,
+          maxPrice: f.maxPrice ?? null,
           verified: f.verifiedOnly ? '1' : null,
-          sort: f.sort === 'recent' ? null : f.sort
+          sort: f.sort === 'availability' ? null : f.sort
         }
       });
     });
@@ -367,6 +544,17 @@ export class MarketplaceListComponent {
 
   protected patch(change: Partial<Filters>): void {
     this.filters.update((f) => ({ ...f, ...change }));
+  }
+
+  protected toggle(key: 'species' | 'cycleTypes' | 'statuses', value: string): void {
+    this.filters.update((f) => {
+      const list = f[key];
+      return { ...f, [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] };
+    });
+  }
+
+  protected setPrice(range: PriceRangeValue): void {
+    this.patch({ minPrice: range.min, maxPrice: range.max });
   }
 
   protected resetFilters(): void {
@@ -381,17 +569,57 @@ export class MarketplaceListComponent {
     );
   }
 
+  protected smallChipClass(active: boolean): string {
+    return (
+      'inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-small font-semibold transition ' +
+      (active ? 'border-forest bg-forest text-on-forest' : 'border-line-strong bg-surface-card text-ink hover:border-forest')
+    );
+  }
+
+  private placeLabel(place: string): string {
+    const [country, region] = place.split('|');
+    const lang = this.locale.locale();
+    return region ? region : countryName(country, lang);
+  }
+
+  private monthLabel(value: string, lang: string): string {
+    const [y, m] = value.split('-').map(Number);
+    if (!y || !m) return value;
+    return this.locale.t('marketplace.availableIn', {
+      month: new Intl.DateTimeFormat(lang, { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
+    });
+  }
+
   private filtersFromUrl(p: ParamMap = this.route.snapshot.queryParamMap): Filters {
     const sort = p.get('sort');
+    const list = (key: string) => (p.get(key) ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+    const num = (key: string) => {
+      const v = Number(p.get(key));
+      return p.get(key) !== null && Number.isFinite(v) && v > 0 ? v : null;
+    };
+    const country = p.get('country')?.toUpperCase() ?? '';
+    const region = p.get('region') ?? '';
+    const available = p.get('available') ?? '';
     return {
       q: p.get('q') ?? '',
-      species: p.get('species') ?? '',
-      cycleType: p.get('cycleType') ?? '',
-      region: p.get('region') ?? '',
-      minPrice: p.get('minPrice') ?? '',
-      maxPrice: p.get('maxPrice') ?? '',
+      species: list('species'),
+      cycleTypes: list('cycleType'),
+      statuses: list('status').filter((s) => (OPEN_STATUSES as readonly string[]).includes(s)),
+      place: region ? `${country || 'CM'}|${region}` : '',
+      available: /^\d{4}-\d{2}$/.test(available) ? available : '',
+      minPrice: num('minPrice'),
+      maxPrice: num('maxPrice'),
       verifiedOnly: p.get('verified') === '1',
-      sort: (SORT_VALUES as readonly string[]).includes(sort ?? '') ? (sort as SortValue) : 'recent'
+      sort: (SORT_VALUES as readonly string[]).includes(sort ?? '') ? (sort as SortValue) : 'availability'
     };
   }
+}
+
+const STATUS_LABEL_KEYS: Readonly<Record<string, string>> = {
+  planned: 'status.cyclePlanned',
+  in_progress: 'status.cycleInProgress'
+};
+
+function monthValue(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }

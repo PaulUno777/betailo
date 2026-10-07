@@ -141,16 +141,33 @@ import { apiResource } from '../../core/http/api-resource';
                 }
               </select>
             </div>
-            <div class="flex flex-1 flex-col gap-0.5 px-2 sm:px-4">
+            <div class="flex flex-1 flex-col gap-0.5 border-b border-line px-2 pb-2 sm:border-b-0 sm:border-r sm:px-4 sm:py-0">
               <label for="home-city" class="text-small font-bold text-ink-muted">{{ 'home.searchCityLabel' | t }}</label>
               <input
                 id="home-city"
                 type="text"
-                class="h-6 w-full bg-transparent text-body-strong text-ink outline-none"
+                autocomplete="address-level2"
+                [placeholder]="'home.searchCityPlaceholder' | t"
+                class="h-6 w-full bg-transparent text-body-strong text-ink outline-none placeholder:font-normal placeholder:text-ink-muted"
                 [ngModel]="city()"
                 (ngModelChange)="city.set($event)"
                 name="city"
               />
+            </div>
+            <div class="flex flex-1 flex-col gap-0.5 px-2 sm:px-4">
+              <label for="home-month" class="text-small font-bold text-ink-muted">{{ 'home.searchAvailableLabel' | t }}</label>
+              <select
+                id="home-month"
+                class="h-6 w-full appearance-none bg-transparent text-body-strong text-ink outline-none"
+                [ngModel]="month()"
+                (ngModelChange)="month.set($event)"
+                name="month"
+              >
+                <option value="">{{ 'marketplace.anyDate' | t }}</option>
+                @for (opt of monthOptions(); track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
             </div>
             <bt-button type="submit" size="lg">
               <bt-icon name="search" [size]="18" />
@@ -335,6 +352,19 @@ export class HomeComponent {
   protected readonly query = signal('');
   protected readonly speciesDot = ['bg-clay', 'bg-forest', 'bg-amber', 'bg-sky', 'bg-alert', 'bg-plum'];
   protected readonly city = signal('');
+  protected readonly month = signal('');
+
+  /** This month and the next five: "Disponible dès" from the design. */
+  protected readonly monthOptions = computed(() => {
+    const lang = this.locale.locale();
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = new Intl.DateTimeFormat(lang, { month: 'long', year: 'numeric' }).format(d);
+      return { value, label: label.charAt(0).toUpperCase() + label.slice(1) };
+    });
+  });
 
   protected readonly featured = apiResource<ListingSearchResult>(() =>
     this.listingsApi.searchUrl({ pageSize: 8, sort: 'recent' })
@@ -348,9 +378,11 @@ export class HomeComponent {
     this.router.navigate(['/marketplace'], { queryParams: { q: this.query().trim() || null } });
   }
 
+  /** The town goes in the word search, which matches farms' towns and
+   * regions, so "Bafoussam" or "Ouest" both work. */
   protected search(): void {
     this.router.navigate(['/marketplace'], {
-      queryParams: { species: this.species() || null, region: this.city() || null }
+      queryParams: { species: this.species() || null, q: this.city().trim() || null, available: this.month() || null }
     });
   }
 }

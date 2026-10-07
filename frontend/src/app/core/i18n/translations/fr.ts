@@ -147,6 +147,8 @@ export const fr = {
     defaultCancel: 'Annuler'
   },
   home: {
+    searchAvailableLabel: 'Disponible dès',
+    searchCityPlaceholder: 'Douala, Ouest…',
     mobileTitle: 'Quel élevage cherchez-vous ?',
     mobileSearchPlaceholder: 'Brahma, poussins, porcelets…',
     verifiedBreeder: 'Éleveur vérifié',
@@ -204,6 +206,19 @@ export const fr = {
     farmerCtaButton: 'Créer un compte éleveur'
   },
   marketplace: {
+    sortAvailability: 'Disponibilité proche',
+    activeFilters: 'Filtres actifs',
+    removeFilter: 'Retirer le filtre {label}',
+    clearAll: 'Tout effacer',
+    allRegions: 'Toutes les régions',
+    availableLabel: 'Disponible',
+    anyDate: 'Toutes dates',
+    availableIn: 'En {month}',
+    priceLabel: 'Prix unitaire (FCFA)',
+    priceFrom: 'Dès {price} FCFA',
+    priceUpTo: "Jusqu'à {price} FCFA",
+    statusLabel: 'Statut',
+    verifiedChip: 'Vérifiés uniquement',
     titleShort: 'Marché',
     allChip: 'Tout',
     resultsSorted_one: '{count} annonce · {sort}',
@@ -222,10 +237,7 @@ export const fr = {
     speciesLabel: 'Espèce',
     allSpecies: 'Toutes les espèces',
     cycleTypeLabel: 'Type de cycle',
-    cycleTypePlaceholder: 'Couvée, engraissement…',
     regionLabel: 'Région',
-    minPriceLabel: 'Prix min (FCFA)',
-    maxPriceLabel: 'Prix max (FCFA)',
     verifiedOnlyLabel: 'Éleveurs vérifiés uniquement',
     results_one: '{count} résultat',
     results: '{count} résultats',
@@ -242,6 +254,10 @@ export const fr = {
     pageOf: 'Page {page} / {total}'
   },
   listing: {
+    photoPending: 'Photo à venir · {species}',
+    trustScore: 'Score de confiance de l’éleveur',
+    from: 'Dès le {date}',
+    availableNow: 'Disponibles',
     saved: 'Dans vos favoris',
     verifiedBadge: 'Vérifiée',
     placesLeft_one: '{count} place restante',
@@ -1055,6 +1071,23 @@ export const fr = {
     buyer: 'Acheteur',
     farmer: 'Éleveur',
     admin: 'Admin'
+  },
+  placeFields: {
+    country: 'Pays',
+    region: 'Région',
+    regionPick: 'Choisissez votre région',
+    regionPlaceholder: 'Région, province, État…'
+  },
+  cycleTypes: {
+    couvee: 'Couvée',
+    engraissement: 'Engraissement',
+    ponte: 'Ponte',
+    reproduction: 'Reproduction',
+    elevage: 'Élevage'
+  },
+  priceRange: {
+    min: 'Prix minimum',
+    max: 'Prix maximum'
   },
   comingSoon: {
     body: 'Cet espace arrive dans une prochaine phase.',

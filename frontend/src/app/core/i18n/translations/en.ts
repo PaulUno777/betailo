@@ -149,6 +149,8 @@ export const en: TranslationDictionary = {
     defaultCancel: 'Cancel'
   },
   home: {
+    searchAvailableLabel: 'Available from',
+    searchCityPlaceholder: 'Douala, West…',
     mobileTitle: 'What are you looking for?',
     mobileSearchPlaceholder: 'Brahma, chicks, piglets…',
     verifiedBreeder: 'Verified breeder',
@@ -206,6 +208,19 @@ export const en: TranslationDictionary = {
     farmerCtaButton: 'Create a farmer account'
   },
   marketplace: {
+    sortAvailability: 'Soonest available',
+    activeFilters: 'Active filters',
+    removeFilter: 'Remove the {label} filter',
+    clearAll: 'Clear all',
+    allRegions: 'All regions',
+    availableLabel: 'Available',
+    anyDate: 'Any date',
+    availableIn: 'In {month}',
+    priceLabel: 'Unit price (FCFA)',
+    priceFrom: 'From {price} FCFA',
+    priceUpTo: 'Up to {price} FCFA',
+    statusLabel: 'Status',
+    verifiedChip: 'Verified only',
     titleShort: 'Market',
     allChip: 'All',
     resultsSorted_one: '{count} listing · {sort}',
@@ -224,10 +239,7 @@ export const en: TranslationDictionary = {
     speciesLabel: 'Species',
     allSpecies: 'All species',
     cycleTypeLabel: 'Cycle type',
-    cycleTypePlaceholder: 'Hatching, fattening…',
     regionLabel: 'Region',
-    minPriceLabel: 'Min price (FCFA)',
-    maxPriceLabel: 'Max price (FCFA)',
     verifiedOnlyLabel: 'Verified farmers only',
     results_one: '{count} result',
     results: '{count} results',
@@ -244,6 +256,10 @@ export const en: TranslationDictionary = {
     pageOf: 'Page {page} of {total}'
   },
   listing: {
+    photoPending: 'Photo coming · {species}',
+    trustScore: 'Farmer trust score',
+    from: 'From {date}',
+    availableNow: 'Available',
     saved: 'Saved',
     verifiedBadge: 'Verified',
     placesLeft_one: '{count} spot left',
@@ -1056,6 +1072,23 @@ export const en: TranslationDictionary = {
     buyer: 'Buyer',
     farmer: 'Farmer',
     admin: 'Admin'
+  },
+  placeFields: {
+    country: 'Country',
+    region: 'Region',
+    regionPick: 'Pick your region',
+    regionPlaceholder: 'Region, province, state…'
+  },
+  cycleTypes: {
+    couvee: 'Hatching',
+    engraissement: 'Fattening',
+    ponte: 'Laying',
+    reproduction: 'Breeding',
+    elevage: 'Rearing'
+  },
+  priceRange: {
+    min: 'Minimum price',
+    max: 'Maximum price'
   },
   comingSoon: {
     body: 'This space is coming in a future phase.',

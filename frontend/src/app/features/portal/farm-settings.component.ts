@@ -11,6 +11,7 @@ import { apiResource } from '../../core/http/api-resource';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
+import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.component';
 
 /** `/portal/farm` — "Ma ferme": what buyers read about the farm (name,
  * town, the number they can call, what it raises) and, at the bottom,
@@ -18,7 +19,7 @@ import { TextFieldComponent } from '../../shared/ui/text-field/text-field.compon
  * cycles and says so. */
 @Component({
   selector: 'bt-farm-settings',
-  imports: [FormsModule, ButtonComponent, DialogComponent, TextFieldComponent, TranslatePipe],
+  imports: [FormsModule, ButtonComponent, DialogComponent, TextFieldComponent, PlaceFieldsComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-2xl p-4 sm:p-8">
@@ -27,13 +28,7 @@ import { TextFieldComponent } from '../../shared/ui/text-field/text-field.compon
       @if (farm(); as f) {
         <form class="mt-6 flex flex-col gap-5" (submit)="$event.preventDefault(); save(f)">
           <bt-text-field [label]="'sellerOnboarding.nameLabel' | t" name="name" [ngModel]="name()" (ngModelChange)="name.set($event)" />
-          <bt-text-field
-            [label]="'sellerOnboarding.locationLabel' | t"
-            [hint]="'sellerOnboarding.locationHint' | t"
-            name="location"
-            [ngModel]="location()"
-            (ngModelChange)="location.set($event)"
-          />
+          <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" />
           <bt-text-field
             [label]="'sellerOnboarding.phoneLabel' | t"
             [hint]="'sellerOnboarding.phoneHint' | t"
@@ -111,6 +106,8 @@ export class FarmSettingsComponent {
 
   protected readonly name = signal('');
   protected readonly location = signal('');
+  protected readonly country = signal('');
+  protected readonly region = signal('');
   protected readonly phone = signal('');
   protected readonly description = signal('');
   protected readonly species = signal<SpeciesValue[]>([]);
@@ -126,6 +123,8 @@ export class FarmSettingsComponent {
       untracked(() => {
         this.name.set(f.name);
         this.location.set(f.location);
+        this.country.set(f.country ?? '');
+        this.region.set(f.region ?? '');
         this.phone.set(f.contactPhone ?? '');
         this.description.set(f.description ?? '');
         this.species.set((f.species ?? []).filter(isSpecies));
@@ -144,6 +143,8 @@ export class FarmSettingsComponent {
       .update(f.id, {
         name: this.name().trim(),
         location: this.location().trim(),
+        country: this.country() || undefined,
+        region: this.region().trim() || undefined,
         species: this.species(),
         description: this.description().trim() || undefined,
         contactPhone: this.phone().trim() || undefined
