@@ -11,8 +11,8 @@ package reservation
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -26,17 +26,18 @@ import (
 // percentage; see the design's "Frais de service" line item.
 const ServiceFeeRate = 0.02
 
-// UnpaidReservationGrace is how long a "réserver sans payer" reservation
-// holds its quantity before internal/worker expires it and restores
-// capacity to the cycle.
-const UnpaidReservationGrace = 24 * time.Hour
-
-// ReserveCycle is the usecase: read the listing and cycle, validate the
-// quantity against the cycle's bounds, then run the availability
-// check-and-decrement and the reservation insert inside one TxManager so
-// they succeed or fail together. If the buyer chose to pay now, capture
-// happens only after that transaction commits — never before, so a
-// buyer is never charged for a reservation that failed on capacity.
+// ReserveCycle is the usecase. Only payment takes places:
+//
+//   - Pay now: the availability check-and-decrement and the insert run
+//     in one transaction, then the payment is captured — never before,
+//     so a buyer is never charged for a reservation that failed on
+//     capacity. If the capture fails, the places go back and the
+//     reservation stays on the waiting list.
+//   - Reserve without paying: the reservation joins the cycle's waiting
+//     list. It holds no places and never expires; its buyer can pay
+//     while places remain, and paid buyers are always served first.
+//     Unpaid reservations still open when the cycle closes are cancelled
+//     (CloseUnpaidForCycle).
 type ReserveCycle struct {
 	Listings     ports.ListingStore
 	Cycles       ports.CycleRepository
@@ -56,10 +57,9 @@ type ReserveCycleInput struct {
 	BuyerID   bson.ObjectID
 	Quantity  int
 
-	// PayNow requests immediate capture ("payer maintenant" — priority,
-	// escrow held right away). false reserves the quantity without
-	// paying ("réserver sans payer"): non-priority, subject to
-	// UnpaidReservationGrace and the worker's expiry sweep.
+	// PayNow requests immediate capture ("payer maintenant": the places
+	// are taken, escrow held right away). false joins the waiting list
+	// ("réserver sans payer"): no places held until the buyer pays.
 	PayNow        bool
 	PaymentMethod ports.PaymentMethod
 	// PayerPhone is the Mobile Money number as typed; required for
@@ -69,9 +69,8 @@ type ReserveCycleInput struct {
 
 // ReserveCycleOutput wraps the usecase's result. PaymentCaptured is
 // false when PayNow was requested but the capture itself failed — the
-// reservation still exists (unpaid, with a deadline); the caller decides
-// whether to surface that as a retryable "pay again" state via
-// PayReservation.
+// reservation still exists, on the waiting list; the caller surfaces
+// that as a retryable "pay again" state via PayReservation.
 type ReserveCycleOutput struct {
 	Reservation     *domain.Reservation
 	PaymentCaptured bool
@@ -105,36 +104,47 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 	amounts := priceOf(unitPrice, in.Quantity)
 	subtotal, fee := amounts.Subtotal, amounts.ServiceFee
 	now := uc.Clock.Now()
-	deadline := now.Add(UnpaidReservationGrace)
 
 	res := &domain.Reservation{
-		ID:              bson.NewObjectID(),
-		Reference:       domain.FormatReference(domain.ReservationRefPrefix, seq),
-		ListingID:       in.ListingID,
-		BuyerID:         in.BuyerID,
-		Quantity:        in.Quantity,
-		UnitPrice:       unitPrice,
-		ServiceFee:      fee,
-		TotalAmount:     subtotal + fee,
-		Status:          domain.ReservationPending,
-		CreatedAt:       now,
-		PaymentDeadline: &deadline,
-		Payment:         &domain.PaymentInfo{Status: domain.PaymentPending, Amount: subtotal + fee},
-	}
-
-	err = uc.Tx.WithinTx(ctx, func(ctx context.Context) error {
-		if err := uc.Cycles.DecrementAvailability(ctx, cycleID, in.Quantity); err != nil {
-			return err
-		}
-		return uc.Reservations.Insert(ctx, res)
-	})
-	if err != nil {
-		return nil, err
+		ID:          bson.NewObjectID(),
+		Reference:   domain.FormatReference(domain.ReservationRefPrefix, seq),
+		ListingID:   in.ListingID,
+		BuyerID:     in.BuyerID,
+		Quantity:    in.Quantity,
+		UnitPrice:   unitPrice,
+		ServiceFee:  fee,
+		TotalAmount: subtotal + fee,
+		Status:      domain.ReservationPending,
+		CreatedAt:   now,
+		Payment:     &domain.PaymentInfo{Status: domain.PaymentPending, Amount: subtotal + fee},
 	}
 
 	captured := false
 	if in.PayNow {
-		captured = capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, payment) == nil
+		err = uc.Tx.WithinTx(ctx, func(ctx context.Context) error {
+			if err := uc.Cycles.DecrementAvailability(ctx, cycleID, in.Quantity); err != nil {
+				return err
+			}
+			return uc.Reservations.Insert(ctx, res)
+		})
+		if err != nil {
+			return nil, soldOut(err)
+		}
+		if capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, payment) == nil {
+			captured = true
+		} else if err := uc.Cycles.IncrementAvailability(ctx, cycleID, in.Quantity); err != nil {
+			// The reservation stays on the waiting list either way; a
+			// failed give-back only under-sells, it never over-sells.
+			return nil, err
+		}
+	} else {
+		if in.Quantity > ok.cycle.Capacity {
+			return nil, domain.CodedWith("reservation.above_capacity", map[string]any{"max": ok.cycle.Capacity},
+				fmt.Errorf("reservation: more than the cycle's %d places: %w", ok.cycle.Capacity, domain.ErrInvalid))
+		}
+		if err := uc.Reservations.Insert(ctx, res); err != nil {
+			return nil, err
+		}
 	}
 
 	typ, fallback := domain.NotifReservationCreated, "Nouvelle réservation %s."
@@ -147,6 +157,14 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 	})
 
 	return &ReserveCycleOutput{Reservation: res, PaymentCaptured: captured}, nil
+}
+
+// soldOut gives a capacity refusal the code clients show as "complet".
+func soldOut(err error) error {
+	if errors.Is(err, domain.ErrInsufficientCapacity) {
+		return domain.Coded("reservation.sold_out", err)
+	}
+	return err
 }
 
 // capturePayment centralizes the pay-now transition shared by
@@ -163,7 +181,6 @@ func capturePayment(ctx context.Context, payments ports.PaymentProvider, reserva
 	now := clock.Now()
 	res.Status = domain.ReservationConfirmed
 	res.Priority = true
-	res.PaymentDeadline = nil
 	res.Payment.Status = domain.PaymentHeld
 	res.Payment.HeldAt = &now
 	res.Payment.Method = string(p.method)
@@ -194,7 +211,7 @@ func validatePayment(method ports.PaymentMethod, rawPhone string) (validPayment,
 			return validPayment{}, fmt.Errorf("payment: mobile money number: %w", err)
 		}
 		if !domain.IsCameroonMobile(phone) {
-			return validPayment{}, fmt.Errorf("payment: mobile money needs a Cameroonian mobile number: %w", domain.ErrInvalid)
+			return validPayment{}, domain.Coded("payment.phone_invalid", fmt.Errorf("payment: mobile money needs a Cameroonian mobile number: %w", domain.ErrInvalid))
 		}
 		return validPayment{method: method, phone: phone}, nil
 	default:
@@ -232,7 +249,7 @@ func checkReservable(ctx context.Context, listings ports.ListingStore, cycles po
 		return nil, err
 	}
 	if cyc.Status != domain.CycleStatusPlanned && cyc.Status != domain.CycleStatusInProgress {
-		return nil, fmt.Errorf("reservation: the cycle is no longer open: %w", domain.ErrConflict)
+		return nil, domain.Coded("reservation.cycle_closed", fmt.Errorf("reservation: the cycle is no longer open: %w", domain.ErrConflict))
 	}
 	farm, err := farms.FindByID(ctx, cyc.FarmID)
 	if err != nil {
@@ -241,13 +258,13 @@ func checkReservable(ctx context.Context, listings ports.ListingStore, cycles po
 	// A farmer reserving their own animals would mint released "sales"
 	// that feed their trust score.
 	if farm.OwnerID == buyerID {
-		return nil, fmt.Errorf("reservation: you can't reserve your own listing: %w", domain.ErrForbidden)
+		return nil, domain.Coded("reservation.own_listing", fmt.Errorf("reservation: you can't reserve your own listing: %w", domain.ErrForbidden))
 	}
 	if cyc.MinPerReservation > 0 && quantity < cyc.MinPerReservation {
-		return nil, fmt.Errorf("reservation: quantity below the cycle's minimum of %d: %w", cyc.MinPerReservation, domain.ErrInvalid)
+		return nil, domain.CodedWith("reservation.below_min", map[string]any{"min": cyc.MinPerReservation}, fmt.Errorf("reservation: quantity below the cycle's minimum of %d: %w", cyc.MinPerReservation, domain.ErrInvalid))
 	}
 	if cyc.MaxPerReservation > 0 && quantity > cyc.MaxPerReservation {
-		return nil, fmt.Errorf("reservation: quantity above the cycle's maximum of %d: %w", cyc.MaxPerReservation, domain.ErrInvalid)
+		return nil, domain.CodedWith("reservation.above_max", map[string]any{"max": cyc.MaxPerReservation}, fmt.Errorf("reservation: quantity above the cycle's maximum of %d: %w", cyc.MaxPerReservation, domain.ErrInvalid))
 	}
 	return &reservable{listing: l, cycle: cyc, farm: farm}, nil
 }

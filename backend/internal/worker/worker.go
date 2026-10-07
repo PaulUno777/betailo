@@ -3,7 +3,8 @@
 // two concrete responsibilities — advancing a cycle's status
 // automatically (planned -> in_progress -> done) and running the
 // reservation/escrow usecases that are time-based rather than
-// request-based (unpaid-reservation expiry, escrow auto-release) — plus
+// request-based (closing a finished cycle's waiting list, escrow
+// auto-release) — plus
 // draining the notification outbox those usecases enqueue into.
 package worker
 
@@ -18,8 +19,8 @@ import (
 )
 
 // DefaultInterval is how often the worker ticks when Interval is left
-// zero — frequent enough that a 24h payment deadline or 48h
-// auto-release never drifts by more than a minute in practice, without
+// zero — frequent enough that a cycle's end or a 48h auto-release never
+// drifts by more than a minute in practice, without
 // hammering the database.
 const DefaultInterval = time.Minute
 
@@ -27,7 +28,7 @@ const DefaultInterval = time.Minute
 // internal/app, not re-built per tick.
 type Worker struct {
 	Cycles        ports.CycleStore
-	ExpireUnpaid  *reservation.ExpireUnpaidReservations
+	CloseUnpaid   *reservation.CloseUnpaidForCycle
 	AutoRelease   *reservation.AutoReleaseDeliveries
 	Notifications ports.NotificationRepository
 	Clock         ports.Clock
@@ -59,11 +60,6 @@ func (w *Worker) Run(ctx context.Context) {
 func (w *Worker) tick(ctx context.Context) {
 	if err := w.advanceCycles(ctx); err != nil {
 		w.Logger.Error("worker: advance cycles", slog.Any("err", err))
-	}
-	if n, err := w.ExpireUnpaid.Execute(ctx); err != nil {
-		w.Logger.Error("worker: expire unpaid reservations", slog.Any("err", err))
-	} else if n > 0 {
-		w.Logger.Info("worker: expired unpaid reservations", slog.Int("count", n))
 	}
 	if n, err := w.AutoRelease.Execute(ctx); err != nil {
 		w.Logger.Error("worker: auto-release deliveries", slog.Any("err", err))
@@ -101,6 +97,13 @@ func (w *Worker) advanceCycles(ctx context.Context) error {
 		if c.EndsAt != nil && !c.EndsAt.After(now) {
 			if err := w.Cycles.UpdateStatus(ctx, c.ID, domain.CycleStatusDone); err != nil {
 				return err
+			}
+			if w.CloseUnpaid != nil {
+				if n, err := w.CloseUnpaid.CloseUnpaid(ctx, c.ID); err != nil {
+					return err
+				} else if n > 0 {
+					w.Logger.Info("worker: closed unpaid reservations of a finished cycle", slog.Int("count", n))
+				}
 			}
 		}
 	}

@@ -27,7 +27,9 @@ type Dependencies struct {
 	RefreshToken *auth.RefreshToken
 	Logout       *auth.Logout
 	Signer       ports.TokenSigner
-	Cookies      CookieConfig
+	// Accounts ends the sessions of suspended accounts (nil: no check).
+	Accounts AccountChecker
+	Cookies  CookieConfig
 
 	GetProfile     *account.GetProfile
 	UpdateProfile  *account.UpdateProfile

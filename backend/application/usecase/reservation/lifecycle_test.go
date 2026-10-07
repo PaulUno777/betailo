@@ -177,16 +177,21 @@ func TestPayReservation_Execute(t *testing.T) {
 		ID: bson.NewObjectID(), ListingID: fx.listingID(), BuyerID: buyerID, TotalAmount: 1000,
 		Status: domain.ReservationPending, Payment: &domain.PaymentInfo{Status: domain.PaymentPending, Amount: 1000},
 	}
+	res.Quantity = 3
 	_ = fx.reservations.Insert(context.Background(), res)
 	payments := &fakePayments{}
+	cycles := &fakeCycles{available: 5}
 
-	uc := &PayReservation{Reservations: fx.reservations, Payments: payments, Clock: fx.clock}
+	uc := &PayReservation{Reservations: fx.reservations, Listings: &fakeListings{cycleID: bson.NewObjectID()}, Cycles: cycles, Payments: payments, Clock: fx.clock}
 	got, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res.ID, BuyerID: buyerID, PaymentMethod: ports.PaymentMethodCard})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
 	}
 	if got.Status != domain.ReservationConfirmed || !got.Priority || got.Payment.Status != domain.PaymentHeld {
 		t.Errorf("got = %+v, want confirmed/priority/held", got)
+	}
+	if cycles.available != 2 {
+		t.Errorf("cycles.available = %d, want 2: paying takes the places", cycles.available)
 	}
 
 	// Paying again must fail: no longer pending.
@@ -202,6 +207,44 @@ func TestPayReservation_Execute(t *testing.T) {
 	_ = fx.reservations.Insert(context.Background(), res2)
 	if _, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res2.ID, BuyerID: bson.NewObjectID(), PaymentMethod: ports.PaymentMethodCard}); !errors.Is(err, domain.ErrForbidden) {
 		t.Errorf("wrong buyer: error = %v, want domain.ErrForbidden", err)
+	}
+}
+
+func TestPayReservation_SoldOutAndFailedCapture(t *testing.T) {
+	buyerID := bson.NewObjectID()
+	newPending := func(reservations *fakeReservations, qty int) *domain.Reservation {
+		r := &domain.Reservation{
+			ID: bson.NewObjectID(), BuyerID: buyerID, Quantity: qty, TotalAmount: 100,
+			Status: domain.ReservationPending, Payment: &domain.PaymentInfo{Status: domain.PaymentPending, Amount: 100},
+		}
+		_ = reservations.Insert(context.Background(), r)
+		return r
+	}
+
+	// Paid buyers took the places first: the waiting-list buyer is told
+	// it's sold out and charged nothing.
+	reservations := newFakeReservations()
+	cycles := &fakeCycles{available: 1}
+	payments := &fakePayments{}
+	uc := &PayReservation{Reservations: reservations, Listings: &fakeListings{}, Cycles: cycles, Payments: payments, Clock: fakeClock{now: time.Now()}}
+	res := newPending(reservations, 2)
+	_, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res.ID, BuyerID: buyerID, PaymentMethod: ports.PaymentMethodCard})
+	if code, _ := domain.CodeOf(err); !errors.Is(err, domain.ErrInsufficientCapacity) || code != "reservation.sold_out" {
+		t.Fatalf("sold out: error = %v (code %q), want ErrInsufficientCapacity / reservation.sold_out", err, code)
+	}
+	if len(payments.captures) != 0 || res.Status != domain.ReservationPending {
+		t.Errorf("captures = %d, status = %s; want no charge and still on the waiting list", len(payments.captures), res.Status)
+	}
+
+	// A failed capture gives the places back.
+	cycles = &fakeCycles{available: 5}
+	uc = &PayReservation{Reservations: reservations, Listings: &fakeListings{}, Cycles: cycles, Payments: &fakePayments{captureErr: errors.New("provider down")}, Clock: fakeClock{now: time.Now()}}
+	res = newPending(reservations, 2)
+	if _, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res.ID, BuyerID: buyerID, PaymentMethod: ports.PaymentMethodCard}); err == nil {
+		t.Fatal("failed capture: error = nil, want the provider's error")
+	}
+	if cycles.available != 5 {
+		t.Errorf("cycles.available = %d, want 5: a failed payment must not keep the places", cycles.available)
 	}
 }
 
@@ -271,41 +314,47 @@ func TestConfirmDelivery_BlockedByOpenDispute(t *testing.T) {
 	}
 }
 
-func TestExpireUnpaidReservations_RestoresCapacityAndNotifiesBuyer(t *testing.T) {
+func TestCloseUnpaidForCycle_CancelsOnlyTheWaitingList(t *testing.T) {
 	now := time.Now()
-	cycleID := bson.NewObjectID()
-	listingID := bson.NewObjectID()
-	listings := &fakeListings{cycleID: cycleID, unitPrice: 10}
-	cycles := &fakeCycles{available: 5}
+	listing := &domain.Listing{ID: bson.NewObjectID(), Title: "Poussins"}
 	reservations := newFakeReservations()
 	notifications := &fakeNotifications{}
 	buyerID := bson.NewObjectID()
 
-	expired := time.Now().Add(-time.Hour)
-	pending := &domain.Reservation{
-		ID: bson.NewObjectID(), ListingID: listingID, BuyerID: buyerID, Quantity: 4,
-		Status: domain.ReservationPending, PaymentDeadline: &expired,
-		Payment: &domain.PaymentInfo{Status: domain.PaymentPending, Amount: 40},
+	unpaid := &domain.Reservation{
+		ID: bson.NewObjectID(), ListingID: listing.ID, BuyerID: buyerID, Quantity: 4,
+		Status: domain.ReservationPending, Payment: &domain.PaymentInfo{Status: domain.PaymentPending, Amount: 40},
 	}
-	_ = reservations.Insert(context.Background(), pending)
+	paid := &domain.Reservation{
+		ID: bson.NewObjectID(), ListingID: listing.ID, BuyerID: bson.NewObjectID(), Quantity: 2,
+		Status: domain.ReservationConfirmed, Payment: &domain.PaymentInfo{Status: domain.PaymentHeld, Amount: 20},
+	}
+	_ = reservations.Insert(context.Background(), unpaid)
+	_ = reservations.Insert(context.Background(), paid)
 
-	uc := &ExpireUnpaidReservations{Reservations: reservations, Listings: listings, Cycles: cycles, Tx: fakeTx{}, Notifications: notifications, Clock: fakeClock{now: now}}
-	n, err := uc.Execute(context.Background())
-	if err != nil {
-		t.Fatalf("Execute() error = %v, want nil", err)
+	uc := &CloseUnpaidForCycle{Listings: &fakeListings{byCycle: listing}, Reservations: reservations, Notifications: notifications, Clock: fakeClock{now: now}}
+	n, err := uc.CloseUnpaid(context.Background(), bson.NewObjectID())
+	if err != nil || n != 1 {
+		t.Fatalf("CloseUnpaid() = %d, %v; want 1, nil", n, err)
 	}
-	if n != 1 {
-		t.Fatalf("expired count = %d, want 1", n)
+	if got := reservations.byID[unpaid.ID]; got.Status != domain.ReservationCancelled || got.Payment.Status != domain.PaymentFailed {
+		t.Errorf("unpaid = %+v, want cancelled/failed", got)
 	}
-	if cycles.available != 9 {
-		t.Errorf("cycles.available = %d, want 9 (5 + 4 restored)", cycles.available)
-	}
-	got := reservations.byID[pending.ID]
-	if got.Status != domain.ReservationCancelled || got.Payment.Status != domain.PaymentFailed {
-		t.Errorf("got = %+v, want cancelled/failed", got)
+	if got := reservations.byID[paid.ID]; got.Status != domain.ReservationConfirmed {
+		t.Errorf("paid status = %s, want untouched", got.Status)
 	}
 	if len(notifications.enqueued) != 1 || notifications.enqueued[0].UserID != buyerID {
-		t.Errorf("notifications.enqueued = %v, want one notification to %v", notifications.enqueued, buyerID)
+		t.Errorf("notifications = %v, want one to the waiting buyer", notifications.enqueued)
+	}
+
+	// Again on the same cycle: nothing left to close.
+	if n, err := uc.CloseUnpaid(context.Background(), bson.NewObjectID()); err != nil || n != 0 {
+		t.Errorf("second CloseUnpaid() = %d, %v; want 0, nil", n, err)
+	}
+	// A cycle without a listing has no reservations.
+	empty := &CloseUnpaidForCycle{Listings: &fakeListings{}, Reservations: reservations, Clock: fakeClock{now: now}}
+	if n, err := empty.CloseUnpaid(context.Background(), bson.NewObjectID()); err != nil || n != 0 {
+		t.Errorf("no listing: CloseUnpaid() = %d, %v; want 0, nil", n, err)
 	}
 }
 
@@ -353,9 +402,7 @@ func TestAutoReleaseDeliveries_ReleasesUndisputedAndSkipsDisputed(t *testing.T) 
 
 var _ ports.Clock = fakeClock{}
 
-func TestCancelReservation_RestoresPlacesOnlyForUnpaidOwnReservation(t *testing.T) {
-	listings := &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10}
-	cycles := &fakeCycles{available: 6}
+func TestCancelReservation_OnlyTheBuyersUnpaidReservation(t *testing.T) {
 	reservations := newFakeReservations()
 	buyerID := bson.NewObjectID()
 	pending := &domain.Reservation{
@@ -363,7 +410,7 @@ func TestCancelReservation_RestoresPlacesOnlyForUnpaidOwnReservation(t *testing.
 		Payment: &domain.PaymentInfo{Status: domain.PaymentPending},
 	}
 	_ = reservations.Insert(context.Background(), pending)
-	uc := &CancelReservation{Reservations: reservations, Listings: listings, Cycles: cycles, Tx: fakeTx{}}
+	uc := &CancelReservation{Reservations: reservations}
 
 	if _, err := uc.Execute(context.Background(), CancelReservationInput{ReservationID: pending.ID, BuyerID: bson.NewObjectID()}); !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("someone else's: error = %v, want ErrForbidden", err)
@@ -372,8 +419,8 @@ func TestCancelReservation_RestoresPlacesOnlyForUnpaidOwnReservation(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status != domain.ReservationCancelled || cycles.available != 10 {
-		t.Fatalf("status=%s available=%d, want cancelled and 4 places back", got.Status, cycles.available)
+	if got.Status != domain.ReservationCancelled {
+		t.Fatalf("status=%s, want cancelled (it held no places, so the cycle is untouched)", got.Status)
 	}
 
 	paid := &domain.Reservation{

@@ -53,6 +53,15 @@ func NextStatuses(s domain.CycleStatus) []domain.CycleStatus {
 type UpdateCycleStatus struct {
 	Farms  ports.FarmRepository
 	Cycles ports.CycleStore
+	// Unpaid, when set, empties the cycle's waiting list once the cycle
+	// closes (done or cancelled).
+	Unpaid UnpaidCloser
+}
+
+// UnpaidCloser cancels a closed cycle's still-unpaid reservations
+// (reservation.CloseUnpaidForCycle).
+type UnpaidCloser interface {
+	CloseUnpaid(ctx context.Context, cycleID bson.ObjectID) (int, error)
 }
 
 // UpdateCycleStatusInput is what a caller (the HTTP handler) supplies.
@@ -81,12 +90,17 @@ func (uc *UpdateCycleStatus) Execute(ctx context.Context, in UpdateCycleStatusIn
 	}
 
 	if !allowedCycleTransitions[c.Status][in.Status] {
-		return nil, fmt.Errorf("cycle: cannot transition from %q to %q: %w", c.Status, in.Status, domain.ErrInvalid)
+		return nil, domain.Coded("cycle.invalid_transition", fmt.Errorf("cycle: cannot transition from %q to %q: %w", c.Status, in.Status, domain.ErrInvalid))
 	}
 
 	if err := uc.Cycles.UpdateStatus(ctx, in.CycleID, in.Status); err != nil {
 		return nil, err
 	}
 	c.Status = in.Status
+	if uc.Unpaid != nil && (c.Status == domain.CycleStatusDone || c.Status == domain.CycleStatusCancelled) {
+		if _, err := uc.Unpaid.CloseUnpaid(ctx, c.ID); err != nil {
+			return nil, err
+		}
+	}
 	return c, nil
 }

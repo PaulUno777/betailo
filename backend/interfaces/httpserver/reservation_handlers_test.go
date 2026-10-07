@@ -61,7 +61,7 @@ func TestReservation_HTTP_PayNow_IsPriorityAndHeld(t *testing.T) {
 	}
 }
 
-func TestReservation_HTTP_PayLater_IsUnpaidWithDeadline(t *testing.T) {
+func TestReservation_HTTP_PayLater_JoinsTheWaitingList(t *testing.T) {
 	router := newTestRouter()
 	listingID, _ := setupListing(t, router, 120)
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
@@ -80,8 +80,23 @@ func TestReservation_HTTP_PayLater_IsUnpaidWithDeadline(t *testing.T) {
 	if out.Reservation.Status != "pending" {
 		t.Errorf("Status = %q, want %q", out.Reservation.Status, "pending")
 	}
-	if out.Reservation.PaymentDeadline == nil {
-		t.Error("PaymentDeadline is nil, want a deadline ~24h out")
+
+	// Unpaid reservations hold no places: a paying buyer can take all 120.
+	payerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
+	paid := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{
+		Quantity: 120, PayNow: true, PaymentMethod: "card",
+	}, payerToken)
+	if paid.Code != http.StatusCreated {
+		t.Fatalf("paid reservation of every place: status = %d, want 201; body = %s", paid.Code, paid.Body.String())
+	}
+
+	// The waiting buyer can no longer pay: the places went to a payer.
+	payRec := doJSON(t, router, http.MethodPost, "/reservations/"+out.Reservation.ID+"/pay", payReservationRequest{PaymentMethod: "card"}, buyerToken)
+	if payRec.Code != http.StatusConflict {
+		t.Fatalf("pay when sold out: status = %d, want 409; body = %s", payRec.Code, payRec.Body.String())
+	}
+	if code := decodeJSON[errorResponse](t, payRec).Code; code != "reservation.sold_out" {
+		t.Errorf("code = %q, want reservation.sold_out", code)
 	}
 }
 
@@ -90,7 +105,9 @@ func TestReservation_HTTP_ExceedingCapacity_Returns409(t *testing.T) {
 	listingID, _ := setupListing(t, router, 5)
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
-	rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 6}, buyerToken)
+	rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{
+		Quantity: 6, PayNow: true, PaymentMethod: "card",
+	}, buyerToken)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusConflict, rec.Body.String())
 	}
@@ -265,18 +282,22 @@ func TestReservation_HTTP_QuoteMatchesTheReservation(t *testing.T) {
 		t.Fatalf("quote status = %d; body = %s", rec.Code, rec.Body.String())
 	}
 	q := decodeJSON[quoteResponse](t, rec)
-	if q.Subtotal != 75000 || q.ServiceFee != 1500 || q.Total != 76500 || q.Max != 120 || q.Min != 1 || q.UnpaidHours != 24 {
+	if q.Subtotal != 75000 || q.ServiceFee != 1500 || q.Total != 76500 || q.Max != 120 || q.Min != 1 {
 		t.Fatalf("quote = %+v, want 30 x 2500 + 2%% fee, bounds 1..120", q)
 	}
 
 	res := decodeJSON[createReservationResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations",
-		createReservationRequest{Quantity: 30}, buyerToken)).Reservation
+		createReservationRequest{Quantity: 30, PayNow: true, PaymentMethod: "card"}, buyerToken)).Reservation
 	if res.TotalAmount != q.Total || res.ServiceFee != q.ServiceFee {
 		t.Errorf("reservation total %v/fee %v, want the quoted %v/%v", res.TotalAmount, res.ServiceFee, q.Total, q.ServiceFee)
 	}
 
-	if rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/quote", quoteRequest{Quantity: 91}, buyerToken); rec.Code != http.StatusConflict {
+	if rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/quote", quoteRequest{Quantity: 91, PayNow: true}, buyerToken); rec.Code != http.StatusConflict {
 		t.Errorf("quote over what's left: status = %d, want 409", rec.Code)
+	}
+	// The waiting list only has to fit the cycle, not what's left.
+	if rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/quote", quoteRequest{Quantity: 91}, buyerToken); rec.Code != http.StatusOK {
+		t.Errorf("waiting-list quote over what's left: status = %d, want 200", rec.Code)
 	}
 	if rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/quote", quoteRequest{Quantity: 1}, farmerToken); rec.Code != http.StatusForbidden {
 		t.Errorf("quote on your own listing: status = %d, want 403", rec.Code)

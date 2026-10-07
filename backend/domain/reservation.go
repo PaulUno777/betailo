@@ -42,13 +42,12 @@ type Reservation struct {
 	CreatedAt   time.Time
 	Payment     *PaymentInfo
 
-	// Priority is true when the buyer paid at reservation time ("payer
-	// maintenant") rather than reserving without paying. A paid
-	// reservation is never bumped; an unpaid one is the one the worker
-	// expires once PaymentDeadline passes — see
-	// application/usecase/reservation and internal/worker.
-	Priority        bool
-	PaymentDeadline *time.Time
+	// Priority is true once the reservation is paid: only payment takes
+	// places, so paid buyers are always served first. An unpaid one is
+	// on the cycle's waiting list: it holds no places, never expires,
+	// and is cancelled if the cycle closes before it's paid — see
+	// application/usecase/reservation.
+	Priority bool
 
 	// DeliveredAt is set by the farmer's MarkDelivered usecase — it
 	// starts the 48h window after which the worker auto-releases escrow

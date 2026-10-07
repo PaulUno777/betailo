@@ -58,10 +58,10 @@ const minPasswordLength = 8
 func (uc *Register) Execute(ctx context.Context, in RegisterInput) (*RegisterOutput, error) {
 	email := normalizeEmail(in.Email)
 	if email == "" || !strings.Contains(email, "@") {
-		return nil, fmt.Errorf("auth: email is required and must look like an email: %w", domain.ErrInvalid)
+		return nil, domain.Coded("auth.email_invalid", fmt.Errorf("auth: email is required and must look like an email: %w", domain.ErrInvalid))
 	}
 	if len(in.Password) < minPasswordLength {
-		return nil, fmt.Errorf("auth: password must be at least %d characters: %w", minPasswordLength, domain.ErrInvalid)
+		return nil, domain.CodedWith("auth.password_too_short", map[string]any{"min": minPasswordLength}, fmt.Errorf("auth: password must be at least %d characters: %w", minPasswordLength, domain.ErrInvalid))
 	}
 	if !selfRegisterableRoles[in.Role] {
 		return nil, fmt.Errorf("auth: role must be %q or %q: %w", domain.RoleFarmer, domain.RoleBuyer, domain.ErrInvalid)
@@ -74,7 +74,7 @@ func (uc *Register) Execute(ctx context.Context, in RegisterInput) (*RegisterOut
 
 	displayName := strings.TrimSpace(in.DisplayName)
 	if utf8.RuneCountInString(displayName) > domain.MaxDisplayNameLen {
-		return nil, fmt.Errorf("auth: display name must be at most %d characters: %w", domain.MaxDisplayNameLen, domain.ErrInvalid)
+		return nil, domain.CodedWith("account.display_name_too_long", map[string]any{"max": domain.MaxDisplayNameLen}, fmt.Errorf("auth: display name must be at most %d characters: %w", domain.MaxDisplayNameLen, domain.ErrInvalid))
 	}
 
 	user := &domain.User{

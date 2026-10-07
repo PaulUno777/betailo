@@ -31,11 +31,6 @@ type ReservationRepository interface {
 	// out of sync with each other.
 	Update(ctx context.Context, r *domain.Reservation) error
 
-	// ListUnpaidExpired returns every pending, unpaid reservation whose
-	// PaymentDeadline is before the given time — internal/worker's
-	// expiry sweep.
-	ListUnpaidExpired(ctx context.Context, before time.Time) ([]*domain.Reservation, error)
-
 	// ListDeliveredBefore returns every delivered reservation whose
 	// DeliveredAt is before the given time and whose payment is still
 	// held — internal/worker's auto-release sweep.

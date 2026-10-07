@@ -172,6 +172,8 @@ type ResolveReport struct {
 	Reports ports.ReportRepository
 	Users   ports.UserRepository
 	Trust   ports.TrustRecomputer
+	// Sessions, when set, ends a suspended user's open sessions at once.
+	Sessions SessionForgetter
 }
 
 type ResolveReportInput struct {
@@ -205,6 +207,9 @@ func (uc *ResolveReport) Execute(ctx context.Context, in ResolveReportInput) (*d
 		}
 		if err := uc.Users.Update(ctx, u); err != nil {
 			return nil, err
+		}
+		if u.Suspended && uc.Sessions != nil {
+			uc.Sessions.Forget(u.ID)
 		}
 		_ = uc.Trust.Execute(ctx, u.ID)
 		rp.Status = domain.ReportHandled

@@ -21,6 +21,8 @@ import (
 // fakeListings serves one listing for any ID: published by default,
 // with status/flagged overridable to exercise the availability rule.
 type fakeListings struct {
+	// byCycle is what FindByCycleID returns (nil: not found).
+	byCycle   *domain.Listing
 	cycleID   bson.ObjectID
 	unitPrice float64
 	err       error
@@ -46,7 +48,10 @@ func (f *fakeListings) FindByID(_ context.Context, id bson.ObjectID) (*domain.Li
 
 func (f *fakeListings) Create(context.Context, *domain.Listing) error { return nil }
 func (f *fakeListings) FindByCycleID(context.Context, bson.ObjectID) (*domain.Listing, error) {
-	return nil, domain.ErrNotFound
+	if f.byCycle == nil {
+		return nil, domain.ErrNotFound
+	}
+	return f.byCycle, nil
 }
 func (f *fakeListings) Update(context.Context, *domain.Listing) error { return nil }
 
@@ -74,7 +79,7 @@ type fakeCycles struct {
 
 func (f *fakeCycles) FindByID(_ context.Context, id bson.ObjectID) (*domain.Cycle, error) {
 	if f.cycle == nil {
-		return &domain.Cycle{ID: id, FarmID: testFarm.ID, Status: domain.CycleStatusInProgress, AvailableQuantity: f.available}, nil
+		return &domain.Cycle{ID: id, FarmID: testFarm.ID, Status: domain.CycleStatusInProgress, Capacity: f.available, AvailableQuantity: f.available}, nil
 	}
 	return f.cycle, nil
 }
@@ -152,16 +157,6 @@ func (f *fakeReservations) Update(_ context.Context, r *domain.Reservation) erro
 	}
 	f.byID[r.ID] = r
 	return nil
-}
-
-func (f *fakeReservations) ListUnpaidExpired(_ context.Context, before time.Time) ([]*domain.Reservation, error) {
-	var out []*domain.Reservation
-	for _, r := range f.byID {
-		if r.Status == domain.ReservationPending && r.PaymentDeadline != nil && !r.PaymentDeadline.After(before) {
-			out = append(out, r)
-		}
-	}
-	return out, nil
 }
 
 func (f *fakeReservations) ListDeliveredBefore(_ context.Context, before time.Time) ([]*domain.Reservation, error) {
@@ -249,11 +244,8 @@ func TestReserveCycle_Execute_PayLater_Success(t *testing.T) {
 	if res.Priority {
 		t.Error("Priority = true, want false for an unpaid reservation")
 	}
-	if res.PaymentDeadline == nil || !res.PaymentDeadline.Equal(uc.Clock.Now().Add(UnpaidReservationGrace)) {
-		t.Errorf("PaymentDeadline = %v, want now+%v", res.PaymentDeadline, UnpaidReservationGrace)
-	}
-	if cycles.available != 7 {
-		t.Errorf("cycles.available = %d, want 7 (10 - 3): unpaid reservations still claim real capacity", cycles.available)
+	if cycles.available != 10 || len(cycles.decrements) != 0 {
+		t.Errorf("cycles.available = %d, want 10: an unpaid reservation is on the waiting list and takes no places", cycles.available)
 	}
 	if out.PaymentCaptured {
 		t.Error("PaymentCaptured = true, want false: PayNow was not requested")
@@ -285,8 +277,8 @@ func TestReserveCycle_Execute_PayNow_Success(t *testing.T) {
 	if !res.Priority {
 		t.Error("Priority = false, want true for a paid reservation")
 	}
-	if res.PaymentDeadline != nil {
-		t.Error("PaymentDeadline is set, want nil once paid")
+	if cycles.available != 8 {
+		t.Errorf("cycles.available = %d, want 8: paying takes the places", cycles.available)
 	}
 	if res.Payment.Status != domain.PaymentHeld {
 		t.Errorf("Payment.Status = %v, want %v", res.Payment.Status, domain.PaymentHeld)
@@ -318,6 +310,9 @@ func TestReserveCycle_Execute_PayNow_CaptureFailsKeepsReservationUnpaid(t *testi
 	if out.Reservation.Status != domain.ReservationPending {
 		t.Errorf("Status = %v, want %v: a failed capture must not silently confirm the reservation", out.Reservation.Status, domain.ReservationPending)
 	}
+	if cycles.available != 10 {
+		t.Errorf("cycles.available = %d, want 10: the places go back when the payment fails", cycles.available)
+	}
 }
 
 func TestReserveCycle_Execute_InsufficientCapacity(t *testing.T) {
@@ -330,12 +325,28 @@ func TestReserveCycle_Execute_InsufficientCapacity(t *testing.T) {
 		ListingID: bson.NewObjectID(),
 		BuyerID:   bson.NewObjectID(),
 		Quantity:  5,
+		PayNow:    true, PaymentMethod: ports.PaymentMethodCard,
 	})
-	if !errors.Is(err, domain.ErrInsufficientCapacity) {
-		t.Fatalf("Execute() error = %v, want domain.ErrInsufficientCapacity", err)
+	if code, _ := domain.CodeOf(err); !errors.Is(err, domain.ErrInsufficientCapacity) || code != "reservation.sold_out" {
+		t.Fatalf("Execute() error = %v (code %q), want ErrInsufficientCapacity / reservation.sold_out", err, code)
 	}
 	if len(reservations.inserted) != 0 {
 		t.Errorf("reservations.inserted = %d, want 0 on failure", len(reservations.inserted))
+	}
+}
+
+func TestReserveCycle_Execute_WaitingListAllowedWhenFullButNotBeyondCapacity(t *testing.T) {
+	listings := &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10}
+	cycle := &domain.Cycle{ID: bson.NewObjectID(), FarmID: testFarm.ID, Status: domain.CycleStatusInProgress, Capacity: 20, AvailableQuantity: 0}
+	reservations := newFakeReservations()
+	uc := newReserveCycle(listings, &fakeCycles{cycle: cycle}, reservations, &fakePayments{})
+
+	if _, err := uc.Execute(context.Background(), ReserveCycleInput{ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID(), Quantity: 5}); err != nil {
+		t.Fatalf("join a full cycle's waiting list: error = %v, want nil", err)
+	}
+	_, err := uc.Execute(context.Background(), ReserveCycleInput{ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID(), Quantity: 21})
+	if code, _ := domain.CodeOf(err); !errors.Is(err, domain.ErrInvalid) || code != "reservation.above_capacity" {
+		t.Fatalf("more than the cycle holds: error = %v (code %q), want ErrInvalid / reservation.above_capacity", err, code)
 	}
 }
 
@@ -358,7 +369,7 @@ func TestReserveCycle_Execute_RejectsNonPositiveQuantity(t *testing.T) {
 func TestReserveCycle_Execute_EnforcesMinMaxPerReservation(t *testing.T) {
 	cycleID := bson.NewObjectID()
 	listings := &fakeListings{cycleID: cycleID, unitPrice: 10}
-	cycles := &fakeCycles{cycle: &domain.Cycle{ID: cycleID, FarmID: testFarm.ID, Status: domain.CycleStatusInProgress, MinPerReservation: 5, MaxPerReservation: 20}, available: 100}
+	cycles := &fakeCycles{cycle: &domain.Cycle{ID: cycleID, FarmID: testFarm.ID, Status: domain.CycleStatusInProgress, Capacity: 100, MinPerReservation: 5, MaxPerReservation: 20}, available: 100}
 	uc := newReserveCycle(listings, cycles, newFakeReservations(), &fakePayments{})
 
 	in := ReserveCycleInput{ListingID: bson.NewObjectID(), BuyerID: bson.NewObjectID()}

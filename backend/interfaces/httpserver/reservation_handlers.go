@@ -27,27 +27,26 @@ type paymentInfoResponse struct {
 // every field here is state the backend already decided (fee, priority,
 // deadline, escrow status); the client only ever renders it.
 type reservationResponse struct {
-	ID              string               `json:"id"`
-	Reference       string               `json:"reference"`
-	ListingID       string               `json:"listingId"`
-	BuyerID         string               `json:"buyerId"`
-	Quantity        int                  `json:"quantity"`
-	UnitPrice       float64              `json:"unitPrice"`
-	ServiceFee      float64              `json:"serviceFee"`
-	TotalAmount     float64              `json:"totalAmount"`
-	Status          string               `json:"status"`
-	Priority        bool                 `json:"priority"`
-	PaymentDeadline *time.Time           `json:"paymentDeadline,omitempty"`
-	DeliveredAt     *time.Time           `json:"deliveredAt,omitempty"`
-	CreatedAt       time.Time            `json:"createdAt"`
-	Payment         *paymentInfoResponse `json:"payment,omitempty"`
+	ID          string               `json:"id"`
+	Reference   string               `json:"reference"`
+	ListingID   string               `json:"listingId"`
+	BuyerID     string               `json:"buyerId"`
+	Quantity    int                  `json:"quantity"`
+	UnitPrice   float64              `json:"unitPrice"`
+	ServiceFee  float64              `json:"serviceFee"`
+	TotalAmount float64              `json:"totalAmount"`
+	Status      string               `json:"status"`
+	Priority    bool                 `json:"priority"`
+	DeliveredAt *time.Time           `json:"deliveredAt,omitempty"`
+	CreatedAt   time.Time            `json:"createdAt"`
+	Payment     *paymentInfoResponse `json:"payment,omitempty"`
 }
 
 func toReservationResponse(r *domain.Reservation) reservationResponse {
 	resp := reservationResponse{
 		ID: r.ID.Hex(), Reference: r.Reference, ListingID: r.ListingID.Hex(), BuyerID: r.BuyerID.Hex(),
 		Quantity: r.Quantity, UnitPrice: r.UnitPrice, ServiceFee: r.ServiceFee, TotalAmount: r.TotalAmount,
-		Status: string(r.Status), Priority: r.Priority, PaymentDeadline: r.PaymentDeadline,
+		Status: string(r.Status), Priority: r.Priority,
 		DeliveredAt: r.DeliveredAt, CreatedAt: r.CreatedAt,
 	}
 	if r.Payment != nil {
@@ -339,20 +338,20 @@ func handleListReservationsByFarm(uc *reservation.ListReservationsByFarm, storag
 }
 
 type quoteRequest struct {
-	Quantity int `json:"quantity"`
+	Quantity int  `json:"quantity"`
+	PayNow   bool `json:"payNow"`
 }
 
 type quoteResponse struct {
-	Quantity    int     `json:"quantity"`
-	UnitPrice   float64 `json:"unitPrice"`
-	Subtotal    float64 `json:"subtotal"`
-	ServiceFee  float64 `json:"serviceFee"`
-	Total       float64 `json:"total"`
-	FeeRate     float64 `json:"feeRate"`
-	Min         int     `json:"min"`
-	Max         int     `json:"max"`
-	Available   int     `json:"available"`
-	UnpaidHours int     `json:"unpaidHours"`
+	Quantity   int     `json:"quantity"`
+	UnitPrice  float64 `json:"unitPrice"`
+	Subtotal   float64 `json:"subtotal"`
+	ServiceFee float64 `json:"serviceFee"`
+	Total      float64 `json:"total"`
+	FeeRate    float64 `json:"feeRate"`
+	Min        int     `json:"min"`
+	Max        int     `json:"max"`
+	Available  int     `json:"available"`
 }
 
 func handleQuoteReservation(uc *reservation.Quote) http.HandlerFunc {
@@ -370,14 +369,14 @@ func handleQuoteReservation(uc *reservation.Quote) http.HandlerFunc {
 		if !readJSON(w, r, &req) {
 			return
 		}
-		q, err := uc.Execute(r.Context(), reservation.QuoteInput{ListingID: listingID, BuyerID: claims.UserID, Quantity: req.Quantity})
+		q, err := uc.Execute(r.Context(), reservation.QuoteInput{ListingID: listingID, BuyerID: claims.UserID, Quantity: req.Quantity, PayNow: req.PayNow})
 		if err != nil {
 			writeError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, quoteResponse{
 			Quantity: q.Quantity, UnitPrice: q.UnitPrice, Subtotal: q.Subtotal, ServiceFee: q.ServiceFee, Total: q.Total,
-			FeeRate: q.FeeRate, Min: q.Min, Max: q.Max, Available: q.Available, UnpaidHours: q.UnpaidHours,
+			FeeRate: q.FeeRate, Min: q.Min, Max: q.Max, Available: q.Available,
 		})
 	}
 }

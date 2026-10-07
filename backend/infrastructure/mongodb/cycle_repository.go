@@ -214,7 +214,7 @@ func (r *CycleRepository) UpdateDetails(ctx context.Context, id bson.ObjectID, d
 		} else if n == 0 {
 			return domain.ErrNotFound
 		}
-		return fmt.Errorf("cycle: can't drop capacity below the places already reserved: %w", domain.ErrConflict)
+		return domain.Coded("cycle.capacity_below_reserved", fmt.Errorf("cycle: can't drop capacity below the places already reserved: %w", domain.ErrConflict))
 	}
 	return nil
 }

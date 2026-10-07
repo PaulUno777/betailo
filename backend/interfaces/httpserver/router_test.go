@@ -233,6 +233,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 	}
 
 	parties := reservation.Parties{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms}
+	accountGate := &auth.AccountGate{Users: tf.users, Clock: tf.clock}
 
 	deps := Dependencies{
 		Register: &auth.Register{Users: tf.users, Hasher: hasher, Clock: tf.clock},
@@ -246,6 +247,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		},
 		Logout:         &auth.Logout{RefreshTokens: tf.refreshTokens, Clock: tf.clock},
 		Signer:         tf.signer,
+		Accounts:       accountGate,
 		Cookies:        CookieConfig{Secure: true, SameSite: http.SameSiteNoneMode},
 		GetProfile:     &account.GetProfile{Users: tf.users},
 		UpdateProfile:  &account.UpdateProfile{Users: tf.users},
@@ -266,9 +268,11 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Farms: tf.farms, Cycles: tf.cycles, Clock: tf.clock,
 			Listings: tf.listings, Reservations: tf.reservations, Notifications: tf.notifications,
 		},
-		ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: tf.cycles},
-		UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: tf.farms, Cycles: tf.cycles},
-		DeleteCycle:       &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		ListCyclesByFarm: &cycle.ListCyclesByFarm{Cycles: tf.cycles},
+		UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: tf.farms, Cycles: tf.cycles, Unpaid: &reservation.CloseUnpaidForCycle{
+			Listings: tf.listings, Reservations: tf.reservations, Notifications: tf.notifications, Clock: tf.clock,
+		}},
+		DeleteCycle: &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 
 		CreateListing:      &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		GetListing:         &listing.GetListing{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
@@ -296,8 +300,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Payments: payments, Tx: fakeTxManager{}, Clock: tf.clock, Notifications: tf.notifications,
 		},
 		CancelReservation: &reservation.CancelReservation{
-			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Tx: fakeTxManager{}, Clock: tf.clock,
-			Parties: parties, Notifications: tf.notifications,
+			Reservations: tf.reservations, Clock: tf.clock, Parties: parties, Notifications: tf.notifications,
 		},
 		QuoteReservation:         &reservation.Quote{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
 		ListNotifications:        &inbox.List{Inbox: tf.notifications},
@@ -305,7 +308,8 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		MarkNotificationRead:     &inbox.MarkRead{Inbox: tf.notifications, Clock: tf.clock},
 		MarkAllNotificationsRead: &inbox.MarkAllRead{Inbox: tf.notifications, Clock: tf.clock},
 		PayReservation: &reservation.PayReservation{
-			Reservations: tf.reservations, Payments: payments, Clock: tf.clock, Parties: parties, Notifications: tf.notifications,
+			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Payments: payments, Clock: tf.clock,
+			Parties: parties, Notifications: tf.notifications,
 		},
 		MarkDelivered: &reservation.MarkDelivered{
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Clock: tf.clock, Notifications: tf.notifications,
@@ -357,7 +361,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		AdminOverview:     &admin.Overview{Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
 		AdminListUsers:    &admin.ListUsers{Users: tf.users},
 		AdminVerifyUser:   &admin.VerifyUser{Users: tf.users, Trust: trustRecompute},
-		AdminSuspendUser:  &admin.SuspendUser{Users: tf.users},
+		AdminSuspendUser:  &admin.SuspendUser{Users: tf.users, Sessions: accountGate},
 		AdminListCycles:   &admin.ListAllCycles{Cycles: tf.cycles},
 		AdminListListings: &admin.ListAllListings{Cycles: tf.cycles, Listings: tf.listings},
 		AdminListEscrow:   &admin.ListEscrowTransactions{Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
@@ -372,7 +376,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Reports: tf.reports, Users: tf.users, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms,
 			Search: search, Clock: tf.clock,
 		},
-		AdminResolveReport: &admin.ResolveReport{Reports: tf.reports, Users: tf.users, Trust: trustRecompute},
+		AdminResolveReport: &admin.ResolveReport{Reports: tf.reports, Users: tf.users, Trust: trustRecompute, Sessions: accountGate},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

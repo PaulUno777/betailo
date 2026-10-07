@@ -23,7 +23,7 @@ func (uc *MarkHelpful) Execute(ctx context.Context, reviewID, userID bson.Object
 		return 0, err
 	}
 	if rv.AuthorID == userID {
-		return 0, fmt.Errorf("review: you can't mark your own review helpful: %w", domain.ErrForbidden)
+		return 0, domain.Coded("review.own_review", fmt.Errorf("review: you can't mark your own review helpful: %w", domain.ErrForbidden))
 	}
 	added, err := uc.Store.AddHelpfulVote(ctx, reviewID, userID)
 	if err != nil {

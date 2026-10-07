@@ -49,10 +49,10 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 	name := strings.TrimSpace(in.Name)
 	location := strings.TrimSpace(in.Location)
 	if name == "" {
-		return nil, fmt.Errorf("farm: name is required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("farm.name_required", fmt.Errorf("farm: name is required: %w", domain.ErrInvalid))
 	}
 	if location == "" {
-		return nil, fmt.Errorf("farm: location is required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("farm.location_required", fmt.Errorf("farm: location is required: %w", domain.ErrInvalid))
 	}
 
 	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone)
