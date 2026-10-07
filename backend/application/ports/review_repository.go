@@ -53,12 +53,15 @@ type ReviewStore interface {
 }
 
 // ReviewRepository persists reviews and serves the aggregated summary a
-// farm's public page needs. The unique index on reservationId (see
-// infrastructure/mongodb.Bootstrap) is what actually enforces "one
-// review per reservation" — Insert here returns domain.ErrConflict for
-// that race rather than the usecase needing to check-then-insert.
+// farm's public page needs. "One review per reservation" is enforced
+// twice: CreateReview checks ExistsForReservation first (so the rule
+// holds even if the index is missing, as after a database is dropped and
+// before the API restarts), and the unique index on reservationId (see
+// infrastructure/mongodb.Bootstrap) catches the race between two
+// simultaneous submissions — Insert returns domain.ErrConflict for it.
 type ReviewRepository interface {
 	Insert(ctx context.Context, r *domain.Review) error
+	ExistsForReservation(ctx context.Context, reservationID bson.ObjectID) (bool, error)
 	ListByFarm(ctx context.Context, farmID bson.ObjectID) ([]*domain.Review, error)
 	Summary(ctx context.Context, farmID bson.ObjectID) (ReviewSummary, error)
 }

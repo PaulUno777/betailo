@@ -89,6 +89,12 @@ var (
 // enforces "one review per reservation" — a race surfaces here as
 // domain.ErrConflict rather than the usecase needing a separate
 // check-then-insert.
+// ExistsForReservation implements ports.ReviewRepository.
+func (r *ReviewRepository) ExistsForReservation(ctx context.Context, reservationID bson.ObjectID) (bool, error) {
+	n, err := r.Coll.CountDocuments(ctx, bson.M{"reservationId": reservationID}, options.Count().SetLimit(1))
+	return n > 0, err
+}
+
 func (r *ReviewRepository) Insert(ctx context.Context, rv *domain.Review) error {
 	if rv.ID.IsZero() {
 		rv.ID = bson.NewObjectID()

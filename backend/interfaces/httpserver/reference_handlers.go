@@ -17,12 +17,15 @@ type geoResponse struct {
 	// Countries lists those with a fixed region list; a farm in any
 	// other country types its region freely.
 	Countries []geoCountryResponse `json:"countries"`
+	// CallingCodes is each country's international prefix ("GH": "233"),
+	// so a phone field can show the right "+…" for the farm's country.
+	CallingCodes map[string]string `json:"callingCodes"`
 }
 
 // handleGeoReference serves the region lists farms are validated
 // against, so clients offer exactly the choices the API accepts.
 func handleGeoReference(w http.ResponseWriter, _ *http.Request) {
-	out := geoResponse{DefaultCountry: domain.DefaultCountry, Countries: []geoCountryResponse{}}
+	out := geoResponse{DefaultCountry: domain.DefaultCountry, Countries: []geoCountryResponse{}, CallingCodes: domain.CallingCodes}
 	for code, regions := range domain.KnownRegions {
 		out.Countries = append(out.Countries, geoCountryResponse{Code: code, Regions: regions})
 	}

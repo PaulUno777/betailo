@@ -25,8 +25,9 @@ func normalizePlace(country, region string) (string, string, error) {
 
 // normalizeProfileFields validates the optional public-profile fields
 // shared by create and update: a bounded description and a contact
-// phone stored in E.164.
-func normalizeProfileFields(description, phone string) (string, string, error) {
+// phone stored in E.164, read as a national number of the farm's
+// country when typed without its "+".
+func normalizeProfileFields(description, phone, country string) (string, string, error) {
 	description = strings.TrimSpace(description)
 	if utf8.RuneCountInString(description) > domain.MaxFarmDescriptionLen {
 		return "", "", fmt.Errorf("farm: description must be at most %d characters: %w", domain.MaxFarmDescriptionLen, domain.ErrInvalid)
@@ -34,7 +35,7 @@ func normalizeProfileFields(description, phone string) (string, string, error) {
 	if strings.TrimSpace(phone) == "" {
 		return description, "", nil
 	}
-	normalized, err := domain.NormalizePhone(phone)
+	normalized, err := domain.NormalizePhoneIn(phone, country)
 	if err != nil {
 		return "", "", fmt.Errorf("farm: contact phone: %w", err)
 	}

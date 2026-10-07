@@ -33,8 +33,8 @@ func TestReview_HTTP_CreateAfterReleaseThenSummary(t *testing.T) {
 	// A second review on the same reservation must be rejected (one
 	// review per reservation).
 	dup := doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/reviews", createReviewRequest{Rating: 1}, buyerToken)
-	if dup.Code != http.StatusConflict {
-		t.Fatalf("duplicate review status = %d, want %d", dup.Code, http.StatusConflict)
+	if dup.Code != http.StatusConflict || decodeJSON[errorResponse](t, dup).Code != "review.already_reviewed" {
+		t.Fatalf("duplicate review: status = %d, body = %s; want 409 review.already_reviewed", dup.Code, dup.Body.String())
 	}
 
 	var farmID string

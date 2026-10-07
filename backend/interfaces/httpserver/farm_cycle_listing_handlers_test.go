@@ -202,9 +202,10 @@ func TestFarm_HTTP_CountryAndRegion(t *testing.T) {
 		t.Errorf("unknown Cameroonian region: status = %d, body = %s; want 400 farm.region_invalid", bad.Code, bad.Body.String())
 	}
 
-	// Any other country takes its region as typed.
-	abroad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Libreville", Country: "ga", Region: "Estuaire"}, token)
-	if f := decodeJSON[farmResponse](t, abroad); abroad.Code != http.StatusCreated || f.Country != "GA" || f.Region != "Estuaire" {
+	// Any other country takes its region as typed, and the contact
+	// phone is read as a national number of that country.
+	abroad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Libreville", Country: "ga", Region: "Estuaire", ContactPhone: "06 12 34 56"}, token)
+	if f := decodeJSON[farmResponse](t, abroad); abroad.Code != http.StatusCreated || f.Country != "GA" || f.Region != "Estuaire" || f.ContactPhone != "+2416123456" {
 		t.Errorf("farm abroad: status = %d, farm = %+v", abroad.Code, f)
 	}
 

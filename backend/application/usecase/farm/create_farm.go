@@ -57,11 +57,11 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 		return nil, domain.Coded("farm.location_required", fmt.Errorf("farm: location is required: %w", domain.ErrInvalid))
 	}
 
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone)
+	country, region, err := normalizePlace(in.Country, in.Region)
 	if err != nil {
 		return nil, err
 	}
-	country, region, err := normalizePlace(in.Country, in.Region)
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, country)
 	if err != nil {
 		return nil, err
 	}

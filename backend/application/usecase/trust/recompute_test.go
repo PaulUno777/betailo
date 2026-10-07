@@ -125,6 +125,10 @@ func (f *fakeReviews) Insert(context.Context, *domain.Review) error { return nil
 func (f *fakeReviews) ListByFarm(context.Context, bson.ObjectID) ([]*domain.Review, error) {
 	return nil, nil
 }
+func (f *fakeReviews) ExistsForReservation(context.Context, bson.ObjectID) (bool, error) {
+	return false, nil
+}
+
 func (f *fakeReviews) Summary(_ context.Context, farmID bson.ObjectID) (ports.ReviewSummary, error) {
 	return f.byFarm[farmID], nil
 }
