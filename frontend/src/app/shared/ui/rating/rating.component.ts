@@ -1,6 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, input, output } from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 
 const STARS = [1, 2, 3, 4, 5] as const;
 
@@ -9,18 +10,18 @@ const STARS = [1, 2, 3, 4, 5] as const;
  * `onChange` makes it a `radiogroup` with 44px targets). */
 @Component({
   selector: 'bt-rating',
-  imports: [IconComponent, DecimalPipe],
+  imports: [IconComponent, DecimalPipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="inline-flex items-center gap-1">
       @if (interactive()) {
-        <div role="radiogroup" aria-label="Note" class="flex items-center">
+        <div role="radiogroup" [attr.aria-label]="'rating.groupLabel' | t" class="flex items-center">
           @for (star of stars; track star) {
             <button
               type="button"
               role="radio"
               [attr.aria-checked]="star <= value()"
-              [attr.aria-label]="star + ' sur 5'"
+              [attr.aria-label]="'rating.outOf' | t: { value: star }"
               (click)="changed.emit(star)"
               class="flex items-center justify-center"
               [style.width.px]="size() + 22"
@@ -31,7 +32,7 @@ const STARS = [1, 2, 3, 4, 5] as const;
           }
         </div>
       } @else {
-        <div class="flex items-center gap-0.5" [attr.aria-label]="value() + ' sur 5'">
+        <div class="flex items-center gap-0.5" role="img" [attr.aria-label]="'rating.outOf' | t: { value: (value() | number: '1.0-1') ?? '' }">
           @for (star of stars; track star) {
             <bt-icon name="star" [size]="size()" [class]="star <= displayValue() ? 'text-star' : 'text-star-empty'" />
           }

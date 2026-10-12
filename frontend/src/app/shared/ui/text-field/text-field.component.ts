@@ -14,7 +14,12 @@ let nextId = 0;
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => TextFieldComponent), multi: true }],
   template: `
     <div class="flex flex-col gap-1.5">
-      <label [for]="id" class="text-small text-ink-muted">{{ label() }}</label>
+      <label [for]="id" class="text-small text-ink-muted">
+        {{ label() }}
+        @if (markRequired()) {
+          <span aria-hidden="true" class="text-alert">*</span>
+        }
+      </label>
       <div
         [class]="
           'flex items-center gap-2 rounded-sm border bg-surface-card px-4 transition focus-within:border-forest focus-within:shadow-[var(--shadow-focus)] ' +
@@ -31,6 +36,9 @@ let nextId = 0;
             [id]="id"
             [attr.autocomplete]="autocomplete()"
             [disabled]="disabled()"
+            [attr.aria-required]="markRequired() || null"
+            [attr.aria-invalid]="error() ? true : null"
+            [attr.aria-describedby]="error() || hint() ? id + '-help' : null"
             [value]="value()"
             (input)="handleInput($event)"
             (blur)="handleBlur()"
@@ -45,6 +53,9 @@ let nextId = 0;
             [attr.inputmode]="inputmode()"
             [attr.placeholder]="placeholder()"
             [disabled]="disabled()"
+            [attr.aria-required]="markRequired() || null"
+            [attr.aria-invalid]="error() ? true : null"
+            [attr.aria-describedby]="error() || hint() ? id + '-help' : null"
             [value]="value()"
             (input)="handleInput($event)"
             (blur)="handleBlur()"
@@ -56,9 +67,9 @@ let nextId = 0;
         }
       </div>
       @if (error(); as message) {
-        <span class="text-small text-alert">{{ message }}</span>
+        <span [id]="id + '-help'" role="alert" class="text-small text-alert">{{ message }}</span>
       } @else if (hint(); as message) {
-        <span class="text-small text-ink-muted">{{ message }}</span>
+        <span [id]="id + '-help'" class="text-small text-ink-muted">{{ message }}</span>
       }
     </div>
   `
@@ -72,6 +83,10 @@ export class TextFieldComponent extends ValueAccessorBase<string> {
   readonly prefix = input<string>();
   readonly suffix = input<string>();
   readonly multiline = input(false, { transform: booleanAttribute });
+  /** Shows the asterisk and sets `aria-required`. Not named `required`:
+   * that attribute beside `formControlName` would also attach Angular's
+   * own required validator, and validation belongs to the form. */
+  readonly markRequired = input(false, { transform: booleanAttribute });
   readonly hint = input<string>();
   readonly error = input<string>();
   readonly autocomplete = input<string>();

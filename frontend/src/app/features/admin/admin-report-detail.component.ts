@@ -21,12 +21,12 @@ import { apiResource } from '../../core/http/api-resource';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-2xl p-6 sm:p-8">
-      <a routerLink="/admin/reports" class="text-small text-ink-muted hover:text-forest">← {{ 'adminReports.backToReports' | t }}</a>
+      <a routerLink="/admin/reports" class="-my-2 inline-flex min-h-11 items-center text-small text-ink-muted hover:text-forest">← {{ 'adminReports.backToReports' | t }}</a>
 
       @if (detail.value(); as d) {
         <div class="mt-4 flex flex-col gap-2 border-b border-line pb-6">
           <bt-badge tone="stone" class="w-fit">{{ 'reportTarget.' + d.report.targetType | t }}</bt-badge>
-          <h1 class="text-heading-2">{{ d.report.reason }}</h1>
+          <h1 class="wrap-anywhere text-heading-2">{{ d.report.reason }}</h1>
           <bt-badge tone="amber" class="w-fit">{{ 'reportStatus.' + d.report.status | t }}</bt-badge>
         </div>
 
@@ -55,7 +55,7 @@ import { apiResource } from '../../core/http/api-resource';
             <h2 class="text-heading-4">{{ 'adminReports.historyTitle' | t }}</h2>
             <div class="mt-3 flex flex-col gap-2">
               @for (h of d.history; track h.id) {
-                <div class="rounded-md border border-line p-3 text-small text-ink-muted">{{ h.reason }} · {{ h.status }}</div>
+                <div class="rounded-md border border-line p-3 text-small text-ink-muted">{{ h.reason }} · {{ 'reportStatus.' + h.status | t }}</div>
               }
             </div>
           </section>

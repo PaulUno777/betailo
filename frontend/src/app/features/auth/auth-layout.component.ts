@@ -16,7 +16,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
   imports: [RouterLink, RouterLinkActive, LogoComponent, IconComponent, SegmentedControlComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="mx-auto grid min-h-[calc(100vh-4rem)] max-w-content-max grid-cols-1 lg:grid-cols-2">
+    <div class="mx-auto grid min-h-[calc(100dvh-4rem)] max-w-content-max grid-cols-1 lg:grid-cols-2">
       <div class="hidden flex-col justify-between bg-forest-deep p-12 text-on-forest-deep lg:flex">
         <bt-logo tone="light" />
         <div class="flex flex-col gap-6">
@@ -37,6 +37,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               queryParamsHandling="preserve"
               routerLinkActive
               #loginTab="routerLinkActive"
+              [attr.aria-current]="loginTab.isActive ? 'page' : null"
               [class]="
                 'flex-1 rounded-full py-2.5 text-center text-body-strong transition ' +
                 (loginTab.isActive ? 'bg-surface-card text-ink' : 'text-ink-muted hover:text-ink')
@@ -48,6 +49,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               queryParamsHandling="preserve"
               routerLinkActive
               #registerTab="routerLinkActive"
+              [attr.aria-current]="registerTab.isActive ? 'page' : null"
               [class]="
                 'flex-1 rounded-full py-2.5 text-center text-body-strong transition ' +
                 (registerTab.isActive ? 'bg-surface-card text-ink' : 'text-ink-muted hover:text-ink')

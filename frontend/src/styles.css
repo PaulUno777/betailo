@@ -354,22 +354,43 @@ body {
   font-family: var(--font-sans);
 }
 
-/* box-shadow already follows whatever border-radius the focused element
- * has of its own — forcing one here would flatten a pill button or a
- * round avatar into a rounded rectangle the instant it's focused. */
+/* Tailwind v4 resets buttons to the default arrow; anything that acts on
+ * click shows the hand. */
+button:not(:disabled),
+[role="button"],
+[role="tab"],
+[role="radio"],
+summary {
+  cursor: pointer;
+}
+
+/* The solid outline is the focus indicator (3:1 against every surface,
+ * and it survives forced-colors mode, which drops box-shadows); the soft
+ * halo is the design's glow around it. Both follow whatever
+ * border-radius the focused element has of its own, so a pill button or
+ * a round avatar keeps its shape. */
 :focus-visible {
-  outline: none;
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
   box-shadow: var(--shadow-focus);
 }
 
-/* Every text/select field is a bordered wrapper div around a plain
- * input/select/textarea (TextField, SelectField): the wrapper draws the
- * ring itself via `focus-within`, sized to its own rounded corners. The
- * inner control's own box is shorter than the wrapper, so letting the
- * rule above also ring the inner element produces two mismatched,
- * concentric borders — suppressed here instead. */
 :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus-visible {
   box-shadow: none;
+}
+
+/* A text/select field is a bordered wrapper around a plain
+ * input/select/textarea (TextField, SelectField, the header search): the
+ * wrapper draws the ring itself via `focus-within`, sized to its own
+ * rounded corners. The inner control's own box is shorter than the
+ * wrapper, so ringing it too produces two mismatched, concentric
+ * borders — suppressed here instead. */
+:is(bt-text-field, bt-select-field, bt-header-search) :is(input, select, textarea):focus-visible {
+  outline: none;
+}
+:is(bt-text-field, bt-select-field, bt-header-search) :has(> :is(input, select, textarea):focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 /* iOS Safari zooms the whole page in when a field under 16px gets focus,

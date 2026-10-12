@@ -26,7 +26,7 @@ const TONE_ICON_CLASSES: Readonly<Record<ToastTone, string>> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
-      role="status"
+      [attr.role]="toast().tone === 'danger' ? 'alert' : 'status'"
       class="flex w-full max-w-sm items-start gap-3 rounded-md bg-surface-card p-4"
       style="box-shadow: var(--shadow-dialog)"
     >
@@ -44,7 +44,7 @@ const TONE_ICON_CLASSES: Readonly<Record<ToastTone, string>> = {
           </button>
         }
       </div>
-      <button type="button" [attr.aria-label]="'common.close' | t" (click)="dismissed.emit()" class="text-ink-muted">
+      <button type="button" [attr.aria-label]="'common.close' | t" (click)="dismissed.emit()" class="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-sunken">
         <bt-icon name="x" [size]="16" />
       </button>
     </div>

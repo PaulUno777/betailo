@@ -807,6 +807,7 @@ export const en: TranslationDictionary = {
     suspendedBadge: 'Suspended',
     verifyButton: 'Verify',
     suspendButton: 'Suspend',
+    suspendConfirmTitle: 'Suspend {email}?',
     actionFailedTitle: 'Action failed'
   },
   adminListings: {
@@ -822,6 +823,10 @@ export const en: TranslationDictionary = {
     empty: 'No escrow transaction.',
     releaseButton: 'Release',
     refundButton: 'Refund',
+    releaseConfirmTitle: 'Release the escrow?',
+    releaseConfirmBody: '{amount} will be paid out to the farmer. This cannot be undone.',
+    refundConfirmTitle: 'Refund the buyer?',
+    refundConfirmBody: '{amount} will be returned to the buyer. This cannot be undone.',
     actionFailedTitle: 'Action failed'
   },
   adminReports: {
@@ -1085,6 +1090,10 @@ export const en: TranslationDictionary = {
     ponte: 'Laying',
     reproduction: 'Breeding',
     elevage: 'Rearing'
+  },
+  rating: {
+    groupLabel: 'Rating',
+    outOf: '{value} out of 5'
   },
   priceRange: {
     min: 'Minimum price',

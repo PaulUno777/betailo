@@ -9,7 +9,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   selector: 'bt-segmented-control',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div role="tablist" class="inline-flex w-full gap-1 rounded-full bg-surface-sunken p-1">
+    <div class="inline-flex w-full gap-1 rounded-full bg-surface-sunken p-1">
       <ng-content />
     </div>
   `

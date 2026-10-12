@@ -33,6 +33,7 @@ const SIZE_CLASSES: Readonly<Record<ButtonSize, string>> = {
         [queryParams]="queryParams()"
         [class]="classes()"
         [attr.aria-disabled]="disabled() || null"
+        [attr.tabindex]="disabled() ? -1 : null"
       >
         <ng-container [ngTemplateOutlet]="content" />
       </a>
@@ -58,7 +59,7 @@ export class ButtonComponent {
 
   protected readonly classes = computed(() =>
     [
-      'inline-flex items-center justify-center gap-2 rounded-full transition disabled:opacity-50 disabled:pointer-events-none',
+      'inline-flex items-center justify-center gap-2 rounded-full transition disabled:opacity-50 disabled:pointer-events-none aria-disabled:opacity-50 aria-disabled:pointer-events-none',
       VARIANT_CLASSES[this.variant()],
       SIZE_CLASSES[this.size()],
       this.block() ? 'w-full' : ''

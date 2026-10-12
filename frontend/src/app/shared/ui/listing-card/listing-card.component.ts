@@ -24,11 +24,11 @@ export type ListingCardLayout = 'tile' | 'row';
     @if (layout() === 'row') {
       <a
         [routerLink]="['/marketplace', item().listing.id]"
-        class="flex gap-3 rounded-lg border border-line bg-surface-card p-3 transition active:scale-[0.99]"
+        class="flex gap-3 rounded-lg border border-line bg-surface-card p-3 transition active:scale-[0.99] active:bg-surface-raised"
       >
         <div class="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-surface-sunken">
           @if (item().listing.photos?.[0]; as photo) {
-            <img [src]="photo" [alt]="item().listing.title" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+            <img [src]="photo" alt="" loading="lazy" decoding="async" class="h-full w-full object-cover" />
           }
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -77,7 +77,7 @@ export type ListingCardLayout = 'tile' | 'row';
           @if (item().listing.photos?.[0]; as photo) {
             <!-- Absolute, so a portrait or square photo is cropped to 4:3
                  instead of stretching the card. -->
-            <img [src]="photo" [alt]="item().listing.title" loading="lazy" decoding="async" class="absolute inset-0 h-full w-full object-cover" />
+            <img [src]="photo" alt="" loading="lazy" decoding="async" class="absolute inset-0 h-full w-full object-cover" />
           } @else {
             <!-- No photo yet: say so, instead of an empty grey box. -->
             <div class="photo-pending absolute inset-0 flex items-end p-3">
@@ -93,6 +93,7 @@ export type ListingCardLayout = 'tile' | 'row';
             [attr.title]="'listing.trustScore' | t"
           >
             <bt-icon name="shield" [size]="13" />
+            <span class="sr-only">{{ 'listing.trustScore' | t }}</span>
             {{ trust() }}
           </span>
           @if (item().favorited) {

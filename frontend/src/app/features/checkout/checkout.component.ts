@@ -83,7 +83,7 @@ function readStoredPhone(): string {
             <div class="flex items-center gap-3 rounded-lg border border-line bg-surface-card p-3">
               <div class="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-sunken">
                 @if (d.listing.photos?.[0]; as photo) {
-                  <img [src]="photo" [alt]="d.listing.title" class="h-full w-full object-cover" />
+                  <img [src]="photo" alt="" class="h-full w-full object-cover" />
                 }
               </div>
               <div class="flex min-w-0 flex-col">
@@ -160,14 +160,15 @@ function readStoredPhone(): string {
                       (ngModelChange)="phone.set($event)"
                       name="phone"
                       [attr.aria-invalid]="phoneInvalid() || null"
+                      aria-describedby="momo-phone-help"
                       class="h-control-lg min-w-0 flex-1 rounded-sm border border-line-strong bg-surface-card px-4 text-body text-ink outline-none focus:border-forest"
                       [class.border-alert]="phoneInvalid()"
                     />
                   </div>
                   @if (phoneInvalid()) {
-                    <span class="text-small text-alert">{{ 'checkout.momoNumberInvalid' | t }}</span>
+                    <span id="momo-phone-help" role="alert" class="text-small text-alert">{{ 'checkout.momoNumberInvalid' | t }}</span>
                   } @else {
-                    <span class="text-small text-ink-muted">{{ 'checkout.momoNumberHint' | t }}</span>
+                    <span id="momo-phone-help" class="text-small text-ink-muted">{{ 'checkout.momoNumberHint' | t }}</span>
                   }
                 </section>
               }

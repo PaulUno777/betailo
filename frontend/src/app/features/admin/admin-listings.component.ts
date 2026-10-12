@@ -4,6 +4,7 @@ import { Cycle, Listing } from '../../domain/models';
 import { speciesLabelKey } from '../../domain/reference/species';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { apiResource } from '../../core/http/api-resource';
@@ -13,7 +14,7 @@ import { apiResource } from '../../core/http/api-resource';
  * endpoint beyond what escrow/reports already cover). */
 @Component({
   selector: 'bt-admin-listings',
-  imports: [StatusBadgeComponent, FcfaCurrencyPipe, TranslatePipe],
+  imports: [StatusBadgeComponent, ButtonComponent, FcfaCurrencyPipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="p-6 sm:p-8">
@@ -23,6 +24,11 @@ import { apiResource } from '../../core/http/api-resource';
         <h2 class="text-heading-4">{{ 'adminListings.cyclesTitle' | t }}</h2>
         @if (cycles.isLoading()) {
           <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.loading' | t }}</p>
+        } @else if (cycles.error()) {
+          <div class="mt-3 flex flex-col items-start gap-3" role="alert">
+            <p class="text-body">{{ 'apiErrors.server' | t }}</p>
+            <bt-button variant="outline" (click)="cycles.reload()">{{ 'common.retry' | t }}</bt-button>
+          </div>
         } @else if ((cycles.value() ?? []).length === 0) {
           <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.empty' | t }}</p>
         } @else {
@@ -42,15 +48,20 @@ import { apiResource } from '../../core/http/api-resource';
         <h2 class="text-heading-4">{{ 'adminListings.listingsTitle' | t }}</h2>
         @if (listings.isLoading()) {
           <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.loading' | t }}</p>
+        } @else if (listings.error()) {
+          <div class="mt-3 flex flex-col items-start gap-3" role="alert">
+            <p class="text-body">{{ 'apiErrors.server' | t }}</p>
+            <bt-button variant="outline" (click)="listings.reload()">{{ 'common.retry' | t }}</bt-button>
+          </div>
         } @else if ((listings.value() ?? []).length === 0) {
           <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.empty' | t }}</p>
         } @else {
           <div class="mt-3 flex flex-col gap-2">
             @for (l of listings.value()!; track l.id) {
               <div class="flex flex-wrap items-center gap-4 rounded-md border border-line bg-surface-card p-3">
-                <span class="min-w-[160px] flex-1 text-body-strong">{{ l.title }}</span>
+                <span class="min-w-[160px] flex-1 wrap-anywhere text-body-strong">{{ l.title }}</span>
                 <bt-status-badge kind="listing" [status]="l.status" />
-                <span class="text-small">{{ l.unitPrice | fcfa }}</span>
+                <span class="text-amount">{{ l.unitPrice | fcfa }}</span>
               </div>
             }
           </div>
