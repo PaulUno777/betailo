@@ -28,15 +28,18 @@ export class SellerSpaceService {
   private readonly auth = inject(AuthService);
   private readonly accountApi = inject(AccountApi);
 
-  private readonly account = apiResource<Account>(() => (this.auth.isAuthenticated() ? this.accountApi.profileUrl() : undefined));
+  private readonly resource = apiResource<Account>(() => (this.auth.isAuthenticated() ? this.accountApi.profileUrl() : undefined));
   private readonly chosenFarmId = signal<string | null>(null);
 
   /** False until the first answer for this session has arrived. */
-  readonly loaded = computed(() => this.account.hasValue());
-  readonly farms = computed<readonly Farm[]>(() => (this.auth.isAuthenticated() ? (this.account.value()?.farms ?? []) : []));
+  readonly loaded = computed(() => this.resource.hasValue());
+  /** The whole `GET /me` answer, for what isn't about selling (the
+   * staff role and its permissions, see StaffSpaceService). */
+  readonly account = computed<Account | null>(() => (this.auth.isAuthenticated() ? (this.resource.value() ?? null) : null));
+  readonly farms = computed<readonly Farm[]>(() => this.account()?.farms ?? []);
   readonly hasFarm = computed(() => this.farms().length > 0);
-  readonly farmLimit = computed(() => this.account.value()?.farmLimit ?? 0);
-  readonly canAddFarm = computed(() => this.auth.isAuthenticated() && (this.account.value()?.canAddFarm ?? false));
+  readonly farmLimit = computed(() => this.account()?.farmLimit ?? 0);
+  readonly canAddFarm = computed(() => this.account()?.canAddFarm ?? false);
 
   /** The farm the portal is working on: the one chosen, else the first. */
   readonly currentFarm = computed<Farm | null>(() => {
@@ -46,12 +49,19 @@ export class SellerSpaceService {
 
   constructor() {
     // A different account signed in: its own farms, its own choice.
+    const signedInId = computed(() => this.auth.user()?.id);
     effect(() => {
-      const userId = this.auth.user()?.id;
+      const userId = signedInId();
       untracked(() => {
         this.chosenFarmId.set(userId ? readStoredFarmId(userId) : null);
-        if (userId) this.account.reload();
+        if (userId) this.resource.reload();
       });
+    });
+
+    // The account as the API sees it now is the reference for the role.
+    effect(() => {
+      const account = this.resource.value();
+      if (account && this.auth.isAuthenticated()) untracked(() => this.auth.syncStaffRole(account.staffRole));
     });
   }
 
@@ -68,6 +78,6 @@ export class SellerSpaceService {
 
   /** Read again: a farm was created or submitted, or staff decided. */
   refresh(): void {
-    if (this.auth.isAuthenticated()) this.account.reload();
+    if (this.auth.isAuthenticated()) this.resource.reload();
   }
 }

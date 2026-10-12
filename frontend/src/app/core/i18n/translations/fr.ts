@@ -11,7 +11,20 @@ export const fr = {
   },
   apiErrors: {
     admin: {
-      farm_limit_range: 'Le nombre de fermes doit être compris entre 0 et {max}.'
+      farm_limit_range: 'La limite doit être comprise entre 0 et {max}.',
+      permission_denied: 'Votre rôle ne permet pas cette action.',
+      farm_limit_reason_required: 'Indiquez la raison de l’exception.',
+      farm_limit_below_owned: 'Ce compte possède déjà {owned} fermes : la limite ne peut pas être inférieure.',
+      farm_limit_staff: 'Un compte de l’équipe ne possède pas de ferme.',
+      reason_too_long: 'La raison est trop longue ({max} caractères au plus).',
+      account_required: 'Indiquez l’e-mail du compte.',
+      account_not_found: 'Aucun compte avec cet e-mail.',
+      root_protected: 'Le compte racine ne peut être ni modifié ni suspendu.',
+      self_action: 'Vous ne pouvez pas faire cela sur votre propre compte.',
+      staff_needs_super_admin: 'Seul un super admin agit sur un compte de l’équipe.',
+      staff_role_unknown: 'Ce rôle n’existe pas.',
+      last_super_admin: 'Il doit rester au moins un super admin.',
+      staff_owns_farm: 'Ce compte possède une ferme : il ne peut pas rejoindre l’équipe.'
     },
     network: 'Pas de connexion. Vérifiez votre réseau et réessayez.',
     server: 'Un problème est survenu de notre côté. Réessayez dans un instant.',
@@ -45,7 +58,11 @@ export const fr = {
       name_location_required: 'Indiquez le nom de la ferme et sa ville.',
       name_required: 'Indiquez le nom de la ferme.',
       location_required: 'Indiquez la ville de la ferme.',
-      has_cycles: "Supprimez d'abord les lots de cette ferme."
+      has_cycles: "Supprimez d'abord les lots de cette ferme.",
+      id_document_back_required: 'Ajoutez le verso de votre pièce d’identité.',
+      certification_required: 'Cochez la déclaration avant d’envoyer.',
+      id_document_type: 'Ce type de pièce n’est pas accepté.',
+      rejection_code: 'Ce motif de refus n’existe pas.'
     },
     cycle: {
       invalid_transition: "Ce changement d'étape n'est pas possible.",
@@ -691,7 +708,7 @@ export const fr = {
     farmSaveButton: 'Enregistrer',
     farmSaving: 'Enregistrement…',
     farmSaveFailedTitle: "Échec de l'enregistrement",
-    greeting: 'Bonjour, {name}',
+    greeting: 'Bonjour {name}',
     sellButton: 'Nouvelle annonce',
     todoTitle: "À faire aujourd'hui",
     todo: {
@@ -703,11 +720,11 @@ export const fr = {
     },
     searchPlaceholder: 'Rechercher une réservation…',
     newCycleButton: 'Nouveau cycle',
-    kpiReservations: 'Réservations · période',
+    kpiReservations: 'Réservations · {month}',
     kpiEscrowHeld: 'Sous séquestre',
     kpiReleased: 'Libéré ce mois',
-    kpiTrustScore: 'Score de confiance',
-    activeCyclesTitle: 'Lots en cours',
+    kpiTrustScore: 'Confiance',
+    activeCyclesTitle: 'Cycles actifs',
     cycleColHeader: 'Cycle',
     statusColHeader: 'Statut',
     fillColHeader: 'Remplissage',
@@ -716,7 +733,18 @@ export const fr = {
     weeklyChartTitle: 'Réservations par semaine',
     latestReservationsTitle: 'Dernières réservations',
     noReservations: 'Aucune réservation pour le moment.',
-    loading: 'Chargement…'
+    loading: 'Chargement…',
+    kpiReservationsHint: 'depuis le début du mois',
+    kpiTrustLink: 'Voir mes avis',
+    kpiEscrowHint: 'FCFA · retenus jusqu’à la livraison',
+    kpiReleasedHint: 'FCFA · versés',
+    seeAll: 'Tout voir',
+    fillPartial: '{reserved} / {capacity} réservés',
+    fillFull: 'Complet · {reserved} / {capacity}',
+    weeklyChartHint: '8 dernières semaines',
+    weekLabel: 'S{n}',
+    buyerUnnamed: 'Acheteur',
+    todoEmpty: 'Rien d’urgent : vos livraisons et vos relevés sont à jour.'
   },
   portalCycles: {
     title: 'Mes lots',
@@ -793,12 +821,14 @@ export const fr = {
     space: 'Vendeur',
     dashboardShort: 'Accueil',
     dashboard: 'Tableau de bord',
-    listings: 'Mes annonces',
-    sales: 'Ventes',
-    cycles: 'Mes lots',
+    listings: 'Annonces',
+    sales: 'Commandes',
+    cycles: 'Mes cycles',
     payments: 'Paiements',
     farm: 'Ma ferme',
-    buyMode: 'Passer en mode acheteur'
+    buyMode: 'Passer en mode acheteur',
+    navLabel: 'Espace vendeur',
+    accountHint: 'Mon compte · mes achats'
   },
   adminOverview: {
     title: "Vue d'ensemble",
@@ -808,22 +838,59 @@ export const fr = {
     cyclesPlanned: 'Cycles planifiés',
     cyclesInProgress: 'Cycles en cours',
     openReports: 'Signalements ouverts',
-    reservationsChartTitle: 'Réservations · 30 derniers jours'
+    reservationsChartTitle: 'Réservations · 30 derniers jours',
+    eyebrow: 'Administration',
+    periodLabel: 'Période',
+    period: {
+      '7d': '7 j',
+      '30d': '30 j',
+      '12m': '12 mois'
+    },
+    autoApproveTitle: 'Validation automatique activée',
+    autoApproveBody: 'Le réglage FARM_AUTO_APPROVE est actif : chaque ferme est approuvée dès son envoi, sans revue. À désactiver avant l’arrivée de vrais vendeurs.',
+    trend: '{delta} vs période préc.',
+    noTrend: 'Pas de période précédente à comparer',
+    heldReservations: '{count} réservations retenues',
+    heldReservations_one: '{count} réservation retenue',
+    activeCycles: 'Cycles actifs',
+    cyclesSplit: '{planned} planifiés · {running} en cours',
+    disputes: '{count} litiges ouverts',
+    disputes_one: '{count} litige ouvert',
+    chartTitleDays: 'Réservations par jour',
+    chartTitleMonths: 'Réservations par mois',
+    legendPaid: 'Payées',
+    legendWaiting: 'En attente',
+    chartSummary: '{paid} réservations payées et {waiting} en attente sur la période',
+    chartEmpty: 'Aucune réservation sur la période.',
+    queueTitle: 'File de travail',
+    queueClear: 'À jour',
+    queueWaiting: '{count} en attente',
+    queueFarms: 'Fermes à valider',
+    queueOldest: 'Plus ancienne demande',
+    queueReports: 'Signalements ouverts',
+    queueDisputes: 'Litiges ouverts',
+    settingFarms: 'Fermes par compte',
+    settingAutoApprove: 'Validation auto.',
+    on: 'activée',
+    off: 'désactivée',
+    queueOpen: 'Ouvrir la file',
+    escrowTitle: 'Dernières transactions',
+    seeAll: 'Tout voir'
   },
   adminUsers: {
     farmLimitDefault: 'Fermes : par défaut',
     farmLimitValue: 'Fermes : {count} max.',
     farmLimitTitle: 'Fermes autorisées pour {email}',
-    farmLimitBody: 'Combien de fermes ce compte peut posséder. 0 remet la limite par défaut de la plateforme.',
+    farmLimitBody: 'Combien de fermes ce compte peut posséder ; il en a déjà {owned}. 0 met fin à l’exception.',
     farmLimitZero: 'Limite par défaut de la plateforme.',
     farmLimitChosen: '{count} fermes au maximum.',
     farmLimitChosen_one: '{count} ferme au maximum.',
     farmLimitSave: 'Enregistrer',
     farmLimitSaved: 'Limite mise à jour',
     suspendedToast: 'Compte suspendu',
-    title: 'Utilisateurs',
+    title: 'Comptes',
     loading: 'Chargement…',
-    empty: 'Aucun utilisateur.',
+    empty: 'Aucun compte ne correspond.',
     emailCol: 'E-mail',
     roleCol: 'Rôle',
     statusCol: 'Statut',
@@ -831,26 +898,75 @@ export const fr = {
     suspendedBadge: 'Suspendu',
     suspendButton: 'Suspendre',
     suspendConfirmTitle: 'Suspendre {email} ?',
-    actionFailedTitle: "Échec de l'action"
+    actionFailedTitle: "Échec de l'action",
+    subtitle: 'Un seul type de compte : chacun achète, et vend dès qu’une de ses fermes est approuvée.',
+    filterLabel: 'Filtrer les comptes',
+    filter: {
+      all: 'Tous',
+      sellers: 'Vendeurs',
+      staff: 'Équipe',
+      suspended: 'Suspendus'
+    },
+    searchLabel: 'Rechercher un nom ou un e-mail',
+    resultCount: '{count} comptes',
+    resultCount_one: '{count} compte',
+    colAccount: 'Compte',
+    colSince: 'Membre depuis',
+    colFarms: 'Fermes',
+    colTrust: 'Confiance',
+    colState: 'État',
+    colActions: 'Actions',
+    exception: 'Exception',
+    activeBadge: 'Actif',
+    farmLimitButton: 'Limite de fermes',
+    reactivateButton: 'Réactiver',
+    reactivatedToast: 'Compte réactivé'
   },
   adminListings: {
     title: 'Cycles & annonces',
     loading: 'Chargement…',
     empty: 'Aucune annonce.',
     cyclesTitle: 'Cycles',
-    listingsTitle: 'Annonces'
+    listingsTitle: 'Annonces',
+    subtitle: 'Tous les cycles et toutes les annonces de la plateforme, en lecture.',
+    emptyCycles: 'Aucun cycle.',
+    colCycle: 'Cycle',
+    colType: 'Type',
+    colStatus: 'Statut',
+    colFill: 'Réservé',
+    colListing: 'Annonce',
+    colPrice: 'Prix unitaire'
   },
   adminEscrow: {
     title: 'Séquestre',
     loading: 'Chargement…',
-    empty: 'Aucune transaction sous séquestre.',
+    empty: 'Aucune transaction ici.',
     releaseButton: 'Libérer',
     refundButton: 'Rembourser',
     releaseConfirmTitle: 'Libérer le séquestre ?',
     releaseConfirmBody: '{amount} seront versés à l’éleveur. Cette action est définitive.',
     refundConfirmTitle: 'Rembourser l’acheteur ?',
     refundConfirmBody: '{amount} seront rendus à l’acheteur. Cette action est définitive.',
-    actionFailedTitle: "Échec de l'action"
+    actionFailedTitle: "Échec de l'action",
+    subtitle: 'Les paiements retenus par la plateforme. Libérer ou rembourser est définitif.',
+    subtitleReadOnly: 'Les paiements retenus par la plateforme. Votre rôle les consulte ; la finance les règle.',
+    filterLabel: 'Filtrer par statut',
+    filter: {
+      held: 'Retenus',
+      all: 'Tous',
+      released: 'Libérés',
+      refunded: 'Remboursés'
+    },
+    colReservation: 'Réservation',
+    colBuyer: 'Acheteur',
+    colFarm: 'Éleveur',
+    colAmount: 'Montant',
+    colStatus: 'Statut',
+    colDate: 'Créée le',
+    done: {
+      release: 'Paiement libéré',
+      refund: 'Paiement remboursé'
+    }
   },
   adminReports: {
     title: 'Signalements',
@@ -866,20 +982,42 @@ export const fr = {
     resolveSuspend: 'Suspendre',
     resolveFailedTitle: "Échec de la résolution",
     suspendConfirmBody: 'Le compte visé sera suspendu immédiatement.',
-    notFound: 'Signalement introuvable.'
+    notFound: 'Signalement introuvable.',
+    subtitle: 'Annonces, profils et messages du forum signalés par les membres.',
+    disputesTitle: 'Litiges',
+    disputesSubtitle: 'Désaccords entre un acheteur et un éleveur sur une réservation payée.',
+    disputesEmpty: 'Aucun litige.',
+    filter: {
+      open: 'À traiter',
+      all: 'Tous',
+      handled: 'Traités'
+    },
+    readOnly: 'Votre rôle consulte les signalements ; la décision revient à la modération.'
   },
   adminNav: {
     farms: 'Fermes à valider',
-    space: 'Admin',
+    space: 'Staff',
     viewSite: 'Voir le site',
     overviewShort: 'Vue',
     overview: "Vue d'ensemble",
-    users: 'Utilisateurs',
+    users: 'Comptes',
     listings: 'Cycles & annonces',
     escrow: 'Séquestre',
     reports: 'Signalements',
     forum: 'Forum',
-    settings: 'Paramètres'
+    settings: 'Paramètres',
+    navLabel: 'Back-office',
+    farmsShort: 'Fermes',
+    disputes: 'Litiges',
+    staff: 'Équipe & rôles',
+    audit: 'Journal',
+    reservedFor: 'Réservé à {roles}',
+    reserved: 'Votre rôle n’y a pas accès',
+    group: {
+      steer: 'Pilotage',
+      trust: 'Confiance',
+      system: 'Système'
+    }
   },
   footer: {
     tagline: "La marketplace des cycles d'élevage. Fait à Douala.",
@@ -1120,12 +1258,16 @@ export const fr = {
     elevage: 'Élevage'
   },
   staffRole: {
-    super_admin: 'Super-admin'
+    super_admin: 'Super admin',
+    moderator: 'Modération',
+    finance: 'Finance',
+    support: 'Support'
   },
   farmSwitcher: {
     label: 'Vos fermes',
     current: 'Ferme en cours : {farm}. Changer de ferme',
-    manage: 'Gérer mes fermes'
+    manage: 'Gérer mes fermes',
+    create: 'Créer une ferme'
   },
   farmStatusBanner: {
     draftTitle: '{farm} n’est pas encore soumise',
@@ -1146,17 +1288,32 @@ export const fr = {
     intro: 'Notre équipe vérifie chaque ferme avant qu’elle puisse vendre. Cela prend en général moins de 48 h.',
     privacy: 'Ces documents servent uniquement à la validation. Ils ne sont jamais affichés aux acheteurs.',
     rejectedTitle: 'Motif du refus',
-    idLabel: 'Pièce d’identité',
-    idHint: 'Une photo nette de votre carte d’identité, passeport ou permis.',
+    idLabel: 'Pièce d’identité du responsable',
+    idHint: 'Elle doit être à votre nom, lisible et en cours de validité.',
     idAdd: 'Ajouter la pièce d’identité',
     removeId: 'Retirer la pièce d’identité',
     photosLabel: 'Photos de la ferme',
-    photosHint: 'De 1 à {max} photos : bâtiments, enclos, animaux sur place.',
+    photosHint: '1 à {max} photos récentes : bâtiments, enclos, animaux sur place.',
     photoAdd: 'Ajouter',
     removePhoto: 'Retirer la photo {n}',
-    submit: 'Soumettre pour validation',
+    submit: 'Envoyer pour vérification',
     submitting: 'Envoi…',
-    later: 'Plus tard'
+    later: 'Plus tard',
+    idTypeLabel: 'Type de pièce',
+    front: 'Recto',
+    back: 'Verso',
+    frontAdd: 'Ajouter le recto',
+    backAdd: 'Ajouter le verso',
+    sideHint: 'Photo nette, à plat, sans reflet',
+    removeSide: 'Retirer : {side}',
+    photoAlt: 'Photo {n} de la ferme',
+    certify: 'Je certifie être responsable de cette ferme et que les photos sont récentes. Une fausse déclaration entraîne la suspension du compte.',
+    missing: {
+      front: 'Ajoutez le recto de la pièce pour envoyer.',
+      back: 'Ajoutez le verso de la pièce pour envoyer.',
+      photos: 'Ajoutez au moins une photo de la ferme pour envoyer.',
+      certify: 'Cochez la déclaration pour envoyer.'
+    }
   },
   portalFarms: {
     title: 'Mes fermes',
@@ -1183,11 +1340,15 @@ export const fr = {
     limitReached: 'Vous avez atteint le nombre de fermes autorisé pour votre compte ({count}). Contactez le support Betailo pour en ajouter.'
   },
   adminFarms: {
-    eyebrow: 'Confiance',
-    title: 'Fermes',
+    eyebrow: 'Vérification',
+    title: 'Fermes à valider',
     queueLabel: 'File de validation',
     filterLabel: 'Filtrer par statut',
-    empty: 'Aucune ferme dans cet état.',
+    empty: {
+      todo: 'Aucune ferme en attente.',
+      resubmitted: 'Aucune ferme renvoyée après un refus.',
+      done: 'Aucune décision pour le moment.'
+    },
     pick: 'Choisissez une ferme dans la file pour l’examiner.',
     backToQueue: 'Retour à la file',
     ownedBy: 'Créée par',
@@ -1202,19 +1363,19 @@ export const fr = {
     phone: 'Téléphone',
     submitted: 'Soumise le',
     notSubmitted: 'Pas encore soumise',
-    ownerFarms: 'Fermes du compte',
+    ownerFarms: 'Fermes :',
     ownerTrust: 'Score de confiance',
     description: 'Présentation',
     lastReason: 'Dernier motif communiqué',
-    approve: 'Valider la ferme',
+    approve: 'Approuver la ferme',
     confirm: 'Confirmer la validation',
     reinstate: 'Lever la suspension',
-    reject: 'Refuser',
-    suspend: 'Suspendre la ferme',
-    rejectTitle: 'Refuser cette ferme',
-    rejectBody: 'Le propriétaire lira ce motif et pourra soumettre de nouveau.',
-    suspendTitle: 'Suspendre cette ferme',
-    suspendBody: 'Ses annonces seront retirées du marché immédiatement. Le propriétaire lira ce motif.',
+    reject: 'Refuser…',
+    suspend: 'Suspendre…',
+    rejectTitle: 'Motif du refus',
+    rejectBody: 'L’éleveur pourra corriger et renvoyer. La ferme reste dans sa limite.',
+    suspendTitle: 'Motif de la suspension',
+    suspendBody: 'Ses annonces sont retirées du marché immédiatement. L’éleveur lira ce message.',
     reasonLabel: 'Motif',
     loadError: 'Cette ferme est introuvable.',
     failed: 'Décision non enregistrée',
@@ -1222,7 +1383,59 @@ export const fr = {
       approve: 'Ferme validée',
       reject: 'Ferme refusée',
       suspend: 'Ferme suspendue'
-    }
+    },
+    queue: {
+      todo: 'À traiter',
+      resubmitted: 'Renvoyées',
+      done: 'Traitées'
+    },
+    orderTodo: 'Les plus anciennes d’abord · objectif : moins de {hours} h',
+    orderDone: 'Les décisions les plus récentes d’abord',
+    tagResubmitted: 'Renvoyée après refus',
+    tagNth: '{n}ᵉ ferme du compte',
+    tagFirst: 'Première ferme',
+    requestedOn: 'demandée le {date}',
+    ownerTitle: 'Compte demandeur',
+    ownerSince: 'Membre depuis {year}',
+    ownerPurchases: '{count} achats',
+    ownerPurchases_one: '{count} achat',
+    ownerReports: '{count} signalements',
+    ownerReports_one: '{count} signalement',
+    limitRaisedOn: 'limite relevée le {date}',
+    manageLimit: 'Gérer',
+    accessLogged: 'Accès journalisé',
+    idFront: '{type} · recto',
+    idBack: '{type} · verso',
+    idFrontAlt: 'Recto de la pièce d’identité fournie pour {farm}',
+    idBackAlt: 'Verso de la pièce d’identité fournie pour {farm}',
+    idNoBack: 'Pas de verso fourni',
+    accountName: 'Nom du compte :',
+    accountNoName: 'non renseigné',
+    clickToEnlarge: 'cliquez pour agrandir',
+    farmPhotos: 'Photos de la ferme · {count}',
+    noPhotos: 'Aucune photo fournie.',
+    checksTitle: 'Points à vérifier',
+    check: {
+      identity: 'Le nom sur la pièce correspond au compte',
+      document: 'La pièce est lisible et non expirée',
+      photos: 'Les photos montrent une vraie exploitation',
+      location: 'La localisation est cohérente'
+    },
+    checksHint: 'Aide-mémoire pour vous : ces cases ne sont pas enregistrées.',
+    decided: {
+      approved: 'Approuvée par {name} le {date}',
+      rejected: 'Refusée par {name} le {date}',
+      suspended: 'Suspendue par {name} le {date}'
+    },
+    decidedAuto: 'Approuvée automatiquement, sans revue (plateforme de test)',
+    reasonCodeLabel: 'Raison',
+    messageLabel: 'Message envoyé à l’éleveur',
+    readOnly: 'Votre rôle consulte les fermes ; la décision revient à la modération.',
+    journaled: 'Votre décision est journalisée : « par {name} · {role} »',
+    cancelReject: 'Annuler le refus',
+    cancelSuspend: 'Annuler',
+    sendReject: 'Envoyer le refus',
+    sendSuspend: 'Suspendre la ferme'
   },
   rating: {
     groupLabel: 'Note',
@@ -1242,6 +1455,150 @@ export const fr = {
     farmerSpace: 'Espace éleveur',
     admin: 'Administration',
     default: 'Bientôt disponible'
+  },
+  adminStaff: {
+    title: 'Équipe & rôles',
+    subtitle: 'Qui fait partie de l’équipe, ce que chaque rôle peut faire, et la limite de fermes par compte.',
+    addMember: 'Ajouter un membre',
+    membersTitle: 'Membres · {count}',
+    membersHint: 'Un seul rôle par membre',
+    colMember: 'Membre',
+    colRole: 'Rôle',
+    colSince: 'Compte créé le',
+    rootBadge: 'Compte racine',
+    rootLocked: 'Protégé',
+    you: 'Vous',
+    changeRole: 'Changer de rôle',
+    revoke: 'Retirer de l’équipe',
+    matrixTitle: 'Ce que chaque rôle peut faire',
+    matrixHint: 'Appliqué par l’API. Dans le menu, une page interdite reste visible, verrouillée, avec les rôles à contacter.',
+    colPermission: 'Action',
+    allowed: 'Autorisé',
+    notAllowed: 'Non autorisé',
+    limitsTitle: 'Limite de fermes par compte',
+    limitsHint: 'La valeur par défaut vient de la configuration du serveur. Une exception relève la limite d’un seul compte, avec une raison.',
+    limitDefault: 'Par défaut',
+    limitReadOnly: 'Variable d’environnement, lecture seule',
+    exceptionsTitle: 'Exceptions · {count}',
+    addException: 'Ajouter une exception',
+    exceptionsEmpty: 'Aucune exception : tous les comptes suivent la limite par défaut.',
+    exceptionBy: 'par {name}, le {date}',
+    exceptionUsage: '{owned} / {limit} fermes',
+    endException: 'Mettre fin',
+    grantTitle: 'Ajouter un membre',
+    grantBody: 'La personne doit déjà avoir un compte Betailo. Indiquez son e-mail et le rôle à lui donner. Un compte qui possède une ferme ne peut pas rejoindre l’équipe.',
+    grantConfirm: 'Donner le rôle',
+    changeTitle: 'Changer le rôle de {name}',
+    changeConfirm: 'Enregistrer',
+    emailLabel: 'E-mail du compte',
+    roleLabel: 'Rôle',
+    roleSummary: {
+      super_admin: 'Tout, y compris l’équipe, les rôles et le journal.',
+      moderator: 'Valide les fermes, traite les signalements, suspend des comptes, relève une limite de fermes.',
+      finance: 'Consulte et règle le séquestre : libérer ou rembourser.',
+      support: 'Consulte comptes, fermes, signalements et séquestre, sans rien modifier.'
+    },
+    revokeTitle: 'Retirer {name} de l’équipe ?',
+    revokeBody: 'Son compte redevient un compte ordinaire. Ses sessions ouvertes perdent l’accès au back-office immédiatement.',
+    granted: 'Rôle attribué',
+    changed: 'Rôle modifié',
+    revoked: 'Membre retiré de l’équipe',
+    exceptionTitle: 'Ajouter une exception',
+    exceptionConfirm: 'Enregistrer l’exception',
+    exceptionAccount: 'E-mail du compte',
+    exceptionLimit: 'Nouvelle limite',
+    limitReasonLabel: 'Raison (visible dans le journal)',
+    exceptionFloor: 'Jamais en dessous du nombre de fermes existantes.',
+    exceptionSaved: 'Exception enregistrée',
+    exceptionEnded: 'Exception terminée',
+    endTitle: 'Mettre fin à l’exception de {name} ?',
+    endBody: 'Le compte revient à la limite par défaut ({default}). Ses fermes existantes sont conservées ; il ne pourra plus en créer au-delà.'
+  },
+  adminAudit: {
+    title: 'Journal',
+    subtitle: 'Chaque décision de l’équipe et chaque consultation d’une pièce d’identité, de la plus récente à la plus ancienne.',
+    empty: 'Aucune action enregistrée.',
+    colWhen: 'Date',
+    colWho: 'Membre',
+    colAction: 'Action',
+    colTarget: 'Sur',
+    colDetail: 'Détail'
+  },
+  auditAction: {
+    farm: {
+      approve: 'Ferme approuvée',
+      reject: 'Ferme refusée',
+      suspend: 'Ferme suspendue',
+      proof_viewed: 'Pièce d’identité consultée'
+    },
+    user: {
+      suspend: 'Compte suspendu',
+      reactivate: 'Compte réactivé',
+      farm_limit: 'Limite de fermes modifiée'
+    },
+    escrow: {
+      release: 'Séquestre libéré',
+      refund: 'Séquestre remboursé'
+    },
+    report: {
+      resolve: 'Signalement traité'
+    },
+    staff: {
+      grant: 'Rôle attribué',
+      revoke: 'Rôle retiré'
+    }
+  },
+  permission: {
+    overview: {
+      read: 'Ouvrir la vue d’ensemble'
+    },
+    accounts: {
+      read: 'Voir les comptes',
+      suspend: 'Suspendre ou réactiver un compte',
+      farm_limit: 'Relever la limite de fermes d’un compte'
+    },
+    farms: {
+      read: 'Voir les fermes et leurs justificatifs',
+      review: 'Approuver, refuser ou suspendre une ferme'
+    },
+    catalog: {
+      read: 'Voir cycles et annonces'
+    },
+    reports: {
+      read: 'Voir signalements et litiges',
+      resolve: 'Traiter un signalement'
+    },
+    escrow: {
+      read: 'Voir le séquestre',
+      settle: 'Libérer ou rembourser un séquestre'
+    },
+    staff: {
+      manage: 'Gérer l’équipe et les rôles'
+    },
+    audit: {
+      read: 'Lire le journal'
+    }
+  },
+  rejectionCode: {
+    id_unreadable: 'Pièce d’identité illisible',
+    name_mismatch: 'Nom différent du compte',
+    photos_not_recent: 'Photos non récentes ou reprises',
+    farm_not_found: 'Ferme introuvable à l’adresse',
+    other: 'Autre motif'
+  },
+  idDocumentType: {
+    national_id: 'Carte nationale d’identité',
+    passport: 'Passeport',
+    driving_licence: 'Permis de conduire'
+  },
+  elapsed: {
+    daysHours: '{days} j {hours} h',
+    hours: '{hours} h',
+    minutes: '{minutes} min'
+  },
+  farmQuota: {
+    used: '{count} fermes sur {max}',
+    used_one: '{count} ferme sur {max}'
   }
 } as const;
 

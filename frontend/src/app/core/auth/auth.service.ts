@@ -130,6 +130,18 @@ export class AuthService {
     persistUser(next);
   }
 
+  /** Aligns the cached display user with the role the API reports on
+   * `GET /me`: staff are added and removed from the back office, long
+   * after the sign-in that cached this user. Menus only; every
+   * `/admin` call is checked by the API against the stored role. */
+  syncStaffRole(role: StaffRole | undefined): void {
+    const user = this.userSignal();
+    if (!user || user.staffRole === role) return;
+    const next = { ...user, staffRole: role };
+    this.userSignal.set(next);
+    persistUser(next);
+  }
+
   /** After the server changed who the user is (they became a seller):
    * mint a new access token, whose claims the API rebuilds from the
    * stored account, then re-read the account for the display user. */

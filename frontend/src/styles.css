@@ -13,6 +13,9 @@
 
   --color-surface: #f5efe3;
   --color-surface-raised: #fbf8f2;
+  /* The back office's page background: a cooler, greyer paper than the
+   * marketplace's, so staff always know which side they are on. */
+  --color-surface-backoffice: #f2eee6;
   --color-surface-card: #ffffff;
   --color-surface-sunken: #ede5d6;
   --color-line: #e3dacb;
@@ -111,6 +114,7 @@
   :root:not([data-theme="light"]) {
     --color-surface: var(--dark-surface);
     --color-surface-raised: var(--dark-surface-raised);
+    --color-surface-backoffice: var(--dark-surface);
     --color-surface-card: var(--dark-surface-card);
     --color-surface-sunken: var(--dark-surface-sunken);
     --color-line: var(--dark-line);
@@ -149,6 +153,7 @@
 :root[data-theme="dark"] {
   --color-surface: var(--dark-surface);
   --color-surface-raised: var(--dark-surface-raised);
+  --color-surface-backoffice: var(--dark-surface);
   --color-surface-card: var(--dark-surface-card);
   --color-surface-sunken: var(--dark-surface-sunken);
   --color-line: var(--dark-line);
@@ -409,4 +414,39 @@ summary {
 input:autofill {
   transition: background-color 9999s ease-in-out 0s;
   -webkit-text-fill-color: var(--color-ink);
+}
+
+/* Back-office building blocks, per the admin artboards: white cards on
+ * the grey paper, tables with mono uppercase column heads and hairline
+ * rows. Plain classes rather than components because every back-office
+ * page lays out its own table. */
+@layer components {
+  .bo-card {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+  }
+  .bo-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .bo-th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+    text-align: left;
+    padding: 0 14px 10px;
+    white-space: nowrap;
+  }
+  .bo-td {
+    padding: 13px 14px;
+    border-top: 1px solid var(--color-line);
+    font-size: 14px;
+    line-height: 20px;
+    vertical-align: middle;
+  }
 }

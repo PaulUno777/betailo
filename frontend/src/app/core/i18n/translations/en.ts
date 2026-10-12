@@ -13,7 +13,20 @@ export const en: TranslationDictionary = {
   },
   apiErrors: {
     admin: {
-      farm_limit_range: 'The number of farms must be between 0 and {max}.'
+      farm_limit_range: 'The limit must be between 0 and {max}.',
+      permission_denied: 'Your role does not allow this.',
+      farm_limit_reason_required: 'Give the reason for the exception.',
+      farm_limit_below_owned: 'This account already owns {owned} farms: the limit can’t be lower.',
+      farm_limit_staff: 'A team account does not own farms.',
+      reason_too_long: 'The reason is too long ({max} characters at most).',
+      account_required: 'Enter the account’s email.',
+      account_not_found: 'No account with this email.',
+      root_protected: 'The root account can’t be changed or suspended.',
+      self_action: 'You can’t do this to your own account.',
+      staff_needs_super_admin: 'Only a super admin acts on a team account.',
+      staff_role_unknown: 'This role does not exist.',
+      last_super_admin: 'At least one super admin must remain.',
+      staff_owns_farm: 'This account owns a farm: it can’t join the team.'
     },
     network: 'No connection. Check your network and try again.',
     server: 'Something went wrong on our side. Try again in a moment.',
@@ -47,7 +60,11 @@ export const en: TranslationDictionary = {
       name_location_required: "Enter the farm's name and town.",
       name_required: "Enter the farm's name.",
       location_required: "Enter the farm's town.",
-      has_cycles: "Delete this farm's batches first."
+      has_cycles: "Delete this farm's batches first.",
+      id_document_back_required: 'Add the back of your identity document.',
+      certification_required: 'Tick the declaration before sending.',
+      id_document_type: 'This kind of document is not accepted.',
+      rejection_code: 'This refusal reason does not exist.'
     },
     cycle: {
       invalid_transition: "This step change isn't possible.",
@@ -692,7 +709,7 @@ export const en: TranslationDictionary = {
     farmSaveButton: 'Save',
     farmSaving: 'Saving…',
     farmSaveFailedTitle: 'Couldn’t save',
-    greeting: 'Hello, {name}',
+    greeting: 'Hello {name}',
     sellButton: 'New listing',
     todoTitle: 'To do today',
     todo: {
@@ -704,11 +721,11 @@ export const en: TranslationDictionary = {
     },
     searchPlaceholder: 'Search a reservation…',
     newCycleButton: 'New cycle',
-    kpiReservations: 'Reservations · period',
+    kpiReservations: 'Reservations · {month}',
     kpiEscrowHeld: 'Held in escrow',
     kpiReleased: 'Released this month',
-    kpiTrustScore: 'Trust score',
-    activeCyclesTitle: 'Active batches',
+    kpiTrustScore: 'Trust',
+    activeCyclesTitle: 'Active cycles',
     cycleColHeader: 'Cycle',
     statusColHeader: 'Status',
     fillColHeader: 'Fill rate',
@@ -717,7 +734,18 @@ export const en: TranslationDictionary = {
     weeklyChartTitle: 'Reservations per week',
     latestReservationsTitle: 'Latest reservations',
     noReservations: 'No reservation yet.',
-    loading: 'Loading…'
+    loading: 'Loading…',
+    kpiReservationsHint: 'since the start of the month',
+    kpiTrustLink: 'See my reviews',
+    kpiEscrowHint: 'FCFA · held until delivery',
+    kpiReleasedHint: 'FCFA · paid out',
+    seeAll: 'See all',
+    fillPartial: '{reserved} / {capacity} reserved',
+    fillFull: 'Full · {reserved} / {capacity}',
+    weeklyChartHint: 'Last 8 weeks',
+    weekLabel: 'W{n}',
+    buyerUnnamed: 'Buyer',
+    todoEmpty: 'Nothing urgent: your deliveries and health logs are up to date.'
   },
   portalCycles: {
     title: 'My batches',
@@ -794,12 +822,14 @@ export const en: TranslationDictionary = {
     space: 'Seller',
     dashboardShort: 'Home',
     dashboard: 'Dashboard',
-    listings: 'My listings',
-    sales: 'Sales',
-    cycles: 'My batches',
+    listings: 'Listings',
+    sales: 'Orders',
+    cycles: 'My cycles',
     payments: 'Payments',
     farm: 'My farm',
-    buyMode: 'Switch to buying'
+    buyMode: 'Switch to buying',
+    navLabel: 'Seller space',
+    accountHint: 'My account · my purchases'
   },
   adminOverview: {
     title: 'Overview',
@@ -809,22 +839,59 @@ export const en: TranslationDictionary = {
     cyclesPlanned: 'Cycles planned',
     cyclesInProgress: 'Cycles in progress',
     openReports: 'Open reports',
-    reservationsChartTitle: 'Reservations · last 30 days'
+    reservationsChartTitle: 'Reservations · last 30 days',
+    eyebrow: 'Administration',
+    periodLabel: 'Period',
+    period: {
+      '7d': '7 d',
+      '30d': '30 d',
+      '12m': '12 months'
+    },
+    autoApproveTitle: 'Automatic approval is on',
+    autoApproveBody: 'The FARM_AUTO_APPROVE setting is on: every farm is approved as soon as it is sent, with no review. Turn it off before real sellers arrive.',
+    trend: '{delta} vs previous period',
+    noTrend: 'No previous period to compare with',
+    heldReservations: '{count} reservations held',
+    heldReservations_one: '{count} reservation held',
+    activeCycles: 'Active cycles',
+    cyclesSplit: '{planned} planned · {running} in progress',
+    disputes: '{count} open disputes',
+    disputes_one: '{count} open dispute',
+    chartTitleDays: 'Reservations per day',
+    chartTitleMonths: 'Reservations per month',
+    legendPaid: 'Paid',
+    legendWaiting: 'Waiting',
+    chartSummary: '{paid} paid reservations and {waiting} waiting over the period',
+    chartEmpty: 'No reservation over the period.',
+    queueTitle: 'Work queue',
+    queueClear: 'Up to date',
+    queueWaiting: '{count} waiting',
+    queueFarms: 'Farms to review',
+    queueOldest: 'Oldest request',
+    queueReports: 'Open reports',
+    queueDisputes: 'Open disputes',
+    settingFarms: 'Farms per account',
+    settingAutoApprove: 'Auto approval',
+    on: 'on',
+    off: 'off',
+    queueOpen: 'Open the queue',
+    escrowTitle: 'Latest transactions',
+    seeAll: 'See all'
   },
   adminUsers: {
     farmLimitDefault: 'Farms: default',
     farmLimitValue: 'Farms: {count} max',
     farmLimitTitle: 'Farms allowed for {email}',
-    farmLimitBody: 'How many farms this account may own. 0 puts it back on the platform default.',
+    farmLimitBody: 'How many farms this account may own; it already has {owned}. 0 ends the exception.',
     farmLimitZero: 'Platform default limit.',
     farmLimitChosen: '{count} farms at most.',
     farmLimitChosen_one: '{count} farm at most.',
     farmLimitSave: 'Save',
     farmLimitSaved: 'Limit updated',
     suspendedToast: 'Account suspended',
-    title: 'Users',
+    title: 'Accounts',
     loading: 'Loading…',
-    empty: 'No users.',
+    empty: 'No account matches.',
     emailCol: 'Email',
     roleCol: 'Role',
     statusCol: 'Status',
@@ -832,26 +899,75 @@ export const en: TranslationDictionary = {
     suspendedBadge: 'Suspended',
     suspendButton: 'Suspend',
     suspendConfirmTitle: 'Suspend {email}?',
-    actionFailedTitle: 'Action failed'
+    actionFailedTitle: 'Action failed',
+    subtitle: 'One kind of account: everyone buys, and sells once one of their farms is approved.',
+    filterLabel: 'Filter accounts',
+    filter: {
+      all: 'All',
+      sellers: 'Sellers',
+      staff: 'Team',
+      suspended: 'Suspended'
+    },
+    searchLabel: 'Search a name or an email',
+    resultCount: '{count} accounts',
+    resultCount_one: '{count} account',
+    colAccount: 'Account',
+    colSince: 'Member since',
+    colFarms: 'Farms',
+    colTrust: 'Trust',
+    colState: 'State',
+    colActions: 'Actions',
+    exception: 'Exception',
+    activeBadge: 'Active',
+    farmLimitButton: 'Farm limit',
+    reactivateButton: 'Reactivate',
+    reactivatedToast: 'Account reactivated'
   },
   adminListings: {
     title: 'Cycles & listings',
     loading: 'Loading…',
     empty: 'No listing.',
     cyclesTitle: 'Cycles',
-    listingsTitle: 'Listings'
+    listingsTitle: 'Listings',
+    subtitle: 'Every cycle and listing on the platform, read-only.',
+    emptyCycles: 'No cycle.',
+    colCycle: 'Cycle',
+    colType: 'Type',
+    colStatus: 'Status',
+    colFill: 'Reserved',
+    colListing: 'Listing',
+    colPrice: 'Unit price'
   },
   adminEscrow: {
     title: 'Escrow',
     loading: 'Loading…',
-    empty: 'No escrow transaction.',
+    empty: 'No transaction here.',
     releaseButton: 'Release',
     refundButton: 'Refund',
     releaseConfirmTitle: 'Release the escrow?',
     releaseConfirmBody: '{amount} will be paid out to the farmer. This cannot be undone.',
     refundConfirmTitle: 'Refund the buyer?',
     refundConfirmBody: '{amount} will be returned to the buyer. This cannot be undone.',
-    actionFailedTitle: 'Action failed'
+    actionFailedTitle: 'Action failed',
+    subtitle: 'Payments held by the platform. Releasing or refunding is final.',
+    subtitleReadOnly: 'Payments held by the platform. Your role reads them; finance settles them.',
+    filterLabel: 'Filter by status',
+    filter: {
+      held: 'Held',
+      all: 'All',
+      released: 'Released',
+      refunded: 'Refunded'
+    },
+    colReservation: 'Reservation',
+    colBuyer: 'Buyer',
+    colFarm: 'Seller',
+    colAmount: 'Amount',
+    colStatus: 'Status',
+    colDate: 'Created',
+    done: {
+      release: 'Payment released',
+      refund: 'Payment refunded'
+    }
   },
   adminReports: {
     title: 'Reports',
@@ -867,20 +983,42 @@ export const en: TranslationDictionary = {
     resolveSuspend: 'Suspend',
     resolveFailedTitle: 'Couldn’t resolve',
     suspendConfirmBody: 'The targeted account will be suspended immediately.',
-    notFound: 'Report not found.'
+    notFound: 'Report not found.',
+    subtitle: 'Listings, profiles and forum posts reported by members.',
+    disputesTitle: 'Disputes',
+    disputesSubtitle: 'Disagreements between a buyer and a seller over a paid reservation.',
+    disputesEmpty: 'No dispute.',
+    filter: {
+      open: 'To do',
+      all: 'All',
+      handled: 'Handled'
+    },
+    readOnly: 'Your role reads reports; the decision belongs to moderation.'
   },
   adminNav: {
     farms: 'Farms to review',
-    space: 'Admin',
+    space: 'Staff',
     viewSite: 'View the site',
     overviewShort: 'Overview',
     overview: 'Overview',
-    users: 'Users',
+    users: 'Accounts',
     listings: 'Cycles & listings',
     escrow: 'Escrow',
     reports: 'Reports',
     forum: 'Forum',
-    settings: 'Settings'
+    settings: 'Settings',
+    navLabel: 'Back office',
+    farmsShort: 'Farms',
+    disputes: 'Disputes',
+    staff: 'Team & roles',
+    audit: 'Journal',
+    reservedFor: 'Reserved for {roles}',
+    reserved: 'Your role has no access',
+    group: {
+      steer: 'Steering',
+      trust: 'Trust',
+      system: 'System'
+    }
   },
   footer: {
     tagline: 'The marketplace for breeding cycles. Made in Douala.',
@@ -1121,12 +1259,16 @@ export const en: TranslationDictionary = {
     elevage: 'Rearing'
   },
   staffRole: {
-    super_admin: 'Super admin'
+    super_admin: 'Super admin',
+    moderator: 'Moderation',
+    finance: 'Finance',
+    support: 'Support'
   },
   farmSwitcher: {
     label: 'Your farms',
     current: 'Current farm: {farm}. Switch farm',
-    manage: 'Manage my farms'
+    manage: 'Manage my farms',
+    create: 'Create a farm'
   },
   farmStatusBanner: {
     draftTitle: '{farm} has not been submitted yet',
@@ -1147,17 +1289,32 @@ export const en: TranslationDictionary = {
     intro: 'Our team checks every farm before it can sell. It usually takes less than 48 hours.',
     privacy: 'These documents are used for the review only. Buyers never see them.',
     rejectedTitle: 'Reason for the refusal',
-    idLabel: 'Identity document',
-    idHint: 'A clear photo of your ID card, passport or driving licence.',
+    idLabel: 'Identity document of the person responsible',
+    idHint: 'It must be in your name, readable and still valid.',
     idAdd: 'Add the identity document',
     removeId: 'Remove the identity document',
     photosLabel: 'Photos of the farm',
-    photosHint: '1 to {max} photos: buildings, pens, animals on site.',
+    photosHint: '1 to {max} recent photos: buildings, pens, animals on site.',
     photoAdd: 'Add',
     removePhoto: 'Remove photo {n}',
-    submit: 'Submit for review',
+    submit: 'Send for verification',
     submitting: 'Sending…',
-    later: 'Later'
+    later: 'Later',
+    idTypeLabel: 'Document type',
+    front: 'Front',
+    back: 'Back',
+    frontAdd: 'Add the front',
+    backAdd: 'Add the back',
+    sideHint: 'A sharp photo, laid flat, no glare',
+    removeSide: 'Remove: {side}',
+    photoAlt: 'Farm photo {n}',
+    certify: 'I certify that I am responsible for this farm and that the photos are recent. A false declaration leads to the account being suspended.',
+    missing: {
+      front: 'Add the front of the document to send.',
+      back: 'Add the back of the document to send.',
+      photos: 'Add at least one photo of the farm to send.',
+      certify: 'Tick the declaration to send.'
+    }
   },
   portalFarms: {
     title: 'My farms',
@@ -1184,11 +1341,15 @@ export const en: TranslationDictionary = {
     limitReached: 'You have reached the number of farms allowed for your account ({count}). Contact Betailo support to add more.'
   },
   adminFarms: {
-    eyebrow: 'Trust',
-    title: 'Farms',
+    eyebrow: 'Verification',
+    title: 'Farms to review',
     queueLabel: 'Review queue',
     filterLabel: 'Filter by status',
-    empty: 'No farm in this state.',
+    empty: {
+      todo: 'No farm waiting.',
+      resubmitted: 'No farm sent again after a refusal.',
+      done: 'No decision yet.'
+    },
     pick: 'Pick a farm in the queue to review it.',
     backToQueue: 'Back to the queue',
     ownedBy: 'Created by',
@@ -1203,19 +1364,19 @@ export const en: TranslationDictionary = {
     phone: 'Phone',
     submitted: 'Submitted on',
     notSubmitted: 'Not submitted yet',
-    ownerFarms: 'Farms on the account',
+    ownerFarms: 'Farms:',
     ownerTrust: 'Trust score',
     description: 'About',
     lastReason: 'Last reason given',
     approve: 'Approve the farm',
     confirm: 'Confirm the approval',
     reinstate: 'Lift the suspension',
-    reject: 'Reject',
-    suspend: 'Suspend the farm',
-    rejectTitle: 'Reject this farm',
-    rejectBody: 'The owner will read this reason and can submit again.',
-    suspendTitle: 'Suspend this farm',
-    suspendBody: 'Its listings leave the market immediately. The owner will read this reason.',
+    reject: 'Refuse…',
+    suspend: 'Suspend…',
+    rejectTitle: 'Reason for the refusal',
+    rejectBody: 'The seller can fix it and send again. The farm still counts in their limit.',
+    suspendTitle: 'Reason for the suspension',
+    suspendBody: 'Its listings leave the marketplace at once. The seller will read this message.',
     reasonLabel: 'Reason',
     loadError: 'This farm could not be found.',
     failed: 'Decision not saved',
@@ -1223,7 +1384,59 @@ export const en: TranslationDictionary = {
       approve: 'Farm approved',
       reject: 'Farm rejected',
       suspend: 'Farm suspended'
-    }
+    },
+    queue: {
+      todo: 'To do',
+      resubmitted: 'Sent again',
+      done: 'Done'
+    },
+    orderTodo: 'Oldest first · target: under {hours} h',
+    orderDone: 'Latest decisions first',
+    tagResubmitted: 'Sent again after a refusal',
+    tagNth: 'Farm no. {n} of the account',
+    tagFirst: 'First farm',
+    requestedOn: 'requested on {date}',
+    ownerTitle: 'Requesting account',
+    ownerSince: 'Member since {year}',
+    ownerPurchases: '{count} purchases',
+    ownerPurchases_one: '{count} purchase',
+    ownerReports: '{count} reports',
+    ownerReports_one: '{count} report',
+    limitRaisedOn: 'limit raised on {date}',
+    manageLimit: 'Manage',
+    accessLogged: 'Access is journaled',
+    idFront: '{type} · front',
+    idBack: '{type} · back',
+    idFrontAlt: 'Front of the identity document provided for {farm}',
+    idBackAlt: 'Back of the identity document provided for {farm}',
+    idNoBack: 'No back provided',
+    accountName: 'Account name:',
+    accountNoName: 'not given',
+    clickToEnlarge: 'click to enlarge',
+    farmPhotos: 'Farm photos · {count}',
+    noPhotos: 'No photo provided.',
+    checksTitle: 'Points to check',
+    check: {
+      identity: 'The name on the document matches the account',
+      document: 'The document is readable and not expired',
+      photos: 'The photos show a real farm',
+      location: 'The location makes sense'
+    },
+    checksHint: 'A reminder for you: these boxes are not saved.',
+    decided: {
+      approved: 'Approved by {name} on {date}',
+      rejected: 'Refused by {name} on {date}',
+      suspended: 'Suspended by {name} on {date}'
+    },
+    decidedAuto: 'Approved automatically, with no review (test platform)',
+    reasonCodeLabel: 'Reason',
+    messageLabel: 'Message sent to the seller',
+    readOnly: 'Your role reads farms; the decision belongs to moderation.',
+    journaled: 'Your decision is journaled: “by {name} · {role}”',
+    cancelReject: 'Cancel the refusal',
+    cancelSuspend: 'Cancel',
+    sendReject: 'Send the refusal',
+    sendSuspend: 'Suspend the farm'
   },
   rating: {
     groupLabel: 'Rating',
@@ -1243,5 +1456,149 @@ export const en: TranslationDictionary = {
     farmerSpace: 'Farmer space',
     admin: 'Admin',
     default: 'Coming soon'
+  },
+  adminStaff: {
+    title: 'Team & roles',
+    subtitle: 'Who is on the team, what each role may do, and the farm limit per account.',
+    addMember: 'Add a member',
+    membersTitle: 'Members · {count}',
+    membersHint: 'One role per member',
+    colMember: 'Member',
+    colRole: 'Role',
+    colSince: 'Account created',
+    rootBadge: 'Root account',
+    rootLocked: 'Protected',
+    you: 'You',
+    changeRole: 'Change role',
+    revoke: 'Remove from the team',
+    matrixTitle: 'What each role may do',
+    matrixHint: 'Enforced by the API. In the menu, a page a role can’t open stays visible, locked, with the roles to ask.',
+    colPermission: 'Action',
+    allowed: 'Allowed',
+    notAllowed: 'Not allowed',
+    limitsTitle: 'Farm limit per account',
+    limitsHint: 'The default comes from the server’s configuration. An exception raises the limit for one account, with a reason.',
+    limitDefault: 'Default',
+    limitReadOnly: 'Environment variable, read-only',
+    exceptionsTitle: 'Exceptions · {count}',
+    addException: 'Add an exception',
+    exceptionsEmpty: 'No exception: every account follows the default limit.',
+    exceptionBy: 'by {name}, on {date}',
+    exceptionUsage: '{owned} / {limit} farms',
+    endException: 'End it',
+    grantTitle: 'Add a member',
+    grantBody: 'The person must already have a Betailo account. Enter their email and the role to give them. An account that owns a farm can’t join the team.',
+    grantConfirm: 'Give the role',
+    changeTitle: 'Change {name}’s role',
+    changeConfirm: 'Save',
+    emailLabel: 'Account email',
+    roleLabel: 'Role',
+    roleSummary: {
+      super_admin: 'Everything, including the team, roles and the journal.',
+      moderator: 'Reviews farms, handles reports, suspends accounts, raises a farm limit.',
+      finance: 'Reads and settles escrow: release or refund.',
+      support: 'Reads accounts, farms, reports and escrow, and changes nothing.'
+    },
+    revokeTitle: 'Remove {name} from the team?',
+    revokeBody: 'Their account becomes an ordinary account again. Their open sessions lose the back office at once.',
+    granted: 'Role given',
+    changed: 'Role changed',
+    revoked: 'Member removed from the team',
+    exceptionTitle: 'Add an exception',
+    exceptionConfirm: 'Save the exception',
+    exceptionAccount: 'Account email',
+    exceptionLimit: 'New limit',
+    limitReasonLabel: 'Reason (shown in the journal)',
+    exceptionFloor: 'Never below the number of farms the account already has.',
+    exceptionSaved: 'Exception saved',
+    exceptionEnded: 'Exception ended',
+    endTitle: 'End {name}’s exception?',
+    endBody: 'The account goes back to the default limit ({default}). Its existing farms are kept; it can’t open more beyond that.'
+  },
+  adminAudit: {
+    title: 'Journal',
+    subtitle: 'Every decision by the team and every look at an identity document, latest first.',
+    empty: 'No action recorded.',
+    colWhen: 'Date',
+    colWho: 'Member',
+    colAction: 'Action',
+    colTarget: 'On',
+    colDetail: 'Detail'
+  },
+  auditAction: {
+    farm: {
+      approve: 'Farm approved',
+      reject: 'Farm refused',
+      suspend: 'Farm suspended',
+      proof_viewed: 'Identity document viewed'
+    },
+    user: {
+      suspend: 'Account suspended',
+      reactivate: 'Account reactivated',
+      farm_limit: 'Farm limit changed'
+    },
+    escrow: {
+      release: 'Escrow released',
+      refund: 'Escrow refunded'
+    },
+    report: {
+      resolve: 'Report handled'
+    },
+    staff: {
+      grant: 'Role given',
+      revoke: 'Role removed'
+    }
+  },
+  permission: {
+    overview: {
+      read: 'Open the overview'
+    },
+    accounts: {
+      read: 'See accounts',
+      suspend: 'Suspend or reactivate an account',
+      farm_limit: 'Raise an account’s farm limit'
+    },
+    farms: {
+      read: 'See farms and their proof',
+      review: 'Approve, refuse or suspend a farm'
+    },
+    catalog: {
+      read: 'See cycles and listings'
+    },
+    reports: {
+      read: 'See reports and disputes',
+      resolve: 'Handle a report'
+    },
+    escrow: {
+      read: 'See escrow',
+      settle: 'Release or refund an escrow'
+    },
+    staff: {
+      manage: 'Manage the team and roles'
+    },
+    audit: {
+      read: 'Read the journal'
+    }
+  },
+  rejectionCode: {
+    id_unreadable: 'Identity document unreadable',
+    name_mismatch: 'Name differs from the account',
+    photos_not_recent: 'Photos not recent or reused',
+    farm_not_found: 'Farm not found at the address',
+    other: 'Other reason'
+  },
+  idDocumentType: {
+    national_id: 'National identity card',
+    passport: 'Passport',
+    driving_licence: 'Driving licence'
+  },
+  elapsed: {
+    daysHours: '{days} d {hours} h',
+    hours: '{hours} h',
+    minutes: '{minutes} min'
+  },
+  farmQuota: {
+    used: '{count} farms out of {max}',
+    used_one: '{count} farm out of {max}'
   }
 };

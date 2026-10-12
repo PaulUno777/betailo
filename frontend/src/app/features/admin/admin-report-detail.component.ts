@@ -12,6 +12,7 @@ import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { apiResource } from '../../core/http/api-resource';
+import { StaffSpaceService } from '../../core/auth/staff-space.service';
 
 /** `/admin/reports/:id` — per `Moderation.dc.html`'s detail view: the
  * risk score + signal breakdown from `GET /admin/reports/{id}`, plus the
@@ -21,7 +22,7 @@ import { apiResource } from '../../core/http/api-resource';
   imports: [RouterLink, BadgeComponent, ButtonComponent, DialogComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="mx-auto max-w-2xl p-6 sm:p-8">
+    <div class="mx-auto max-w-2xl p-4 sm:p-7">
       <a routerLink="/admin/reports" class="-my-2 inline-flex min-h-11 items-center text-small text-ink-muted hover:text-forest">← {{ 'adminReports.backToReports' | t }}</a>
 
       @if (detail.value(); as d) {
@@ -31,7 +32,7 @@ import { apiResource } from '../../core/http/api-resource';
           <bt-badge tone="amber" class="w-fit">{{ 'reportStatus.' + d.report.status | t }}</bt-badge>
         </div>
 
-        <div class="mt-6 flex items-center gap-4 rounded-lg border border-line bg-surface-card p-5">
+        <div class="bo-card mt-6 flex items-center gap-4 p-5">
           <span class="text-eyebrow text-ink-muted">{{ 'adminReports.riskScoreLabel' | t }}</span>
           <span class="text-number-xl">{{ d.riskScore }}</span>
         </div>
@@ -40,12 +41,12 @@ import { apiResource } from '../../core/http/api-resource';
           <h2 class="text-heading-4">{{ 'adminReports.signalsTitle' | t }}</h2>
           <div class="mt-3 flex flex-col gap-2">
             @for (s of d.signals; track s.name) {
-              <div class="flex items-center justify-between rounded-md border border-line p-3">
+              <div class="bo-card flex items-center justify-between gap-3 p-3.5">
                 <div class="flex flex-col">
                   <span class="text-body-strong">{{ s.name }}</span>
                   <span class="text-small text-ink-muted">{{ s.detail }}</span>
                 </div>
-                <span class="text-small text-ink-muted">+{{ s.weight }}</span>
+                <span class="font-mono text-small text-ink-muted">+{{ s.weight }}</span>
               </div>
             }
           </div>
@@ -62,10 +63,17 @@ import { apiResource } from '../../core/http/api-resource';
           </section>
         }
 
-        <div class="mt-6 flex flex-wrap gap-3">
-          <bt-button variant="outline" [disabled]="resolving()" (click)="resolve('dismiss')">{{ 'adminReports.resolveDismiss' | t }}</bt-button>
-          <bt-button variant="danger" [disabled]="resolving()" (click)="suspendConfirmOpen.set(true)">{{ 'adminReports.resolveSuspend' | t }}</bt-button>
-        </div>
+        @if (!staff.can('reports.resolve')) {
+          <p class="mt-6 border-t border-line pt-4 text-small text-ink-muted">{{ 'adminReports.readOnly' | t }}</p>
+        } @else if (d.report.status === 'open' || d.report.status === 'under_review') {
+          <div class="mt-6 flex flex-wrap justify-between gap-3 border-t border-line pt-4">
+            <bt-button variant="outline" [disabled]="resolving()" (click)="resolve('dismiss')">{{ 'adminReports.resolveDismiss' | t }}</bt-button>
+            <!-- Suspending acts on an account: the API only takes it for a profile report. -->
+            @if (d.report.targetType === 'profile') {
+              <bt-button variant="danger" [disabled]="resolving()" (click)="suspendConfirmOpen.set(true)">{{ 'adminReports.resolveSuspend' | t }}</bt-button>
+            }
+          </div>
+        }
       } @else if (detail.isLoading()) {
         <p class="mt-6 text-body text-ink-muted">{{ 'adminReports.loading' | t }}</p>
       } @else if (detail.error()) {
@@ -93,6 +101,7 @@ export class AdminReportDetailComponent {
   private readonly router = inject(Router);
   private readonly adminApi = inject(AdminApi);
   private readonly toast = inject(ToastService);
+  protected readonly staff = inject(StaffSpaceService);
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((p) => p.get('id') ?? '')), { initialValue: '' });
 

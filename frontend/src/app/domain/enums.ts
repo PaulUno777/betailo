@@ -5,7 +5,33 @@
 
 /** What a member of the platform's team may do in the back office.
  * Everyone else has none: there is one kind of account. */
-export type StaffRole = 'super_admin';
+export type StaffRole = 'super_admin' | 'moderator' | 'finance' | 'support';
+
+/** What a staff role may do in the back office. The API holds the
+ * table (`GET /admin/staff`) and returns the caller's own list on
+ * `GET /me`; these are only the codes. */
+export type Permission =
+  | 'overview.read'
+  | 'accounts.read'
+  | 'accounts.suspend'
+  | 'accounts.farm_limit'
+  | 'farms.read'
+  | 'farms.review'
+  | 'catalog.read'
+  | 'reports.read'
+  | 'reports.resolve'
+  | 'escrow.read'
+  | 'escrow.settle'
+  | 'staff.manage'
+  | 'audit.read';
+
+export type IdDocumentType = 'national_id' | 'passport' | 'driving_licence';
+
+export type RejectionCode = 'id_unreadable' | 'name_mismatch' | 'photos_not_recent' | 'farm_not_found' | 'other';
+
+export type FarmQueue = 'todo' | 'resubmitted' | 'done';
+
+export type OverviewPeriod = '7d' | '30d' | '12m';
 
 /** A farm's review state. Only `approved` sells. */
 export type FarmStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'suspended';

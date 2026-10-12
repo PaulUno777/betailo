@@ -8,62 +8,92 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { apiResource } from '../../core/http/api-resource';
+import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
 
 /** `/admin/listings` — per `Admin.dc.html`: platform-wide cycles and
  * listings, read-only (no per-row admin action exists on either
  * endpoint beyond what escrow/reports already cover). */
 @Component({
   selector: 'bt-admin-listings',
-  imports: [StatusBadgeComponent, ButtonComponent, FcfaCurrencyPipe, TranslatePipe],
+  imports: [AdminPageHeaderComponent, StatusBadgeComponent, ButtonComponent, FcfaCurrencyPipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="p-6 sm:p-8">
-      <h1 class="text-heading-2">{{ 'adminListings.title' | t }}</h1>
+    <div class="flex flex-col gap-[22px] p-4 sm:p-7 lg:px-9">
+      <bt-admin-page-header [eyebrow]="'adminNav.group.steer' | t" [title]="'adminListings.title' | t" [subtitle]="'adminListings.subtitle' | t" />
 
-      <section class="mt-6">
-        <h2 class="text-heading-4">{{ 'adminListings.cyclesTitle' | t }}</h2>
-        @if (cycles.isLoading()) {
-          <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.loading' | t }}</p>
+      <section class="bo-card px-2 pt-[18px] pb-2">
+        <h2 class="px-3.5 pb-3 font-display text-[19px] font-bold">{{ 'adminListings.cyclesTitle' | t }}</h2>
+        @if (cycles.isLoading() && !cycles.hasValue()) {
+          <div class="mx-3.5 mb-3 h-40 animate-pulse rounded-xl bg-surface-sunken" aria-hidden="true"></div>
         } @else if (cycles.error()) {
-          <div class="mt-3 flex flex-col items-start gap-3" role="alert">
+          <div class="flex flex-col items-start gap-3 px-3.5 pb-4" role="alert">
             <p class="text-body">{{ 'apiErrors.server' | t }}</p>
             <bt-button variant="outline" (click)="cycles.reload()">{{ 'common.retry' | t }}</bt-button>
           </div>
         } @else if ((cycles.value() ?? []).length === 0) {
-          <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.empty' | t }}</p>
+          <p class="px-3.5 pb-5 text-body text-ink-muted">{{ 'adminListings.emptyCycles' | t }}</p>
         } @else {
-          <div class="mt-3 flex flex-col gap-2">
-            @for (c of cycles.value()!; track c.id) {
-              <div class="flex flex-wrap items-center gap-4 rounded-md border border-line bg-surface-card p-3">
-                <span class="min-w-[160px] flex-1 text-body-strong">{{ speciesKey(c.species) | t }} · {{ typeKey(c.type) | t }}</span>
-                <bt-status-badge kind="cycle" [status]="c.status" />
-                <span class="text-small text-ink-muted">{{ c.availableQuantity }} / {{ c.capacity }}</span>
-              </div>
-            }
+          <div class="overflow-x-auto">
+            <table class="bo-table min-w-[640px]">
+              <thead>
+                <tr>
+                  <th class="bo-th" scope="col">{{ 'adminListings.colCycle' | t }}</th>
+                  <th class="bo-th" scope="col">{{ 'adminListings.colType' | t }}</th>
+                  <th class="bo-th" scope="col">{{ 'adminListings.colStatus' | t }}</th>
+                  <th class="bo-th" scope="col">{{ 'adminListings.colFill' | t }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of cycles.value()!; track c.id) {
+                  <tr>
+                    <td class="bo-td">
+                      <div class="flex flex-col">
+                        <b>{{ speciesKey(c.species) | t }}</b>
+                        <span class="font-mono text-[11.5px] text-ink-muted">{{ c.reference || c.id.slice(-6) }}</span>
+                      </div>
+                    </td>
+                    <td class="bo-td">{{ typeKey(c.type) | t }}</td>
+                    <td class="bo-td"><bt-status-badge kind="cycle" [status]="c.status" /></td>
+                    <td class="bo-td font-mono !text-[13px] tabular-nums">{{ c.capacity - c.availableQuantity }} / {{ c.capacity }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         }
       </section>
 
-      <section class="mt-8">
-        <h2 class="text-heading-4">{{ 'adminListings.listingsTitle' | t }}</h2>
-        @if (listings.isLoading()) {
-          <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.loading' | t }}</p>
+      <section class="bo-card px-2 pt-[18px] pb-2">
+        <h2 class="px-3.5 pb-3 font-display text-[19px] font-bold">{{ 'adminListings.listingsTitle' | t }}</h2>
+        @if (listings.isLoading() && !listings.hasValue()) {
+          <div class="mx-3.5 mb-3 h-40 animate-pulse rounded-xl bg-surface-sunken" aria-hidden="true"></div>
         } @else if (listings.error()) {
-          <div class="mt-3 flex flex-col items-start gap-3" role="alert">
+          <div class="flex flex-col items-start gap-3 px-3.5 pb-4" role="alert">
             <p class="text-body">{{ 'apiErrors.server' | t }}</p>
             <bt-button variant="outline" (click)="listings.reload()">{{ 'common.retry' | t }}</bt-button>
           </div>
         } @else if ((listings.value() ?? []).length === 0) {
-          <p class="mt-3 text-body text-ink-muted">{{ 'adminListings.empty' | t }}</p>
+          <p class="px-3.5 pb-5 text-body text-ink-muted">{{ 'adminListings.empty' | t }}</p>
         } @else {
-          <div class="mt-3 flex flex-col gap-2">
-            @for (l of listings.value()!; track l.id) {
-              <div class="flex flex-wrap items-center gap-4 rounded-md border border-line bg-surface-card p-3">
-                <span class="min-w-[160px] flex-1 wrap-anywhere text-body-strong">{{ l.title }}</span>
-                <bt-status-badge kind="listing" [status]="l.status" />
-                <span class="text-amount">{{ l.unitPrice | fcfa }}</span>
-              </div>
-            }
+          <div class="overflow-x-auto">
+            <table class="bo-table min-w-[560px]">
+              <thead>
+                <tr>
+                  <th class="bo-th" scope="col">{{ 'adminListings.colListing' | t }}</th>
+                  <th class="bo-th" scope="col">{{ 'adminListings.colStatus' | t }}</th>
+                  <th class="bo-th" scope="col">{{ 'adminListings.colPrice' | t }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (l of listings.value()!; track l.id) {
+                  <tr>
+                    <td class="bo-td wrap-anywhere"><b>{{ l.title }}</b></td>
+                    <td class="bo-td"><bt-status-badge kind="listing" [status]="l.status" /></td>
+                    <td class="bo-td font-mono !text-[13px] whitespace-nowrap tabular-nums">{{ l.unitPrice | fcfa }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         }
       </section>
