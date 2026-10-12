@@ -18,7 +18,7 @@ module.exports = tseslint.config(
         "error",
         {
           type: "attribute",
-          prefix: "app",
+          prefix: "bt",
           style: "camelCase",
         },
       ],
@@ -26,7 +26,9 @@ module.exports = tseslint.config(
         "error",
         {
           type: "element",
-          prefix: "app",
+          // "app" stays reserved for the root component (`app-root`, wired
+          // up in index.html); every other component uses "bt".
+          prefix: ["bt", "app"],
           style: "kebab-case",
         },
       ],

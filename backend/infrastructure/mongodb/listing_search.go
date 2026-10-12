@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -53,7 +54,7 @@ type searchRow struct {
 func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCriteria) (ports.ListingSearchResult, error) {
 	match := bson.M{"status": domain.ListingPublished, "flagged": bson.M{"$ne": true}}
 	if c.Query != "" {
-		match["title"] = bson.M{"$regex": c.Query, "$options": "i"}
+		match["title"] = bson.M{"$regex": regexp.QuoteMeta(c.Query), "$options": "i"}
 	}
 	if c.MinPrice > 0 || c.MaxPrice > 0 {
 		price := bson.M{}
@@ -88,7 +89,7 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 		bson.D{{Key: "$unwind", Value: "$farm"}},
 	)
 	if c.Region != "" {
-		pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.M{"farm.location": bson.M{"$regex": c.Region, "$options": "i"}}}})
+		pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.M{"farm.location": bson.M{"$regex": regexp.QuoteMeta(c.Region), "$options": "i"}}}})
 	}
 
 	pipeline = append(pipeline,
@@ -107,12 +108,22 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 		}}},
 	)
 
-	sortKey, sortDir := "cycle.startsAt", 1
+	// _id is always the last sort key: a stable tie-break keeps paging
+	// deterministic (no listing shown twice or skipped across pages),
+	// and on its own it means "newest first", since ObjectIDs embed
+	// their creation time.
+	var sort bson.D
 	switch c.Sort {
-	case "price_asc":
-		sortKey, sortDir = "unitPrice", 1
-	case "price_desc":
-		sortKey, sortDir = "unitPrice", -1
+	case ports.ListingSortRecent:
+		sort = bson.D{{Key: "_id", Value: -1}}
+	case ports.ListingSortPriceAsc:
+		sort = bson.D{{Key: "unitPrice", Value: 1}, {Key: "_id", Value: -1}}
+	case ports.ListingSortPriceDesc:
+		sort = bson.D{{Key: "unitPrice", Value: -1}, {Key: "_id", Value: -1}}
+	case ports.ListingSortRating:
+		sort = bson.D{{Key: "reviewAverage", Value: -1}, {Key: "reviewCount", Value: -1}, {Key: "_id", Value: -1}}
+	default:
+		sort = bson.D{{Key: "cycle.startsAt", Value: 1}, {Key: "_id", Value: -1}}
 	}
 
 	page, pageSize := c.Page, c.PageSize
@@ -128,7 +139,7 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 
 	pipeline = append(pipeline, bson.D{{Key: "$facet", Value: bson.M{
 		"data": bson.A{
-			bson.D{{Key: "$sort", Value: bson.D{{Key: sortKey, Value: sortDir}}}},
+			bson.D{{Key: "$sort", Value: sort}},
 			bson.D{{Key: "$skip", Value: (page - 1) * pageSize}},
 			bson.D{{Key: "$limit", Value: pageSize}},
 		},
