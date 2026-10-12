@@ -21,13 +21,38 @@ type farmResponse struct {
 	Species      []string `json:"species,omitempty"`
 	Description  string   `json:"description,omitempty"`
 	ContactPhone string   `json:"contactPhone,omitempty"`
+	// Status is the farm's review state; only "approved" sells.
+	Status string `json:"status"`
+	// Review is the owner's (and staff's) view of that review. Never
+	// part of the public profile.
+	Review *farmReviewResponse `json:"review,omitempty"`
+}
+
+type farmReviewResponse struct {
+	SubmittedAt     *time.Time `json:"submittedAt,omitempty"`
+	ReviewedAt      *time.Time `json:"reviewedAt,omitempty"`
+	AutoApproved    bool       `json:"autoApproved,omitempty"`
+	RejectionReason string     `json:"rejectionReason,omitempty"`
+	// CanSubmit: the farm is waiting on its owner to (re)submit proof.
+	CanSubmit bool `json:"canSubmit"`
 }
 
 func toFarmResponse(f *domain.Farm) farmResponse {
 	return farmResponse{
 		ID: f.ID.Hex(), OwnerID: f.OwnerID.Hex(), Name: f.Name, Location: f.Location, Country: f.Country, Region: f.Region, Species: f.Species,
-		Description: f.Description, ContactPhone: f.ContactPhone,
+		Description: f.Description, ContactPhone: f.ContactPhone, Status: string(f.Status),
 	}
+}
+
+// toOwnerFarmResponse adds the review to what the owner and staff see.
+func toOwnerFarmResponse(f *domain.Farm) farmResponse {
+	out := toFarmResponse(f)
+	v := f.Verification
+	out.Review = &farmReviewResponse{
+		SubmittedAt: v.SubmittedAt, ReviewedAt: v.ReviewedAt, AutoApproved: v.AutoApproved, RejectionReason: v.RejectionReason,
+		CanSubmit: f.Status.CanSubmit(),
+	}
+	return out
 }
 
 // farmProfileResponse is the public farm profile: the farm plus the
@@ -88,7 +113,7 @@ func handleCreateFarm(uc *farm.CreateFarm) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusCreated, toFarmResponse(out.Farm))
+		writeJSON(w, http.StatusCreated, toOwnerFarmResponse(out.Farm))
 	}
 }
 
@@ -122,7 +147,7 @@ func handleListMyFarms(uc *farm.ListMyFarms) http.HandlerFunc {
 		}
 		out := make([]farmResponse, 0, len(farms))
 		for _, f := range farms {
-			out = append(out, toFarmResponse(f))
+			out = append(out, toOwnerFarmResponse(f))
 		}
 		writeJSON(w, http.StatusOK, out)
 	}
@@ -172,5 +197,59 @@ func handleDeleteFarm(uc *farm.DeleteFarm) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+type farmProofUploadResponse struct {
+	Key       string `json:"key"`
+	UploadURL string `json:"uploadUrl"`
+}
+
+func handlePresignFarmProof(uc *farm.PresignFarmProof) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		out, err := uc.Execute(r.Context(), id, claims.UserID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, farmProofUploadResponse{Key: out.Key, UploadURL: out.UploadURL})
+	}
+}
+
+type submitFarmRequest struct {
+	IDDocumentKey string   `json:"idDocumentKey"`
+	PhotoKeys     []string `json:"photoKeys"`
+}
+
+func handleSubmitFarmForReview(uc *farm.SubmitFarmForReview) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		var req submitFarmRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		f, err := uc.Execute(r.Context(), farm.SubmitFarmForReviewInput{FarmID: id, OwnerID: claims.UserID, IDDocumentKey: req.IDDocumentKey, PhotoKeys: req.PhotoKeys})
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(f))
 	}
 }

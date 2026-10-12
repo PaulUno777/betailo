@@ -37,6 +37,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/application/usecase/review"
 	"github.com/pauluno777/betailo/backend/application/usecase/trust"
+	"github.com/pauluno777/betailo/backend/domain"
 	"github.com/pauluno777/betailo/backend/infrastructure/clock"
 	"github.com/pauluno777/betailo/backend/infrastructure/jwt"
 	"github.com/pauluno777/betailo/backend/infrastructure/mongodb"
@@ -57,12 +58,12 @@ type Application struct {
 	Register     *auth.Register
 	Login        *auth.Login
 
-	mongoClient     *mongo.Client
-	mongoDatabase   *mongo.Database
-	storageProvider *objectstorage.S3Provider
-	server          *http.Server
-	worker          *worker.Worker
-	trust           ports.TrustRecomputer
+	mongoClient      *mongo.Client
+	mongoDatabase    *mongo.Database
+	storageProvider  *objectstorage.S3Provider
+	server           *http.Server
+	worker           *worker.Worker
+	ensureSuperAdmin *auth.EnsureSuperAdmin
 }
 
 // Initialize connects to MongoDB and object storage and wires every
@@ -106,6 +107,12 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	txManager := &mongodb.TxManager{Client: client}
 	hasher := security.BcryptHasher{}
 	systemClock := clock.System{}
+
+	maxFarms := maxFarmsPerAccount()
+	autoApproveFarms := os.Getenv("FARM_AUTO_APPROVE") == "true"
+	if autoApproveFarms {
+		logger.Warn("FARM_AUTO_APPROVE is on: farms are approved on submission without staff review. Test use only; turn it off before real sellers arrive.")
+	}
 	sandboxPayments := payment.Sandbox{}
 
 	register := &auth.Register{Users: users, Hasher: hasher, Clock: systemClock}
@@ -177,7 +184,6 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 
 	adminOverview := &admin.Overview{Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Clock: systemClock}
 	adminListUsers := &admin.ListUsers{Users: users}
-	adminVerifyUser := &admin.VerifyUser{Users: users, Trust: trustRecompute}
 	accountGate := &auth.AccountGate{Users: users, Clock: systemClock}
 	adminSuspendUser := &admin.SuspendUser{Users: users, Sessions: accountGate}
 	adminListCycles := &admin.ListAllCycles{Cycles: cycles}
@@ -225,16 +231,22 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			GetProfile:     &account.GetProfile{Users: users},
 			UpdateProfile:  &account.UpdateProfile{Users: users},
 			ChangePassword: &auth.ChangePassword{Users: users, Hasher: hasher, RefreshTokens: refreshTokens, Clock: systemClock},
-			BecomeSeller:   &farm.BecomeSeller{Users: users, Farms: farms, Trust: trustRecompute, Tx: txManager, Clock: systemClock},
+			SellerAccess:   &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms},
 			RateLimits:     httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
-			CreateFarm: &farm.CreateFarm{Farms: farms, Trust: trustRecompute, Clock: systemClock},
+			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, Trust: trustRecompute, Clock: systemClock},
 			GetFarmProfile: &farm.GetProfile{
 				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
 			},
 			ListMyFarms: &farm.ListMyFarms{Farms: farms},
 			UpdateFarm:  &farm.UpdateFarm{Farms: farms},
 			DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
+
+			PresignFarmProof: &farm.PresignFarmProof{Farms: farms, Storage: storageProvider},
+			SubmitFarmForReview: &farm.SubmitFarmForReview{
+				Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock, AutoApprove: autoApproveFarms,
+			},
+			ReviewFarm: &farm.ReviewFarm{Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock},
 
 			CreateCycle: &cycle.CreateCycle{Farms: farms, Cycles: cycles, Sequencer: counters},
 			GetCycle:    &cycle.GetCycle{Cycles: cycles, Clock: systemClock},
@@ -246,10 +258,10 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles, Unpaid: closeUnpaid},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
 
-			CreateListing:      &listing.CreateListing{Users: users, Farms: farms, Cycles: cycles, Listings: listings},
+			CreateListing:      &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
 			GetListing:         &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
 			QuickCreateListing: &listing.QuickCreate{Farms: farms, Cycles: cycles, Listings: listings, Sequencer: counters, Tx: txManager, Clock: systemClock},
-			PublishListing:     &listing.Publish{Users: users, Farms: farms, Cycles: cycles, Listings: listings},
+			PublishListing:     &listing.Publish{Farms: farms, Cycles: cycles, Listings: listings},
 			ListFarmListings:   &listing.ListFarmListings{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations},
 			PriceHint:          &listing.PriceHint{Search: listings},
 			UpdateCycle:        &cycle.UpdateCycle{Farms: farms, Cycles: cycles, Editor: cycles},
@@ -300,7 +312,9 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 
 			AdminOverview:        adminOverview,
 			AdminListUsers:       adminListUsers,
-			AdminVerifyUser:      adminVerifyUser,
+			AdminSetFarmLimit:    &admin.SetFarmLimit{Users: users},
+			AdminListFarms:       &admin.ListFarmsForReview{Farms: farms, Users: users},
+			AdminGetFarm:         &admin.GetFarmForReview{Farms: farms, Users: users, Storage: storageProvider},
 			AdminSuspendUser:     adminSuspendUser,
 			AdminListCycles:      adminListCycles,
 			AdminListListings:    adminListListings,
@@ -318,16 +332,16 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	}
 
 	application := &Application{
-		Logger:          logger,
-		ReserveCycle:    reserveCycle,
-		Register:        register,
-		Login:           login,
-		mongoClient:     client,
-		mongoDatabase:   database,
-		storageProvider: storageProvider,
-		server:          server,
-		worker:          bgWorker,
-		trust:           trustRecompute,
+		Logger:           logger,
+		ReserveCycle:     reserveCycle,
+		Register:         register,
+		Login:            login,
+		mongoClient:      client,
+		mongoDatabase:    database,
+		storageProvider:  storageProvider,
+		server:           server,
+		worker:           bgWorker,
+		ensureSuperAdmin: &auth.EnsureSuperAdmin{Users: users, Hasher: hasher, Clock: systemClock},
 	}
 
 	cleanup := func() {
@@ -357,15 +371,14 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 	} else if n > 0 {
 		a.Logger.Info("gave farms a country and region", "count", n)
 	}
-	if sellers, err := mongodb.VerifyExistingSellers(ctx, a.mongoDatabase); err != nil {
-		return err
-	} else if len(sellers) > 0 {
-		for _, id := range sellers {
-			if err := a.trust.Execute(ctx, id); err != nil {
-				a.Logger.Warn("trust score not recomputed after verifying an existing seller", "userId", id.Hex(), "error", err)
-			}
+	if email := os.Getenv("SUPER_ADMIN_EMAIL"); email != "" {
+		created, err := a.ensureSuperAdmin.Execute(ctx, email, os.Getenv("SUPER_ADMIN_PASSWORD"))
+		if err != nil {
+			return fmt.Errorf("super admin %s: %w", email, err)
 		}
-		a.Logger.Info("verified sellers who already had published listings", "count", len(sellers))
+		if created {
+			a.Logger.Info("created the super admin account", "email", email)
+		}
 	}
 	if n, err := mongodb.MigrateUnpaidToWaitingList(ctx, a.mongoDatabase); err != nil {
 		return err
@@ -511,4 +524,15 @@ func cookieConfig() httpserver.CookieConfig {
 	}
 
 	return httpserver.CookieConfig{Secure: secure, SameSite: sameSite}
+}
+
+// maxFarmsPerAccount reads MAX_FARMS_PER_ACCOUNT: how many farms an
+// account may own unless staff raised it for that account. Unset or
+// not a positive number: domain.DefaultMaxFarmsPerAccount.
+func maxFarmsPerAccount() int {
+	n, err := strconv.Atoi(os.Getenv("MAX_FARMS_PER_ACCOUNT"))
+	if err != nil || n < 1 {
+		return domain.DefaultMaxFarmsPerAccount
+	}
+	return n
 }

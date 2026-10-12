@@ -80,13 +80,19 @@ func TestDemoFlow_HTTP_FarmCycleListing(t *testing.T) {
 	}
 }
 
-func TestCreateFarm_HTTP_BuyerForbidden(t *testing.T) {
+// There is one kind of account: someone who only ever bought can open
+// a farm, and GET /me then lists it.
+func TestCreateFarm_HTTP_AnyAccountCanOpenOne(t *testing.T) {
 	router := newTestRouter()
-	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
+	token, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
-	rec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, buyerToken)
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d — a buyer must not be able to create a farm", rec.Code, http.StatusForbidden)
+	rec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, token)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	me := decodeJSON[meResponse](t, doJSON(t, router, http.MethodGet, "/me", nil, token))
+	if len(me.Farms) != 1 || me.Farms[0].Name != "Ferme" || me.Farms[0].Review == nil {
+		t.Errorf("GET /me farms = %+v, want the new farm with its review state", me.Farms)
 	}
 }
 

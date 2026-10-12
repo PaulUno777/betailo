@@ -76,15 +76,14 @@ func TestRegister_HTTP_Success(t *testing.T) {
 	rec := doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
 		Email:    "farmer@example.com",
 		Password: "correct-horse-battery",
-		Role:     "farmer",
 	}, "")
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusCreated, rec.Body.String())
 	}
 	got := decodeJSON[userResponse](t, rec)
-	if got.Email != "farmer@example.com" || got.Role != "farmer" || got.ID == "" {
-		t.Errorf("body = %+v, want a populated farmer user", got)
+	if got.Email != "farmer@example.com" || got.StaffRole != "" || got.ID == "" {
+		t.Errorf("body = %+v, want a populated personal account, not staff", got)
 	}
 	if bytes.Contains(rec.Body.Bytes(), []byte("correct-horse-battery")) {
 		t.Error("response body leaks the plaintext password")
@@ -96,7 +95,7 @@ func TestRegister_HTTP_Success(t *testing.T) {
 
 func TestRegister_HTTP_DuplicateEmail(t *testing.T) {
 	router := newTestRouter()
-	in := registerRequest{Email: "buyer@example.com", Password: "correct-horse-battery", Role: "buyer"}
+	in := registerRequest{Email: "buyer@example.com", Password: "correct-horse-battery"}
 
 	first := doJSON(t, router, http.MethodPost, "/auth/register", in, "")
 	if first.Code != http.StatusCreated {
@@ -121,15 +120,23 @@ func TestRegister_HTTP_InvalidBody(t *testing.T) {
 	}
 }
 
-func TestRegister_HTTP_RejectsAdminRole(t *testing.T) {
+// Nobody registers into the staff: whatever a client sends along
+// (`role`, `staffRole`), the account created is a personal one and the
+// back office stays closed to it.
+func TestRegister_HTTP_NeverGrantsStaff(t *testing.T) {
 	router := newTestRouter()
+	body := map[string]string{"email": "wannabe@example.com", "password": "correct-horse-battery", "role": "admin", "staffRole": "super_admin"}
 
-	rec := doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: "wannabe@example.com", Password: "correct-horse-battery", Role: "admin",
-	}, "")
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d — self-registering as admin must be rejected", rec.Code, http.StatusBadRequest)
+	rec := doJSON(t, router, http.MethodPost, "/auth/register", body, "")
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	if got := decodeJSON[userResponse](t, rec); got.StaffRole != "" {
+		t.Fatalf("staffRole = %q, want none", got.StaffRole)
+	}
+	login := decodeJSON[loginResponse](t, doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{Email: "wannabe@example.com", Password: "correct-horse-battery"}, ""))
+	if rec := doJSON(t, router, http.MethodGet, "/admin/users", nil, login.AccessToken); rec.Code != http.StatusForbidden {
+		t.Errorf("GET /admin/users status = %d, want 403", rec.Code)
 	}
 }
 
@@ -137,7 +144,7 @@ func TestLoginAndMe_HTTP_FullFlow(t *testing.T) {
 	router := newTestRouter()
 
 	reg := doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: "farmer@example.com", Password: "correct-horse-battery", Role: "farmer",
+		Email: "farmer@example.com", Password: "correct-horse-battery",
 	}, "")
 	if reg.Code != http.StatusCreated {
 		t.Fatalf("register status = %d, want %d", reg.Code, http.StatusCreated)
@@ -153,8 +160,8 @@ func TestLoginAndMe_HTTP_FullFlow(t *testing.T) {
 	if login.AccessToken == "" {
 		t.Fatal("login response has no accessToken")
 	}
-	if login.User.Email != "farmer@example.com" || login.User.Role != "farmer" {
-		t.Errorf("login.User = %+v, want the registered farmer", login.User)
+	if login.User.Email != "farmer@example.com" || login.User.StaffRole != "" {
+		t.Errorf("login.User = %+v, want the registered account", login.User)
 	}
 
 	// The token from login must work as a bearer token on a protected
@@ -163,16 +170,19 @@ func TestLoginAndMe_HTTP_FullFlow(t *testing.T) {
 	if meRec.Code != http.StatusOK {
 		t.Fatalf("GET /me status = %d, want %d; body = %s", meRec.Code, http.StatusOK, meRec.Body.String())
 	}
-	me := decodeJSON[profileResponse](t, meRec)
-	if me.Email != "farmer@example.com" || me.Role != "farmer" || me.ID != login.User.ID {
-		t.Errorf("GET /me = %+v, want it to describe the logged-in farmer", me)
+	me := decodeJSON[meResponse](t, meRec)
+	if me.Email != "farmer@example.com" || me.ID != login.User.ID {
+		t.Errorf("GET /me = %+v, want it to describe the logged-in account", me)
+	}
+	if len(me.Farms) != 0 || !me.CanAddFarm || me.FarmLimit != testMaxFarms {
+		t.Errorf("GET /me seller access = farms %d, canAddFarm %v, limit %d; want no farm yet and room to add one", len(me.Farms), me.CanAddFarm, me.FarmLimit)
 	}
 }
 
 func TestLogin_HTTP_WrongPassword(t *testing.T) {
 	router := newTestRouter()
 	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: "a@example.com", Password: "correct-horse-battery", Role: "buyer",
+		Email: "a@example.com", Password: "correct-horse-battery",
 	}, "")
 
 	rec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
@@ -228,7 +238,7 @@ func TestMe_HTTP_MissingBearerScheme(t *testing.T) {
 func TestMe_HTTP_TokenFromDifferentSecretRejected(t *testing.T) {
 	router := newTestRouter()
 	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: "a@example.com", Password: "correct-horse-battery", Role: "buyer",
+		Email: "a@example.com", Password: "correct-horse-battery",
 	}, "")
 	loginRec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
 		Email: "a@example.com", Password: "correct-horse-battery",
@@ -256,7 +266,7 @@ func TestMe_HTTP_TokenFromDifferentSecretRejected(t *testing.T) {
 func TestLogin_HTTP_SetsRefreshCookie(t *testing.T) {
 	router := newTestRouter()
 	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: "farmer@example.com", Password: "correct-horse-battery", Role: "farmer",
+		Email: "farmer@example.com", Password: "correct-horse-battery",
 	}, "")
 
 	rec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
@@ -290,7 +300,7 @@ func TestLogin_HTTP_SetsRefreshCookie(t *testing.T) {
 func TestLogin_HTTP_NotRemembered_SessionCookie(t *testing.T) {
 	router := newTestRouter()
 	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: "buyer@example.com", Password: "correct-horse-battery", Role: "buyer",
+		Email: "buyer@example.com", Password: "correct-horse-battery",
 	}, "")
 
 	rec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
@@ -310,7 +320,7 @@ func TestLogin_HTTP_NotRemembered_SessionCookie(t *testing.T) {
 func TestRefreshLogoutFlow_HTTP(t *testing.T) {
 	router := newTestRouter()
 	doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: "farmer@example.com", Password: "correct-horse-battery", Role: "farmer",
+		Email: "farmer@example.com", Password: "correct-horse-battery",
 	}, "")
 	loginRec := doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{
 		Email: "farmer@example.com", Password: "correct-horse-battery", Remember: true,

@@ -6,6 +6,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -97,4 +98,22 @@ type fakeTrust struct{ calls []bson.ObjectID }
 func (f *fakeTrust) Execute(_ context.Context, userID bson.ObjectID) error {
 	f.calls = append(f.calls, userID)
 	return nil
+}
+
+func (f *fakeFarms) ListByStatus(context.Context, domain.FarmStatus) ([]*domain.Farm, error) {
+	return nil, nil
+}
+
+// fakeUsers answers FindByID with a plain personal account for anyone,
+// unless a test registered a specific one.
+type fakeUsers struct {
+	ports.UserRepository
+	byID map[bson.ObjectID]*domain.User
+}
+
+func (f *fakeUsers) FindByID(_ context.Context, id bson.ObjectID) (*domain.User, error) {
+	if u, ok := f.byID[id]; ok {
+		return u, nil
+	}
+	return &domain.User{ID: id}, nil
 }

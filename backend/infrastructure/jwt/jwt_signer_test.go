@@ -18,8 +18,8 @@ func TestSigner_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 	in := ports.TokenClaims{
 		UserID:    bson.NewObjectID(),
-		Email:     "farmer@example.com",
-		Role:      domain.RoleFarmer,
+		Email:     "staff@example.com",
+		StaffRole: domain.StaffSuperAdmin,
 		ExpiresAt: time.Now().Add(time.Hour).UTC().Truncate(time.Second),
 	}
 
@@ -41,8 +41,8 @@ func TestSigner_RoundTrip(t *testing.T) {
 	if out.Email != in.Email {
 		t.Errorf("Email = %q, want %q", out.Email, in.Email)
 	}
-	if out.Role != in.Role {
-		t.Errorf("Role = %v, want %v", out.Role, in.Role)
+	if out.StaffRole != in.StaffRole {
+		t.Errorf("StaffRole = %v, want %v", out.StaffRole, in.StaffRole)
 	}
 	if !out.ExpiresAt.Equal(in.ExpiresAt) {
 		t.Errorf("ExpiresAt = %v, want %v", out.ExpiresAt, in.ExpiresAt)
@@ -100,8 +100,8 @@ func TestSigner_ParseAccessToken_RejectsAlgNone(t *testing.T) {
 	s := &Signer{Secret: []byte("test-secret")}
 
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodNone, claims{
-		Role:  domain.RoleAdmin,
-		Email: "attacker@example.com",
+		StaffRole: domain.StaffSuperAdmin,
+		Email:     "attacker@example.com",
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			Subject:   bson.NewObjectID().Hex(),
 			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(time.Hour)),

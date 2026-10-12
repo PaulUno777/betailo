@@ -69,7 +69,7 @@ func TestAdmin_HTTP_OverviewReflectsPlatformActivity(t *testing.T) {
 	}
 }
 
-func TestAdmin_HTTP_UsersVerifyAndSuspend(t *testing.T) {
+func TestAdmin_HTTP_UsersFarmLimitAndSuspend(t *testing.T) {
 	router, tf := newTestRouterAndFakes()
 	root := adminToken(t, router, tf)
 	targetToken, targetID := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
@@ -82,12 +82,18 @@ func TestAdmin_HTTP_UsersVerifyAndSuspend(t *testing.T) {
 		t.Error("expected at least the admin and the farmer in the user list")
 	}
 
-	verifyRec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/verify", nil, root)
-	if verifyRec.Code != http.StatusOK {
-		t.Fatalf("verify status = %d, want %d; body = %s", verifyRec.Code, http.StatusOK, verifyRec.Body.String())
+	limitRec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: 4}, root)
+	if limitRec.Code != http.StatusOK {
+		t.Fatalf("farm-limit status = %d, want %d; body = %s", limitRec.Code, http.StatusOK, limitRec.Body.String())
 	}
-	if !decodeJSON[adminUserResponse](t, verifyRec).IsVerified {
-		t.Error("IsVerified = false after verify")
+	if got := decodeJSON[adminUserResponse](t, limitRec).FarmLimit; got != 4 {
+		t.Errorf("FarmLimit = %d after raising it to 4", got)
+	}
+	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: -1}, root); rec.Code != http.StatusBadRequest {
+		t.Errorf("negative farm-limit status = %d, want 400", rec.Code)
+	}
+	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: 2}, targetToken); rec.Code != http.StatusForbidden {
+		t.Errorf("non-staff farm-limit status = %d, want 403", rec.Code)
 	}
 
 	suspendRec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/suspend", nil, root)
@@ -197,12 +203,12 @@ func TestAdmin_HTTP_ReportsDetailAndResolve(t *testing.T) {
 		t.Errorf("detail.Report.ID = %q, want %q", detail.Report.ID, report.ID)
 	}
 
-	resolveRec := doJSON(t, router, http.MethodPost, "/admin/reports/"+report.ID+"/resolve", resolveReportRequest{Action: "verify_identity"}, root)
+	resolveRec := doJSON(t, router, http.MethodPost, "/admin/reports/"+report.ID+"/resolve", resolveReportRequest{Action: "suspend"}, root)
 	if resolveRec.Code != http.StatusOK {
 		t.Fatalf("resolve status = %d, want %d; body = %s", resolveRec.Code, http.StatusOK, resolveRec.Body.String())
 	}
 	if decodeJSON[reportResponse](t, resolveRec).Status != "handled" {
-		t.Error("report status should be handled after verify_identity")
+		t.Error("report status should be handled after suspending the account")
 	}
 }
 
@@ -245,7 +251,7 @@ func TestAdmin_HTTP_ListingsWithPhotosResolveURLs(t *testing.T) {
 // unverified farmer account trips both account signals.
 func TestAdmin_HTTP_ListingReportScoresOwnerRisk(t *testing.T) {
 	router, tf := newTestRouterAndFakes()
-	tf.users.unverifiedSellers = true
+	tf.farms.awaitReview = true
 	listingID, _ := setupListing(t, router, 120)
 	reporterToken, _ := registerAndLogin(t, router, uniqueEmail("reporter"), "buyer")
 	root := adminToken(t, router, tf)
@@ -267,8 +273,8 @@ func TestAdmin_HTTP_ListingReportScoresOwnerRisk(t *testing.T) {
 	for _, s := range detail.Signals {
 		names[s.Name] = true
 	}
-	if !names["Compte très récent"] || !names["Identité non vérifiée"] {
-		t.Fatalf("signals = %+v, want the new-account and unverified-identity signals", detail.Signals)
+	if !names["Compte très récent"] || !names["Ferme non vérifiée"] {
+		t.Fatalf("signals = %+v, want the new-account and unreviewed-farm signals", detail.Signals)
 	}
 	if detail.RiskScore <= 0 || detail.RiskScore > 100 {
 		t.Fatalf("riskScore = %d, want in (0, 100]", detail.RiskScore)

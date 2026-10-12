@@ -20,8 +20,8 @@ import (
 // file — ports.TokenClaims is the type the rest of the codebase works
 // with; mapping between the two happens only here.
 type claims struct {
-	Role  domain.Role `json:"role"`
-	Email string      `json:"email"`
+	StaffRole domain.StaffRole `json:"staffRole,omitempty"`
+	Email     string           `json:"email"`
 	jwtlib.RegisteredClaims
 }
 
@@ -38,8 +38,8 @@ var _ ports.TokenSigner = (*Signer)(nil)
 // SignAccessToken implements ports.TokenSigner.
 func (s *Signer) SignAccessToken(_ context.Context, c ports.TokenClaims) (string, error) {
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims{
-		Role:  c.Role,
-		Email: c.Email,
+		StaffRole: c.StaffRole,
+		Email:     c.Email,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			Subject:   c.UserID.Hex(),
 			ExpiresAt: jwtlib.NewNumericDate(c.ExpiresAt),
@@ -75,7 +75,7 @@ func (s *Signer) ParseAccessToken(_ context.Context, token string) (ports.TokenC
 	return ports.TokenClaims{
 		UserID:    userID,
 		Email:     c.Email,
-		Role:      c.Role,
+		StaffRole: c.StaffRole,
 		ExpiresAt: c.ExpiresAt.Time,
 	}, nil
 }

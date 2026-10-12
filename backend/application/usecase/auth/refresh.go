@@ -116,7 +116,7 @@ func (uc *RefreshToken) Execute(ctx context.Context, in RefreshTokenInput) (*Ref
 	accessToken, err := uc.Signer.SignAccessToken(ctx, ports.TokenClaims{
 		UserID:    user.ID,
 		Email:     user.Email,
-		Role:      user.Role,
+		StaffRole: user.StaffRole,
 		ExpiresAt: now.Add(accessTTL),
 	})
 	if err != nil {

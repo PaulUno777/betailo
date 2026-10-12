@@ -56,6 +56,9 @@ const (
 	NotifReviewReply          = "review_reply"          // to the reviewer
 	NotifCycleUpdate          = "cycle_update"          // to buyers of the cycle
 	NotifForumReply           = "forum_reply"           // to the post's author
+	NotifFarmApproved         = "farm_approved"         // to the farm's owner
+	NotifFarmRejected         = "farm_rejected"         // to the farm's owner
+	NotifFarmSuspended        = "farm_suspended"        // to the farm's owner
 	NotifBestAnswer           = "best_answer"           // to the reply's author
 )
 
@@ -63,4 +66,5 @@ const (
 const (
 	LinkBuyerReservations  = "/account/reservations"
 	LinkFarmerReservations = "/portal/reservations"
+	LinkSellerFarms        = "/portal/farms"
 )

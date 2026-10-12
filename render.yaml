@@ -47,6 +47,21 @@ services:
         generateValue: true
       - key: ACCESS_TOKEN_TTL
         value: 24h
+      # How many farms one account may own unless staff raise it for
+      # that account.
+      - key: MAX_FARMS_PER_ACCOUNT
+        value: "1"
+      # Test switch: "true" approves farms on submission without staff
+      # review. Keep "false" once real sellers use the platform.
+      - key: FARM_AUTO_APPROVE
+        value: "false"
+      # The first super admin, created (or promoted) at startup. Set
+      # both in the Render dashboard; the password is only used when
+      # the account doesn't exist yet.
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
       # Refresh-token session (see docs/adr/0008). TTL and cookie
       # attributes are plain config, not secrets — only SAMESITE is
       # "none" rather than "lax" because the frontend and backend are

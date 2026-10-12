@@ -80,6 +80,14 @@ services:
       # backend/.env.example.
       JWT_SECRET: local-dev-secret-not-for-production-use
       ACCESS_TOKEN_TTL: 24h
+      # How many farms one account may own unless staff raise it for
+      # that account. See backend/.env.example.
+      MAX_FARMS_PER_ACCOUNT: ${MAX_FARMS_PER_ACCOUNT:-1}
+      # Test switch: farms are approved on submission, without staff.
+      FARM_AUTO_APPROVE: ${FARM_AUTO_APPROVE:-false}
+      # The first super admin, created at startup. Dev-only values.
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@betailo.test}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Betailo-dev-admin-2026}
     ports:
       - "8080:8080"
 

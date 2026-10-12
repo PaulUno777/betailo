@@ -14,7 +14,6 @@ import (
 type registerRequest struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
-	Role        string `json:"role"`
 	DisplayName string `json:"displayName,omitempty"`
 }
 
@@ -22,14 +21,15 @@ type registerRequest struct {
 // not domain.User itself, so PasswordHash can never leak by omitting a
 // json tag by mistake on the domain type.
 type userResponse struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	Role        string `json:"role"`
+	ID    string `json:"id"`
+	Email string `json:"email"`
+	// StaffRole is empty for everyone but the platform's team.
+	StaffRole   string `json:"staffRole,omitempty"`
 	DisplayName string `json:"displayName,omitempty"`
 }
 
 func toUserResponse(u *domain.User) userResponse {
-	return userResponse{ID: u.ID.Hex(), Email: u.Email, Role: string(u.Role), DisplayName: u.DisplayName}
+	return userResponse{ID: u.ID.Hex(), Email: u.Email, StaffRole: string(u.StaffRole), DisplayName: u.DisplayName}
 }
 
 func handleRegister(uc *auth.Register) http.HandlerFunc {
@@ -42,7 +42,6 @@ func handleRegister(uc *auth.Register) http.HandlerFunc {
 		out, err := uc.Execute(r.Context(), auth.RegisterInput{
 			Email:       req.Email,
 			Password:    req.Password,
-			Role:        domain.Role(req.Role),
 			DisplayName: req.DisplayName,
 		})
 		if err != nil {

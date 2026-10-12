@@ -5,6 +5,7 @@ import (
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
+	"github.com/pauluno777/betailo/backend/application/usecase/farm"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/domain"
 )
@@ -34,19 +35,20 @@ func handleAdminOverview(uc *admin.Overview) http.HandlerFunc {
 }
 
 type adminUserResponse struct {
-	ID          string  `json:"id"`
-	Email       string  `json:"email"`
-	Role        string  `json:"role"`
-	DisplayName string  `json:"displayName,omitempty"`
-	IsVerified  bool    `json:"isVerified"`
-	Suspended   bool    `json:"suspended"`
-	TrustScore  float64 `json:"trustScore"`
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	StaffRole   string `json:"staffRole,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	// FarmLimit is what staff set for this account; 0 = platform default.
+	FarmLimit  int     `json:"farmLimit"`
+	Suspended  bool    `json:"suspended"`
+	TrustScore float64 `json:"trustScore"`
 }
 
 func toAdminUserResponse(u *domain.User) adminUserResponse {
 	return adminUserResponse{
-		ID: u.ID.Hex(), Email: u.Email, Role: string(u.Role), DisplayName: u.DisplayName,
-		IsVerified: u.IsVerified, Suspended: u.Suspended, TrustScore: u.TrustScore,
+		ID: u.ID.Hex(), Email: u.Email, StaffRole: string(u.StaffRole), DisplayName: u.DisplayName,
+		FarmLimit: u.FarmLimit, Suspended: u.Suspended, TrustScore: u.TrustScore,
 	}
 }
 
@@ -65,13 +67,21 @@ func handleAdminListUsers(uc *admin.ListUsers) http.HandlerFunc {
 	}
 }
 
-func handleAdminVerifyUser(uc *admin.VerifyUser) http.HandlerFunc {
+type farmLimitRequest struct {
+	Limit int `json:"limit"`
+}
+
+func handleAdminSetFarmLimit(uc *admin.SetFarmLimit) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pathObjectID(w, r, "id")
 		if !ok {
 			return
 		}
-		u, err := uc.Execute(r.Context(), id)
+		var req farmLimitRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		u, err := uc.Execute(r.Context(), id, req.Limit)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -244,5 +254,94 @@ func handleAdminResolveReport(uc *admin.ResolveReport) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, toReportResponse(rp))
+	}
+}
+
+// adminFarmResponse is a farm in the validation queue, with its owner.
+type adminFarmResponse struct {
+	farmResponse
+	Owner *adminUserResponse `json:"owner,omitempty"`
+}
+
+func toAdminFarmResponse(item admin.FarmReviewItem) adminFarmResponse {
+	out := adminFarmResponse{farmResponse: toOwnerFarmResponse(item.Farm)}
+	if item.Owner != nil {
+		owner := toAdminUserResponse(item.Owner)
+		out.Owner = &owner
+	}
+	return out
+}
+
+func handleAdminListFarms(uc *admin.ListFarmsForReview) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		items, err := uc.Execute(r.Context(), domain.FarmStatus(r.URL.Query().Get("status")))
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		out := make([]adminFarmResponse, 0, len(items))
+		for _, item := range items {
+			out = append(out, toAdminFarmResponse(item))
+		}
+		writeJSON(w, http.StatusOK, out)
+	}
+}
+
+// adminFarmDetailResponse adds the proof (short-lived links) staff
+// decide from.
+type adminFarmDetailResponse struct {
+	adminFarmResponse
+	IDDocumentURL  string   `json:"idDocumentUrl,omitempty"`
+	PhotoURLs      []string `json:"photoUrls"`
+	OwnerFarmCount int      `json:"ownerFarmCount"`
+}
+
+func handleAdminGetFarm(uc *admin.GetFarmForReview) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		d, err := uc.Execute(r.Context(), id)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		photos := d.PhotoURLs
+		if photos == nil {
+			photos = []string{}
+		}
+		writeJSON(w, http.StatusOK, adminFarmDetailResponse{
+			adminFarmResponse: toAdminFarmResponse(d.FarmReviewItem), IDDocumentURL: d.IDDocumentURL, PhotoURLs: photos, OwnerFarmCount: d.OwnerFarmCount,
+		})
+	}
+}
+
+type reviewFarmRequest struct {
+	Decision string `json:"decision"`
+	Reason   string `json:"reason,omitempty"`
+}
+
+func handleAdminReviewFarm(uc *farm.ReviewFarm) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		var req reviewFarmRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		f, err := uc.Execute(r.Context(), farm.ReviewFarmInput{FarmID: id, ReviewerID: claims.UserID, Decision: farm.FarmDecision(req.Decision), Reason: req.Reason})
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(f))
 	}
 }

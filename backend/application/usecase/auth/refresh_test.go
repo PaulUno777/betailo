@@ -12,9 +12,9 @@ import (
 // loginFor is a small helper: register+login a user and return both
 // the user and the raw refresh secret login issued, so each test below
 // starts from a real token family rather than hand-building one.
-func loginFor(t *testing.T, users *fakeUsers, refreshTokens *fakeRefreshTokens, signer *fakeSigner, now time.Time, email string, role domain.Role, remember bool) (*domain.User, string) {
+func loginFor(t *testing.T, users *fakeUsers, refreshTokens *fakeRefreshTokens, signer *fakeSigner, now time.Time, email string, remember bool) (*domain.User, string) {
 	t.Helper()
-	registeredUser(t, users, email, "correct-horse", role)
+	registeredUser(t, users, email, "correct-horse")
 	loginUC := &Login{
 		Users: users, RefreshTokens: refreshTokens, Hasher: fakeHasher{}, Signer: signer,
 		Clock: fakeClock{now: now}, AccessTTL: time.Hour, RefreshTTL: 48 * time.Hour,
@@ -31,12 +31,12 @@ func TestRefreshToken_Execute_Success(t *testing.T) {
 	refreshTokens := newFakeRefreshTokens()
 	signer := &fakeSigner{}
 	loginAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	user, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "farmer@example.com", domain.RoleFarmer, true)
+	user, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "farmer@example.com", true)
 
-	// Simulate a role change between login and refresh — this is the
+	// Simulate joining the staff between login and refresh — this is the
 	// actual point of reloading the user fresh in RefreshToken.Execute
 	// rather than trusting the claims a prior access token carried.
-	user.Role = domain.RoleAdmin
+	user.StaffRole = domain.StaffSuperAdmin
 	if err := users.Update(context.Background(), user); err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
@@ -63,8 +63,8 @@ func TestRefreshToken_Execute_Success(t *testing.T) {
 
 	// The role change took effect: the newly signed claims reflect it.
 	last := signer.signed[len(signer.signed)-1]
-	if last.Role != domain.RoleAdmin {
-		t.Errorf("signed claims.Role = %v, want %v (role change should propagate on refresh)", last.Role, domain.RoleAdmin)
+	if last.StaffRole != domain.StaffSuperAdmin {
+		t.Errorf("signed claims.StaffRole = %v, want %v (a staff change should propagate on refresh)", last.StaffRole, domain.StaffSuperAdmin)
 	}
 
 	// The old secret is now dead — rotate-on-use.
@@ -82,7 +82,7 @@ func TestRefreshToken_Execute_ReuseRevokesWholeFamily(t *testing.T) {
 	refreshTokens := newFakeRefreshTokens()
 	signer := &fakeSigner{}
 	loginAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, rawRefresh1 := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", domain.RoleBuyer, false)
+	_, rawRefresh1 := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", false)
 
 	uc := &RefreshToken{Users: users, RefreshTokens: refreshTokens, Signer: signer, Clock: fakeClock{now: loginAt.Add(time.Minute)}}
 
@@ -115,7 +115,7 @@ func TestRefreshToken_Execute_Expired(t *testing.T) {
 	refreshTokens := newFakeRefreshTokens()
 	signer := &fakeSigner{}
 	loginAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", domain.RoleBuyer, false)
+	_, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", false)
 
 	// Past the 30-day default RefreshTTL loginFor's Login used.
 	uc := &RefreshToken{Users: users, RefreshTokens: refreshTokens, Signer: signer, Clock: fakeClock{now: loginAt.Add(31 * 24 * time.Hour)}}
@@ -129,7 +129,7 @@ func TestRefreshToken_Execute_SuspendedUser(t *testing.T) {
 	refreshTokens := newFakeRefreshTokens()
 	signer := &fakeSigner{}
 	loginAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	user, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "farmer@example.com", domain.RoleFarmer, false)
+	user, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "farmer@example.com", false)
 
 	user.Suspended = true
 	if err := users.Update(context.Background(), user); err != nil {

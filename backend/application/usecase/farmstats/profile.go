@@ -47,7 +47,7 @@ func BuildProfile(ctx context.Context, src ProfileSources, f *domain.Farm) (*Pro
 	return &Profile{
 		Farm:          f,
 		TrustScore:    owner.TrustScore,
-		Verified:      owner.IsVerified,
+		Verified:      f.Status.CanSell() && !f.Verification.AutoApproved,
 		SalesCount:    sales,
 		MemberSince:   owner.CreatedAt,
 		ReviewAverage: reviews.Average,

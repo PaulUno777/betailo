@@ -173,8 +173,9 @@ func TestRecompute_Execute_BaseScoreWithNoSignals(t *testing.T) {
 
 func TestRecompute_Execute_VerifiedIdentityAndSalesAndReviewsRaiseScore(t *testing.T) {
 	userID, farmID, cycleID, listingID := bson.NewObjectID(), bson.NewObjectID(), bson.NewObjectID(), bson.NewObjectID()
-	users := &fakeUsers{byID: map[bson.ObjectID]*domain.User{userID: {ID: userID, IsVerified: true}}}
-	farms := &fakeFarms{byOwner: map[bson.ObjectID][]*domain.Farm{userID: {{ID: farmID, OwnerID: userID}}}}
+	users := &fakeUsers{byID: map[bson.ObjectID]*domain.User{userID: {ID: userID}}}
+	// A farm staff approved is where the owner's identity was checked.
+	farms := &fakeFarms{byOwner: map[bson.ObjectID][]*domain.Farm{userID: {{ID: farmID, OwnerID: userID, Status: domain.FarmApproved}}}}
 	cycles := &fakeCycles{byFarm: map[bson.ObjectID][]*domain.Cycle{farmID: {{ID: cycleID, FarmID: farmID}}}}
 	listings := &fakeListings{byCycle: map[bson.ObjectID]*domain.Listing{cycleID: {ID: listingID}}}
 	released := &domain.Reservation{ListingID: listingID, Payment: &domain.PaymentInfo{Status: domain.PaymentReleased}}
@@ -213,4 +214,8 @@ func TestRecompute_Execute_ReportsLowerScoreAndClampsAtZero(t *testing.T) {
 	if got := users.byID[userID].TrustScore; got != 0 {
 		t.Errorf("TrustScore = %v, want 0 (clamped)", got)
 	}
+}
+
+func (f *fakeFarms) ListByStatus(context.Context, domain.FarmStatus) ([]*domain.Farm, error) {
+	return nil, nil
 }

@@ -19,6 +19,10 @@ import (
 
 type fakeFarmRepo struct {
 	byID map[bson.ObjectID]*domain.Farm
+	// awaitReview leaves a new farm a draft, as in production. Off by
+	// default: most tests are about what a seller does once staff
+	// approved their farm, so a new farm is approved on the spot.
+	awaitReview bool
 }
 
 func newFakeFarmRepo() *fakeFarmRepo {
@@ -29,8 +33,21 @@ func (f *fakeFarmRepo) Create(_ context.Context, farm *domain.Farm) error {
 	if farm.ID.IsZero() {
 		farm.ID = bson.NewObjectID()
 	}
+	if !f.awaitReview && farm.Status == domain.FarmDraft {
+		farm.Status = domain.FarmApproved
+	}
 	f.byID[farm.ID] = farm
 	return nil
+}
+
+func (f *fakeFarmRepo) ListByStatus(_ context.Context, status domain.FarmStatus) ([]*domain.Farm, error) {
+	var out []*domain.Farm
+	for _, farm := range f.byID {
+		if status == "" || farm.Status == status {
+			out = append(out, farm)
+		}
+	}
+	return out, nil
 }
 
 func (f *fakeFarmRepo) FindByID(_ context.Context, id bson.ObjectID) (*domain.Farm, error) {
@@ -298,8 +315,11 @@ func (f *fakeListingSearch) Search(_ context.Context, c ports.ListingSearchCrite
 		if c.Region != "" && farmVal.Region != c.Region {
 			continue
 		}
+		if !farmVal.Status.CanSell() {
+			continue
+		}
 		owner, _ := f.users.FindByID(context.Background(), farmVal.OwnerID)
-		verified := owner != nil && owner.IsVerified
+		verified := !farmVal.Verification.AutoApproved
 		if c.VerifiedOnly && !verified {
 			continue
 		}

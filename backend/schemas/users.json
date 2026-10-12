@@ -1,14 +1,14 @@
 {
   "bsonType": "object",
-  "required": ["email", "passwordHash", "role", "createdAt"],
+  "required": ["email", "passwordHash", "createdAt"],
   "properties": {
     "email": { "bsonType": "string" },
     "passwordHash": { "bsonType": "string" },
-    "role": { "enum": ["farmer", "buyer", "admin"] },
+    "staffRole": { "enum": ["super_admin"] },
+    "farmLimit": { "bsonType": ["int", "long"], "minimum": 0 },
     "displayName": { "bsonType": "string", "maxLength": 60 },
     "phone": { "bsonType": "string", "pattern": "^\\+[0-9]{8,15}$" },
     "city": { "bsonType": "string", "maxLength": 80 },
-    "isVerified": { "bsonType": "bool" },
     "suspended": { "bsonType": "bool" },
     "trustScore": { "bsonType": ["double", "int"] },
     "createdAt": { "bsonType": "date" }

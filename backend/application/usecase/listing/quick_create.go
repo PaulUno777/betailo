@@ -129,11 +129,10 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 // Publish puts a draft (or a previously unpublished) listing live. A
 // listing needs at least one photo to go live, and its cycle must still
 // be open: there's nothing to sell from a finished or cancelled cycle.
-// Its seller must be verified (farm.not_verified otherwise); that is
+// Its farm must be approved (farm.not_approved otherwise); that is
 // checked last, so a seller first hears about what they can fix
 // themselves.
 type Publish struct {
-	Users    ports.UserRepository
 	Farms    ports.FarmRepository
 	Cycles   ports.CycleStore
 	Listings ports.ListingStore
@@ -164,12 +163,12 @@ func (uc *Publish) Execute(ctx context.Context, listingID, ownerID bson.ObjectID
 	if c.Status != domain.CycleStatusPlanned && c.Status != domain.CycleStatusInProgress {
 		return nil, domain.Coded("listing.cycle_closed", fmt.Errorf("listing: its cycle is closed: %w", domain.ErrConflict))
 	}
-	verified, err := isVerifiedSeller(ctx, uc.Users, ownerID)
+	f, err := uc.Farms.FindByID(ctx, c.FarmID)
 	if err != nil {
 		return nil, err
 	}
-	if !verified {
-		return nil, errSellerNotVerified()
+	if !f.Status.CanSell() {
+		return nil, errFarmNotApproved(f)
 	}
 	l.Status = domain.ListingPublished
 	if err := uc.Listings.Update(ctx, l); err != nil {

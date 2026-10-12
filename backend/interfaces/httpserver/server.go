@@ -14,8 +14,6 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/pauluno777/betailo/backend/domain"
 )
 
 // chain applies middlewares to h in the order given — chain(h, A, B)
@@ -30,17 +28,16 @@ func chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler 
 
 // NewRouter builds the application's top-level router.
 //
-// Creating a farm, cycle or listing is restricted to farmers
-// (RequireRole) — everything else that mutates one of those (update,
-// delete, a cycle's status) is protected by RequireAuth alone and
-// relies on the usecase's own ownership check instead: a buyer could
-// never own a farm to begin with, so a second role gate there would be
-// redundant. Reads (GET) need no authentication — farms, cycles and
+// There is one kind of account. Anything that creates or changes a
+// farm, cycle or listing is protected by RequireAuth and by the
+// usecase's own ownership check: you sell from a farm you own, and
+// only an approved farm's listings go live (see domain.FarmStatus).
+// Reads (GET) need no authentication — farms, cycles and
 // published listings are the public marketplace.
 func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux := http.NewServeMux()
 	auth := RequireAuth(deps.Signer, deps.Accounts)
-	farmerOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireRole(domain.RoleFarmer)) }
+	signedIn := func(h http.Handler) http.Handler { return chain(h, auth) }
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /reference/geo", handleGeoReference)
@@ -55,19 +52,20 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// already expired.
 	mux.Handle("POST /auth/refresh", limit(deps.RateLimits.Refresh, handleRefresh(deps.RefreshToken, deps.Cookies)))
 	mux.HandleFunc("POST /auth/logout", handleLogout(deps.Logout, deps.Cookies))
-	mux.Handle("GET /me", chain(handleGetProfile(deps.GetProfile), auth))
+	mux.Handle("GET /me", chain(handleGetProfile(deps.GetProfile, deps.SellerAccess), auth))
 	mux.Handle("PATCH /me", chain(handleUpdateProfile(deps.UpdateProfile), auth))
 	// Guessing the current password is rate-limited like login.
 	mux.Handle("POST /me/password", limit(deps.RateLimits.Login, chain(handleChangePassword(deps.ChangePassword, deps.Login, deps.Cookies), auth)))
-	mux.Handle("POST /me/become-seller", chain(handleBecomeSeller(deps.BecomeSeller), auth))
 
-	mux.Handle("POST /farms", farmerOnly(handleCreateFarm(deps.CreateFarm)))
+	mux.Handle("POST /farms", signedIn(handleCreateFarm(deps.CreateFarm)))
 	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms), auth))
 	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm), auth))
 	mux.Handle("DELETE /farms/{id}", chain(handleDeleteFarm(deps.DeleteFarm), auth))
+	mux.Handle("POST /farms/{id}/verification/presign", signedIn(handlePresignFarmProof(deps.PresignFarmProof)))
+	mux.Handle("POST /farms/{id}/verification/submit", signedIn(handleSubmitFarmForReview(deps.SubmitFarmForReview)))
 
-	mux.Handle("POST /cycles", farmerOnly(handleCreateCycle(deps.CreateCycle)))
+	mux.Handle("POST /cycles", signedIn(handleCreateCycle(deps.CreateCycle)))
 	mux.HandleFunc("GET /cycles/{id}", handleGetCycle(deps.GetCycle))
 	mux.HandleFunc("GET /farms/{farmId}/cycles", handleListCyclesByFarm(deps.ListCyclesByFarm))
 	mux.Handle("PATCH /cycles/{id}/status", chain(handleUpdateCycleStatus(deps.UpdateCycleStatus), auth))
@@ -75,11 +73,11 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("PUT /cycles/{id}", chain(handleUpdateCycle(deps.UpdateCycle), auth))
 	mux.Handle("POST /cycles/{id}/health-events", chain(handleAddHealthEvent(deps.AddHealthEvent), auth))
 
-	mux.Handle("POST /listings", farmerOnly(handleCreateListing(deps.CreateListing, deps.Storage)))
+	mux.Handle("POST /listings", signedIn(handleCreateListing(deps.CreateListing, deps.Storage)))
 	mux.Handle("GET /listings/{id}", chain(handleGetListing(deps.GetListing, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("GET /listings/{id}/detail", chain(handleGetListingDetail(deps.GetListingDetail, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("GET /listings", chain(handleSearchListings(deps.SearchListings, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
-	mux.Handle("POST /farms/{farmId}/quick-listings", farmerOnly(handleQuickCreateListing(deps.QuickCreateListing, deps.Storage)))
+	mux.Handle("POST /farms/{farmId}/quick-listings", signedIn(handleQuickCreateListing(deps.QuickCreateListing, deps.Storage)))
 	mux.Handle("POST /listings/{id}/publish", chain(handlePublishListing(deps.PublishListing, deps.Storage), auth))
 	mux.Handle("GET /farms/{farmId}/listings", chain(handleListFarmListings(deps.ListFarmListings, deps.Storage), auth))
 	mux.HandleFunc("GET /listings/price-hint", handlePriceHint(deps.PriceHint))
@@ -131,14 +129,16 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// itself, the same as every other /farms/{farmId}/... route.
 	mux.Handle("GET /farms/{farmId}/dashboard", chain(handleSellerDashboard(deps.SellerDashboard), auth))
 
-	// Admin (root) console — every route here is gated on the admin
-	// role alone; each usecase reads/writes platform-wide, with no
+	// Back office — every route here is gated on being staff; each usecase reads/writes platform-wide, with no
 	// further ownership check of its own (see application/usecase/admin's
 	// package doc).
-	adminOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireRole(domain.RoleAdmin)) }
+	adminOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireStaff()) }
 	mux.Handle("GET /admin/overview", adminOnly(handleAdminOverview(deps.AdminOverview)))
 	mux.Handle("GET /admin/users", adminOnly(handleAdminListUsers(deps.AdminListUsers)))
-	mux.Handle("POST /admin/users/{id}/verify", adminOnly(handleAdminVerifyUser(deps.AdminVerifyUser)))
+	mux.Handle("POST /admin/users/{id}/farm-limit", adminOnly(handleAdminSetFarmLimit(deps.AdminSetFarmLimit)))
+	mux.Handle("GET /admin/farms", adminOnly(handleAdminListFarms(deps.AdminListFarms)))
+	mux.Handle("GET /admin/farms/{id}", adminOnly(handleAdminGetFarm(deps.AdminGetFarm)))
+	mux.Handle("POST /admin/farms/{id}/review", adminOnly(handleAdminReviewFarm(deps.ReviewFarm)))
 	mux.Handle("POST /admin/users/{id}/suspend", adminOnly(handleAdminSuspendUser(deps.AdminSuspendUser)))
 	mux.Handle("GET /admin/cycles", adminOnly(handleAdminListCycles(deps.AdminListCycles)))
 	mux.Handle("GET /admin/listings", adminOnly(handleAdminListListings(deps.AdminListListings, deps.Storage)))

@@ -9,13 +9,13 @@ import (
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
-func registeredUser(t *testing.T, users *fakeUsers, email, password string, role domain.Role) *domain.User {
+func registeredUser(t *testing.T, users *fakeUsers, email, password string) *domain.User {
 	t.Helper()
 	hash, err := (fakeHasher{}).Hash(password)
 	if err != nil {
 		t.Fatalf("Hash() error = %v", err)
 	}
-	u := &domain.User{Email: normalizeEmail(email), PasswordHash: hash, Role: role, CreatedAt: time.Now()}
+	u := &domain.User{Email: normalizeEmail(email), PasswordHash: hash, CreatedAt: time.Now()}
 	if err := users.Create(context.Background(), u); err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
@@ -24,7 +24,7 @@ func registeredUser(t *testing.T, users *fakeUsers, email, password string, role
 
 func TestLogin_Execute_Success(t *testing.T) {
 	users := newFakeUsers()
-	registeredUser(t, users, "farmer@example.com", "correct-horse", domain.RoleFarmer)
+	registeredUser(t, users, "farmer@example.com", "correct-horse")
 
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	signer := &fakeSigner{}
@@ -48,8 +48,8 @@ func TestLogin_Execute_Success(t *testing.T) {
 		t.Fatalf("signed %d tokens, want 1", len(signer.signed))
 	}
 	claims := signer.signed[0]
-	if claims.Email != "farmer@example.com" || claims.Role != domain.RoleFarmer {
-		t.Errorf("claims = %+v, want email/role to match the user", claims)
+	if claims.Email != "farmer@example.com" || claims.StaffRole != domain.StaffNone {
+		t.Errorf("claims = %+v, want the user's email and no staff role", claims)
 	}
 	if want := now.Add(time.Hour); !claims.ExpiresAt.Equal(want) {
 		t.Errorf("claims.ExpiresAt = %v, want %v", claims.ExpiresAt, want)
@@ -78,7 +78,7 @@ func TestLogin_Execute_Success(t *testing.T) {
 
 func TestLogin_Execute_DefaultTTL(t *testing.T) {
 	users := newFakeUsers()
-	registeredUser(t, users, "a@example.com", "correct-horse", domain.RoleBuyer)
+	registeredUser(t, users, "a@example.com", "correct-horse")
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	signer := &fakeSigner{}
 	uc := &Login{Users: users, RefreshTokens: newFakeRefreshTokens(), Hasher: fakeHasher{}, Signer: signer, Clock: fakeClock{now: now}} // AccessTTL/RefreshTTL left zero
@@ -97,7 +97,7 @@ func TestLogin_Execute_DefaultTTL(t *testing.T) {
 
 func TestLogin_Execute_WrongPassword(t *testing.T) {
 	users := newFakeUsers()
-	registeredUser(t, users, "a@example.com", "correct-horse", domain.RoleBuyer)
+	registeredUser(t, users, "a@example.com", "correct-horse")
 	uc := &Login{Users: users, RefreshTokens: newFakeRefreshTokens(), Hasher: fakeHasher{}, Signer: &fakeSigner{}, Clock: fakeClock{now: time.Now()}}
 
 	_, err := uc.Execute(context.Background(), LoginInput{Email: "a@example.com", Password: "wrong-password"})
@@ -120,7 +120,7 @@ func TestLogin_Execute_UnknownEmail(t *testing.T) {
 // credentials" and reveals nothing.
 func TestLogin_Execute_SuspendedAccount(t *testing.T) {
 	users := newFakeUsers()
-	u := registeredUser(t, users, "banned@example.com", "correct-horse", domain.RoleBuyer)
+	u := registeredUser(t, users, "banned@example.com", "correct-horse")
 	u.Suspended = true
 	signer := &fakeSigner{}
 	uc := &Login{

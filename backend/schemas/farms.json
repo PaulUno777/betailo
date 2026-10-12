@@ -1,6 +1,6 @@
 {
   "bsonType": "object",
-  "required": ["ownerId", "name", "location", "createdAt"],
+  "required": ["ownerId", "name", "location", "createdAt", "status"],
   "properties": {
     "ownerId": { "bsonType": "objectId" },
     "name": { "bsonType": "string" },
@@ -11,6 +11,23 @@
     },
     "createdAt": { "bsonType": "date" },
     "description": { "bsonType": "string", "maxLength": 1000 },
-    "contactPhone": { "bsonType": "string", "pattern": "^\\+[0-9]{8,15}$" }
+    "contactPhone": { "bsonType": "string", "pattern": "^\\+[0-9]{8,15}$" },
+    "status": { "enum": ["draft", "pending", "approved", "rejected", "suspended"] },
+    "verification": {
+      "bsonType": "object",
+      "properties": {
+        "idDocumentKey": { "bsonType": "string" },
+        "photoKeys": {
+          "bsonType": "array",
+          "maxItems": 3,
+          "items": { "bsonType": "string" }
+        },
+        "submittedAt": { "bsonType": "date" },
+        "reviewedAt": { "bsonType": "date" },
+        "reviewedBy": { "bsonType": "objectId" },
+        "autoApproved": { "bsonType": "bool" },
+        "rejectionReason": { "bsonType": "string", "maxLength": 500 }
+      }
+    }
   }
 }
