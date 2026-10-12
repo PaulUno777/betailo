@@ -5,7 +5,7 @@ import { filter, map } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { SellerSpaceService } from '../../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
-import { Role } from '../../../domain/enums';
+import { farmStatusEntry } from '../../../domain/rules/status-registry';
 import { AvatarComponent } from '../avatar/avatar.component';
 import { IconComponent } from '../icon/icon.component';
 import { IconName } from '../icon/icon-paths';
@@ -23,6 +23,9 @@ const FAVORITES_LINK: RoleLink = { route: '/account/favorites', labelKey: 'nav.f
  * its farm (selling), or the admin console. */
 interface Space {
   readonly id: 'personal' | 'farm' | 'admin';
+  /** Unique in the list: farms share `id`. */
+  readonly key: string;
+  readonly farmId?: string;
   readonly route: string;
   readonly name: string;
   readonly hintKey: string;
@@ -69,12 +72,12 @@ function spaceOf(url: string): SpaceId {
           <p class="truncate px-4 pb-2 text-small text-ink-muted">{{ auth.user()?.email }}</p>
           <div class="border-t border-line"></div>
           <p class="px-4 pb-1 pt-3 text-eyebrow text-ink-muted">{{ 'nav.spaces' | t }}</p>
-          @for (space of spaces(); track space.id) {
+          @for (space of spaces(); track space.key) {
             <a
               [routerLink]="space.route"
               role="menuitem"
-              [attr.aria-current]="space.id === current() ? 'true' : null"
-              (click)="open.set(false)"
+              [attr.aria-current]="isCurrent(space) ? 'true' : null"
+              (click)="enter(space)"
               class="flex items-center gap-3 px-4 py-2 text-ink hover:bg-surface-sunken"
             >
               <bt-avatar [name]="space.name" [size]="36" [shape]="space.id === 'personal' ? 'round' : 'square'" [tone]="space.id === 'personal' ? 'clay' : 'forest'" />
@@ -82,7 +85,7 @@ function spaceOf(url: string): SpaceId {
                 <span class="truncate text-body-strong">{{ space.name }}</span>
                 <span class="truncate text-small text-ink-muted">{{ space.hintKey | t }}</span>
               </span>
-              @if (space.id === current()) {
+              @if (isCurrent(space)) {
                 <bt-icon name="check" [size]="18" class="shrink-0 text-forest" />
               }
             </a>
@@ -97,6 +100,8 @@ function spaceOf(url: string): SpaceId {
                 <span class="text-small text-ink-muted">{{ 'nav.addFarmHint' | t }}</span>
               </span>
             </a>
+          } @else if (atFarmLimit()) {
+            <p class="px-4 py-2 text-small text-ink-muted">{{ 'nav.farmLimitReached' | t: { count: farmLimit() } }}</p>
           }
           <div class="mt-2 border-t border-line"></div>
           @for (link of roleLinks(); track link.route) {
@@ -144,30 +149,38 @@ export class UserMenuComponent {
 
   protected readonly displayName = computed(() => this.auth.user()?.displayName || this.auth.user()?.email || '');
 
-  /** Buying is personal whatever the role: a seller or an admin can
-   * reserve too, so these two never go away. */
-  protected readonly roleLinks = computed<readonly RoleLink[]>(() => (this.auth.role() ? [MY_RESERVATIONS_LINK, FAVORITES_LINK] : []));
+  /** Buying is personal: a seller or a staff member can reserve too,
+   * so these two never go away. */
+  protected readonly roleLinks = computed<readonly RoleLink[]>(() => (this.auth.isAuthenticated() ? [MY_RESERVATIONS_LINK, FAVORITES_LINK] : []));
 
+  /** Personal first, then each farm the account owns (opening one makes
+   * it the farm the portal works on), then the back office for staff. */
   protected readonly spaces = computed<readonly Space[]>(() => {
-    const role: Role | null = this.auth.role();
-    const list: Space[] = [{ id: 'personal', route: '/', name: this.displayName(), hintKey: 'nav.personalSpace' }];
-    const farm = this.seller.farm();
-    if (role === 'farmer') {
-      list.push({
-        id: 'farm',
-        route: '/portal',
-        name: farm?.name ?? this.displayName(),
-        hintKey: this.seller.pendingVerification() ? 'nav.verificationPending' : 'nav.sellerSpace'
-      });
+    const list: Space[] = [{ id: 'personal', key: 'personal', route: '/', name: this.displayName(), hintKey: 'nav.personalSpace' }];
+    for (const farm of this.seller.farms()) {
+      list.push({ id: 'farm', key: farm.id, farmId: farm.id, route: '/portal', name: farm.name, hintKey: farmStatusEntry(farm.status).labelKey });
     }
-    if (role === 'admin') {
-      list.push({ id: 'admin', route: '/admin', name: 'Betailo', hintKey: 'nav.admin' });
+    if (this.auth.isStaff()) {
+      list.push({ id: 'admin', key: 'admin', route: '/admin', name: 'Betailo', hintKey: 'nav.admin' });
     }
     return list;
   });
 
-  /** Admin accounts don't sell (the API refuses it). */
-  protected readonly canAddFarm = computed(() => this.auth.role() === 'buyer');
+  /** The API's call: under the account's farm limit, and not staff. */
+  protected readonly canAddFarm = computed(() => this.seller.canAddFarm());
+  /** At the limit: said rather than silently hiding "Add a farm". */
+  protected readonly atFarmLimit = computed(() => this.seller.hasFarm() && !this.seller.canAddFarm());
+  protected readonly farmLimit = computed(() => this.seller.farmLimit());
+
+  protected isCurrent(space: Space): boolean {
+    if (space.id !== this.current()) return false;
+    return space.id !== 'farm' || space.farmId === this.seller.currentFarm()?.id;
+  }
+
+  protected enter(space: Space): void {
+    if (space.farmId) this.seller.select(space.farmId);
+    this.open.set(false);
+  }
 
   protected readonly current = toSignal(
     this.router.events.pipe(

@@ -1,4 +1,4 @@
-import { CycleStatus, ListingStatus, PaymentStatus, ReservationStatus } from '../enums';
+import { CycleStatus, FarmStatus, ListingStatus, PaymentStatus, ReservationStatus } from '../enums';
 
 /** A Badge tone, from the design system's fixed tinted-pill palette. */
 export type BadgeTone = 'forest' | 'forest-solid' | 'clay' | 'sky' | 'amber' | 'alert' | 'plum' | 'stone' | 'ink' | 'neutral';
@@ -50,6 +50,15 @@ const ESCROW_STATUS: Readonly<Record<PaymentStatus, StatusEntry>> = {
   refunded: { labelKey: 'status.escrowRefunded', tone: 'plum' }
 };
 
+/** A farm's review by the platform's team. */
+const FARM_STATUS: Readonly<Record<FarmStatus, StatusEntry>> = {
+  draft: { labelKey: 'status.farmDraft', tone: 'stone' },
+  pending: { labelKey: 'status.farmPending', tone: 'amber' },
+  approved: { labelKey: 'status.farmApproved', tone: 'forest' },
+  rejected: { labelKey: 'status.farmRejected', tone: 'alert' },
+  suspended: { labelKey: 'status.farmSuspended', tone: 'alert' }
+};
+
 const PRIORITY_STATUS: Readonly<Record<PriorityStatus, StatusEntry>> = {
   paid: { labelKey: 'status.priorityPaid', tone: 'forest' },
   unpaid: { labelKey: 'status.priorityUnpaid', tone: 'amber' }
@@ -69,6 +78,10 @@ export function reservationStatusEntry(status: ReservationStatus): StatusEntry {
 
 export function escrowStatusEntry(status: PaymentStatus): StatusEntry {
   return ESCROW_STATUS[status];
+}
+
+export function farmStatusEntry(status: FarmStatus): StatusEntry {
+  return FARM_STATUS[status];
 }
 
 export function priorityStatusEntry(priority: boolean): StatusEntry {

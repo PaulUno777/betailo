@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ResolveAction } from '../../domain/enums';
-import { AdminUser, Reservation, Report } from '../../domain/models';
+import { FarmDecision, FarmStatus, ResolveAction } from '../../domain/enums';
+import { AdminUser, Farm, Reservation, Report } from '../../domain/models';
 import { ApiClient, QueryParams } from '../../core/http/api-client';
 
 @Injectable({ providedIn: 'root' })
@@ -16,8 +16,22 @@ export class AdminApi {
     return this.api.url('/admin/users');
   }
 
-  verifyUser(id: string): Observable<AdminUser> {
-    return this.api.post<AdminUser>(`/admin/users/${id}/verify`);
+  /** How many farms this account may own; 0 puts it back on the
+   * platform default. */
+  setFarmLimit(id: string, limit: number): Observable<AdminUser> {
+    return this.api.post<AdminUser>(`/admin/users/${id}/farm-limit`, { limit });
+  }
+
+  farmsUrl(status?: FarmStatus): string {
+    return this.api.url('/admin/farms', { status } as QueryParams);
+  }
+
+  farmDetailUrl(id: string): string {
+    return this.api.url(`/admin/farms/${id}`);
+  }
+
+  reviewFarm(id: string, decision: FarmDecision, reason?: string): Observable<Farm> {
+    return this.api.post<Farm>(`/admin/farms/${id}/review`, { decision, reason });
   }
 
   suspendUser(id: string): Observable<AdminUser> {

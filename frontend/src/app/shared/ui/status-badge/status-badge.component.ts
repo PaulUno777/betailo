@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { CycleStatus, ListingStatus, PaymentStatus, ReservationStatus } from '../../../domain/enums';
+import { CycleStatus, ListingStatus, PaymentStatus, ReservationStatus, FarmStatus } from '../../../domain/enums';
 import {
   BadgeTone,
   cycleStatusEntry,
   escrowStatusEntry,
   listingStatusEntry,
+  farmStatusEntry,
   priorityStatusEntry,
   reservationStatusEntry,
   trustScoreTone
@@ -12,7 +13,7 @@ import {
 import { LocaleService } from '../../../core/i18n/locale.service';
 import { BadgeComponent } from '../badge/badge.component';
 
-export type StatusBadgeKind = 'cycle' | 'listing' | 'reservation' | 'escrow' | 'payment' | 'trust';
+export type StatusBadgeKind = 'cycle' | 'listing' | 'reservation' | 'escrow' | 'payment' | 'trust' | 'farm';
 
 interface ToneEntry {
   readonly tone: BadgeTone;
@@ -51,6 +52,8 @@ export class StatusBadgeComponent {
         return escrowStatusEntry(status as PaymentStatus);
       case 'payment':
         return priorityStatusEntry(status as boolean);
+      case 'farm':
+        return farmStatusEntry(status as FarmStatus);
       case 'trust':
         return { tone: trustScoreTone(status as number) };
     }

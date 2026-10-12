@@ -1,12 +1,12 @@
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Cycle, Farm } from '../../domain/models';
+import { Cycle } from '../../domain/models';
 import { speciesLabelKey } from '../../domain/reference/species';
-import { FarmsApi } from '../../data-access/farms/farms.api';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { CapacityBarComponent } from '../../shared/ui/capacity-bar/capacity-bar.component';
@@ -77,12 +77,11 @@ export class PortalCyclesListComponent {
     return cycleTypeLabelKey(type);
   }
 
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly cyclesApi = inject(CyclesApi);
   private readonly toast = inject(ToastService);
 
-  protected readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
-  protected readonly myFarm = computed(() => this.farms.value()?.[0]);
+  protected readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly cycles = apiResource<Cycle[]>(() => {
     const farmId = this.myFarm()?.id;

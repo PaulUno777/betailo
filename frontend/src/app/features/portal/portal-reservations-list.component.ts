@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Farm, ReservationAction, ReservationGroup, ReservationList, ReservationView } from '../../domain/models';
-import { FarmsApi } from '../../data-access/farms/farms.api';
+import { ReservationAction, ReservationGroup, ReservationList, ReservationView } from '../../domain/models';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { apiResource } from '../../core/http/api-resource';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
@@ -63,7 +63,7 @@ const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
               {{ 'portalReservations.empty' | t }}
             </p>
           }
-        } @else if (list.isLoading() || farms.isLoading()) {
+        } @else if (list.isLoading() || !seller.loaded()) {
           @for (i of [1, 2]; track i) {
             <div class="h-40 animate-pulse rounded-xl bg-surface-sunken"></div>
           }
@@ -77,15 +77,14 @@ const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
   `
 })
 export class PortalReservationsListComponent {
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly reservationsApi = inject(ReservationsApi);
   private readonly toast = inject(ToastService);
 
   protected readonly tabs = TABS;
   protected readonly group = signal<ReservationGroup>('active');
 
-  protected readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
-  private readonly myFarm = computed(() => this.farms.value()?.[0]);
+  private readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly list = apiResource<ReservationList>(() => {
     const farmId = this.myFarm()?.id;

@@ -1,10 +1,10 @@
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DashboardTodo, Farm, SellerDashboard } from '../../domain/models';
+import { DashboardTodo, SellerDashboard } from '../../domain/models';
 import { speciesLabelKey } from '../../domain/reference/species';
-import { FarmsApi } from '../../data-access/farms/farms.api';
 import { DashboardApi } from '../../data-access/dashboard/dashboard.api';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { CapacityBarComponent } from '../../shared/ui/capacity-bar/capacity-bar.component';
@@ -41,11 +41,11 @@ const TODO_ICONS: Readonly<Record<DashboardTodo['kind'], IconName>> = {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (farms.isLoading()) {
+    @if (!seller.loaded()) {
       <p class="p-8 text-body text-ink-muted">{{ 'portal.loading' | t }}</p>
     } @else if (!myFarm()) {
       <div class="mx-auto max-w-lg p-4 sm:p-8">
-        <bt-seller-onboarding (created)="farms.reload()" />
+        <bt-seller-onboarding (created)="seller.refresh()" />
       </div>
     } @else {
       <div class="p-4 sm:p-8">
@@ -159,11 +159,10 @@ const TODO_ICONS: Readonly<Record<DashboardTodo['kind'], IconName>> = {
   `
 })
 export class PortalDashboardComponent {
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly dashboardApi = inject(DashboardApi);
 
-  protected readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
-  protected readonly myFarm = computed(() => this.farms.value()?.[0]);
+  protected readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly dashboard = apiResource<SellerDashboard>(() => {
     const farmId = this.myFarm()?.id;

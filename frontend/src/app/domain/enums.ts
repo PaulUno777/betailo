@@ -3,7 +3,14 @@
  * module: these are all narrow, related vocabularies with no behaviour
  * of their own. */
 
-export type Role = 'farmer' | 'buyer' | 'admin';
+/** What a member of the platform's team may do in the back office.
+ * Everyone else has none: there is one kind of account. */
+export type StaffRole = 'super_admin';
+
+/** A farm's review state. Only `approved` sells. */
+export type FarmStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'suspended';
+
+export type FarmDecision = 'approve' | 'reject' | 'suspend';
 
 export type CycleStatus = 'planned' | 'in_progress' | 'done' | 'cancelled';
 
@@ -19,4 +26,4 @@ export type ReportTargetType = 'listing' | 'profile' | 'forum_post' | 'reservati
 
 export type ReportStatus = 'open' | 'under_review' | 'handled' | 'rejected';
 
-export type ResolveAction = 'dismiss' | 'verify_identity' | 'suspend';
+export type ResolveAction = 'dismiss' | 'suspend';

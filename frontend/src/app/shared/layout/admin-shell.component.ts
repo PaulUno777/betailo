@@ -7,6 +7,7 @@ import { SidebarShellComponent } from './sidebar-shell.component';
 
 const ITEMS: readonly (Omit<SidebarNavItem, 'label'> & { labelKey: string })[] = [
   { labelKey: 'adminNav.overview', icon: 'chart', route: '/admin', exactMatch: true },
+  { labelKey: 'adminNav.farms', icon: 'leaf', route: '/admin/farms' },
   { labelKey: 'adminNav.users', icon: 'users', route: '/admin/users' },
   { labelKey: 'adminNav.listings', icon: 'grid', route: '/admin/listings' },
   { labelKey: 'adminNav.escrow', icon: 'wallet', route: '/admin/escrow' },
@@ -23,13 +24,14 @@ const FOOTER: readonly (Omit<SidebarNavItem, 'label'> & { labelKey: string })[] 
 // No raised center action: admins moderate, they don't publish.
 const BOTTOM_ITEMS: readonly BottomNavItem[] = [
   { kind: 'link', labelKey: 'adminNav.overviewShort', icon: 'chart', route: '/admin', exact: true },
+  { kind: 'link', labelKey: 'adminNav.farms', icon: 'leaf', route: '/admin/farms' },
   { kind: 'link', labelKey: 'adminNav.reports', icon: 'flag', route: '/admin/reports' },
   { kind: 'link', labelKey: 'adminNav.escrow', icon: 'wallet', route: '/admin/escrow' },
-  { kind: 'link', labelKey: 'adminNav.users', icon: 'users', route: '/admin/users' },
   { kind: 'more', labelKey: 'moreSheet.tab', icon: 'more' }
 ];
 
 const MORE_LINKS: readonly MoreSheetLink[] = [
+  { labelKey: 'adminNav.users', icon: 'users', route: '/admin/users' },
   { labelKey: 'adminNav.listings', icon: 'grid', route: '/admin/listings' },
   { labelKey: 'adminNav.forum', icon: 'message', route: '/forum' },
   { labelKey: 'adminNav.settings', icon: 'settings', route: '/admin/settings' },

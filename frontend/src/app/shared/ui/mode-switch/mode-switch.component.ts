@@ -1,24 +1,24 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/auth/auth.service';
+import { SellerSpaceService } from '../../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { IconComponent } from '../icon/icon.component';
 
 export type ModeSwitchMode = 'buy' | 'sell';
 export type ModeSwitchTone = 'light' | 'dark';
 
-/** "Acheter | Vendre": the always-visible way a farmer moves between the
+/** "Acheter | Vendre": the always-visible way a seller moves between the
  * market and their seller space (the Airbnb "switch to hosting" idea),
  * instead of digging for it in the account menu. `mode` is the side the
- * page is on; the other half links across. Renders nothing for anyone
- * who isn't a farmer: buyers are invited to sell elsewhere, and admins
- * have their own space. */
+ * page is on; the other half links across. Renders nothing for an
+ * account without a farm: it is invited to open one elsewhere, and
+ * staff have their own space. */
 @Component({
   selector: 'bt-mode-switch',
   imports: [RouterLink, IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (auth.role() === 'farmer') {
+    @if (seller.hasFarm()) {
       <div
         role="group"
         [attr.aria-label]="'modeSwitch.label' | t"
@@ -51,7 +51,7 @@ export type ModeSwitchTone = 'light' | 'dark';
   `
 })
 export class ModeSwitchComponent {
-  protected readonly auth = inject(AuthService);
+  protected readonly seller = inject(SellerSpaceService);
 
   readonly mode = input.required<ModeSwitchMode>();
   readonly tone = input<ModeSwitchTone>('light');
