@@ -78,7 +78,7 @@ import { FarmProofFormComponent } from './farm-proof-form.component';
               (click)="toggle(s)"
               [attr.aria-pressed]="species().includes(s)"
               class="flex h-11 items-center gap-2 rounded-full border px-4 text-body-strong transition"
-              [class]="species().includes(s) ? 'border-forest bg-forest-soft text-forest-deep' : 'border-line-strong bg-surface-card text-ink'"
+              [class]="species().includes(s) ? 'border-forest bg-forest-soft text-on-forest-soft' : 'border-line-strong bg-surface-card text-ink'"
             >
               <span class="h-2.5 w-2.5 rounded-full" [class]="dots[s]"></span>
               {{ speciesLabels[s] | t }}

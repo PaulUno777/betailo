@@ -27,6 +27,9 @@
   --color-on-forest: #ffffff;
   --color-on-forest-deep: #f5efe3;
   --color-forest-soft: #dcebdf;
+  /* Text on `forest-soft`: `forest-deep` stays dark in the dark theme, where
+   * it is a background. */
+  --color-on-forest-soft: #123d2c;
   --color-clay: #e8813f;
   --color-on-clay: #16211c;
   --color-clay-ink: #9a4515;
@@ -87,6 +90,7 @@
   --dark-on-forest: #0c1410;
   --dark-on-forest-deep: #f1ece2;
   --dark-forest-soft: #173a2a;
+  --dark-on-forest-soft: #bfe3cf;
   --dark-clay: #f0914f;
   --dark-clay-ink: #f4a66e;
   --dark-clay-soft: #3a2212;
@@ -126,6 +130,7 @@
     --color-on-forest: var(--dark-on-forest);
     --color-on-forest-deep: var(--dark-on-forest-deep);
     --color-forest-soft: var(--dark-forest-soft);
+    --color-on-forest-soft: var(--dark-on-forest-soft);
     --color-clay: var(--dark-clay);
     --color-clay-ink: var(--dark-clay-ink);
     --color-clay-soft: var(--dark-clay-soft);
@@ -165,6 +170,7 @@
   --color-on-forest: var(--dark-on-forest);
   --color-on-forest-deep: var(--dark-on-forest-deep);
   --color-forest-soft: var(--dark-forest-soft);
+  --color-on-forest-soft: var(--dark-on-forest-soft);
   --color-clay: var(--dark-clay);
   --color-clay-ink: var(--dark-clay-ink);
   --color-clay-soft: var(--dark-clay-soft);
@@ -186,6 +192,37 @@
   --shadow-dialog: var(--dark-shadow-dialog);
   --shadow-cta: var(--dark-shadow-cta);
   --shadow-focus: var(--dark-shadow-focus);
+}
+
+/* A panel that is dark by design in both themes: the workspace sidebars
+ * and the back office's work-queue card. The dark theme turns `ink` and
+ * the soft tones around, which would leave light text on a light panel,
+ * so inside one the colours keep their light-theme values. */
+.panel-dark {
+  --color-surface: #f5efe3;
+  --color-surface-raised: #fbf8f2;
+  --color-surface-card: #ffffff;
+  --color-surface-sunken: #ede5d6;
+  --color-line: #e3dacb;
+  --color-line-strong: #cfc4b0;
+  --color-ink: #16211c;
+  --color-ink-muted: #5e6b63;
+  --color-forest: #1f6448;
+  --color-forest-deep: #123d2c;
+  --color-on-forest: #ffffff;
+  --color-on-forest-deep: #f5efe3;
+  --color-forest-soft: #dcebdf;
+  --color-on-forest-soft: #123d2c;
+  --color-clay: #e8813f;
+  --color-on-clay: #16211c;
+  --color-clay-ink: #9a4515;
+  --color-clay-soft: #f9e1cf;
+  --color-sky: #2f4a75;
+  --color-sky-soft: #e1e8f3;
+  --color-alert: #a3332a;
+  --color-on-alert: #ffffff;
+  --color-alert-soft: #f6deda;
+  --color-focus: var(--dark-focus);
 }
 
 /* Named type styles from the design system — one class per style so

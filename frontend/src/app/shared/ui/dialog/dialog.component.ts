@@ -33,7 +33,7 @@ const TONE_CLASSES: Readonly<Record<DialogTone, string>> = {
       [attr.aria-labelledby]="titleId"
       [attr.role]="tone() === 'alert' ? 'alertdialog' : 'dialog'"
       (close)="closed.emit()"
-      class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md rounded-lg bg-surface-card p-6 text-ink backdrop:bg-ink/40"
+      class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md rounded-lg bg-surface-card p-6 text-ink backdrop:bg-black/50"
       style="box-shadow: var(--shadow-dialog)"
     >
       <div class="flex flex-col gap-4">

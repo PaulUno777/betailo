@@ -81,7 +81,8 @@ export class LoginComponent {
     this.authApi.login({ email, password, remember: this.remember() }).subscribe({
       next: ({ accessToken, user }) => {
         this.authService.setSession(accessToken, user);
-        const redirectTo = this.route.snapshot.queryParamMap.get('redirectTo') ?? '/';
+        // A staff member signs in to work: the back office is their home.
+        const redirectTo = this.route.snapshot.queryParamMap.get('redirectTo') ?? (user.staffRole ? '/admin' : '/');
         this.router.navigateByUrl(redirectTo);
       },
       error: (err: AppError) => {

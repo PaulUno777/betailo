@@ -83,7 +83,7 @@ import { MoreSheetComponent, MoreSheetLink } from './more-sheet.component';
         >
           <a [routerLink]="homeRoute()" class="flex items-center gap-2">
             <bt-logo />
-            <span class="rounded-full bg-forest-soft px-2 py-0.5 text-caption font-semibold text-forest-deep">{{ spaceLabelKey() | t }}</span>
+            <span class="rounded-full bg-forest-soft px-2 py-0.5 text-caption font-semibold text-on-forest-soft">{{ spaceLabelKey() | t }}</span>
           </a>
           <bt-notification-bell />
         </header>

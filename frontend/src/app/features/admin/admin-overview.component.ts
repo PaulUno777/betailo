@@ -110,7 +110,7 @@ const CHART_HEIGHT = 180;
             }
           </section>
 
-          <section class="flex flex-col gap-3.5 rounded-2xl bg-ink p-4 text-on-forest-deep sm:p-[22px]">
+          <section class="flex flex-col gap-3.5 panel-dark rounded-2xl bg-ink p-4 text-on-forest-deep sm:p-[22px]">
             <div class="flex items-center justify-between gap-3">
               <h2 class="font-display text-[19px] font-bold">{{ 'adminOverview.queueTitle' | t }}</h2>
               @if (waiting(o) === 0) {
@@ -161,7 +161,7 @@ const CHART_HEIGHT = 180;
           <section class="bo-card flex flex-col gap-2.5 px-2 pt-[22px] pb-2">
             <div class="flex items-center justify-between gap-3 px-3.5">
               <h2 class="font-display text-[19px] font-bold">{{ 'adminOverview.escrowTitle' | t }}</h2>
-              <a routerLink="/admin/escrow" class="text-[13.5px] font-semibold text-forest hover:text-forest-deep">{{ 'adminOverview.seeAll' | t }}</a>
+              <a routerLink="/admin/escrow" class="text-[13.5px] font-semibold text-forest underline-offset-2 hover:underline">{{ 'adminOverview.seeAll' | t }}</a>
             </div>
             @if (latest().length === 0) {
               <p class="px-3.5 pb-4 text-small text-ink-muted">{{ (escrow.isLoading() ? 'adminOverview.loading' : 'adminEscrow.empty') | t }}</p>

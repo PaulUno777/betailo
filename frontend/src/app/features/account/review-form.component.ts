@@ -136,7 +136,7 @@ interface PickedPhoto {
 
             <bt-text-field [label]="'reviewForm.comment' | t" multiline [ngModel]="comment()" (ngModelChange)="comment.set($event)" name="comment" />
 
-            <div class="flex gap-3 rounded-lg bg-forest-soft p-4 text-small text-forest-deep">
+            <div class="flex gap-3 rounded-lg bg-forest-soft p-4 text-small text-on-forest-soft">
               <bt-icon name="shield" [size]="18" class="mt-0.5 shrink-0 text-forest" />
               <span>{{ 'reviewForm.verifiedNotice' | t: { ref: v.reference } }}</span>
             </div>

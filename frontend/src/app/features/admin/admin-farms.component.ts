@@ -183,7 +183,7 @@ type Check = (typeof CHECKS)[number];
                   }
                 </span>
                 @if (staff.can('accounts.farm_limit')) {
-                  <a routerLink="/admin/staff" fragment="farm-limits" class="font-bold text-forest hover:text-forest-deep">{{ 'adminFarms.manageLimit' | t }}</a>
+                  <a routerLink="/admin/staff" fragment="farm-limits" class="font-bold text-forest underline-offset-2 hover:underline">{{ 'adminFarms.manageLimit' | t }}</a>
                 }
               </div>
             </div>
@@ -253,7 +253,7 @@ type Check = (typeof CHECKS)[number];
           }
 
           @if (d.status !== 'pending' && d.status !== 'draft') {
-            <div class="flex flex-col gap-1 rounded-2xl p-[18px]" [class]="d.status === 'approved' ? 'bg-forest-soft text-forest-deep' : 'bg-alert-soft text-alert'">
+            <div class="flex flex-col gap-1 rounded-2xl p-[18px]" [class]="d.status === 'approved' ? 'bg-forest-soft text-on-forest-soft' : 'bg-alert-soft text-alert'">
               <b class="text-body-strong">
                 @if (d.review?.autoApproved) {
                   {{ 'adminFarms.decidedAuto' | t }}

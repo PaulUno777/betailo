@@ -72,7 +72,7 @@ function isoWeek(date: Date): number {
               <span class="font-display text-[30px] leading-none font-extrabold tracking-[-0.02em] sm:text-[38px]">{{ d.reservationsThisPeriod }}</span>
               <span class="text-small text-ink-muted">{{ 'portal.kpiReservationsHint' | t }}</span>
             </div>
-            <div class="flex flex-col gap-2 rounded-[20px] bg-forest-deep p-4 text-on-forest-deep sm:p-5 xl:order-last">
+            <div class="flex flex-col gap-2 panel-dark rounded-[20px] bg-forest-deep p-4 text-on-forest-deep sm:p-5 xl:order-last">
               <span class="truncate text-eyebrow text-on-forest-deep/70">{{ 'portal.kpiTrustScore' | t }}</span>
               <span class="font-display text-[30px] leading-none font-extrabold sm:text-[38px]">
                 {{ trust(d.trustScore) }}<span class="text-[18px] text-on-forest-deep/70">/100</span>
@@ -86,7 +86,7 @@ function isoWeek(date: Date): number {
             </div>
             <div class="col-span-2 flex flex-col gap-2 rounded-[20px] border border-forest/15 bg-forest-soft p-4 sm:p-5 xl:col-span-1">
               <span class="text-eyebrow text-forest">{{ 'portal.kpiReleased' | t }}</span>
-              <span class="font-display text-[30px] leading-none font-extrabold tracking-[-0.02em] text-forest-deep sm:text-[38px]">{{ amount(d.releasedThisPeriod) }}</span>
+              <span class="font-display text-[30px] leading-none font-extrabold tracking-[-0.02em] text-on-forest-soft sm:text-[38px]">{{ amount(d.releasedThisPeriod) }}</span>
               <span class="text-small text-forest">{{ 'portal.kpiReleasedHint' | t }}</span>
             </div>
           </div>
@@ -95,7 +95,7 @@ function isoWeek(date: Date): number {
             <section class="flex flex-col gap-4 rounded-[20px] border border-line bg-surface-card p-4 sm:p-6">
               <div class="flex items-center justify-between gap-3">
                 <h2 class="font-display text-[20px] font-bold sm:text-[22px]">{{ 'portal.activeCyclesTitle' | t }}</h2>
-                <a routerLink="/portal/cycles" class="text-small font-semibold text-forest hover:text-forest-deep">{{ 'portal.seeAll' | t }}</a>
+                <a routerLink="/portal/cycles" class="text-small font-semibold text-forest underline-offset-2 hover:underline">{{ 'portal.seeAll' | t }}</a>
               </div>
               @if (d.activeCycles.length === 0) {
                 <div class="flex flex-col items-start gap-3 rounded-[14px] border border-dashed border-line-strong p-5">
@@ -173,7 +173,7 @@ function isoWeek(date: Date): number {
               <section class="flex flex-col gap-3.5 rounded-[20px] border border-line bg-surface-card p-4 sm:p-[22px]">
                 <div class="flex items-center justify-between gap-3">
                   <h2 class="font-display text-[20px] font-bold">{{ 'portal.latestReservationsTitle' | t }}</h2>
-                  <a routerLink="/portal/reservations" class="text-small font-semibold text-forest hover:text-forest-deep">{{ 'portal.seeAll' | t }}</a>
+                  <a routerLink="/portal/reservations" class="text-small font-semibold text-forest underline-offset-2 hover:underline">{{ 'portal.seeAll' | t }}</a>
                 </div>
                 @if (d.latestReservations.length === 0) {
                   <p class="text-body text-ink-muted">{{ 'portal.noReservations' | t }}</p>

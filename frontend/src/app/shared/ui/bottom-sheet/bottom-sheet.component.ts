@@ -59,7 +59,7 @@ const DISMISS_DRAG_PX = 96;
       [attr.aria-labelledby]="titleId"
       (close)="onNativeClose()"
       [style.transform]="dragOffset() ? 'translateY(' + dragOffset() + 'px)' : null"
-      class="fixed inset-x-0 bottom-0 top-auto m-0 hidden open:flex max-h-[88dvh] w-full max-w-none flex-col rounded-t-xl bg-surface-card p-0 text-ink backdrop:bg-ink/45 sm:inset-0 sm:m-auto sm:max-h-[80dvh] sm:max-w-lg sm:rounded-xl"
+      class="fixed inset-x-0 bottom-0 top-auto m-0 hidden open:flex max-h-[88dvh] w-full max-w-none flex-col rounded-t-xl bg-surface-card p-0 text-ink backdrop:bg-black/50 sm:inset-0 sm:m-auto sm:max-h-[80dvh] sm:max-w-lg sm:rounded-xl"
       style="box-shadow: var(--shadow-dialog)"
     >
       <div

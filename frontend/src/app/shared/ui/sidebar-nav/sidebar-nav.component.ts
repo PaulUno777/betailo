@@ -59,7 +59,7 @@ const BADGE_CLASSES: Readonly<Record<Exclude<SidebarBadgeTone, 'plain'>, string>
       }
     </ng-template>
 
-    <nav [attr.aria-label]="label()" [class]="'flex h-full flex-col overflow-y-auto ' + frameClass()">
+    <nav [attr.aria-label]="label()" [class]="'panel-dark flex h-full flex-col overflow-y-auto ' + frameClass()">
       <div class="flex items-center gap-2.5 px-2">
         <bt-logo tone="light" [markSize]="ink() ? 28 : 30" />
         @if (badgeLabel(); as text) {
