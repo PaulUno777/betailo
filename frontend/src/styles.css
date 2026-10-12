@@ -377,7 +377,7 @@ body {
  * phones every field is bumped to 16px. !important because the type
  * utilities on the controls (text-body) would otherwise win. */
 @media (width < 40rem) {
-  :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):not([class*="text-heading"]):not([class*="text-display"]):not([class*="text-number"]) {
     font-size: 16px !important;
   }
 }

@@ -11,6 +11,7 @@ import { IconButtonComponent } from '../ui/icon-button/icon-button.component';
 import { LogoComponent } from '../ui/logo/logo.component';
 import { LocaleToggleComponent } from '../ui/locale-toggle/locale-toggle.component';
 import { UserMenuComponent } from '../ui/user-menu/user-menu.component';
+import { NotificationBellComponent } from '../ui/notification-bell/notification-bell.component';
 import { ToastHostComponent } from '../ui/toast/toast-host.component';
 import { SiteFooterComponent } from './site-footer.component';
 
@@ -18,7 +19,7 @@ const BUYER_TABS: readonly BottomNavItem[] = [
   { kind: 'link', labelKey: 'bottomNav.home', icon: 'home', route: '/', exact: true },
   { kind: 'link', labelKey: 'bottomNav.market', icon: 'search', route: '/marketplace' },
   { kind: 'link', labelKey: 'bottomNav.reservations', icon: 'calendar', route: '/account/reservations' },
-  { kind: 'link', labelKey: 'bottomNav.profile', icon: 'user', route: '/account' }
+  { kind: 'link', labelKey: 'bottomNav.profile', icon: 'user', route: '/account', exact: true }
 ];
 
 /** The shell for every public-site route (Home, Marketplace, Listing,
@@ -49,6 +50,7 @@ const BUYER_TABS: readonly BottomNavItem[] = [
     LogoComponent,
     LocaleToggleComponent,
     UserMenuComponent,
+    NotificationBellComponent,
     ToastHostComponent,
     SiteFooterComponent,
     TranslatePipe
@@ -80,7 +82,7 @@ const BUYER_TABS: readonly BottomNavItem[] = [
               (click)="theme.toggle()"
             />
             @if (auth.isAuthenticated()) {
-              <bt-icon-button icon="bell" [label]="'nav.notifications' | t" />
+              <bt-notification-bell />
               <bt-user-menu />
             } @else {
               <bt-locale-toggle class="sm:hidden" />

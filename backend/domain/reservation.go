@@ -28,7 +28,10 @@ const (
 // invoice line: they never recompute if the listing's price changes
 // afterwards.
 type Reservation struct {
-	ID          bson.ObjectID
+	ID bson.ObjectID
+	// Reference is the human code buyers and farmers quote ("RSV-2041"),
+	// assigned from a counter at creation.
+	Reference   string
 	ListingID   bson.ObjectID
 	BuyerID     bson.ObjectID
 	Quantity    int

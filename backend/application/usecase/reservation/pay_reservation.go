@@ -15,15 +15,18 @@ import (
 // pending/unpaid to confirmed/held/priority via the same capturePayment
 // path ReserveCycle uses for pay-now.
 type PayReservation struct {
-	Reservations ports.ReservationRepository
-	Payments     ports.PaymentProvider
-	Clock        ports.Clock
+	Reservations  ports.ReservationRepository
+	Payments      ports.PaymentProvider
+	Clock         ports.Clock
+	Parties       Parties
+	Notifications ports.NotificationRepository
 }
 
 type PayReservationInput struct {
 	ReservationID bson.ObjectID
 	BuyerID       bson.ObjectID
 	PaymentMethod ports.PaymentMethod
+	PayerPhone    string
 }
 
 // Execute returns domain.ErrNotFound if the reservation doesn't exist,
@@ -42,8 +45,13 @@ func (uc *PayReservation) Execute(ctx context.Context, in PayReservationInput) (
 		return nil, fmt.Errorf("reservation: not awaiting payment: %w", domain.ErrConflict)
 	}
 
-	if err := capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, in.PaymentMethod); err != nil {
+	payment, err := validatePayment(in.PaymentMethod, in.PayerPhone)
+	if err != nil {
 		return nil, err
 	}
+	if err := capturePayment(ctx, uc.Payments, uc.Reservations, uc.Clock, res, payment); err != nil {
+		return nil, err
+	}
+	uc.Parties.notifyFarmer(ctx, uc.Notifications, uc.Clock, res, domain.NotifReservationPaid, "Réservation %s payée, fonds en séquestre.")
 	return res, nil
 }

@@ -1,95 +1,260 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Reservation } from '../../domain/models';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map, Observable } from 'rxjs';
+import { PaymentMethod } from '../../domain/enums';
+import { ReservationAction, ReservationGroup, ReservationList, ReservationView } from '../../domain/models';
+import { PAYMENT_METHOD_LABEL_KEYS, PAYMENT_METHOD_VALUES } from '../../domain/rules/payment-method';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
-import { ReservationRowComponent } from './reservation-row.component';
-import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { ReviewsApi } from '../../data-access/reviews/reviews.api';
+import { AppError } from '../../core/http/app-error';
+import { ToastService } from '../../core/notifications/toast.service';
+import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { apiResource } from '../../core/http/api-resource';
+import { BottomSheetComponent } from '../../shared/ui/bottom-sheet/bottom-sheet.component';
+import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { ChoiceCardComponent } from '../../shared/ui/choice-card/choice-card.component';
+import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { RatingComponent } from '../../shared/ui/rating/rating.component';
+import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
+import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { ReservationCardComponent } from './reservation-card.component';
 
-type ReservationTab = 'active' | 'completed' | 'cancelled';
-
-const TAB_STATUSES: Readonly<Record<ReservationTab, Reservation['status'][]>> = {
-  active: ['pending', 'confirmed', 'delivered'],
-  completed: ['delivered'],
-  cancelled: ['cancelled']
-};
-
-const TABS: readonly { id: ReservationTab; labelKey: string }[] = [
+const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
   { id: 'active', labelKey: 'reservations.tabActive' },
-  { id: 'completed', labelKey: 'reservations.tabCompleted' },
+  { id: 'done', labelKey: 'reservations.tabCompleted' },
   { id: 'cancelled', labelKey: 'reservations.tabCancelled' }
 ];
 
+type Sheet = { kind: 'pay' | 'dispute' | 'confirm' | 'cancel' | 'review'; view: ReservationView } | null;
+
+/** "Mes réservations", per the mobile design: tabs with the API's
+ * counts, the money held in escrow, and one card per reservation. What
+ * each card can do comes from the API (`actions`); the sheets here only
+ * collect what an action needs (a payment number, a dispute reason, a
+ * rating) and call it. */
 @Component({
   selector: 'bt-reservations-list',
-  imports: [ReservationRowComponent, FcfaCurrencyPipe, TranslatePipe],
+  imports: [
+    FormsModule,
+    ReservationCardComponent,
+    BottomSheetComponent,
+    ButtonComponent,
+    ChoiceCardComponent,
+    IconComponent,
+    RatingComponent,
+    TextFieldComponent,
+    FcfaCurrencyPipe,
+    TranslatePipe
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="mx-auto max-w-content-max px-5 py-8 sm:px-18">
-      <h1 class="text-heading-2">{{ 'reservations.title' | t }}</h1>
+    <div class="mx-auto max-w-3xl px-4 pb-8 pt-5 sm:px-8 lg:py-10">
+      <h1 class="text-heading-1">{{ 'reservations.title' | t }}</h1>
 
-      @if (escrowHeldTotal() > 0) {
-        <div class="mt-4 flex items-center justify-between rounded-lg bg-forest-deep p-5 text-on-forest-deep">
-          <span class="text-body-strong">{{ 'reservations.escrowTotalLabel' | t }}</span>
-          <span class="text-amount">{{ escrowHeldTotal() | fcfa }}</span>
-        </div>
-      }
-
-      <div class="mt-6 flex gap-6 border-b border-line text-body-strong">
+      <div class="mt-4 grid grid-cols-3 gap-1 rounded-full bg-surface-sunken p-1" role="tablist">
         @for (tab of tabs; track tab.id) {
           <button
             type="button"
-            (click)="activeTab.set(tab.id)"
-            [class]="'pb-3 ' + (activeTab() === tab.id ? 'border-b-2 border-forest text-forest' : 'text-ink-muted')"
+            role="tab"
+            [attr.aria-selected]="group() === tab.id"
+            (click)="group.set(tab.id)"
+            class="h-11 rounded-full text-small font-semibold transition"
+            [class]="group() === tab.id ? 'bg-surface-card text-ink shadow-sm' : 'text-ink-muted'"
           >
-            {{ tab.labelKey | t }} · {{ tabCount(tab.id) }}
+            {{ tab.labelKey | t }} · {{ list.value()?.counts?.[tab.id] ?? 0 }}
           </button>
         }
       </div>
 
-      <div class="mt-6 flex flex-col gap-4">
-        @if (reservations.isLoading()) {
-          <p class="text-body text-ink-muted">{{ 'reservations.loading' | t }}</p>
-        } @else if (filtered().length === 0) {
-          <p class="text-body text-ink-muted">{{ 'reservations.empty' | t }}</p>
-        } @else {
-          @for (reservation of filtered(); track reservation.id) {
-            <bt-reservation-row [reservation]="reservation" (refresh)="reservations.reload()" />
+      @if ((list.value()?.escrowTotal ?? 0) > 0) {
+        <div class="mt-4 flex items-center gap-3 rounded-xl bg-forest-deep px-5 py-4 text-on-forest-deep">
+          <bt-icon name="lock" [size]="22" class="text-clay" />
+          <div class="flex flex-col">
+            <span class="text-heading-3">{{ list.value()!.escrowTotal | fcfa }}</span>
+            <span class="text-small text-on-forest-deep/75">{{ 'reservations.escrowBanner' | t }}</span>
+          </div>
+        </div>
+      }
+
+      <div class="mt-5 flex flex-col gap-3" aria-live="polite">
+        @if (list.value(); as l) {
+          @for (v of l.items; track v.id) {
+            <bt-reservation-card
+              [view]="v"
+              [highlighted]="v.id === highlight()"
+              [whatsappMessage]="'reservations.whatsappMessage' | t: { ref: v.reference, title: v.listing.title }"
+              (action)="onAction($event, v)"
+            />
+          } @empty {
+            <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-6 py-12 text-center">
+              <bt-icon name="calendar" [size]="30" class="text-ink-muted" />
+              <p class="text-body text-ink-muted">{{ 'reservations.empty' | t }}</p>
+              @if (group() === 'active') {
+                <bt-button href="/marketplace">{{ 'favorites.emptyCta' | t }}</bt-button>
+              }
+            </div>
           }
+        } @else if (list.isLoading()) {
+          @for (i of [1, 2]; track i) {
+            <div class="h-44 animate-pulse rounded-xl bg-surface-sunken"></div>
+          }
+        } @else if (list.error()) {
+          <div class="flex flex-col items-center gap-3 py-10 text-center">
+            <p class="text-body">{{ 'reservations.loadError' | t }}</p>
+            <bt-button variant="outline" (click)="list.reload()">{{ 'common.retry' | t }}</bt-button>
+          </div>
         }
       </div>
     </div>
+
+    <!-- Pay a reserved-but-unpaid reservation. -->
+    <bt-bottom-sheet [open]="sheet()?.kind === 'pay'" [title]="'reservations.paySheetTitle' | t" (closed)="close()">
+      <div class="flex flex-col gap-3" role="radiogroup">
+        @for (m of methods; track m) {
+          <bt-choice-card name="pay-method" [value]="m" [title]="methodLabels[m] | t" [checked]="payMethod() === m" (selected)="payMethod.set(m)" />
+        }
+        @if (payMethod() !== 'card') {
+          <bt-text-field
+            [label]="'checkout.momoNumberLabel' | t"
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel-national"
+            prefix="+237"
+            [ngModel]="payPhone()"
+            (ngModelChange)="payPhone.set($event)"
+          />
+        }
+      </div>
+      <div sheetFooter class="border-t border-line px-5 pt-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+        <bt-button block size="lg" [disabled]="busy() || (payMethod() !== 'card' && !payPhone().trim())" (click)="pay()">
+          {{ 'checkout.payAmount' | t: { amount: (sheet()?.view?.totalAmount ?? 0 | fcfa) } }}
+        </bt-button>
+      </div>
+    </bt-bottom-sheet>
+
+    <!-- Confirm reception: releases the escrow, so ask once. -->
+    <bt-bottom-sheet [open]="sheet()?.kind === 'confirm'" [title]="'reservations.confirmSheetTitle' | t" (closed)="close()">
+      <p class="text-body text-ink-muted">{{ 'reservations.confirmSheetBody' | t: { amount: (sheet()?.view?.totalAmount ?? 0 | fcfa) } }}</p>
+      <div sheetFooter class="flex gap-3 border-t border-line px-5 pt-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+        <bt-button variant="outline" (click)="close()">{{ 'common.cancel' | t }}</bt-button>
+        <bt-button class="flex-1" variant="solid" block [disabled]="busy()" (click)="confirm()">{{ 'reservations.action.confirm' | t }}</bt-button>
+      </div>
+    </bt-bottom-sheet>
+
+    <bt-bottom-sheet [open]="sheet()?.kind === 'cancel'" [title]="'reservations.cancelSheetTitle' | t" (closed)="close()">
+      <p class="text-body text-ink-muted">{{ 'reservations.cancelSheetBody' | t }}</p>
+      <div sheetFooter class="flex gap-3 border-t border-line px-5 pt-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+        <bt-button variant="outline" (click)="close()">{{ 'common.back' | t }}</bt-button>
+        <bt-button class="flex-1" variant="danger" block [disabled]="busy()" (click)="cancel()">{{ 'reservations.action.cancel' | t }}</bt-button>
+      </div>
+    </bt-bottom-sheet>
+
+    <bt-bottom-sheet [open]="sheet()?.kind === 'dispute'" [title]="'reservations.disputeTitle' | t" (closed)="close()">
+      <div class="flex flex-col gap-3">
+        <p class="text-small text-ink-muted">{{ 'reservations.disputeIntro' | t }}</p>
+        <bt-text-field [label]="'reservations.disputeReasonLabel' | t" multiline [ngModel]="reason()" (ngModelChange)="reason.set($event)" />
+      </div>
+      <div sheetFooter class="border-t border-line px-5 pt-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+        <bt-button block size="lg" variant="danger" [disabled]="busy() || !reason().trim()" (click)="dispute()">
+          {{ 'reservations.disputeSubmit' | t }}
+        </bt-button>
+      </div>
+    </bt-bottom-sheet>
+
+    <bt-bottom-sheet [open]="sheet()?.kind === 'review'" [title]="'reservations.reviewTitle' | t" (closed)="close()">
+      <div class="flex flex-col items-center gap-4">
+        <bt-rating [value]="rating()" interactive [size]="36" (changed)="rating.set($event)" />
+        <bt-text-field class="w-full" [label]="'reservations.reviewCommentLabel' | t" multiline [ngModel]="comment()" (ngModelChange)="comment.set($event)" />
+      </div>
+      <div sheetFooter class="border-t border-line px-5 pt-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+        <bt-button block size="lg" [disabled]="busy() || rating() < 1" (click)="review()">{{ 'reservations.reviewSubmit' | t }}</bt-button>
+      </div>
+    </bt-bottom-sheet>
   `
 })
 export class ReservationsListComponent {
   private readonly reservationsApi = inject(ReservationsApi);
+  private readonly reviewsApi = inject(ReviewsApi);
+  private readonly toast = inject(ToastService);
+  private readonly locale = inject(LocaleService);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly tabs = TABS;
-  protected readonly activeTab = signal<ReservationTab>('active');
+  protected readonly methods = PAYMENT_METHOD_VALUES;
+  protected readonly methodLabels = PAYMENT_METHOD_LABEL_KEYS;
 
-  protected readonly reservations = apiResource<Reservation[]>(() => this.reservationsApi.mineUrl());
+  protected readonly group = signal<ReservationGroup>('active');
+  protected readonly highlight = toSignal(this.route.queryParamMap.pipe(map((p) => p.get('highlight'))), { initialValue: null });
+  protected readonly list = apiResource<ReservationList>(() => this.reservationsApi.mineUrl(this.group()));
 
-  protected readonly filtered = computed(() => this.byTab(this.activeTab()));
+  protected readonly sheet = signal<Sheet>(null);
+  protected readonly busy = signal(false);
+  protected readonly payMethod = signal<PaymentMethod>('mtn_momo');
+  protected readonly payPhone = signal('');
+  protected readonly reason = signal('');
+  protected readonly rating = signal(0);
+  protected readonly comment = signal('');
 
-  protected tabCount(tab: ReservationTab): number {
-    return this.byTab(tab).length;
+  private readonly current = computed(() => this.sheet()?.view);
+
+  protected onAction(action: ReservationAction, view: ReservationView): void {
+    if (action === 'pay' || action === 'dispute' || action === 'confirm' || action === 'cancel' || action === 'review') {
+      this.reason.set('');
+      this.rating.set(0);
+      this.comment.set('');
+      this.sheet.set({ kind: action, view });
+    }
   }
 
-  private byTab(tab: ReservationTab): Reservation[] {
-    const statuses = TAB_STATUSES[tab];
-    const all = this.reservations.value() ?? [];
-    if (tab === 'completed') {
-      return all.filter((r) => r.status === 'delivered' && r.payment?.status === 'released');
-    }
-    if (tab === 'active') {
-      return all.filter((r) => statuses.includes(r.status) && !(r.status === 'delivered' && r.payment?.status === 'released'));
-    }
-    return all.filter((r) => statuses.includes(r.status));
+  protected close(): void {
+    this.sheet.set(null);
   }
 
-  protected readonly escrowHeldTotal = computed(() =>
-    (this.reservations.value() ?? [])
-      .filter((r) => r.payment?.status === 'held')
-      .reduce((sum, r) => sum + (r.payment?.amount ?? 0), 0)
-  );
+  protected pay(): void {
+    const v = this.current();
+    if (!v) return;
+    const phone = this.payMethod() === 'card' ? undefined : this.payPhone();
+    this.run(this.reservationsApi.pay(v.id, this.payMethod(), phone), 'reservations.paidToast');
+  }
+
+  protected confirm(): void {
+    const v = this.current();
+    if (v) this.run(this.reservationsApi.confirmDelivery(v.id), 'reservations.confirmedToast');
+  }
+
+  protected cancel(): void {
+    const v = this.current();
+    if (v) this.run(this.reservationsApi.cancel(v.id), 'reservations.cancelledToast');
+  }
+
+  protected dispute(): void {
+    const v = this.current();
+    if (v) this.run(this.reservationsApi.dispute(v.id, this.reason().trim()), 'reservations.disputedToast');
+  }
+
+  protected review(): void {
+    const v = this.current();
+    if (v) this.run(this.reviewsApi.create(v.id, { rating: this.rating(), comment: this.comment().trim() || undefined }), 'reservations.reviewedToast');
+  }
+
+  /** Every action: call it, close the sheet, refresh the list (the API
+   * recomputes steps, actions and counts), and say what happened. */
+  private run(request: Observable<unknown>, successTitle: string): void {
+    this.busy.set(true);
+    request.subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.close();
+        this.list.reload();
+        this.toast.show({ tone: 'success', title: successTitle });
+      },
+      error: (err: AppError) => {
+        this.busy.set(false);
+        this.toast.show({ tone: 'danger', title: 'reservations.actionFailed', detail: err.message });
+      }
+    });
+  }
 }

@@ -25,6 +25,7 @@ type healthEventDoc struct {
 // only here, at the infrastructure boundary.
 type cycleDoc struct {
 	ID                bson.ObjectID      `bson:"_id,omitempty"`
+	Reference         string             `bson:"reference,omitempty"`
 	FarmID            bson.ObjectID      `bson:"farmId"`
 	Species           string             `bson:"species"`
 	Type              string             `bson:"type"`
@@ -41,6 +42,7 @@ type cycleDoc struct {
 func fromDomainCycle(c *domain.Cycle) cycleDoc {
 	doc := cycleDoc{
 		ID:                c.ID,
+		Reference:         c.Reference,
 		FarmID:            c.FarmID,
 		Species:           c.Species,
 		Type:              c.Type,
@@ -61,6 +63,7 @@ func fromDomainCycle(c *domain.Cycle) cycleDoc {
 func (d cycleDoc) toDomain() *domain.Cycle {
 	c := &domain.Cycle{
 		ID:                d.ID,
+		Reference:         d.Reference,
 		FarmID:            d.FarmID,
 		Species:           d.Species,
 		Type:              d.Type,

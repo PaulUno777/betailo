@@ -75,6 +75,10 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("GET /listings", chain(handleSearchListings(deps.SearchListings, deps.Storage), OptionalAuth(deps.Signer)))
 	mux.Handle("PUT /listings/{id}/favorite", chain(handleAddFavorite(deps.AddFavorite), auth))
 	mux.Handle("DELETE /listings/{id}/favorite", chain(handleRemoveFavorite(deps.RemoveFavorite), auth))
+	mux.Handle("GET /notifications", chain(handleListNotifications(deps.ListNotifications), auth))
+	mux.Handle("GET /notifications/unread-count", chain(handleUnreadNotifications(deps.UnreadNotifications), auth))
+	mux.Handle("POST /notifications/{id}/read", chain(handleMarkNotificationRead(deps.MarkNotificationRead), auth))
+	mux.Handle("POST /notifications/read-all", chain(handleMarkAllNotificationsRead(deps.MarkAllNotificationsRead), auth))
 	mux.Handle("GET /me/favorites", chain(handleListMyFavorites(deps.ListMyFavorites, deps.Storage), auth))
 	mux.Handle("PUT /listings/{id}", chain(handleUpdateListing(deps.UpdateListing, deps.Storage), auth))
 	mux.Handle("DELETE /listings/{id}", chain(handleUnpublishListing(deps.UnpublishListing), auth))
@@ -84,13 +88,15 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// Reservation & escrow. Creating one needs no role restriction — a
 	// farmer can buy too — but does need auth, since BuyerID/FarmOwnerID
 	// always come from the token, never a request body field.
+	mux.Handle("POST /listings/{id}/quote", chain(handleQuoteReservation(deps.QuoteReservation), auth))
 	mux.Handle("POST /listings/{id}/reservations", chain(handleCreateReservation(deps.ReserveCycle), auth))
-	mux.Handle("GET /reservations/mine", chain(handleListMyReservations(deps.ListMyReservations), auth))
+	mux.Handle("GET /reservations/mine", chain(handleListMyReservations(deps.ListMyReservations, deps.Storage), auth))
 	mux.Handle("POST /reservations/{id}/pay", chain(handlePayReservation(deps.PayReservation), auth))
 	mux.Handle("POST /reservations/{id}/mark-delivered", chain(handleMarkDelivered(deps.MarkDelivered), auth))
 	mux.Handle("POST /reservations/{id}/confirm-delivery", chain(handleConfirmDelivery(deps.ConfirmDelivery), auth))
+	mux.Handle("POST /reservations/{id}/cancel", chain(handleCancelReservation(deps.CancelReservation), auth))
 	mux.Handle("POST /reservations/{id}/dispute", chain(handleOpenDispute(deps.OpenDispute), auth))
-	mux.Handle("GET /farms/{farmId}/reservations", chain(handleListReservationsByFarm(deps.ListReservationsByFarm), auth))
+	mux.Handle("GET /farms/{farmId}/reservations", chain(handleListReservationsByFarm(deps.ListReservationsByFarm, deps.Storage), auth))
 
 	// Reviews — writing one needs auth (the buyer only); reading a
 	// farm's reviews is public, like its listings.

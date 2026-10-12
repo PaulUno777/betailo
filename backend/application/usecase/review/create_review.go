@@ -6,10 +6,12 @@ package review
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -24,6 +26,9 @@ type CreateReview struct {
 	Farms        ports.FarmRepository
 	Reviews      ports.ReviewRepository
 	Trust        ports.TrustRecomputer
+	Clock        ports.Clock
+	// Notifications tells the farmer about the new review. Optional.
+	Notifications ports.NotificationRepository
 }
 
 type CreateReviewInput struct {
@@ -80,6 +85,13 @@ func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*dom
 
 	if f, err := uc.Farms.FindByID(ctx, c.FarmID); err == nil {
 		_ = uc.Trust.Execute(ctx, f.OwnerID)
+		if uc.Clock != nil {
+			notify.Send(ctx, uc.Notifications, uc.Clock.Now(), notify.Notice{
+				UserID: f.OwnerID, Type: domain.NotifReviewReceived,
+				Params: map[string]string{"rating": strconv.Itoa(in.Rating), "ref": res.Reference},
+				Link:   "/portal", Fallback: fmt.Sprintf("Nouvel avis %d/5 sur %s.", in.Rating, res.Reference),
+			})
+		}
 	}
 
 	return rv, nil

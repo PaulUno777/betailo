@@ -1,50 +1,78 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Farm, Reservation } from '../../domain/models';
+import { Farm, ReservationAction, ReservationGroup, ReservationList, ReservationView } from '../../domain/models';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
-import { ButtonComponent } from '../../shared/ui/button/button.component';
-import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { apiResource } from '../../core/http/api-resource';
+import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { ReservationCardComponent } from '../account/reservation-card.component';
 
-/** `/portal/reservations` — the farmer-side view of `GET
- * /farms/{farmId}/reservations`, with the one farmer-side action the
- * API exposes: `mark-delivered`. */
+const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
+  { id: 'active', labelKey: 'reservations.tabActive' },
+  { id: 'done', labelKey: 'reservations.tabCompleted' },
+  { id: 'cancelled', labelKey: 'reservations.tabCancelled' }
+];
+
+/** The farmer's side of reservations: the same server-built cards as
+ * the buyer's list, from the seller's perspective. The only action a
+ * farmer has is the one the API offers, marking a paid reservation
+ * delivered, which starts the buyer's confirmation window. */
 @Component({
   selector: 'bt-portal-reservations-list',
-  imports: [StatusBadgeComponent, ButtonComponent, FcfaCurrencyPipe, TranslatePipe],
+  imports: [ReservationCardComponent, ButtonComponent, IconComponent, FcfaCurrencyPipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="p-6 sm:p-8">
+    <div class="mx-auto max-w-3xl p-4 sm:p-8">
       <h1 class="text-heading-2">{{ 'portalReservations.title' | t }}</h1>
 
-      @if (reservations.isLoading()) {
-        <p class="mt-6 text-body text-ink-muted">{{ 'portalReservations.loading' | t }}</p>
-      } @else if ((reservations.value() ?? []).length === 0) {
-        <p class="mt-6 text-body text-ink-muted">{{ 'portalReservations.empty' | t }}</p>
-      } @else {
-        <div class="mt-6 flex flex-col gap-3">
-          @for (r of reservations.value()!; track r.id) {
-            <div class="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface-card p-4">
-              <span class="text-caption text-ink-muted">RSV-{{ r.id.slice(-4).toUpperCase() }}</span>
-              <span class="min-w-[100px] flex-1 text-body-strong">{{ r.quantity }} × {{ r.unitPrice | fcfa }}</span>
-              <span class="text-amount">{{ r.totalAmount | fcfa }}</span>
-              <bt-status-badge kind="reservation" [status]="r.status" />
-              @if (r.payment; as payment) {
-                <bt-status-badge kind="escrow" [status]="payment.status" />
-              }
-              @if (r.status === 'confirmed') {
-                <bt-button variant="outline" size="sm" [disabled]="acting() === r.id" (click)="markDelivered(r.id)">
-                  {{ 'portalReservations.markDeliveredButton' | t }}
-                </bt-button>
-              }
-            </div>
-          }
+      <div class="mt-4 grid grid-cols-3 gap-1 rounded-full bg-surface-sunken p-1" role="tablist">
+        @for (tab of tabs; track tab.id) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="group() === tab.id"
+            (click)="group.set(tab.id)"
+            class="h-11 rounded-full text-small font-semibold transition"
+            [class]="group() === tab.id ? 'bg-surface-card text-ink shadow-sm' : 'text-ink-muted'"
+          >
+            {{ tab.labelKey | t }} · {{ list.value()?.counts?.[tab.id] ?? 0 }}
+          </button>
+        }
+      </div>
+
+      @if ((list.value()?.escrowTotal ?? 0) > 0) {
+        <div class="mt-4 flex items-center gap-3 rounded-xl bg-sky-soft px-5 py-4">
+          <bt-icon name="lock" [size]="22" class="text-sky" />
+          <div class="flex flex-col">
+            <span class="text-heading-3">{{ list.value()!.escrowTotal | fcfa }}</span>
+            <span class="text-small text-ink-muted">{{ 'portalReservations.escrowBanner' | t }}</span>
+          </div>
         </div>
       }
+
+      <div class="mt-5 flex flex-col gap-3">
+        @if (list.value(); as l) {
+          @for (v of l.items; track v.id) {
+            <bt-reservation-card [view]="v" perspective="farmer" (action)="onAction($event, v)" />
+          } @empty {
+            <p class="rounded-xl border border-dashed border-line-strong px-6 py-12 text-center text-body text-ink-muted">
+              {{ 'portalReservations.empty' | t }}
+            </p>
+          }
+        } @else if (list.isLoading() || farms.isLoading()) {
+          @for (i of [1, 2]; track i) {
+            <div class="h-40 animate-pulse rounded-xl bg-surface-sunken"></div>
+          }
+        } @else if (list.error()) {
+          <div class="flex flex-col items-center gap-3 py-10">
+            <bt-button variant="outline" (click)="list.reload()">{{ 'common.retry' | t }}</bt-button>
+          </div>
+        }
+      </div>
     </div>
   `
 })
@@ -53,25 +81,25 @@ export class PortalReservationsListComponent {
   private readonly reservationsApi = inject(ReservationsApi);
   private readonly toast = inject(ToastService);
 
-  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
+  protected readonly tabs = TABS;
+  protected readonly group = signal<ReservationGroup>('active');
+
+  protected readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   private readonly myFarm = computed(() => this.farms.value()?.[0]);
 
-  protected readonly reservations = apiResource<Reservation[]>(() => {
+  protected readonly list = apiResource<ReservationList>(() => {
     const farmId = this.myFarm()?.id;
-    return farmId ? this.reservationsApi.byFarmUrl(farmId) : undefined;
+    return farmId ? this.reservationsApi.byFarmUrl(farmId, this.group()) : undefined;
   });
 
-  protected readonly acting = signal<string | null>(null);
-
-  protected markDelivered(id: string): void {
-    this.acting.set(id);
-    this.reservationsApi.markDelivered(id).subscribe({
+  protected onAction(action: ReservationAction, v: ReservationView): void {
+    if (action !== 'mark_delivered') return;
+    this.reservationsApi.markDelivered(v.id).subscribe({
       next: () => {
-        this.acting.set(null);
-        this.reservations.reload();
+        this.list.reload();
+        this.toast.show({ tone: 'success', title: 'portalReservations.deliveredToast' });
       },
       error: (err: AppError) => {
-        this.acting.set(null);
         this.toast.show({ tone: 'danger', title: 'portalReservations.markDeliveredFailedTitle', detail: err.message });
       }
     });

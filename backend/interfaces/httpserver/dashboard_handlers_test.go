@@ -10,7 +10,7 @@ func TestSellerDashboard_HTTP_ReflectsReservationsAndEscrow(t *testing.T) {
 	listingID, farmerToken := setupListing(t, router, 120)
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
-	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 20, PayNow: true}, buyerToken)
+	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 20, PayNow: true, PaymentMethod: "card"}, buyerToken)
 
 	var farmID string
 	for _, f := range tf.farms.byID {

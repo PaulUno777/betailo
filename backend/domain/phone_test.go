@@ -28,3 +28,29 @@ func TestNormalizePhone(t *testing.T) {
 		}
 	}
 }
+
+func TestMaskPhone(t *testing.T) {
+	if got := MaskPhone("+237690123456"); got != "+237 6•• •• 34 56" {
+		t.Errorf("MaskPhone(cameroon) = %q", got)
+	}
+	if got := MaskPhone("+33612345678"); got != "•••• 5678" {
+		t.Errorf("MaskPhone(foreign) = %q", got)
+	}
+}
+
+func TestIsCameroonMobile(t *testing.T) {
+	for in, want := range map[string]bool{"+237690123456": true, "+237222123456": false, "+33612345678": false} {
+		if got := IsCameroonMobile(in); got != want {
+			t.Errorf("IsCameroonMobile(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestFormatReference(t *testing.T) {
+	if got := FormatReference(ReservationRefPrefix, 42); got != "RSV-0042" {
+		t.Errorf("FormatReference = %q", got)
+	}
+	if got := FormatReference(CycleRefPrefix, 12345); got != "CYC-12345" {
+		t.Errorf("FormatReference = %q", got)
+	}
+}

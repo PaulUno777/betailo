@@ -45,6 +45,7 @@ export interface FarmProfile extends Farm {
 
 export interface Cycle {
   id: string;
+  reference?: string;
   farmId: string;
   species: string;
   type: string;
@@ -130,10 +131,13 @@ export interface ReservationPayment {
   amount: number;
   heldAt?: string;
   releasedAt?: string;
+  method?: PaymentMethod;
+  payerPhoneMasked?: string;
 }
 
 export interface Reservation {
   id: string;
+  reference: string;
   listingId: string;
   buyerId: string;
   quantity: number;
@@ -146,6 +150,59 @@ export interface Reservation {
   deliveredAt?: string;
   createdAt: string;
   payment?: ReservationPayment;
+}
+
+export type ReservationGroup = 'active' | 'done' | 'cancelled';
+export type ReservationAction = 'pay' | 'cancel' | 'confirm' | 'dispute' | 'review' | 'contact' | 'mark_delivered';
+export type EscrowStepKey = 'paid' | 'delivered' | 'confirmed' | 'released';
+
+/** One reservation card, joined and decided by the API: what was
+ * reserved, from whom, its tab, escrow progress and allowed actions. */
+export interface ReservationView extends Reservation {
+  listing: { id: string; title: string; unit?: string; photo?: string };
+  farm: { id: string; name: string; location: string; contactPhone?: string };
+  cycle: { id: string; reference: string; status: CycleStatus; startsAt: string; endsAt?: string };
+  group: ReservationGroup;
+  steps: { key: EscrowStepKey; state: TimelineStepState }[];
+  autoReleaseAt?: string;
+  disputeOpen: boolean;
+  reviewed: boolean;
+  actions: ReservationAction[];
+}
+
+export interface ReservationList {
+  items: ReservationView[];
+  counts: Record<ReservationGroup, number>;
+  escrowTotal: number;
+}
+
+/** `POST /listings/{id}/quote`: the checkout's server-computed preview. */
+export interface ReservationQuote {
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  serviceFee: number;
+  total: number;
+  feeRate: number;
+  min: number;
+  max: number;
+  available: number;
+  unpaidHours: number;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  message: string;
+  params?: Record<string, string>;
+  link?: string;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface NotificationList {
+  items: AppNotification[];
+  unread: number;
 }
 
 export interface ReviewSummary {
@@ -257,6 +314,8 @@ export interface ReservationRequest {
   quantity: number;
   payNow: boolean;
   paymentMethod?: PaymentMethod;
+  /** Mobile Money number as typed; the API normalizes and validates it. */
+  payerPhone?: string;
 }
 
 export interface ReservationResult {

@@ -3,6 +3,7 @@ package reservation
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -15,11 +16,12 @@ import (
 // explicitly via ConfirmDelivery, or internal/worker auto-releases
 // escrow 48h later if they don't and no dispute is open).
 type MarkDelivered struct {
-	Reservations ports.ReservationRepository
-	Listings     ports.ListingStore
-	Cycles       ports.CycleStore
-	Farms        ports.FarmRepository
-	Clock        ports.Clock
+	Reservations  ports.ReservationRepository
+	Listings      ports.ListingStore
+	Cycles        ports.CycleStore
+	Farms         ports.FarmRepository
+	Clock         ports.Clock
+	Notifications ports.NotificationRepository
 }
 
 type MarkDeliveredInput struct {
@@ -54,5 +56,7 @@ func (uc *MarkDelivered) Execute(ctx context.Context, in MarkDeliveredInput) (*d
 	if err := uc.Reservations.Update(ctx, res); err != nil {
 		return nil, err
 	}
+	Parties{Listings: uc.Listings}.notifyBuyer(ctx, uc.Notifications, uc.Clock, res, domain.NotifReservationDelivered,
+		"Réservation %s livrée : confirmez la réception.", map[string]string{"hours": strconv.Itoa(int(AutoReleaseGrace.Hours()))})
 	return res, nil
 }

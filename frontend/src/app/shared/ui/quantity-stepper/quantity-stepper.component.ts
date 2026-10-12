@@ -1,34 +1,47 @@
-import { ChangeDetectionStrategy, Component, input, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input, model, untracked } from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 
-/** -/value/+, 44px buttons, clamped to `[min, max]` — `max` is always the
- * listing's `availableQuantity`, never a client-side guess at capacity. */
+/** [−] [ 30 ] [+], full width with a typeable number in the middle (per
+ * the design): 30 chicks shouldn't take 29 taps. The number pad opens on
+ * phones, and whatever is typed is clamped to `[min, max]` when the
+ * field loses focus. The bounds come from the API (the cycle's min/max
+ * and what's left), never a client-side guess at capacity. */
 @Component({
   selector: 'bt-quantity-stepper',
   imports: [IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-1">
-      <div class="flex items-center gap-3">
+      <div class="flex items-stretch gap-2">
         <button
           type="button"
           [attr.aria-label]="'quantityStepper.decrease' | t"
-          (click)="decrement()"
+          (click)="set(value() - 1)"
           [disabled]="value() <= min()"
-          class="flex h-control-md w-11 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40"
+          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-line-strong bg-surface-card transition active:scale-95 disabled:opacity-40"
         >
-          <bt-icon name="minus" [size]="16" />
+          <bt-icon name="minus" [size]="20" />
         </button>
-        <span class="w-8 text-center text-body-strong" aria-live="polite">{{ value() }}</span>
+        <input
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          [attr.aria-label]="'quantityStepper.label' | t"
+          [value]="value()"
+          (input)="onType($event)"
+          (blur)="onBlur($event)"
+          (keydown.enter)="onBlur($event)"
+          class="h-14 min-w-0 flex-1 rounded-md border border-line-strong bg-surface-card text-center text-heading-2 text-ink outline-none focus:border-forest"
+        />
         <button
           type="button"
           [attr.aria-label]="'quantityStepper.increase' | t"
-          (click)="increment()"
+          (click)="set(value() + 1)"
           [disabled]="value() >= max()"
-          class="flex h-control-md w-11 items-center justify-center rounded-sm border border-line-strong disabled:opacity-40"
+          class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-line-strong bg-surface-card transition active:scale-95 disabled:opacity-40"
         >
-          <bt-icon name="plus" [size]="16" />
+          <bt-icon name="plus" [size]="20" />
         </button>
       </div>
       @if (value() >= max()) {
@@ -42,11 +55,36 @@ export class QuantityStepperComponent {
   readonly min = input(1);
   readonly max = input(99);
 
-  protected increment(): void {
-    this.value.update((current) => Math.min(this.max(), current + 1));
+  constructor() {
+    // Bounds can arrive or tighten after the value was set (a quote
+    // loads, places sell out): keep the value inside them.
+    effect(() => {
+      const lo = this.min();
+      const hi = Math.max(lo, this.max());
+      const v = untracked(this.value);
+      if (v < lo || v > hi) this.value.set(Math.min(hi, Math.max(lo, v)));
+    });
   }
 
-  protected decrement(): void {
-    this.value.update((current) => Math.max(this.min(), current - 1));
+  protected set(n: number): void {
+    this.value.set(this.clamp(n));
+  }
+
+  /** While typing, accept any whole number so the field doesn't fight
+   * the keyboard; clamping waits for blur. */
+  protected onType(event: Event): void {
+    const n = parseInt((event.target as HTMLInputElement).value.replace(/\D/g, ''), 10);
+    if (!Number.isNaN(n)) this.value.set(n);
+  }
+
+  protected onBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const n = this.clamp(parseInt(input.value.replace(/\D/g, ''), 10) || this.min());
+    this.value.set(n);
+    input.value = String(n);
+  }
+
+  private clamp(n: number): number {
+    return Math.min(Math.max(this.min(), this.max()), Math.max(this.min(), n));
   }
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
 	"github.com/pauluno777/betailo/backend/application/usecase/favorite"
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
+	"github.com/pauluno777/betailo/backend/application/usecase/inbox"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
@@ -29,6 +30,11 @@ type Dependencies struct {
 	// RateLimits applies to the credential endpoints; the zero value
 	// disables limiting.
 	RateLimits RateLimitConfig
+
+	ListNotifications        *inbox.List
+	UnreadNotifications      *inbox.UnreadCount
+	MarkNotificationRead     *inbox.MarkRead
+	MarkAllNotificationsRead *inbox.MarkAllRead
 
 	AddFavorite     *favorite.Add
 	RemoveFavorite  *favorite.Remove
@@ -57,6 +63,8 @@ type Dependencies struct {
 	SearchListings      *listing.SearchListings
 	Storage             ports.ObjectStorage
 
+	CancelReservation      *reservation.CancelReservation
+	QuoteReservation       *reservation.Quote
 	ReserveCycle           *reservation.ReserveCycle
 	PayReservation         *reservation.PayReservation
 	MarkDelivered          *reservation.MarkDelivered

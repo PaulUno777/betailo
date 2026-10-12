@@ -2,6 +2,7 @@
   "bsonType": "object",
   "required": ["listingId", "buyerId", "quantity", "unitPrice", "totalAmount", "status", "createdAt"],
   "properties": {
+    "reference": { "bsonType": "string" },
     "listingId": { "bsonType": "objectId" },
     "buyerId": { "bsonType": "objectId" },
     "quantity": { "bsonType": "int", "minimum": 1 },
@@ -30,7 +31,10 @@
         "status": { "enum": ["pending", "held", "released", "failed", "refunded"] },
         "amount": { "bsonType": ["double", "int"] },
         "heldAt": { "bsonType": "date" },
-        "releasedAt": { "bsonType": "date" }
+        "releasedAt": { "bsonType": "date" },
+        "method": { "enum": ["mtn_momo", "orange_money", "card"] },
+        "payerPhoneMasked": { "bsonType": "string" },
+        "providerRef": { "bsonType": "string" }
       }
     }
   }

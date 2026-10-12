@@ -1,0 +1,7 @@
+{
+  "bsonType": "object",
+  "required": ["seq"],
+  "properties": {
+    "seq": { "bsonType": ["int", "long"], "minimum": 1 }
+  }
+}

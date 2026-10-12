@@ -16,12 +16,13 @@ import (
 // would, via the same release helper, so the two paths can never
 // disagree on what "released" means.
 type AdminReleaseEscrow struct {
-	Reservations ports.ReservationRepository
-	Listings     ports.ListingStore
-	Cycles       ports.CycleStore
-	Farms        ports.FarmRepository
-	Trust        ports.TrustRecomputer
-	Clock        ports.Clock
+	Reservations  ports.ReservationRepository
+	Listings      ports.ListingStore
+	Cycles        ports.CycleStore
+	Farms         ports.FarmRepository
+	Trust         ports.TrustRecomputer
+	Clock         ports.Clock
+	Notifications ports.NotificationRepository
 }
 
 // Execute returns domain.ErrConflict if the reservation has no held
@@ -42,6 +43,8 @@ func (uc *AdminReleaseEscrow) Execute(ctx context.Context, reservationID bson.Ob
 	if ownerID, err := farmOwner(ctx, uc.Listings, uc.Cycles, uc.Farms, res.ListingID); err == nil {
 		_ = uc.Trust.Execute(ctx, ownerID)
 	}
+	Parties{Listings: uc.Listings, Cycles: uc.Cycles, Farms: uc.Farms}.notifyFarmer(ctx, uc.Notifications, uc.Clock, res,
+		domain.NotifEscrowReleased, "Séquestre libéré pour %s.")
 	return res, nil
 }
 
@@ -51,6 +54,9 @@ type AdminRefundEscrow struct {
 	Reservations ports.ReservationRepository
 	Payments     ports.PaymentProvider
 	Clock        ports.Clock
+
+	Parties       Parties
+	Notifications ports.NotificationRepository
 }
 
 // Execute returns domain.ErrConflict if the reservation has no held
@@ -64,7 +70,13 @@ func (uc *AdminRefundEscrow) Execute(ctx context.Context, reservationID bson.Obj
 		return nil, fmt.Errorf("reservation: no held payment to refund: %w", domain.ErrConflict)
 	}
 
-	if err := uc.Payments.Refund(ctx, reservationID.Hex(), res.TotalAmount); err != nil {
+	// Refund against the provider's own capture reference; reservations
+	// paid before it was recorded fall back to our ID.
+	providerRef := res.Payment.ProviderRef
+	if providerRef == "" {
+		providerRef = reservationID.Hex()
+	}
+	if err := uc.Payments.Refund(ctx, providerRef, res.TotalAmount); err != nil {
 		return nil, err
 	}
 	res.Payment.Status = domain.PaymentRefunded
@@ -72,5 +84,6 @@ func (uc *AdminRefundEscrow) Execute(ctx context.Context, reservationID bson.Obj
 	if err := uc.Reservations.Update(ctx, res); err != nil {
 		return nil, err
 	}
+	uc.Parties.notifyBuyer(ctx, uc.Notifications, uc.Clock, res, domain.NotifEscrowRefunded, "Vous avez été remboursé pour %s.", nil)
 	return res, nil
 }

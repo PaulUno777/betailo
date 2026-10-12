@@ -11,6 +11,7 @@ import (
 // cycleResponse is what a cycle looks like over the wire.
 type cycleResponse struct {
 	ID                string     `json:"id"`
+	Reference         string     `json:"reference"`
 	FarmID            string     `json:"farmId"`
 	Species           string     `json:"species"`
 	Type              string     `json:"type"`
@@ -25,7 +26,7 @@ type cycleResponse struct {
 
 func toCycleResponse(c *domain.Cycle) cycleResponse {
 	return cycleResponse{
-		ID: c.ID.Hex(), FarmID: c.FarmID.Hex(), Species: c.Species, Type: c.Type,
+		ID: c.ID.Hex(), Reference: c.Reference, FarmID: c.FarmID.Hex(), Species: c.Species, Type: c.Type,
 		Status: string(c.Status), Capacity: c.Capacity, AvailableQuantity: c.AvailableQuantity,
 		StartsAt: c.StartsAt, EndsAt: c.EndsAt,
 		MinPerReservation: c.MinPerReservation, MaxPerReservation: c.MaxPerReservation,

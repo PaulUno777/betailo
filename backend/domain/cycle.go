@@ -35,12 +35,15 @@ type HealthEvent struct {
 // actually reserves, not a static "product". See the architecture
 // document's overview of the domain concepts for why.
 type Cycle struct {
-	ID       bson.ObjectID
-	FarmID   bson.ObjectID
-	Species  string
-	Type     string
-	Status   CycleStatus
-	Capacity int
+	ID bson.ObjectID
+	// Reference is the farmer-facing code ("CYC-0918"), assigned from a
+	// counter at creation.
+	Reference string
+	FarmID    bson.ObjectID
+	Species   string
+	Type      string
+	Status    CycleStatus
+	Capacity  int
 
 	// MinPerReservation and MaxPerReservation bound a single
 	// reservation's quantity (0 means "no bound"). Enforced by

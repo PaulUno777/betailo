@@ -29,4 +29,14 @@ type PaymentInfo struct {
 	Amount     float64
 	HeldAt     *time.Time
 	ReleasedAt *time.Time
+
+	// Method is how the buyer paid ("mtn_momo", "orange_money", "card").
+	Method string
+	// PayerPhoneMasked is the Mobile Money number, masked for display
+	// ("+237 6•• •• 34 56"). The full number is only ever handed to the
+	// payment provider at capture time, never stored.
+	PayerPhoneMasked string
+	// ProviderRef is the payment provider's reference for the capture,
+	// needed to refund it later.
+	ProviderRef string
 }

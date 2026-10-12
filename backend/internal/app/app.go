@@ -30,6 +30,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
 	"github.com/pauluno777/betailo/backend/application/usecase/favorite"
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
+	"github.com/pauluno777/betailo/backend/application/usecase/inbox"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
@@ -99,6 +100,8 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	forumPosts := &mongodb.ForumRepository{Coll: database.Collection("forum_posts")}
 	notifications := &mongodb.NotificationRepository{Coll: database.Collection("notifications")}
 	favorites := &mongodb.FavoriteRepository{Coll: database.Collection("favorites")}
+	counters := &mongodb.CounterRepository{Coll: database.Collection("counters")}
+	txManager := &mongodb.TxManager{Client: client}
 	hasher := security.BcryptHasher{}
 	systemClock := clock.System{}
 	sandboxPayments := payment.Sandbox{}
@@ -119,22 +122,38 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		Reservations: reservations, Reviews: reviews, Reports: reports, Clock: systemClock,
 	}
 
+	parties := reservation.Parties{Listings: listings, Cycles: cycles, Farms: farms}
 	reserveCycle := &reservation.ReserveCycle{
-		Listings: listings, Cycles: cycles, Reservations: reservations,
-		Payments: sandboxPayments, Tx: &mongodb.TxManager{Client: client}, Clock: systemClock,
+		Listings: listings, Cycles: cycles, Farms: farms, Sequencer: counters, Reservations: reservations,
+		Payments: sandboxPayments, Tx: txManager, Clock: systemClock, Notifications: notifications,
 	}
-	payReservation := &reservation.PayReservation{Reservations: reservations, Payments: sandboxPayments, Clock: systemClock}
-	markDelivered := &reservation.MarkDelivered{Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Clock: systemClock}
+	cancelReservation := &reservation.CancelReservation{
+		Reservations: reservations, Listings: listings, Cycles: cycles, Tx: txManager, Clock: systemClock,
+		Parties: parties, Notifications: notifications,
+	}
+	payReservation := &reservation.PayReservation{
+		Reservations: reservations, Payments: sandboxPayments, Clock: systemClock, Parties: parties, Notifications: notifications,
+	}
+	markDelivered := &reservation.MarkDelivered{
+		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Clock: systemClock, Notifications: notifications,
+	}
 	confirmDelivery := &reservation.ConfirmDelivery{
 		Reservations: reservations, Reports: reports, Listings: listings, Cycles: cycles,
-		Farms: farms, Trust: trustRecompute, Clock: systemClock,
+		Farms: farms, Trust: trustRecompute, Clock: systemClock, Notifications: notifications,
 	}
-	openDispute := &reservation.OpenDispute{Reservations: reservations, Reports: reports, Clock: systemClock}
-	listMyReservations := &reservation.ListMyReservations{Reservations: reservations}
-	listReservationsByFarm := &reservation.ListReservationsByFarm{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations}
+	openDispute := &reservation.OpenDispute{
+		Reservations: reservations, Reports: reports, Clock: systemClock, Parties: parties, Notifications: notifications,
+	}
+	listMyReservations := &reservation.ListMyReservations{
+		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reports: reports, Reviews: reviews,
+	}
+	listReservationsByFarm := &reservation.ListReservationsByFarm{
+		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Reviews: reviews,
+	}
 
 	createReview := &review.CreateReview{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reviews: reviews, Trust: trustRecompute,
+		Clock: systemClock, Notifications: notifications,
 	}
 	listFarmReviews := &review.ListByFarm{Reviews: reviews}
 
@@ -143,8 +162,8 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	createForumPost := &forum.CreatePost{Forum: forumPosts, Clock: systemClock}
 	listForumPosts := &forum.ListPosts{Forum: forumPosts}
 	getForumPost := &forum.GetPost{Forum: forumPosts}
-	addForumReply := &forum.AddReply{Forum: forumPosts, Clock: systemClock}
-	markBestAnswer := &forum.MarkBestAnswer{Forum: forumPosts}
+	addForumReply := &forum.AddReply{Forum: forumPosts, Clock: systemClock, Notifications: notifications}
+	markBestAnswer := &forum.MarkBestAnswer{Forum: forumPosts, Clock: systemClock, Notifications: notifications}
 
 	sellerDashboard := &dashboard.SellerDashboard{
 		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Users: users, Clock: systemClock,
@@ -159,8 +178,11 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	adminListEscrow := &admin.ListEscrowTransactions{Cycles: cycles, Listings: listings, Reservations: reservations}
 	adminReleaseEscrow := &reservation.AdminReleaseEscrow{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Trust: trustRecompute, Clock: systemClock,
+		Notifications: notifications,
 	}
-	adminRefundEscrow := &reservation.AdminRefundEscrow{Reservations: reservations, Payments: sandboxPayments, Clock: systemClock}
+	adminRefundEscrow := &reservation.AdminRefundEscrow{
+		Reservations: reservations, Payments: sandboxPayments, Clock: systemClock, Parties: parties, Notifications: notifications,
+	}
 	adminListReports := &admin.ListReports{Reports: reports}
 	adminGetReportDetail := &admin.GetReportDetail{
 		Reports: reports, Users: users, Listings: listings, Cycles: cycles, Farms: farms, Search: listings, Clock: systemClock,
@@ -170,7 +192,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	bgWorker := &worker.Worker{
 		Cycles: cycles,
 		ExpireUnpaid: &reservation.ExpireUnpaidReservations{
-			Reservations: reservations, Listings: listings, Cycles: cycles, Notifications: notifications, Clock: systemClock,
+			Reservations: reservations, Listings: listings, Cycles: cycles, Tx: txManager, Notifications: notifications, Clock: systemClock,
 		},
 		AutoRelease: &reservation.AutoReleaseDeliveries{
 			Reservations: reservations, Reports: reports, Listings: listings, Cycles: cycles,
@@ -204,9 +226,12 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateFarm:  &farm.UpdateFarm{Farms: farms},
 			DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
-			CreateCycle:       &cycle.CreateCycle{Farms: farms, Cycles: cycles},
-			GetCycle:          &cycle.GetCycle{Cycles: cycles, Clock: systemClock},
-			AddHealthEvent:    &cycle.AddHealthEvent{Farms: farms, Cycles: cycles, Clock: systemClock},
+			CreateCycle: &cycle.CreateCycle{Farms: farms, Cycles: cycles, Sequencer: counters},
+			GetCycle:    &cycle.GetCycle{Cycles: cycles, Clock: systemClock},
+			AddHealthEvent: &cycle.AddHealthEvent{
+				Farms: farms, Cycles: cycles, Clock: systemClock,
+				Listings: listings, Reservations: reservations, Notifications: notifications,
+			},
 			ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: cycles},
 			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
@@ -217,17 +242,23 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 				Listings: listings, Cycles: cycles, Farms: farms, Users: users, Reviews: reviews,
 				Reservations: reservations, Favorites: favorites, Clock: systemClock,
 			},
-			UpdateListing:       &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
-			UnpublishListing:    &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
-			PresignListingPhoto: &listing.PresignListingPhoto{Farms: farms, Cycles: cycles, Listings: listings, Storage: storageProvider},
-			SetListingPhotos:    &listing.SetListingPhotos{Farms: farms, Cycles: cycles, Listings: listings},
-			SearchListings:      &listing.SearchListings{Search: listings, Favorites: favorites},
-			AddFavorite:         &favorite.Add{Listings: listings, Favorites: favorites, Clock: systemClock},
-			RemoveFavorite:      &favorite.Remove{Favorites: favorites},
-			ListMyFavorites:     &favorite.ListMine{Favorites: favorites, Search: listings},
-			Storage:             storageProvider,
+			UpdateListing:            &listing.UpdateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			UnpublishListing:         &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
+			PresignListingPhoto:      &listing.PresignListingPhoto{Farms: farms, Cycles: cycles, Listings: listings, Storage: storageProvider},
+			SetListingPhotos:         &listing.SetListingPhotos{Farms: farms, Cycles: cycles, Listings: listings},
+			SearchListings:           &listing.SearchListings{Search: listings, Favorites: favorites},
+			ListNotifications:        &inbox.List{Inbox: notifications},
+			UnreadNotifications:      &inbox.UnreadCount{Inbox: notifications},
+			MarkNotificationRead:     &inbox.MarkRead{Inbox: notifications, Clock: systemClock},
+			MarkAllNotificationsRead: &inbox.MarkAllRead{Inbox: notifications, Clock: systemClock},
+			AddFavorite:              &favorite.Add{Listings: listings, Favorites: favorites, Clock: systemClock},
+			RemoveFavorite:           &favorite.Remove{Favorites: favorites},
+			ListMyFavorites:          &favorite.ListMine{Favorites: favorites, Search: listings},
+			Storage:                  storageProvider,
 
 			ReserveCycle:           reserveCycle,
+			CancelReservation:      cancelReservation,
+			QuoteReservation:       &reservation.Quote{Listings: listings, Cycles: cycles, Farms: farms},
 			PayReservation:         payReservation,
 			MarkDelivered:          markDelivered,
 			ConfirmDelivery:        confirmDelivery,
@@ -296,6 +327,9 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 // objectstorage.S3Provider.EnsureBucket).
 func (a *Application) Bootstrap(ctx context.Context) error {
 	if err := mongodb.Bootstrap(ctx, a.mongoDatabase); err != nil {
+		return err
+	}
+	if err := mongodb.BackfillReferences(ctx, a.mongoDatabase); err != nil {
 		return err
 	}
 	a.Logger.Info("connected to MongoDB and bootstrapped collections")

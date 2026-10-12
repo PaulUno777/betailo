@@ -15,13 +15,14 @@ import (
 // automatically 48h after DeliveredAt if the buyer never calls this and
 // no dispute is open — see its doc comment.
 type ConfirmDelivery struct {
-	Reservations ports.ReservationRepository
-	Reports      ports.ReportRepository
-	Listings     ports.ListingStore
-	Cycles       ports.CycleStore
-	Farms        ports.FarmRepository
-	Trust        ports.TrustRecomputer
-	Clock        ports.Clock
+	Reservations  ports.ReservationRepository
+	Reports       ports.ReportRepository
+	Listings      ports.ListingStore
+	Cycles        ports.CycleStore
+	Farms         ports.FarmRepository
+	Trust         ports.TrustRecomputer
+	Clock         ports.Clock
+	Notifications ports.NotificationRepository
 }
 
 type ConfirmDeliveryInput struct {
@@ -63,6 +64,8 @@ func (uc *ConfirmDelivery) Execute(ctx context.Context, in ConfirmDeliveryInput)
 	if ownerID, err := farmOwner(ctx, uc.Listings, uc.Cycles, uc.Farms, res.ListingID); err == nil {
 		_ = uc.Trust.Execute(ctx, ownerID)
 	}
+	Parties{Listings: uc.Listings, Cycles: uc.Cycles, Farms: uc.Farms}.notifyFarmer(ctx, uc.Notifications, uc.Clock, res,
+		domain.NotifEscrowReleased, "Séquestre libéré pour %s.")
 
 	return res, nil
 }

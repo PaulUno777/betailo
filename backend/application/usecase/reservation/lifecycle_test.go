@@ -181,7 +181,7 @@ func TestPayReservation_Execute(t *testing.T) {
 	payments := &fakePayments{}
 
 	uc := &PayReservation{Reservations: fx.reservations, Payments: payments, Clock: fx.clock}
-	got, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res.ID, BuyerID: buyerID})
+	got, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res.ID, BuyerID: buyerID, PaymentMethod: ports.PaymentMethodCard})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
 	}
@@ -190,7 +190,7 @@ func TestPayReservation_Execute(t *testing.T) {
 	}
 
 	// Paying again must fail: no longer pending.
-	if _, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res.ID, BuyerID: buyerID}); !errors.Is(err, domain.ErrConflict) {
+	if _, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res.ID, BuyerID: buyerID, PaymentMethod: ports.PaymentMethodCard}); !errors.Is(err, domain.ErrConflict) {
 		t.Errorf("second pay: error = %v, want domain.ErrConflict", err)
 	}
 
@@ -200,7 +200,7 @@ func TestPayReservation_Execute(t *testing.T) {
 		Status: domain.ReservationPending, Payment: &domain.PaymentInfo{Status: domain.PaymentPending, Amount: 500},
 	}
 	_ = fx.reservations.Insert(context.Background(), res2)
-	if _, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res2.ID, BuyerID: bson.NewObjectID()}); !errors.Is(err, domain.ErrForbidden) {
+	if _, err := uc.Execute(context.Background(), PayReservationInput{ReservationID: res2.ID, BuyerID: bson.NewObjectID(), PaymentMethod: ports.PaymentMethodCard}); !errors.Is(err, domain.ErrForbidden) {
 		t.Errorf("wrong buyer: error = %v, want domain.ErrForbidden", err)
 	}
 }
@@ -289,7 +289,7 @@ func TestExpireUnpaidReservations_RestoresCapacityAndNotifiesBuyer(t *testing.T)
 	}
 	_ = reservations.Insert(context.Background(), pending)
 
-	uc := &ExpireUnpaidReservations{Reservations: reservations, Listings: listings, Cycles: cycles, Notifications: notifications, Clock: fakeClock{now: now}}
+	uc := &ExpireUnpaidReservations{Reservations: reservations, Listings: listings, Cycles: cycles, Tx: fakeTx{}, Notifications: notifications, Clock: fakeClock{now: now}}
 	n, err := uc.Execute(context.Background())
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
@@ -352,3 +352,36 @@ func TestAutoReleaseDeliveries_ReleasesUndisputedAndSkipsDisputed(t *testing.T) 
 }
 
 var _ ports.Clock = fakeClock{}
+
+func TestCancelReservation_RestoresPlacesOnlyForUnpaidOwnReservation(t *testing.T) {
+	listings := &fakeListings{cycleID: bson.NewObjectID(), unitPrice: 10}
+	cycles := &fakeCycles{available: 6}
+	reservations := newFakeReservations()
+	buyerID := bson.NewObjectID()
+	pending := &domain.Reservation{
+		ID: bson.NewObjectID(), BuyerID: buyerID, Quantity: 4, Status: domain.ReservationPending,
+		Payment: &domain.PaymentInfo{Status: domain.PaymentPending},
+	}
+	_ = reservations.Insert(context.Background(), pending)
+	uc := &CancelReservation{Reservations: reservations, Listings: listings, Cycles: cycles, Tx: fakeTx{}}
+
+	if _, err := uc.Execute(context.Background(), CancelReservationInput{ReservationID: pending.ID, BuyerID: bson.NewObjectID()}); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("someone else's: error = %v, want ErrForbidden", err)
+	}
+	got, err := uc.Execute(context.Background(), CancelReservationInput{ReservationID: pending.ID, BuyerID: buyerID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.ReservationCancelled || cycles.available != 10 {
+		t.Fatalf("status=%s available=%d, want cancelled and 4 places back", got.Status, cycles.available)
+	}
+
+	paid := &domain.Reservation{
+		ID: bson.NewObjectID(), BuyerID: buyerID, Quantity: 2, Status: domain.ReservationConfirmed,
+		Payment: &domain.PaymentInfo{Status: domain.PaymentHeld},
+	}
+	_ = reservations.Insert(context.Background(), paid)
+	if _, err := uc.Execute(context.Background(), CancelReservationInput{ReservationID: paid.ID, BuyerID: buyerID}); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("paid: error = %v, want ErrConflict (escrow goes through a dispute)", err)
+	}
+}
