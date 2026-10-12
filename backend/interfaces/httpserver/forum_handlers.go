@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -61,8 +60,7 @@ func handleCreateForumPost(uc *forum.CreatePost) http.HandlerFunc {
 			return
 		}
 		var req createForumPostRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 		var listingID *bson.ObjectID
@@ -137,8 +135,7 @@ func handleAddForumReply(uc *forum.AddReply) http.HandlerFunc {
 			return
 		}
 		var req addForumReplyRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 		if err := uc.Execute(r.Context(), forum.AddReplyInput{PostID: postID, AuthorID: claims.UserID, Body: req.Body}); err != nil {

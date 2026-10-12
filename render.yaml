@@ -58,6 +58,10 @@ services:
         value: "true"
       - key: COOKIE_SAMESITE
         value: none
+      # Render's proxy overwrites X-Forwarded-For, so auth rate limiting
+      # can key on the real client IP.
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
       # The deployed frontend's real origin — set this once that's
       # known; it defaults to http://localhost:4200 otherwise, which is
       # wrong for anything but local dev (see

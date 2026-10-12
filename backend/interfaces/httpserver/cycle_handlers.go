@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -47,8 +46,7 @@ func handleCreateCycle(uc *cycle.CreateCycle) http.HandlerFunc {
 			return
 		}
 		var req createCycleRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 		farmID, err := parseObjectIDField(req.FarmID)
@@ -119,8 +117,7 @@ func handleUpdateCycleStatus(uc *cycle.UpdateCycleStatus) http.HandlerFunc {
 			return
 		}
 		var req updateCycleStatusRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 

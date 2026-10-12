@@ -43,13 +43,16 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	farmerOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireRole(domain.RoleFarmer)) }
 
 	mux.HandleFunc("GET /health", handleHealth)
-	mux.HandleFunc("POST /auth/register", handleRegister(deps.Register))
-	mux.HandleFunc("POST /auth/login", handleLogin(deps.Login, deps.Cookies))
+	limit := func(policy RateLimit, h http.Handler) http.Handler {
+		return rateLimited(policy, deps.RateLimits.TrustProxyHeaders, time.Now, h)
+	}
+	mux.Handle("POST /auth/register", limit(deps.RateLimits.Register, handleRegister(deps.Register)))
+	mux.Handle("POST /auth/login", limit(deps.RateLimits.Login, handleLogin(deps.Login, deps.Cookies)))
 	// Neither reads Authorization — each authenticates via the refresh
 	// cookie itself, which matters for refresh specifically: that's the
 	// one call still expected to work after the access token has
 	// already expired.
-	mux.HandleFunc("POST /auth/refresh", handleRefresh(deps.RefreshToken, deps.Cookies))
+	mux.Handle("POST /auth/refresh", limit(deps.RateLimits.Refresh, handleRefresh(deps.RefreshToken, deps.Cookies)))
 	mux.HandleFunc("POST /auth/logout", handleLogout(deps.Logout, deps.Cookies))
 	mux.Handle("GET /me", chain(http.HandlerFunc(handleMe), auth))
 

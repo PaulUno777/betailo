@@ -25,6 +25,9 @@ type Dependencies struct {
 	Logout       *auth.Logout
 	Signer       ports.TokenSigner
 	Cookies      CookieConfig
+	// RateLimits applies to the credential endpoints; the zero value
+	// disables limiting.
+	RateLimits RateLimitConfig
 
 	CreateFarm  *farm.CreateFarm
 	GetFarm     *farm.GetFarm

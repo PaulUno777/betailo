@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -77,8 +76,7 @@ func handleCreateReservation(uc *reservation.ReserveCycle) http.HandlerFunc {
 			return
 		}
 		var req createReservationRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 
@@ -112,8 +110,7 @@ func handlePayReservation(uc *reservation.PayReservation) http.HandlerFunc {
 			return
 		}
 		var req payReservationRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 
@@ -184,8 +181,7 @@ func handleOpenDispute(uc *reservation.OpenDispute) http.HandlerFunc {
 			return
 		}
 		var req openDisputeRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, errBadRequestBody)
+		if !readJSON(w, r, &req) {
 			return
 		}
 

@@ -192,6 +192,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			Logout:       logout,
 			Signer:       signer,
 			Cookies:      cookieConfig(),
+			RateLimits:   httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
 			CreateFarm:  &farm.CreateFarm{Farms: farms, Clock: systemClock},
 			GetFarm:     &farm.GetFarm{Farms: farms},
@@ -248,9 +249,10 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			AdminGetReportDetail: adminGetReportDetail,
 			AdminResolveReport:   adminResolveReport,
 		}),
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	application := &Application{
