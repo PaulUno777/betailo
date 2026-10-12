@@ -853,3 +853,40 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 		t.Errorf("explicit done status = %d, want 1", done.Total)
 	}
 }
+
+// Sellers whose listings were live before publishing required a
+// verified seller are verified once at startup; anyone who comes later
+// is left for an admin.
+func TestVerifyExistingSellers_RunsOnceForSellersWithLiveListings(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+
+	seller, _, _ := e.seed(t, 10) // has a published listing
+	newcomer := e.buyer(t)
+
+	verified, err := mongodb.VerifyExistingSellers(ctx, e.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(verified) != 1 || verified[0] != seller.ID {
+		t.Fatalf("verified = %v, want only the seller %v", verified, seller.ID)
+	}
+	if got, _ := e.users.FindByID(ctx, seller.ID); !got.IsVerified {
+		t.Error("the seller with a live listing should be verified")
+	}
+	if got, _ := e.users.FindByID(ctx, newcomer.ID); got.IsVerified {
+		t.Error("an account without a live listing must stay unverified")
+	}
+
+	later, _, _ := e.seed(t, 10)
+	again, err := mongodb.VerifyExistingSellers(ctx, e.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(again) != 0 {
+		t.Fatalf("second run verified %v, want nobody", again)
+	}
+	if got, _ := e.users.FindByID(ctx, later.ID); got.IsVerified {
+		t.Error("a later startup must not verify anyone")
+	}
+}

@@ -43,6 +43,16 @@ import (
 
 type fakeUserRepo struct {
 	byEmail map[string]*domain.User
+	// unverifiedSellers leaves new farmers unverified, as in production.
+	// Off by default: most tests are about what a seller does once an
+	// admin has verified them.
+	unverifiedSellers bool
+}
+
+func (f *fakeUserRepo) verifySeller(u *domain.User) {
+	if u.Role == domain.RoleFarmer && !f.unverifiedSellers {
+		u.IsVerified = true
+	}
 }
 
 func newFakeUserRepo() *fakeUserRepo {
@@ -56,6 +66,7 @@ func (f *fakeUserRepo) Create(_ context.Context, u *domain.User) error {
 	if u.ID.IsZero() {
 		u.ID = bson.NewObjectID()
 	}
+	f.verifySeller(u)
 	f.byEmail[u.Email] = u
 	return nil
 }
@@ -78,6 +89,7 @@ func (f *fakeUserRepo) FindByID(_ context.Context, id bson.ObjectID) (*domain.Us
 }
 
 func (f *fakeUserRepo) Update(_ context.Context, u *domain.User) error {
+	f.verifySeller(u)
 	f.byEmail[u.Email] = u
 	return nil
 }
@@ -274,10 +286,10 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		}},
 		DeleteCycle: &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 
-		CreateListing:      &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		CreateListing:      &listing.CreateListing{Users: tf.users, Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		GetListing:         &listing.GetListing{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
 		QuickCreateListing: &listing.QuickCreate{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Sequencer: tf.sequencer, Tx: fakeTxManager{}, Clock: tf.clock},
-		PublishListing:     &listing.Publish{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		PublishListing:     &listing.Publish{Users: tf.users, Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		ListFarmListings:   &listing.ListFarmListings{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
 		PriceHint:          &listing.PriceHint{Search: search},
 		UpdateCycle:        &cycle.UpdateCycle{Farms: tf.farms, Cycles: tf.cycles, Editor: tf.cycles},

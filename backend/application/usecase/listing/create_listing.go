@@ -18,8 +18,10 @@ import (
 // the cycle's farm, and persist a new listing — always attached to a
 // cycle. "Une annonce sans cycle est impossible" (Phase 2's DoD): there
 // is no path through this usecase that produces a Listing with a nil
-// CycleID.
+// CycleID. The listing goes live straight away for a verified seller
+// and is kept as a draft for one who isn't yet (see Publish).
 type CreateListing struct {
+	Users    ports.UserRepository
 	Farms    ports.FarmRepository
 	Cycles   ports.CycleStore
 	Listings ports.ListingStore
@@ -61,6 +63,15 @@ func (uc *CreateListing) Execute(ctx context.Context, in CreateListingInput) (*d
 		return nil, fmt.Errorf("listing: unitPrice must not be negative: %w", domain.ErrInvalid)
 	}
 
+	verified, err := isVerifiedSeller(ctx, uc.Users, in.OwnerID)
+	if err != nil {
+		return nil, err
+	}
+	status := domain.ListingDraft
+	if verified {
+		status = domain.ListingPublished
+	}
+
 	cycleID := in.CycleID
 	l := &domain.Listing{
 		CycleID:     &cycleID,
@@ -68,7 +79,7 @@ func (uc *CreateListing) Execute(ctx context.Context, in CreateListingInput) (*d
 		Description: strings.TrimSpace(in.Description),
 		UnitPrice:   in.UnitPrice,
 		Unit:        strings.TrimSpace(in.Unit),
-		Status:      domain.ListingPublished,
+		Status:      status,
 	}
 
 	if err := uc.Listings.Create(ctx, l); err != nil {

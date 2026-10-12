@@ -245,6 +245,7 @@ func TestAdmin_HTTP_ListingsWithPhotosResolveURLs(t *testing.T) {
 // unverified farmer account trips both account signals.
 func TestAdmin_HTTP_ListingReportScoresOwnerRisk(t *testing.T) {
 	router, tf := newTestRouterAndFakes()
+	tf.users.unverifiedSellers = true
 	listingID, _ := setupListing(t, router, 120)
 	reporterToken, _ := registerAndLogin(t, router, uniqueEmail("reporter"), "buyer")
 	root := adminToken(t, router, tf)
