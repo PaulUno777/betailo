@@ -38,6 +38,11 @@ type meResponse struct {
 	Farms      []farmResponse `json:"farms"`
 	FarmLimit  int            `json:"farmLimit"`
 	CanAddFarm bool           `json:"canAddFarm"`
+	// Permissions is what the account's staff role lets it do in the
+	// back office (empty for everyone else); IsRoot marks the
+	// platform's root account.
+	Permissions []string `json:"permissions"`
+	IsRoot      bool     `json:"isRoot,omitempty"`
 }
 
 func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess) http.HandlerFunc {
@@ -61,7 +66,14 @@ func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess) http.Ha
 		for _, f := range seller.Farms {
 			farms = append(farms, toOwnerFarmResponse(f))
 		}
-		writeJSON(w, http.StatusOK, meResponse{profileResponse: toProfileResponse(u), Farms: farms, FarmLimit: seller.FarmLimit, CanAddFarm: seller.CanAdd})
+		permissions := []string{}
+		for _, p := range u.StaffRole.Permissions() {
+			permissions = append(permissions, string(p))
+		}
+		writeJSON(w, http.StatusOK, meResponse{
+			profileResponse: toProfileResponse(u), Farms: farms, FarmLimit: seller.FarmLimit, CanAddFarm: seller.CanAdd,
+			Permissions: permissions, IsRoot: u.Root,
+		})
 	}
 }
 

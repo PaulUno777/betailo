@@ -36,7 +36,7 @@ func (r *CounterRepository) Next(ctx context.Context, key string) (int64, error)
 	return doc.Seq, nil
 }
 
-// BackfillReferences gives every reservation and cycle created before
+// BackfillReferences gives every reservation, cycle and farm created before
 // references existed one, oldest first, from the same counters new ones
 // use. Idempotent: it only touches documents without a reference, so
 // running it on every startup is a no-op once done.
@@ -45,6 +45,7 @@ func BackfillReferences(ctx context.Context, database *mongo.Database) error {
 	for _, target := range []struct{ collection, prefix string }{
 		{"cycles", domain.CycleRefPrefix},
 		{"reservations", domain.ReservationRefPrefix},
+		{"farms", domain.FarmRefPrefix},
 	} {
 		coll := database.Collection(target.collection)
 		cur, err := coll.Find(ctx, bson.M{"reference": bson.M{"$exists": false}},

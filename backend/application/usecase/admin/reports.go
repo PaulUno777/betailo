@@ -180,6 +180,7 @@ type ResolveReport struct {
 }
 
 type ResolveReportInput struct {
+	Actor    Actor
 	ReportID bson.ObjectID
 	Action   ResolveAction
 }
@@ -203,12 +204,11 @@ func (uc *ResolveReport) Execute(ctx context.Context, in ResolveReportInput) (*d
 		if err != nil {
 			return nil, err
 		}
-		u.Suspended = true
-		if err := uc.Users.Update(ctx, u); err != nil {
+		if err := checkSuspendable(in.Actor, u); err != nil {
 			return nil, err
 		}
-		if u.Suspended && uc.Sessions != nil {
-			uc.Sessions.Forget(u.ID)
+		if _, err := setSuspended(ctx, uc.Users, uc.Sessions, u, true); err != nil {
+			return nil, err
 		}
 		_ = uc.Trust.Execute(ctx, u.ID)
 		rp.Status = domain.ReportHandled

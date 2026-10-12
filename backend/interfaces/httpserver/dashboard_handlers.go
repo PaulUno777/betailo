@@ -21,8 +21,18 @@ type sellerDashboardResponse struct {
 	ReleasedThisPeriod      float64                `json:"releasedThisPeriod"`
 	WeeklyReservationCounts [8]int                 `json:"weeklyReservationCounts"`
 	ActiveCycles            []cycleSummaryResponse `json:"activeCycles"`
-	LatestReservations      []reservationResponse  `json:"latestReservations"`
+	LatestReservations      []dashboardReservation `json:"latestReservations"`
 	Todos                   []todoResponse         `json:"todos"`
+}
+
+// dashboardReservation is a reservation on the seller's dashboard,
+// with who made it and on which cycle. BuyerName is the buyer's public
+// display name, empty when they never set one.
+type dashboardReservation struct {
+	reservationResponse
+	BuyerName string `json:"buyerName,omitempty"`
+	CycleRef  string `json:"cycleRef,omitempty"`
+	Species   string `json:"species,omitempty"`
 }
 
 type todoResponse struct {
@@ -57,9 +67,13 @@ func handleSellerDashboard(uc *dashboard.SellerDashboard) http.HandlerFunc {
 				NextMilestone: c.NextMilestone, NextMilestoneDate: c.NextMilestoneDate,
 			})
 		}
-		latest := make([]reservationResponse, 0, len(out.LatestReservations))
+		latest := make([]dashboardReservation, 0, len(out.LatestReservations))
 		for _, res := range out.LatestReservations {
-			latest = append(latest, toReservationResponse(res))
+			item := dashboardReservation{reservationResponse: toReservationResponse(res), BuyerName: out.LatestBuyers[res.ID]}
+			if c := out.LatestCycles[res.ID]; c != nil {
+				item.CycleRef, item.Species = c.Reference, c.Species
+			}
+			latest = append(latest, item)
 		}
 
 		todos := make([]todoResponse, 0, len(out.Todos))

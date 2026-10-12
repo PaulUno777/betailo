@@ -55,9 +55,10 @@ services:
       # review. Keep "false" once real sellers use the platform.
       - key: FARM_AUTO_APPROVE
         value: "false"
-      # The first super admin, created (or promoted) at startup. Set
-      # both in the Render dashboard; the password is only used when
-      # the account doesn't exist yet.
+      # The root account (day zero): created or promoted at startup, a
+      # super admin the API can never demote or suspend. Set both in the
+      # Render dashboard; the password is only used when the account
+      # doesn't exist yet. See backend/.env.example.
       - key: SUPER_ADMIN_EMAIL
         sync: false
       - key: SUPER_ADMIN_PASSWORD

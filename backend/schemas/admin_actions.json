@@ -1,0 +1,15 @@
+{
+  "bsonType": "object",
+  "required": ["actorId", "action", "createdAt"],
+  "properties": {
+    "actorId": { "bsonType": "objectId" },
+    "actorName": { "bsonType": "string" },
+    "actorRole": { "enum": ["super_admin", "moderator", "finance", "support"] },
+    "action": { "bsonType": "string" },
+    "targetType": { "bsonType": "string" },
+    "targetId": { "bsonType": "objectId" },
+    "targetLabel": { "bsonType": "string" },
+    "detail": { "bsonType": "string", "maxLength": 600 },
+    "createdAt": { "bsonType": "date" }
+  }
+}

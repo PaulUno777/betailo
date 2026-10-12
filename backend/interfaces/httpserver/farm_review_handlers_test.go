@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/pauluno777/betailo/backend/domain"
 )
 
 // uploadFarmProof asks for n proof upload slots and returns their keys
@@ -69,18 +71,31 @@ func TestFarm_HTTP_SellsOnlyOnceStaffApprovedIt(t *testing.T) {
 	if rec := submit(submitFarmRequest{}); rec.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, rec).Code != "farm.id_document_required" {
 		t.Fatalf("submit without proof = %d %s, want 400 farm.id_document_required", rec.Code, rec.Body.String())
 	}
-	keys := uploadFarmProof(t, router, farmID, token, 2)
-	if rec := submit(submitFarmRequest{IDDocumentKey: keys[0]}); rec.Code != http.StatusBadRequest {
+	keys := uploadFarmProof(t, router, farmID, token, 3)
+	proof := submitFarmRequest{IDDocumentKey: keys[0], IDDocumentBackKey: keys[1], PhotoKeys: keys[2:], Certified: true}
+	if rec := submit(submitFarmRequest{IDDocumentKey: keys[0], IDDocumentBackKey: keys[1], Certified: true}); rec.Code != http.StatusBadRequest {
 		t.Fatalf("submit without farm photos = %d, want 400", rec.Code)
 	}
-	if rec := submit(submitFarmRequest{IDDocumentKey: "listings/someone-else.jpg", PhotoKeys: keys[1:]}); rec.Code != http.StatusBadRequest {
+	if rec := submit(submitFarmRequest{IDDocumentKey: "listings/someone-else.jpg", IDDocumentBackKey: keys[1], PhotoKeys: keys[2:], Certified: true}); rec.Code != http.StatusBadRequest {
 		t.Fatalf("submit with a foreign key = %d, want 400", rec.Code)
 	}
-	rec := submit(submitFarmRequest{IDDocumentKey: keys[0], PhotoKeys: keys[1:]})
+	// An identity card has two sides; a passport's identity page stands alone.
+	if rec := submit(submitFarmRequest{IDDocumentKey: keys[0], PhotoKeys: keys[2:], Certified: true}); rec.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, rec).Code != "farm.id_document_back_required" {
+		t.Fatalf("identity card without its back = %d %s, want 400 farm.id_document_back_required", rec.Code, rec.Body.String())
+	}
+	if rec := submit(submitFarmRequest{IDDocumentType: "student_card", IDDocumentKey: keys[0], PhotoKeys: keys[2:], Certified: true}); rec.Code != http.StatusBadRequest {
+		t.Fatalf("unknown document type = %d, want 400", rec.Code)
+	}
+	uncertified := proof
+	uncertified.Certified = false
+	if rec := submit(uncertified); rec.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, rec).Code != "farm.certification_required" {
+		t.Fatalf("submit without certifying = %d %s, want 400 farm.certification_required", rec.Code, rec.Body.String())
+	}
+	rec := submit(proof)
 	if rec.Code != http.StatusOK || decodeJSON[farmResponse](t, rec).Status != "pending" {
 		t.Fatalf("submit = %d %s, want 200 pending", rec.Code, rec.Body.String())
 	}
-	if rec := submit(submitFarmRequest{IDDocumentKey: keys[0], PhotoKeys: keys[1:]}); rec.Code != http.StatusConflict {
+	if rec := submit(proof); rec.Code != http.StatusConflict {
 		t.Errorf("second submit while pending = %d, want 409", rec.Code)
 	}
 	if rec := publish(); rec.Code != http.StatusForbidden {
@@ -88,13 +103,29 @@ func TestFarm_HTTP_SellsOnlyOnceStaffApprovedIt(t *testing.T) {
 	}
 
 	// Staff see it in the queue, with the proof behind signed links.
-	queue := decodeJSON[[]adminFarmResponse](t, doJSON(t, router, http.MethodGet, "/admin/farms?status=pending", nil, root))
-	if len(queue) != 1 || queue[0].ID != farmID || queue[0].Owner == nil {
-		t.Fatalf("pending queue = %+v, want the submitted farm with its owner", queue)
+	queueOf := func(name string) adminFarmListResponse {
+		return decodeJSON[adminFarmListResponse](t, doJSON(t, router, http.MethodGet, "/admin/farms?queue="+name, nil, root))
+	}
+	queue := queueOf("todo")
+	if len(queue.Farms) != 1 || queue.Farms[0].ID != farmID || queue.Farms[0].Owner == nil || queue.Counts.Todo != 1 {
+		t.Fatalf("queue to do = %+v, want the submitted farm with its owner", queue)
+	}
+	if again := queueOf("resubmitted"); len(again.Farms) != 0 {
+		t.Fatalf("resubmitted queue = %+v, want empty: the farm was sent once", again.Farms)
+	}
+	if rec := doJSON(t, router, http.MethodGet, "/admin/farms?queue=nope", nil, root); rec.Code != http.StatusBadRequest {
+		t.Errorf("unknown queue = %d, want 400", rec.Code)
 	}
 	detail := decodeJSON[adminFarmDetailResponse](t, doJSON(t, router, http.MethodGet, "/admin/farms/"+farmID, nil, root))
-	if !strings.Contains(detail.IDDocumentURL, keys[0]) || len(detail.PhotoURLs) != 1 {
-		t.Fatalf("detail proof = %q %v, want download links for what was submitted", detail.IDDocumentURL, detail.PhotoURLs)
+	if !strings.Contains(detail.IDDocumentURL, keys[0]) || !strings.Contains(detail.IDDocumentBackURL, keys[1]) || len(detail.PhotoURLs) != 1 {
+		t.Fatalf("detail proof = %q %q %v, want download links for what was submitted", detail.IDDocumentURL, detail.IDDocumentBackURL, detail.PhotoURLs)
+	}
+	if detail.OwnerFarmCount != 1 || detail.OwnerFarmLimit != 1 || len(detail.RejectionCodes) == 0 {
+		t.Errorf("detail = farms %d/%d, codes %v", detail.OwnerFarmCount, detail.OwnerFarmLimit, detail.RejectionCodes)
+	}
+	// Looking at an identity document leaves a trace.
+	if !tf.audit.has(domain.ActionFarmProofViewed) {
+		t.Error("opening a farm's proof wasn't journaled")
 	}
 	// The proof never shows on the public profile.
 	if body := doJSON(t, router, http.MethodGet, "/farms/"+farmID, nil, "").Body.String(); strings.Contains(body, "farm-verifications") || strings.Contains(body, `"review":`) {
@@ -111,12 +142,21 @@ func TestFarm_HTTP_SellsOnlyOnceStaffApprovedIt(t *testing.T) {
 	if rec := review(reviewFarmRequest{Decision: "reject"}); rec.Code != http.StatusBadRequest {
 		t.Fatalf("reject without a reason = %d, want 400", rec.Code)
 	}
-	rejected := decodeJSON[farmResponse](t, review(reviewFarmRequest{Decision: "reject", Reason: "Document illisible"}))
-	if rejected.Status != "rejected" || rejected.Review.RejectionReason != "Document illisible" || !rejected.Review.CanSubmit {
+	if rec := review(reviewFarmRequest{Decision: "reject", ReasonCode: "because", Reason: "Document illisible"}); rec.Code != http.StatusBadRequest {
+		t.Fatalf("reject with an unknown reason code = %d, want 400", rec.Code)
+	}
+	rejected := decodeJSON[farmResponse](t, review(reviewFarmRequest{Decision: "reject", ReasonCode: "id_unreadable", Reason: "Document illisible"}))
+	if rejected.Status != "rejected" || rejected.Review.RejectionReason != "Document illisible" || rejected.Review.RejectionCode != "id_unreadable" || !rejected.Review.CanSubmit {
 		t.Fatalf("after reject = %+v (review %+v)", rejected, rejected.Review)
 	}
-	if rec := submit(submitFarmRequest{IDDocumentKey: keys[0], PhotoKeys: keys[1:]}); rec.Code != http.StatusOK {
+	if done := queueOf("done"); len(done.Farms) != 1 || done.Counts.Todo != 0 {
+		t.Fatalf("after the refusal, done queue = %+v", done)
+	}
+	if rec := submit(proof); rec.Code != http.StatusOK {
 		t.Fatalf("resubmit = %d; body = %s", rec.Code, rec.Body.String())
+	}
+	if again := queueOf("resubmitted"); len(again.Farms) != 1 || again.Counts.Resubmitted != 1 || again.Farms[0].Review.Submissions != 2 {
+		t.Fatalf("resubmitted queue = %+v, want the farm sent a second time", again)
 	}
 	if rec := review(reviewFarmRequest{Decision: "approve"}); rec.Code != http.StatusOK || decodeJSON[farmResponse](t, rec).Status != "approved" {
 		t.Fatalf("approve = %d %s", rec.Code, rec.Body.String())
@@ -171,7 +211,7 @@ func TestFarm_HTTP_LimitPerAccountAndStaffOverride(t *testing.T) {
 		t.Fatalf("second farm at the default limit = %d %s, want 409 farm.limit_reached", second.Code, second.Body.String())
 	}
 
-	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+userID+"/farm-limit", farmLimitRequest{Limit: 2}, root); rec.Code != http.StatusOK {
+	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+userID+"/farm-limit", farmLimitRequest{Limit: 2, Reason: "Deuxième site à Bafang"}, root); rec.Code != http.StatusOK {
 		t.Fatalf("raise limit = %d; body = %s", rec.Code, rec.Body.String())
 	}
 	if rec := create("Deuxième", token); rec.Code != http.StatusCreated {

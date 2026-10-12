@@ -83,7 +83,7 @@ def put_file(url):
         return repr(e)
 
 
-def upload_farm_proof(owner, farm_id, n=2):
+def upload_farm_proof(owner, farm_id, n=3):
     """Uploads n proof files for a farm and returns their storage keys."""
     keys = []
     for _ in range(n):
@@ -93,11 +93,18 @@ def upload_farm_proof(owner, farm_id, n=2):
     return keys
 
 
+def proof_body(keys, **over):
+    """A complete submission: identity card front and back, farm photos, certified."""
+    body = {"idDocumentType": "national_id", "idDocumentKey": keys[0], "idDocumentBackKey": keys[1], "photoKeys": keys[2:], "certified": True}
+    body.update(over)
+    return body
+
+
 def open_approved_farm(owner, staff, farm):
     """Opens a farm and takes it through review: proof, then approval."""
     s, f = owner.call("POST", "/farms", farm)
     keys = upload_farm_proof(owner, f["id"])
-    owner.call("POST", f"/farms/{f['id']}/verification/submit", {"idDocumentKey": keys[0], "photoKeys": keys[1:]})
+    owner.call("POST", f"/farms/{f['id']}/verification/submit", proof_body(keys))
     staff.call("POST", f"/admin/farms/{f['id']}/review", {"decision": "approve"})
     return f
 
@@ -200,27 +207,33 @@ check("V01", "Farmer", "Publish from a farm staff haven't approved", "403 code f
 s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {})
 check("V02", "Farmer", "Submit the farm without proof", "400 code farm.id_document_required", s == 400 and (b or {}).get("code") == "farm.id_document_required", f"{s} {b}")
 proof = upload_farm_proof(far, farm_id)
-s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {"idDocumentKey": key, "photoKeys": proof[1:]})
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", proof_body(proof, idDocumentKey=key))
 check("V03", "Farmer", "Submit proof with a key from another upload (a listing photo)", "400", s == 400, f"{s} {b}")
-s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {"idDocumentKey": proof[0], "photoKeys": proof[1:]})
-check("V04", "Farmer", "Submit the farm for review (ID document + farm photo)", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:140]}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", proof_body(proof, idDocumentBackKey=""))
+check("V03b", "Farmer", "Identity card without its back", "400 code farm.id_document_back_required", s == 400 and (b or {}).get("code") == "farm.id_document_back_required", f"{s} {b}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", proof_body(proof, certified=False))
+check("V03c", "Farmer", "Submit without certifying", "400 code farm.certification_required", s == 400 and (b or {}).get("code") == "farm.certification_required", f"{s} {b}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", proof_body(proof))
+check("V04", "Farmer", "Submit the farm for review (ID front and back + farm photo)", "200 pending with a reference", s == 200 and (b or {}).get("status") == "pending" and str((b or {}).get("reference", "")).startswith("FRM-"), f"{s} {str(b)[:140]}")
 s, b = far.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "approve"})
 check("V05", "Farmer", "Owner approving their own farm (staff route)", "403", s == 403, f"{s} {b}")
-s, b = adm.call("GET", "/admin/farms?status=pending")
-check("V06", "Admin", "Validation queue lists the pending farm with its owner", "200 includes it", s == 200 and any(f.get("id") == farm_id and f.get("owner") for f in b), f"{s} n={len(b) if isinstance(b, list) else b}")
+s, b = adm.call("GET", "/admin/farms?queue=todo")
+check("V06", "Admin", "Validation queue lists the pending farm with its owner", "200 includes it", s == 200 and any(f.get("id") == farm_id and f.get("owner") for f in b.get("farms", [])) and b.get("counts", {}).get("todo", 0) >= 1, f"{s} counts={b.get('counts') if isinstance(b, dict) else b}")
 s, b = adm.call("GET", f"/admin/farms/{farm_id}")
-check("V07", "Admin", "Farm detail carries signed links to the proof", "200 idDocumentUrl + 1 photo", s == 200 and (b or {}).get("idDocumentUrl") and len(b.get("photoUrls", [])) == 1, f"{s} {str(b)[:120]}")
+check("V07", "Admin", "Farm detail carries signed links to the proof", "200 ID front + back + 1 photo", s == 200 and (b or {}).get("idDocumentUrl") and b.get("idDocumentBackUrl") and len(b.get("photoUrls", [])) == 1, f"{s} {str(b)[:120]}")
 s, b = g.call("GET", f"/farms/{farm_id}")
 check("V08", "Guest", "Public farm profile doesn't expose the review", "200 without review/proof", s == 200 and "review" not in b and "farm-verifications" not in json.dumps(b), f"{s} keys={sorted(b.keys()) if isinstance(b, dict) else b}")
 s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "reject"})
 check("V09", "Admin", "Reject without a reason", "400 code farm.reason_required", s == 400 and (b or {}).get("code") == "farm.reason_required", f"{s} {b}")
-s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "reject", "reason": "Document illisible"})
+s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "reject", "reasonCode": "id_unreadable", "reason": "Document illisible"})
 check("V10", "Admin", "Reject with a reason", "200 rejected", s == 200 and (b or {}).get("status") == "rejected", f"{s} {str(b)[:140]}")
 s, me = far.call("GET", "/me")
 rv = (me.get("farms") or [{}])[0].get("review") or {}
-check("V11", "Farmer", "Owner sees the rejection reason and can resubmit", "reason + canSubmit", rv.get("rejectionReason") == "Document illisible" and rv.get("canSubmit") is True, f"{s} review={rv}")
-s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {"idDocumentKey": proof[0], "photoKeys": proof[1:]})
+check("V11", "Farmer", "Owner sees the rejection reason and can resubmit", "code + reason + canSubmit", rv.get("rejectionReason") == "Document illisible" and rv.get("rejectionCode") == "id_unreadable" and rv.get("canSubmit") is True, f"{s} review={rv}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", proof_body(proof))
 check("V12", "Farmer", "Resubmit after a rejection", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:120]}")
+s, b = adm.call("GET", "/admin/farms?queue=resubmitted")
+check("V12b", "Admin", "The resubmitted farm is in its own queue", "200 includes it", s == 200 and any(f.get("id") == farm_id for f in b.get("farms", [])), f"{s} counts={b.get('counts') if isinstance(b, dict) else b}")
 s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "approve"})
 check("V13", "Admin", "Approve the farm", "200 approved", s == 200 and (b or {}).get("status") == "approved", f"{s} {str(b)[:120]}")
 s, b = far.call("GET", "/notifications")
@@ -321,7 +334,7 @@ check("B26", "Buyer", "Open a dispute on a paid order", "2xx", 200 <= s < 300, f
 # ---------------- Admin ----------------
 adm, s = login(CREDS["ADMIN"], CREDS["PW"])
 check("A01", "Admin", "Super admin login", "200 staffRole=super_admin", s == 200 and adm.user.get("staffRole") == "super_admin", f"{s} staffRole={adm.user.get('staffRole')}")
-for path in ["/admin/overview", "/admin/users", "/admin/listings", "/admin/escrow", "/admin/reports", "/admin/cycles", "/admin/farms"]:
+for path in ["/admin/overview", "/admin/overview?period=7d", "/admin/overview?period=12m", "/admin/nav-counts", "/admin/users", "/admin/listings", "/admin/escrow", "/admin/reports", "/admin/cycles", "/admin/farms?queue=done", "/admin/staff", "/admin/farm-limits", "/admin/audit"]:
     s, b = adm.call("GET", path)
     check("A02" + path, "Admin", f"GET {path}", "200", s == 200, s)
 if report_id:
@@ -330,13 +343,19 @@ if report_id:
     s, b = adm.call("POST", f"/admin/reports/{report_id}/resolve", {"action": "dismiss"})
     check("A04", "Admin", "Resolve report (dismiss)", "200", s == 200, f"{s} {str(b)[:100]}")
 s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit": 2})
-check("A05", "Admin", "Raise one account's farm limit", "200 farmLimit=2", s == 200 and (b or {}).get("farmLimit") == 2, f"{s} {str(b)[:100]}")
+check("A05a", "Admin", "Farm limit exception without a reason", "400 code admin.farm_limit_reason_required", s == 400 and (b or {}).get("code") == "admin.farm_limit_reason_required", f"{s} {b}")
+s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit": 2, "reason": "Second site"})
+check("A05", "Admin", "Raise one account's farm limit, with a reason", "200 farmLimit=2", s == 200 and (b or {}).get("farmLimit") == 2 and (b.get("farmLimitNote") or {}).get("reason") == "Second site", f"{s} {str(b)[:100]}")
 s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Douala"})
 check("A05b", "Farmer", "Second farm once staff raised the limit", "201 draft", s == 201 and (b or {}).get("status") == "draft", f"{s} {str(b)[:100]}")
 s, b = far.call("POST", "/farms", {"name": "Troisième ferme", "location": "Douala"})
 check("A05c", "Farmer", "Third farm beyond the raised limit", "409 code farm.limit_reached", s == 409 and (b or {}).get("code") == "farm.limit_reached", f"{s} {b}")
 s, b = adm.call("POST", "/farms", {"name": "Ferme du staff", "location": "Douala"})
 check("A05d", "Admin", "Staff account opening a farm", "403 code farm.staff_cannot_sell", s == 403 and (b or {}).get("code") == "farm.staff_cannot_sell", f"{s} {b}")
+s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit": 1, "reason": "Erreur"})
+check("A05e", "Admin", "Limit below the farms the account owns", "409 code admin.farm_limit_below_owned", s == 409 and (b or {}).get("code") == "admin.farm_limit_below_owned", f"{s} {b}")
+s, b = adm.call("GET", "/admin/farm-limits")
+check("A05f", "Admin", "Exceptions list names who granted it", "the account, with setByRole", s == 200 and any(e.get("id") == far.user.get("id") and (e.get("farmLimitNote") or {}).get("setByRole") == "super_admin" for e in b.get("exceptions", [])), f"{s} default={b.get('default') if isinstance(b, dict) else b}")
 s, b = adm.call("GET", "/admin/escrow")
 held = [e for e in (b.get("items", b) if isinstance(b, dict) else b or []) if isinstance(e, dict) and r_paid2 and r_paid2 in json.dumps(e)]
 s, b = adm.call("POST", f"/admin/escrow/{r_paid2}/refund")
@@ -348,6 +367,48 @@ _, s = login(victim.email, victim.pw)
 check("A08", "Admin", "Suspended user cannot log in", "401/403", s in (401, 403), s)
 s, b = victim.call("GET", "/me")
 check("A09", "Admin", "Suspended user's existing session stops working (D1)", "401 account_suspended", s == 401 and (b or {}).get("code") == "account_suspended", f"{s} {b}")
+s, b = adm.call("POST", f"/admin/users/{victim.user.get('id')}/reactivate")
+check("A10", "Admin", "Lift the suspension", "200 suspended=false", s == 200 and (b or {}).get("suspended") is False, f"{s} {str(b)[:100]}")
+_, s = login(victim.email, victim.pw)
+check("A11", "Admin", "Reactivated user logs in again", "200", s == 200, s)
+
+# ---------------- Staff roles ----------------
+s, me = adm.call("GET", "/me")
+check("T01", "Staff", "The startup account is the root super admin", "isRoot, every permission", s == 200 and me.get("isRoot") is True and "staff.manage" in me.get("permissions", []), f"{s} isRoot={me.get('isRoot')} n={len(me.get('permissions', []))}")
+s, b = adm.call("POST", f"/admin/staff/{me['id']}/role", {"role": "support"})
+check("T02", "Staff", "Nobody changes the root account's role", "403 code admin.root_protected", s == 403 and (b or {}).get("code") == "admin.root_protected", f"{s} {b}")
+s, b = adm.call("POST", f"/admin/users/{me['id']}/suspend")
+check("T03", "Staff", "Nobody suspends the root account", "403 code admin.root_protected", s == 403 and (b or {}).get("code") == "admin.root_protected", f"{s} {b}")
+mod, _, _ = register("buyer", "Rita Modération")
+s, b = mod.call("GET", "/admin/overview")
+check("T04", "Staff", "An ordinary account in the back office", "403", s == 403, f"{s}")
+s, b = adm.call("POST", "/admin/staff", {"email": mod.email, "role": "moderator"})
+check("T05", "Staff", "Grant the moderator role to an existing account", "200 staffRole=moderator", s == 200 and (b or {}).get("staffRole") == "moderator", f"{s} {str(b)[:100]}")
+s, b = mod.call("GET", "/admin/farms?queue=todo")
+check("T06", "Staff", "The role applies to the session already open", "200", s == 200, f"{s}")
+s, b = mod.call("GET", "/admin/escrow")
+check("T07", "Staff", "Moderator reading escrow", "403 admin.permission_denied naming finance", s == 403 and (b or {}).get("code") == "admin.permission_denied" and "finance" in (b.get("params") or {}).get("roles", []), f"{s} {b}")
+s, b = mod.call("POST", "/admin/staff", {"email": victim.email, "role": "support"})
+check("T08", "Staff", "Moderator granting a role", "403", s == 403, f"{s} {b}")
+s, b = mod.call("POST", "/farms", {"name": "Ferme du modérateur", "location": "Douala"})
+check("T09", "Staff", "Moderator opening a farm", "403 code farm.staff_cannot_sell", s == 403 and (b or {}).get("code") == "farm.staff_cannot_sell", f"{s} {b}")
+s, b = adm.call("POST", "/admin/staff", {"email": far.email, "role": "support"})
+check("T10", "Staff", "A farm owner joining the staff", "409 code admin.staff_owns_farm", s == 409 and (b or {}).get("code") == "admin.staff_owns_farm", f"{s} {b}")
+s, b = adm.call("POST", f"/admin/staff/{mod.user.get('id')}/role", {"role": "finance"})
+check("T11", "Staff", "Change a member's role", "200 staffRole=finance", s == 200 and (b or {}).get("staffRole") == "finance", f"{s} {str(b)[:100]}")
+s, b = mod.call("GET", "/admin/escrow")
+s2, b2 = mod.call("GET", "/admin/reports")
+check("T12", "Staff", "Finance reads escrow, not reports", "200 then 403", s == 200 and s2 == 403, f"{s} {s2}")
+s, b = adm.call("GET", "/admin/staff")
+check("T13", "Staff", "Team page: members and the role table", "root + the new member, 4 roles", s == 200 and len(b.get("members", [])) >= 2 and len(b.get("roles", [])) == 4, f"{s} members={len(b.get('members', [])) if isinstance(b, dict) else b}")
+s, b = adm.call("POST", f"/admin/staff/{mod.user.get('id')}/role", {"role": ""})
+check("T14", "Staff", "Revoke a role", "200 no staffRole", s == 200 and not (b or {}).get("staffRole"), f"{s} {str(b)[:100]}")
+s, b = mod.call("GET", "/admin/overview")
+check("T15", "Staff", "A revoked member is locked out at once", "403", s == 403, f"{s}")
+s, b = adm.call("GET", "/admin/audit")
+actions = {a.get("action") for a in (b if isinstance(b, list) else [])}
+wanted = {"farm.approve", "farm.reject", "farm.proof_viewed", "user.suspend", "user.reactivate", "user.farm_limit", "escrow.refund", "staff.grant", "staff.revoke"}
+check("T16", "Staff", "The journal recorded what staff did in this run", "every action above", s == 200 and wanted <= actions, f"{s} missing={sorted(wanted - actions)}")
 s, b = adm.call("POST", f"/listings/{qlisting}/reservations", {"quantity": 1})
 check("A10", "Admin", "Admin places a reservation", "documented behavior (allowed or refused)", True, f"{s} {str(b)[:100]}")
 

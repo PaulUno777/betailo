@@ -4,8 +4,18 @@
   "properties": {
     "email": { "bsonType": "string" },
     "passwordHash": { "bsonType": "string" },
-    "staffRole": { "enum": ["super_admin"] },
+    "staffRole": { "enum": ["super_admin", "moderator", "finance", "support"] },
+    "root": { "bsonType": "bool" },
     "farmLimit": { "bsonType": ["int", "long"], "minimum": 0 },
+    "farmLimitNote": {
+      "bsonType": "object",
+      "required": ["reason", "setBy", "setAt"],
+      "properties": {
+        "reason": { "bsonType": "string", "maxLength": 300 },
+        "setBy": { "bsonType": "objectId" },
+        "setAt": { "bsonType": "date" }
+      }
+    },
     "displayName": { "bsonType": "string", "maxLength": 60 },
     "phone": { "bsonType": "string", "pattern": "^\\+[0-9]{8,15}$" },
     "city": { "bsonType": "string", "maxLength": 80 },

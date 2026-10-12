@@ -173,6 +173,11 @@ type testFakes struct {
 	users         *fakeUserRepo
 	refreshTokens *fakeRefreshTokenRepo
 	farms         *fakeFarmRepo
+	audit         *fakeAuditLog
+	// gate is the live account lookup behind the auth and permission
+	// middlewares; a test that edits an account in the fake store
+	// directly tells it to forget what it cached.
+	gate          *auth.AccountGate
 	cycles        *fakeCycleStore
 	listings      *fakeListingStore
 	reservations  *fakeReservationRepo
@@ -203,12 +208,31 @@ func (tf *testFakes) setDisplayName(userID, name string) {
 }
 
 func (tf *testFakes) promoteToAdmin(userID string) {
+	tf.setStaffRole(userID, domain.StaffSuperAdmin)
+}
+
+// setStaffRole writes a role straight into the fake store, the way the
+// startup bootstrap does for the root account.
+func (tf *testFakes) setStaffRole(userID string, role domain.StaffRole) {
 	id, _ := bson.ObjectIDFromHex(userID)
 	for _, u := range tf.users.byEmail {
 		if u.ID == id {
-			u.StaffRole = domain.StaffSuperAdmin
+			u.StaffRole = role
 		}
 	}
+	tf.gate.Forget(id)
+}
+
+// markRoot makes an account the platform's root, as auth.EnsureRootAdmin
+// would at startup.
+func (tf *testFakes) markRoot(userID string) {
+	id, _ := bson.ObjectIDFromHex(userID)
+	for _, u := range tf.users.byEmail {
+		if u.ID == id {
+			u.StaffRole, u.Root = domain.StaffSuperAdmin, true
+		}
+	}
+	tf.gate.Forget(id)
 }
 
 // newTestRouter builds a full router with real bcrypt (at the fast
@@ -225,7 +249,7 @@ func newTestRouter() http.Handler {
 
 func newTestRouterAndFakes() (http.Handler, *testFakes) {
 	tf := &testFakes{
-		users: newFakeUserRepo(), refreshTokens: newFakeRefreshTokenRepo(), farms: newFakeFarmRepo(), cycles: newFakeCycleStore(),
+		users: newFakeUserRepo(), refreshTokens: newFakeRefreshTokenRepo(), farms: newFakeFarmRepo(), audit: &fakeAuditLog{}, cycles: newFakeCycleStore(),
 		listings: newFakeListingStore(), reservations: newFakeReservationRepo(),
 		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(), sequencer: &fakeSequencer{}, notifications: &fakeNotificationRepo{},
 		signer: &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")},
@@ -243,6 +267,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 
 	parties := reservation.Parties{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms}
 	accountGate := &auth.AccountGate{Users: tf.users, Clock: tf.clock}
+	tf.gate = accountGate
 	tf.createFarm = &farm.CreateFarm{Users: tf.users, Farms: tf.farms, MaxFarms: testMaxFarms, Trust: trustRecompute, Clock: tf.clock}
 	tf.submitFarm = &farm.SubmitFarmForReview{Farms: tf.farms, Trust: trustRecompute, Notifications: tf.notifications, Clock: tf.clock}
 
@@ -373,15 +398,30 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Users: tf.users, Clock: tf.clock,
 		},
 
-		AdminOverview:     &admin.Overview{Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
-		AdminListUsers:    &admin.ListUsers{Users: tf.users},
-		AdminSetFarmLimit: &admin.SetFarmLimit{Users: tf.users},
-		AdminListFarms:    &admin.ListFarmsForReview{Farms: tf.farms, Users: tf.users},
-		AdminGetFarm:      &admin.GetFarmForReview{Farms: tf.farms, Users: tf.users, Storage: tf.storage},
-		AdminSuspendUser:  &admin.SuspendUser{Users: tf.users, Sessions: accountGate},
-		AdminListCycles:   &admin.ListAllCycles{Cycles: tf.cycles},
-		AdminListListings: &admin.ListAllListings{Cycles: tf.cycles, Listings: tf.listings},
-		AdminListEscrow:   &admin.ListEscrowTransactions{Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
+		StaffRoles: accountGate,
+		AdminOverview: &admin.Overview{
+			Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Farms: tf.farms, Clock: tf.clock,
+		},
+		AdminNavCounts:       &admin.CountNav{Farms: tf.farms, Reports: tf.reports},
+		AdminListUsers:       &admin.ListUsers{Users: tf.users, Farms: tf.farms},
+		AdminSetFarmLimit:    &admin.SetFarmLimit{Users: tf.users, Farms: tf.farms, Clock: tf.clock},
+		AdminListFarmLimits:  &admin.ListFarmLimits{Users: tf.users, Farms: tf.farms, Default: 1},
+		AdminListFarms:       &admin.ListFarmsForReview{Farms: tf.farms, Users: tf.users},
+		AdminFarmQueueCounts: &admin.CountFarmQueues{Farms: tf.farms},
+		AdminGetFarm: &admin.GetFarmForReview{
+			Farms: tf.farms, Users: tf.users, Reservations: tf.reservations, Reports: tf.reports, Storage: tf.storage, MaxFarms: 1,
+		},
+		AdminSuspendUser:    &admin.SuspendUser{Users: tf.users, Sessions: accountGate},
+		AdminReactivateUser: &admin.ReactivateUser{Users: tf.users, Sessions: accountGate},
+		AdminListStaff:      &admin.ListStaff{Users: tf.users},
+		AdminSetStaffRole:   &admin.SetStaffRole{Users: tf.users, Farms: tf.farms, Sessions: accountGate},
+		AdminListAudit:      &admin.ListAudit{Log: tf.audit},
+		AdminJournal:        &admin.Journal{Log: tf.audit, Users: tf.users, Clock: tf.clock},
+		AdminListCycles:     &admin.ListAllCycles{Cycles: tf.cycles},
+		AdminListListings:   &admin.ListAllListings{Cycles: tf.cycles, Listings: tf.listings},
+		AdminListEscrow: &admin.ListEscrowTransactions{
+			Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Farms: tf.farms, Users: tf.users,
+		},
 		AdminReleaseEscrow: &reservation.AdminReleaseEscrow{
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock,
 		},
