@@ -54,6 +54,7 @@ type Dependencies struct {
 	CreateFarm     *farm.CreateFarm
 	GetFarmProfile *farm.GetProfile
 	ListMyFarms    *farm.ListMyFarms
+	MyFarmCards    *farm.MyFarmCards
 	UpdateFarm     *farm.UpdateFarm
 	DeleteFarm     *farm.DeleteFarm
 

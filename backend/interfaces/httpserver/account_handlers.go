@@ -38,6 +38,8 @@ type meResponse struct {
 	Farms      []farmResponse `json:"farms"`
 	FarmLimit  int            `json:"farmLimit"`
 	CanAddFarm bool           `json:"canAddFarm"`
+	// FarmLimitRaisedAt is set when staff gave this account its own limit.
+	FarmLimitRaisedAt *time.Time `json:"farmLimitRaisedAt,omitempty"`
 	// Permissions is what the account's staff role lets it do in the
 	// back office (empty for everyone else); IsRoot marks the
 	// platform's root account.
@@ -70,10 +72,14 @@ func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess) http.Ha
 		for _, p := range u.StaffRole.Permissions() {
 			permissions = append(permissions, string(p))
 		}
-		writeJSON(w, http.StatusOK, meResponse{
+		out := meResponse{
 			profileResponse: toProfileResponse(u), Farms: farms, FarmLimit: seller.FarmLimit, CanAddFarm: seller.CanAdd,
 			Permissions: permissions, IsRoot: u.Root,
-		})
+		}
+		if u.FarmLimit > 0 && u.FarmLimitNote != nil {
+			out.FarmLimitRaisedAt = &u.FarmLimitNote.SetAt
+		}
+		writeJSON(w, http.StatusOK, out)
 	}
 }
 

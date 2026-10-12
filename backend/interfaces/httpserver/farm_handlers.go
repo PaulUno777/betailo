@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"github.com/pauluno777/betailo/backend/application/ports"
 	"net/http"
 	"time"
 
@@ -158,6 +159,47 @@ func handleListMyFarms(uc *farm.ListMyFarms) http.HandlerFunc {
 		out := make([]farmResponse, 0, len(farms))
 		for _, f := range farms {
 			out = append(out, toOwnerFarmResponse(f))
+		}
+		writeJSON(w, http.StatusOK, out)
+	}
+}
+
+// farmCardResponse is one farm on its owner's "Mes fermes" page.
+type farmCardResponse struct {
+	farmResponse
+	// CoverURL is a short-lived link to the farm's first proof photo.
+	CoverURL      string  `json:"coverUrl,omitempty"`
+	ActiveCycles  int     `json:"activeCycles"`
+	SalesCount    int     `json:"salesCount"`
+	TrustScore    float64 `json:"trustScore"`
+	ReviewAverage float64 `json:"reviewAverage"`
+	ReviewCount   int     `json:"reviewCount"`
+}
+
+func handleListMyFarmCards(uc *farm.MyFarmCards, storage ports.ObjectStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		cards, err := uc.Execute(r.Context(), claims.UserID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		out := make([]farmCardResponse, 0, len(cards))
+		for _, c := range cards {
+			row := farmCardResponse{
+				farmResponse: toOwnerFarmResponse(c.Farm), ActiveCycles: c.ActiveCycles, SalesCount: c.SalesCount,
+				TrustScore: c.TrustScore, ReviewAverage: c.ReviewAverage, ReviewCount: c.ReviewCount,
+			}
+			if c.CoverKey != "" && storage != nil {
+				if url, err := storage.PresignDownload(r.Context(), c.CoverKey); err == nil {
+					row.CoverURL = url
+				}
+			}
+			out = append(out, row)
 		}
 		writeJSON(w, http.StatusOK, out)
 	}

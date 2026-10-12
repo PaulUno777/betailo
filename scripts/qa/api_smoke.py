@@ -337,9 +337,23 @@ check("A01", "Admin", "Super admin login", "200 staffRole=super_admin", s == 200
 for path in ["/admin/overview", "/admin/overview?period=7d", "/admin/overview?period=12m", "/admin/nav-counts", "/admin/users", "/admin/listings", "/admin/escrow", "/admin/reports", "/admin/cycles", "/admin/farms?queue=done", "/admin/staff", "/admin/farm-limits", "/admin/audit"]:
     s, b = adm.call("GET", path)
     check("A02" + path, "Admin", f"GET {path}", "200", s == 200, s)
+s, b = far.call("GET", "/farms/mine/cards")
+cards = b if isinstance(b, list) else []
+check("F30", "Farmer", "My farms with their figures", "200, stats on each card",
+      s == 200 and len(cards) > 0 and all("activeCycles" in c and "salesCount" in c and "trustScore" in c and "review" in c for c in cards), f"{s} n={len(cards)}")
+s, b = g.call("GET", "/farms/mine/cards", token=False)
+check("F31", "Guest", "My farms needs a session", "401", s == 401, s)
 if report_id:
     s, b = adm.call("GET", f"/admin/reports/{report_id}")
     check("A03", "Admin", "Report detail with risk signals", "200 riskScore", s == 200 and "riskScore" in json.dumps(b), f"{s}")
+    row = (b or {}).get("report", {})
+    check("A03b", "Admin", "Report detail names its target, level and listing", "targetLabel, level, listing, subject",
+          bool(row.get("targetLabel")) and row.get("level") in ("high", "medium", "low") and bool((b or {}).get("listing")) and bool((b or {}).get("subject")),
+          f"label={row.get('targetLabel')} level={row.get('level')} listing={bool((b or {}).get('listing'))} subject={bool((b or {}).get('subject'))}")
+    s, b = adm.call("GET", "/admin/reports")
+    rows = b if isinstance(b, list) else []
+    check("A03c", "Admin", "Report queue rows carry count, level and reporter", "every row",
+          s == 200 and len(rows) > 0 and all(r.get("count", 0) >= 1 and r.get("level") and r.get("createdAt") for r in rows), f"{s} n={len(rows)}")
     s, b = adm.call("POST", f"/admin/reports/{report_id}/resolve", {"action": "dismiss"})
     check("A04", "Admin", "Resolve report (dismiss)", "200", s == 200, f"{s} {str(b)[:100]}")
 s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit": 2})

@@ -202,11 +202,14 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	adminRefundEscrow := &reservation.AdminRefundEscrow{
 		Reservations: reservations, Payments: sandboxPayments, Clock: systemClock, Parties: parties, Notifications: notifications,
 	}
-	adminListReports := &admin.ListReports{Reports: reports}
+	adminListReports := &admin.ListReports{Reports: reports, Users: users, Listings: listings, Reservations: reservations}
 	adminGetReportDetail := &admin.GetReportDetail{
 		Reports: reports, Users: users, Listings: listings, Cycles: cycles, Farms: farms, Search: listings, Clock: systemClock,
+		Reservations: reservations,
 	}
-	adminResolveReport := &admin.ResolveReport{Reports: reports, Users: users, Trust: trustRecompute, Sessions: accountGate}
+	adminResolveReport := &admin.ResolveReport{
+		Reports: reports, Users: users, Trust: trustRecompute, Sessions: accountGate, Listings: listings, Cycles: cycles, Farms: farms,
+	}
 
 	bgWorker := &worker.Worker{
 		Cycles:      cycles,
@@ -246,8 +249,11 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
 			},
 			ListMyFarms: &farm.ListMyFarms{Farms: farms},
-			UpdateFarm:  &farm.UpdateFarm{Farms: farms},
-			DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
+			MyFarmCards: &farm.MyFarmCards{
+				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
+			},
+			UpdateFarm: &farm.UpdateFarm{Farms: farms},
+			DeleteFarm: &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
 			PresignFarmProof: &farm.PresignFarmProof{Farms: farms, Storage: storageProvider},
 			SubmitFarmForReview: &farm.SubmitFarmForReview{

@@ -62,6 +62,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /farms", signedIn(handleCreateFarm(deps.CreateFarm)))
 	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms), auth))
+	mux.Handle("GET /farms/mine/cards", chain(handleListMyFarmCards(deps.MyFarmCards, deps.Storage), auth))
 	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm), auth))
 	mux.Handle("DELETE /farms/{id}", chain(handleDeleteFarm(deps.DeleteFarm), auth))
 	mux.Handle("POST /farms/{id}/verification/presign", signedIn(handlePresignFarmProof(deps.PresignFarmProof)))
@@ -161,7 +162,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /admin/escrow/{id}/refund", can(domain.PermEscrowSettle, handleAdminRefundEscrow(deps.AdminRefundEscrow, journal)))
 
 	mux.Handle("GET /admin/reports", can(domain.PermReportsRead, handleAdminListReports(deps.AdminListReports)))
-	mux.Handle("GET /admin/reports/{id}", can(domain.PermReportsRead, handleAdminGetReportDetail(deps.AdminGetReportDetail)))
+	mux.Handle("GET /admin/reports/{id}", can(domain.PermReportsRead, handleAdminGetReportDetail(deps.AdminGetReportDetail, deps.Storage)))
 	mux.Handle("POST /admin/reports/{id}/resolve", can(domain.PermReportsResolve, handleAdminResolveReport(deps.AdminResolveReport, journal)))
 
 	// The team itself. Reading who is on it and what each role may do

@@ -346,17 +346,38 @@ func handleAdminRefundEscrow(uc *reservation.AdminRefundEscrow, journal *admin.J
 	}
 }
 
+// adminReportResponse is a report as the moderation queue shows it.
+type adminReportResponse struct {
+	reportResponse
+	TargetLabel  string `json:"targetLabel,omitempty"`
+	ReporterName string `json:"reporterName,omitempty"`
+	CreatedAt    string `json:"createdAt,omitempty"`
+	Count        int    `json:"count"`
+	Level        string `json:"level"`
+}
+
+func toAdminReportResponse(row admin.ReportRow) adminReportResponse {
+	out := adminReportResponse{
+		reportResponse: toReportResponse(row.Report), TargetLabel: row.TargetLabel, ReporterName: row.ReporterName,
+		Count: row.Count, Level: string(row.Level),
+	}
+	if !row.Report.CreatedAt.IsZero() {
+		out.CreatedAt = row.Report.CreatedAt.UTC().Format(time.RFC3339)
+	}
+	return out
+}
+
 func handleAdminListReports(uc *admin.ListReports) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := domain.ReportStatus(r.URL.Query().Get("status"))
-		reports, err := uc.Execute(r.Context(), status)
+		rows, err := uc.Execute(r.Context(), status)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		out := make([]reportResponse, 0, len(reports))
-		for _, rp := range reports {
-			out = append(out, toReportResponse(rp))
+		out := make([]adminReportResponse, 0, len(rows))
+		for _, row := range rows {
+			out = append(out, toAdminReportResponse(row))
 		}
 		writeJSON(w, http.StatusOK, out)
 	}
@@ -368,14 +389,34 @@ type riskSignalResponse struct {
 	Weight int    `json:"weight"`
 }
 
-type reportDetailResponse struct {
-	Report    reportResponse       `json:"report"`
-	History   []reportResponse     `json:"history"`
-	RiskScore int                  `json:"riskScore"`
-	Signals   []riskSignalResponse `json:"signals"`
+type reportSubjectResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	City      string `json:"city,omitempty"`
+	CreatedAt string `json:"createdAt"`
+	Suspended bool   `json:"suspended"`
 }
 
-func handleAdminGetReportDetail(uc *admin.GetReportDetail) http.HandlerFunc {
+type reportListingResponse struct {
+	ID        string  `json:"id"`
+	Title     string  `json:"title"`
+	UnitPrice float64 `json:"unitPrice"`
+	Unit      string  `json:"unit,omitempty"`
+	Status    string  `json:"status"`
+	PhotoURL  string  `json:"photoUrl,omitempty"`
+	FarmName  string  `json:"farmName,omitempty"`
+}
+
+type reportDetailResponse struct {
+	Report    adminReportResponse    `json:"report"`
+	History   []adminReportResponse  `json:"history"`
+	RiskScore int                    `json:"riskScore"`
+	Signals   []riskSignalResponse   `json:"signals"`
+	Subject   *reportSubjectResponse `json:"subject,omitempty"`
+	Listing   *reportListingResponse `json:"listing,omitempty"`
+}
+
+func handleAdminGetReportDetail(uc *admin.GetReportDetail, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pathObjectID(w, r, "id")
 		if !ok {
@@ -386,17 +427,36 @@ func handleAdminGetReportDetail(uc *admin.GetReportDetail) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		history := make([]reportResponse, 0, len(detail.History))
-		for _, rp := range detail.History {
-			history = append(history, toReportResponse(rp))
+		history := make([]adminReportResponse, 0, len(detail.History))
+		for _, row := range detail.History {
+			history = append(history, toAdminReportResponse(row))
 		}
 		signals := make([]riskSignalResponse, 0, len(detail.Signals))
 		for _, s := range detail.Signals {
 			signals = append(signals, riskSignalResponse{Name: s.Name, Detail: s.Detail, Weight: s.Weight})
 		}
-		writeJSON(w, http.StatusOK, reportDetailResponse{
-			Report: toReportResponse(detail.Report), History: history, RiskScore: detail.RiskScore, Signals: signals,
-		})
+		out := reportDetailResponse{
+			Report: toAdminReportResponse(admin.ReportRow{
+				Report: detail.Report, TargetLabel: detail.TargetLabel, Count: len(detail.History), Level: detail.Level,
+			}),
+			History: history, RiskScore: detail.RiskScore, Signals: signals,
+		}
+		if s := detail.Subject; s != nil {
+			out.Subject = &reportSubjectResponse{
+				ID: s.ID.Hex(), Name: s.Name, City: s.City, CreatedAt: s.CreatedAt.UTC().Format(time.RFC3339), Suspended: s.Suspended,
+			}
+		}
+		if l := detail.Listing; l != nil {
+			out.Listing = &reportListingResponse{
+				ID: l.ID.Hex(), Title: l.Title, UnitPrice: l.UnitPrice, Unit: l.Unit, Status: string(l.Status), FarmName: l.FarmName,
+			}
+			if l.PhotoKey != "" && storage != nil {
+				if url, err := storage.PresignDownload(r.Context(), l.PhotoKey); err == nil {
+					out.Listing.PhotoURL = url
+				}
+			}
+		}
+		writeJSON(w, http.StatusOK, out)
 	}
 }
 
