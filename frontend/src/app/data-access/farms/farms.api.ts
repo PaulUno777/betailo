@@ -19,10 +19,6 @@ export class FarmsApi {
     return this.api.url(`/farms/${id}`);
   }
 
-  reviewsUrl(id: string): string {
-    return this.api.url(`/farms/${id}/reviews`);
-  }
-
   mineUrl(): string {
     return this.api.url('/farms/mine');
   }

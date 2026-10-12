@@ -1,13 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map, Observable } from 'rxjs';
 import { PaymentMethod } from '../../domain/enums';
 import { ReservationAction, ReservationGroup, ReservationList, ReservationView } from '../../domain/models';
 import { PAYMENT_METHOD_LABEL_KEYS, PAYMENT_METHOD_VALUES } from '../../domain/rules/payment-method';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
-import { ReviewsApi } from '../../data-access/reviews/reviews.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
 import { LocaleService } from '../../core/i18n/locale.service';
@@ -17,7 +16,6 @@ import { BottomSheetComponent } from '../../shared/ui/bottom-sheet/bottom-sheet.
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { ChoiceCardComponent } from '../../shared/ui/choice-card/choice-card.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
-import { RatingComponent } from '../../shared/ui/rating/rating.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { ReservationCardComponent } from './reservation-card.component';
@@ -28,7 +26,7 @@ const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
   { id: 'cancelled', labelKey: 'reservations.tabCancelled' }
 ];
 
-type Sheet = { kind: 'pay' | 'dispute' | 'confirm' | 'cancel' | 'review'; view: ReservationView } | null;
+type Sheet = { kind: 'pay' | 'dispute' | 'confirm' | 'cancel'; view: ReservationView } | null;
 
 /** "Mes réservations", per the mobile design: tabs with the API's
  * counts, the money held in escrow, and one card per reservation. What
@@ -44,7 +42,6 @@ type Sheet = { kind: 'pay' | 'dispute' | 'confirm' | 'cancel' | 'review'; view: 
     ButtonComponent,
     ChoiceCardComponent,
     IconComponent,
-    RatingComponent,
     TextFieldComponent,
     FcfaCurrencyPipe,
     TranslatePipe
@@ -164,23 +161,14 @@ type Sheet = { kind: 'pay' | 'dispute' | 'confirm' | 'cancel' | 'review'; view: 
       </div>
     </bt-bottom-sheet>
 
-    <bt-bottom-sheet [open]="sheet()?.kind === 'review'" [title]="'reservations.reviewTitle' | t" (closed)="close()">
-      <div class="flex flex-col items-center gap-4">
-        <bt-rating [value]="rating()" interactive [size]="36" (changed)="rating.set($event)" />
-        <bt-text-field class="w-full" [label]="'reservations.reviewCommentLabel' | t" multiline [ngModel]="comment()" (ngModelChange)="comment.set($event)" />
-      </div>
-      <div sheetFooter class="border-t border-line px-5 pt-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
-        <bt-button block size="lg" [disabled]="busy() || rating() < 1" (click)="review()">{{ 'reservations.reviewSubmit' | t }}</bt-button>
-      </div>
-    </bt-bottom-sheet>
   `
 })
 export class ReservationsListComponent {
   private readonly reservationsApi = inject(ReservationsApi);
-  private readonly reviewsApi = inject(ReviewsApi);
   private readonly toast = inject(ToastService);
   private readonly locale = inject(LocaleService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly tabs = TABS;
   protected readonly methods = PAYMENT_METHOD_VALUES;
@@ -195,16 +183,16 @@ export class ReservationsListComponent {
   protected readonly payMethod = signal<PaymentMethod>('mtn_momo');
   protected readonly payPhone = signal('');
   protected readonly reason = signal('');
-  protected readonly rating = signal(0);
-  protected readonly comment = signal('');
 
   private readonly current = computed(() => this.sheet()?.view);
 
   protected onAction(action: ReservationAction, view: ReservationView): void {
-    if (action === 'pay' || action === 'dispute' || action === 'confirm' || action === 'cancel' || action === 'review') {
+    if (action === 'review') {
+      this.router.navigate(['/account/reservations', view.id, 'review']);
+      return;
+    }
+    if (action === 'pay' || action === 'dispute' || action === 'confirm' || action === 'cancel') {
       this.reason.set('');
-      this.rating.set(0);
-      this.comment.set('');
       this.sheet.set({ kind: action, view });
     }
   }
@@ -233,11 +221,6 @@ export class ReservationsListComponent {
   protected dispute(): void {
     const v = this.current();
     if (v) this.run(this.reservationsApi.dispute(v.id, this.reason().trim()), 'reservations.disputedToast');
-  }
-
-  protected review(): void {
-    const v = this.current();
-    if (v) this.run(this.reviewsApi.create(v.id, { rating: this.rating(), comment: this.comment().trim() || undefined }), 'reservations.reviewedToast');
   }
 
   /** Every action: call it, close the sheet, refresh the list (the API

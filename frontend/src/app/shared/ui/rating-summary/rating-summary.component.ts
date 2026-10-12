@@ -37,11 +37,11 @@ const STAR_LEVELS = [5, 4, 3, 2, 1] as const;
 export class RatingSummaryComponent {
   readonly average = input.required<number>();
   readonly count = input.required<number>();
-  readonly histogram = input.required<Record<string, number>>();
+  readonly histogram = input.required<Partial<Record<string, number>>>();
 
   protected readonly levels = STAR_LEVELS;
 
-  private readonly maxCount = computed(() => Math.max(1, ...Object.values(this.histogram())));
+  private readonly maxCount = computed(() => Math.max(1, ...Object.values(this.histogram()).map((n) => n ?? 0)));
 
   protected ratioFor(level: number): number {
     return (this.histogram()[String(level)] ?? 0) / this.maxCount();

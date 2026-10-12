@@ -53,7 +53,7 @@ func (uc *PresignListingPhoto) Execute(ctx context.Context, in PresignListingPho
 		return nil, fmt.Errorf("listing: not the owner: %w", domain.ErrForbidden)
 	}
 
-	key := fmt.Sprintf("listings/%s/%s.jpg", in.ListingID.Hex(), bson.NewObjectID().Hex())
+	key := ListingPhotoPrefix(in.ListingID) + bson.NewObjectID().Hex() + ".jpg"
 	uploadURL, err := uc.Storage.PresignUpload(ctx, key)
 	if err != nil {
 		return nil, err
@@ -63,6 +63,11 @@ func (uc *PresignListingPhoto) Execute(ctx context.Context, in PresignListingPho
 
 // SetListingPhotos replaces a listing's ordered photo list — the first
 // key is the cover, matching the design's publish-form preview.
+// ListingPhotoPrefix is where a listing's photos live in object storage.
+func ListingPhotoPrefix(listingID bson.ObjectID) string {
+	return "listings/" + listingID.Hex() + "/"
+}
+
 type SetListingPhotos struct {
 	Farms    ports.FarmRepository
 	Cycles   ports.CycleStore
@@ -94,6 +99,9 @@ func (uc *SetListingPhotos) Execute(ctx context.Context, in SetListingPhotosInpu
 	}
 	if actualOwner != in.OwnerID {
 		return nil, fmt.Errorf("listing: not the owner: %w", domain.ErrForbidden)
+	}
+	if err := domain.CheckOwnedKeys(ListingPhotoPrefix(in.ListingID), in.Keys); err != nil {
+		return nil, err
 	}
 
 	l.Photos = in.Keys

@@ -173,6 +173,15 @@ type testFakes struct {
 // must log in again afterward: a token already issued still carries the
 // old role, since Login signs the role at issuance time, not read live
 // from the store on every request.
+func (tf *testFakes) setDisplayName(userID, name string) {
+	id, _ := bson.ObjectIDFromHex(userID)
+	for _, u := range tf.users.byEmail {
+		if u.ID == id {
+			u.DisplayName = name
+		}
+	}
+}
+
 func (tf *testFakes) promoteToAdmin(userID string) {
 	id, _ := bson.ObjectIDFromHex(userID)
 	for _, u := range tf.users.byEmail {
@@ -250,7 +259,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		GetListing:    &listing.GetListing{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
 		GetListingDetail: &listing.GetDetail{
 			Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Users: tf.users, Reviews: tf.reviews,
-			Reservations: tf.reservations, Favorites: tf.favorites, Clock: tf.clock,
+			Reservations: tf.reservations, Favorites: tf.favorites, ReviewStore: tf.reviews, Clock: tf.clock,
 		},
 		UpdateListing:       &listing.UpdateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		UnpublishListing:    &listing.UnpublishListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
@@ -299,7 +308,10 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reviews: tf.reviews, Trust: trustRecompute,
 			Clock: tf.clock, Notifications: tf.notifications,
 		},
-		ListFarmReviews: &review.ListByFarm{Reviews: tf.reviews},
+		ListFarmReviews:    &review.ListByFarm{Reviews: tf.reviews, Store: tf.reviews, Users: tf.users, Reservations: tf.reservations},
+		PresignReviewPhoto: &review.PresignReviewPhoto{Reservations: tf.reservations, Storage: tf.storage},
+		MarkReviewHelpful:  &review.MarkHelpful{Store: tf.reviews},
+		ReplyToReview:      &review.Reply{Store: tf.reviews, Farms: tf.farms, Clock: tf.clock, Notifications: tf.notifications},
 
 		CreateReport: &report.CreateReport{Reports: tf.reports, Listings: tf.listings, Clock: tf.clock},
 

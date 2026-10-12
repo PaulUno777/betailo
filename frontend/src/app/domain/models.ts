@@ -205,16 +205,39 @@ export interface NotificationList {
   unread: number;
 }
 
+export interface ReviewCriteria {
+  health?: number;
+  conformity?: number;
+  communication?: number;
+  timeliness?: number;
+}
+
 export interface ReviewSummary {
   average: number;
   count: number;
-  histogram: Record<string, number>;
+  histogram: Partial<Record<string, number>>;
+  /** Per-criterion averages over the reviews that rated it (0 = none). */
+  criteria: Required<ReviewCriteria>;
 }
 
 export interface Review {
   id: string;
   rating: number;
   comment?: string;
+  criteria: ReviewCriteria;
+  tags: string[];
+  /** Signed download URLs. */
+  photos: string[];
+  helpfulCount: number;
+  votedByMe: boolean;
+  /** The viewer wrote it, so they can't vote on it. */
+  mine: boolean;
+  reply?: { text: string; at: string };
+  /** "Joël T.", never an email; absent when the author set no name. */
+  authorName?: string;
+  /** The verified purchase: "Avis vérifié · RSV-1877". */
+  reservationRef?: string;
+  createdAt: string;
 }
 
 /** `GET /listings/{id}/detail`: the whole listing page in one payload,
@@ -230,8 +253,12 @@ export interface ListingDetail {
   canReserve: boolean;
 }
 
-export interface FarmReviews {
-  reviews: Review[];
+export type ReviewFilter = '' | 'photos' | '5' | 'critical';
+
+/** `GET /farms/{id}/reviews`: one filtered page plus the farm summary. */
+export interface FarmReviewsPage {
+  items: Review[];
+  total: number;
   summary: ReviewSummary;
 }
 

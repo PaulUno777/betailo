@@ -25,6 +25,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/application/usecase/review"
 	"github.com/pauluno777/betailo/backend/application/usecase/trust"
@@ -597,5 +598,77 @@ func TestNotificationInbox_NewestFirstUnreadAndScopedMarkRead(t *testing.T) {
 	}
 	if n, _ := e.notifs.CountUnread(ctx, bob); n != 1 {
 		t.Fatalf("bob unread = %d, want 1 (read-all is per user)", n)
+	}
+}
+
+func TestReviewStore_FiltersAveragesVotesAndReply(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	farm := bson.NewObjectID()
+	now := time.Now().UTC()
+	mk := func(rating int, c domain.ReviewCriteria, photos []string) *domain.Review {
+		r := &domain.Review{ReservationID: bson.NewObjectID(), AuthorID: bson.NewObjectID(), FarmID: farm, Rating: rating, Criteria: c, Photos: photos, CreatedAt: now}
+		if err := e.reviews.Insert(ctx, r); err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	a := mk(5, domain.ReviewCriteria{Health: 5, Timeliness: 4}, []string{"reviews/x/a.jpg"})
+	mk(3, domain.ReviewCriteria{Health: 3}, nil)
+	mk(2, domain.ReviewCriteria{}, nil)
+
+	s, err := e.reviews.Summary(ctx, farm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Count != 3 || s.Criteria.Health != 4 || s.Criteria.Timeliness != 4 || s.Criteria.Conformity != 0 {
+		t.Fatalf("summary = %+v, want health avg 4 over the 2 that rated it, timeliness 4, conformity unrated", s)
+	}
+	for f, want := range map[ports.ReviewFilter]int{ports.ReviewFilterAll: 3, ports.ReviewFilterPhotos: 1, ports.ReviewFilterFive: 1, ports.ReviewFilterCritical: 2} {
+		if _, total, err := e.reviews.ListPage(ctx, farm, f, 1, 10); err != nil || total != want {
+			t.Errorf("filter %q total = %d, %v; want %d", f, total, err, want)
+		}
+	}
+
+	// 20 concurrent votes from one user count once; 5 other users count 5.
+	voter := bson.NewObjectID()
+	var wg sync.WaitGroup
+	for range 20 {
+		wg.Add(1)
+		go func() { defer wg.Done(); _, _ = e.reviews.AddHelpfulVote(ctx, a.ID, voter) }()
+	}
+	for range 5 {
+		wg.Add(1)
+		go func() { defer wg.Done(); _, _ = e.reviews.AddHelpfulVote(ctx, a.ID, bson.NewObjectID()) }()
+	}
+	wg.Wait()
+	got, err := e.reviews.FindByID(ctx, a.ID)
+	if err != nil || got.HelpfulCount != 6 {
+		t.Fatalf("helpfulCount = %v, %v; want 6", got, err)
+	}
+	if voted, _ := e.reviews.VotedBy(ctx, voter, []bson.ObjectID{a.ID}); !voted[a.ID] {
+		t.Error("VotedBy should report the voter")
+	}
+
+	// Two racing replies: exactly one wins.
+	var mu sync.Mutex
+	var wins, conflicts int
+	for _, text := range []string{"Merci", "Merci beaucoup"} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := e.reviews.SetReply(ctx, a.ID, domain.ReviewReply{Text: text, At: now})
+			mu.Lock()
+			defer mu.Unlock()
+			if err == nil {
+				wins++
+			} else if errors.Is(err, domain.ErrConflict) {
+				conflicts++
+			}
+		}()
+	}
+	wg.Wait()
+	if wins != 1 || conflicts != 1 {
+		t.Fatalf("replies: %d won, %d conflicted; want exactly one reply", wins, conflicts)
 	}
 }

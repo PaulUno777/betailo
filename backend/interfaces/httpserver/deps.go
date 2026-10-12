@@ -73,8 +73,11 @@ type Dependencies struct {
 	ListMyReservations     *reservation.ListMyReservations
 	ListReservationsByFarm *reservation.ListReservationsByFarm
 
-	CreateReview    *review.CreateReview
-	ListFarmReviews *review.ListByFarm
+	CreateReview       *review.CreateReview
+	ListFarmReviews    *review.ListByFarm
+	PresignReviewPhoto *review.PresignReviewPhoto
+	MarkReviewHelpful  *review.MarkHelpful
+	ReplyToReview      *review.Reply
 
 	CreateReport *report.CreateReport
 

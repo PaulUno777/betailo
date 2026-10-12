@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { forkJoin, map, switchMap } from 'rxjs';
+import { PhotoUploadService } from '../../core/http/photo-upload.service';
 import { Cycle, Farm } from '../../domain/models';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
@@ -80,7 +80,7 @@ import { apiResource } from '../../core/http/api-resource';
   `
 })
 export class ListingFormComponent {
-  private readonly http = inject(HttpClient);
+  private readonly photos = inject(PhotoUploadService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly farmsApi = inject(FarmsApi);
@@ -143,13 +143,7 @@ export class ListingFormComponent {
             return [listing];
           }
           this.uploading.set(true);
-          const uploads = this.photoFiles().map((file) =>
-            this.listingsApi.presignPhoto(listing.id).pipe(
-              switchMap((presigned) =>
-                this.http.put(presigned.uploadUrl, file, { headers: { 'Content-Type': file.type } }).pipe(map(() => presigned.key))
-              )
-            )
-          );
+          const uploads = this.photoFiles().map((file) => this.photos.upload(file, () => this.listingsApi.presignPhoto(listing.id)));
           return forkJoin(uploads).pipe(switchMap((keys) => this.listingsApi.setPhotos(listing.id, keys)));
         })
       )

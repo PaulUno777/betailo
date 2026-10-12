@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -36,6 +37,10 @@ type CreateReviewInput struct {
 	AuthorID      bson.ObjectID
 	Rating        int
 	Comment       string
+	Criteria      domain.ReviewCriteria
+	Tags          []string
+	// PhotoKeys come from PresignReviewPhoto for this reservation.
+	PhotoKeys []string
 }
 
 // Execute returns domain.ErrForbidden if the caller isn't the
@@ -46,6 +51,23 @@ type CreateReviewInput struct {
 func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*domain.Review, error) {
 	if in.Rating < 1 || in.Rating > 5 {
 		return nil, fmt.Errorf("review: rating must be between 1 and 5: %w", domain.ErrInvalid)
+	}
+	if err := in.Criteria.Validate(); err != nil {
+		return nil, err
+	}
+	tags, err := domain.NormalizeReviewTags(in.Tags)
+	if err != nil {
+		return nil, err
+	}
+	comment, err := domain.ValidateReviewText(in.Comment, domain.MaxReviewCommentLen)
+	if err != nil {
+		return nil, err
+	}
+	if len(in.PhotoKeys) > domain.MaxReviewPhotos {
+		return nil, fmt.Errorf("review: at most %d photos: %w", domain.MaxReviewPhotos, domain.ErrInvalid)
+	}
+	if err := domain.CheckOwnedKeys(PhotoPrefix(in.ReservationID), in.PhotoKeys); err != nil {
+		return nil, err
 	}
 
 	res, err := uc.Reservations.FindByID(ctx, in.ReservationID)
@@ -77,7 +99,11 @@ func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*dom
 		AuthorID:      in.AuthorID,
 		FarmID:        c.FarmID,
 		Rating:        in.Rating,
-		Comment:       in.Comment,
+		Comment:       comment,
+		Criteria:      in.Criteria,
+		Tags:          tags,
+		Photos:        in.PhotoKeys,
+		CreatedAt:     uc.now(),
 	}
 	if err := uc.Reviews.Insert(ctx, rv); err != nil {
 		return nil, err
@@ -95,4 +121,11 @@ func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*dom
 	}
 
 	return rv, nil
+}
+
+func (uc *CreateReview) now() time.Time {
+	if uc.Clock == nil {
+		return time.Now()
+	}
+	return uc.Clock.Now()
 }

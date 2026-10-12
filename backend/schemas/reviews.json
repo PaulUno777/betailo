@@ -6,6 +6,25 @@
     "authorId": { "bsonType": "objectId" },
     "farmId": { "bsonType": "objectId" },
     "rating": { "bsonType": "int", "minimum": 1, "maximum": 5 },
-    "comment": { "bsonType": "string" }
+    "comment": { "bsonType": "string", "maxLength": 1000 },
+    "criteria": {
+      "bsonType": "object",
+      "properties": {
+        "health": { "bsonType": "int", "minimum": 1, "maximum": 5 },
+        "conformity": { "bsonType": "int", "minimum": 1, "maximum": 5 },
+        "communication": { "bsonType": "int", "minimum": 1, "maximum": 5 },
+        "timeliness": { "bsonType": "int", "minimum": 1, "maximum": 5 }
+      }
+    },
+    "tags": { "bsonType": "array", "items": { "bsonType": "string" } },
+    "photos": { "bsonType": "array", "maxItems": 4, "items": { "bsonType": "string" } },
+    "helpfulCount": { "bsonType": "int", "minimum": 0 },
+    "helpfulBy": { "bsonType": "array", "items": { "bsonType": "objectId" } },
+    "reply": {
+      "bsonType": "object",
+      "required": ["text", "at"],
+      "properties": { "text": { "bsonType": "string", "maxLength": 500 }, "at": { "bsonType": "date" } }
+    },
+    "createdAt": { "bsonType": "date" }
   }
 }

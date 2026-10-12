@@ -100,8 +100,11 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 
 	// Reviews — writing one needs auth (the buyer only); reading a
 	// farm's reviews is public, like its listings.
-	mux.Handle("POST /reservations/{id}/reviews", chain(handleCreateReview(deps.CreateReview), auth))
-	mux.HandleFunc("GET /farms/{id}/reviews", handleListFarmReviews(deps.ListFarmReviews))
+	mux.Handle("POST /reservations/{id}/reviews", chain(handleCreateReview(deps.CreateReview, deps.Storage), auth))
+	mux.Handle("POST /reservations/{id}/reviews/photos/presign", chain(handlePresignReviewPhoto(deps.PresignReviewPhoto), auth))
+	mux.Handle("GET /farms/{id}/reviews", chain(handleListFarmReviews(deps.ListFarmReviews, deps.Storage), OptionalAuth(deps.Signer)))
+	mux.Handle("POST /reviews/{id}/helpful", chain(handleMarkReviewHelpful(deps.MarkReviewHelpful), auth))
+	mux.Handle("POST /reviews/{id}/reply", chain(handleReplyToReview(deps.ReplyToReview, deps.Storage), auth))
 
 	// Reporting — any authenticated role can report.
 	mux.Handle("POST /reports", chain(handleCreateReport(deps.CreateReport), auth))
