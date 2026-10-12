@@ -15,4 +15,8 @@ var (
 	ErrUnauthorized         = errors.New("unauthorized")
 	ErrEmailTaken           = errors.New("email_taken")
 	ErrForbidden            = errors.New("forbidden")
+
+	// ErrSuspended is an account an admin has suspended. Reported only
+	// after the password checks out, so it reveals nothing to a guesser.
+	ErrSuspended = errors.New("account suspended")
 )

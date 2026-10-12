@@ -53,7 +53,7 @@ func errorStatus(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, domain.ErrUnauthorized):
 		return http.StatusUnauthorized
-	case errors.Is(err, domain.ErrForbidden):
+	case errors.Is(err, domain.ErrForbidden), errors.Is(err, domain.ErrSuspended):
 		return http.StatusForbidden
 	case errors.Is(err, domain.ErrNotFound):
 		return http.StatusNotFound
@@ -73,6 +73,8 @@ func errorMessage(err error) string {
 		return err.Error()
 	case errors.Is(err, domain.ErrUnauthorized):
 		return "invalid credentials"
+	case errors.Is(err, domain.ErrSuspended):
+		return "account suspended"
 	case errors.Is(err, domain.ErrForbidden):
 		return "forbidden"
 	case errors.Is(err, domain.ErrNotFound):

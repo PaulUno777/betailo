@@ -35,6 +35,10 @@ type User struct {
 	// *something* attributable to show; full profile fields (phone,
 	// address) are out of scope until a module actually needs them.
 	DisplayName string
+	// Phone (E.164) and City are the buyer's own contact details,
+	// shown to a farmer they've reserved from. Optional.
+	Phone string
+	City  string
 
 	IsVerified bool
 	// Suspended blocks a user from creating farms, cycles, listings,
@@ -45,3 +49,9 @@ type User struct {
 	TrustScore float64
 	CreatedAt  time.Time
 }
+
+// Profile field limits.
+const (
+	MaxDisplayNameLen = 60
+	MaxCityLen        = 80
+)

@@ -828,3 +828,45 @@ func (f *fakeReviewRepo) VotedBy(_ context.Context, userID bson.ObjectID, ids []
 	}
 	return out, nil
 }
+
+func (f *fakeListingSearch) PublishedPrices(_ context.Context, species, region string, limit int) ([]float64, error) {
+	var out []float64
+	for _, l := range f.store.byID {
+		if l.Status != domain.ListingPublished || l.Flagged || l.CycleID == nil {
+			continue
+		}
+		c, ok := f.cycles.byID[*l.CycleID]
+		if !ok || c.Species != species {
+			continue
+		}
+		if region != "" {
+			farm, ok := f.farms.byID[c.FarmID]
+			if !ok || !containsFold(farm.Location, region) {
+				continue
+			}
+		}
+		out = append(out, l.UnitPrice)
+		if len(out) == limit {
+			break
+		}
+	}
+	return out, nil
+}
+
+// CycleEditor side of fakeCycleStore.
+func (f *fakeCycleStore) UpdateDetails(_ context.Context, id bson.ObjectID, d ports.CycleDetails, capacityDelta int) error {
+	c, ok := f.byID[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if c.AvailableQuantity+capacityDelta < 0 {
+		return domain.ErrConflict
+	}
+	updated := *c
+	updated.StartsAt, updated.EndsAt = d.StartsAt, d.EndsAt
+	updated.MinPerReservation, updated.MaxPerReservation = d.MinPerReservation, d.MaxPerReservation
+	updated.Capacity += capacityDelta
+	updated.AvailableQuantity += capacityDelta
+	f.byID[id] = &updated
+	return nil
+}

@@ -27,6 +27,8 @@ type userDoc struct {
 	PasswordHash string        `bson:"passwordHash"`
 	Role         domain.Role   `bson:"role"`
 	DisplayName  string        `bson:"displayName,omitempty"`
+	Phone        string        `bson:"phone,omitempty"`
+	City         string        `bson:"city,omitempty"`
 	IsVerified   bool          `bson:"isVerified"`
 	Suspended    bool          `bson:"suspended,omitempty"`
 	TrustScore   float64       `bson:"trustScore"`
@@ -40,6 +42,8 @@ func fromDomainUser(u *domain.User) userDoc {
 		PasswordHash: u.PasswordHash,
 		Role:         u.Role,
 		DisplayName:  u.DisplayName,
+		Phone:        u.Phone,
+		City:         u.City,
 		IsVerified:   u.IsVerified,
 		Suspended:    u.Suspended,
 		TrustScore:   u.TrustScore,
@@ -54,6 +58,8 @@ func (d userDoc) toDomain() *domain.User {
 		PasswordHash: d.PasswordHash,
 		Role:         d.Role,
 		DisplayName:  d.DisplayName,
+		Phone:        d.Phone,
+		City:         d.City,
 		IsVerified:   d.IsVerified,
 		Suspended:    d.Suspended,
 		TrustScore:   d.TrustScore,

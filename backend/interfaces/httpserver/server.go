@@ -54,7 +54,11 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// already expired.
 	mux.Handle("POST /auth/refresh", limit(deps.RateLimits.Refresh, handleRefresh(deps.RefreshToken, deps.Cookies)))
 	mux.HandleFunc("POST /auth/logout", handleLogout(deps.Logout, deps.Cookies))
-	mux.Handle("GET /me", chain(http.HandlerFunc(handleMe), auth))
+	mux.Handle("GET /me", chain(handleGetProfile(deps.GetProfile), auth))
+	mux.Handle("PATCH /me", chain(handleUpdateProfile(deps.UpdateProfile), auth))
+	// Guessing the current password is rate-limited like login.
+	mux.Handle("POST /me/password", limit(deps.RateLimits.Login, chain(handleChangePassword(deps.ChangePassword, deps.Login, deps.Cookies), auth)))
+	mux.Handle("POST /me/become-seller", chain(handleBecomeSeller(deps.BecomeSeller), auth))
 
 	mux.Handle("POST /farms", farmerOnly(handleCreateFarm(deps.CreateFarm)))
 	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer)))
@@ -67,12 +71,17 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /farms/{farmId}/cycles", handleListCyclesByFarm(deps.ListCyclesByFarm))
 	mux.Handle("PATCH /cycles/{id}/status", chain(handleUpdateCycleStatus(deps.UpdateCycleStatus), auth))
 	mux.Handle("DELETE /cycles/{id}", chain(handleDeleteCycle(deps.DeleteCycle), auth))
+	mux.Handle("PUT /cycles/{id}", chain(handleUpdateCycle(deps.UpdateCycle), auth))
 	mux.Handle("POST /cycles/{id}/health-events", chain(handleAddHealthEvent(deps.AddHealthEvent), auth))
 
 	mux.Handle("POST /listings", farmerOnly(handleCreateListing(deps.CreateListing, deps.Storage)))
 	mux.Handle("GET /listings/{id}", chain(handleGetListing(deps.GetListing, deps.Storage), OptionalAuth(deps.Signer)))
 	mux.Handle("GET /listings/{id}/detail", chain(handleGetListingDetail(deps.GetListingDetail, deps.Storage), OptionalAuth(deps.Signer)))
 	mux.Handle("GET /listings", chain(handleSearchListings(deps.SearchListings, deps.Storage), OptionalAuth(deps.Signer)))
+	mux.Handle("POST /farms/{farmId}/quick-listings", farmerOnly(handleQuickCreateListing(deps.QuickCreateListing, deps.Storage)))
+	mux.Handle("POST /listings/{id}/publish", chain(handlePublishListing(deps.PublishListing, deps.Storage), auth))
+	mux.Handle("GET /farms/{farmId}/listings", chain(handleListFarmListings(deps.ListFarmListings, deps.Storage), auth))
+	mux.HandleFunc("GET /listings/price-hint", handlePriceHint(deps.PriceHint))
 	mux.Handle("PUT /listings/{id}/favorite", chain(handleAddFavorite(deps.AddFavorite), auth))
 	mux.Handle("DELETE /listings/{id}/favorite", chain(handleRemoveFavorite(deps.RemoveFavorite), auth))
 	mux.Handle("GET /notifications", chain(handleListNotifications(deps.ListNotifications), auth))

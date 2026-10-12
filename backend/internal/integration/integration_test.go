@@ -672,3 +672,51 @@ func TestReviewStore_FiltersAveragesVotesAndReply(t *testing.T) {
 		t.Fatalf("replies: %d won, %d conflicted; want exactly one reply", wins, conflicts)
 	}
 }
+
+func TestCycleEditor_CapacityShrinkIsConditional(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	_, cycle, _ := e.seed(t, 50)
+	// 30 places get reserved.
+	if err := e.cycles.DecrementAvailability(ctx, cycle.ID, 30); err != nil {
+		t.Fatal(err)
+	}
+	d := ports.CycleDetails{StartsAt: cycle.StartsAt}
+	if err := e.cycles.UpdateDetails(ctx, cycle.ID, d, -25); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("shrinking by 25 with only 20 free: %v, want ErrConflict", err)
+	}
+	if err := e.cycles.UpdateDetails(ctx, cycle.ID, d, -20); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := e.cycles.FindByID(ctx, cycle.ID)
+	if got.Capacity != 30 || got.AvailableQuantity != 0 {
+		t.Fatalf("after shrinking by 20: capacity=%d available=%d, want 30/0", got.Capacity, got.AvailableQuantity)
+	}
+}
+
+func TestListingSearch_PublishedPricesBySpeciesAndRegion(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	_, _, l := e.seed(t, 10) // poule, Dschang, 2500
+	_ = l
+	farmer2 := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", Role: domain.RoleFarmer, CreatedAt: time.Now()}
+	_ = e.users.Create(ctx, farmer2)
+	f2 := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer2.ID, Name: "B", Location: "Douala", CreatedAt: time.Now()}
+	_ = e.farms.Create(ctx, f2)
+	c2 := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f2.ID, Species: "poule", Type: "couvee", Status: domain.CycleStatusInProgress, Capacity: 5, AvailableQuantity: 5, StartsAt: time.Now()}
+	_ = e.cycles.Create(ctx, c2)
+	_ = e.listings.Create(ctx, &domain.Listing{ID: bson.NewObjectID(), CycleID: &c2.ID, Title: "x", UnitPrice: 3000, Status: domain.ListingPublished})
+	_ = e.listings.Create(ctx, &domain.Listing{ID: bson.NewObjectID(), CycleID: &c2.ID, Title: "draft", UnitPrice: 99999, Status: domain.ListingDraft})
+
+	all, err := e.listings.PublishedPrices(ctx, "poule", "", 10)
+	if err != nil || len(all) != 2 {
+		t.Fatalf("all regions = %v, %v; want the two published prices (not the draft)", all, err)
+	}
+	douala, _ := e.listings.PublishedPrices(ctx, "poule", "douala", 10)
+	if len(douala) != 1 || douala[0] != 3000 {
+		t.Fatalf("Douala = %v, want [3000]", douala)
+	}
+	if none, _ := e.listings.PublishedPrices(ctx, "porcs", "", 10); len(none) != 0 {
+		t.Fatalf("other species = %v, want none", none)
+	}
+}

@@ -36,6 +36,31 @@ func TestUpdateListing_Execute_Success(t *testing.T) {
 	}
 }
 
+func TestUpdateListing_Execute_SellerDetails(t *testing.T) {
+	farms, cycles, listings, owner, l := newPublishedListingFixture(t)
+	l.Breed, l.AgeWeeks = "Brahma", 6
+	uc := &UpdateListing{Farms: farms, Cycles: cycles, Listings: listings}
+
+	// Omitted details stay as they were.
+	got, err := uc.Execute(context.Background(), UpdateListingInput{ListingID: l.ID, OwnerID: owner, Title: "Lot", UnitPrice: 10})
+	if err != nil || got.Breed != "Brahma" || got.AgeWeeks != 6 {
+		t.Fatalf("Execute() = %+v, %v; want details kept", got, err)
+	}
+
+	breed, age, delivery := " Goliath ", 8, true
+	got, err = uc.Execute(context.Background(), UpdateListingInput{
+		ListingID: l.ID, OwnerID: owner, Title: "Lot", UnitPrice: 10, Breed: &breed, AgeWeeks: &age, DeliveryAvailable: &delivery,
+	})
+	if err != nil || got.Breed != "Goliath" || got.AgeWeeks != 8 || !got.DeliveryAvailable {
+		t.Fatalf("Execute() = %+v, %v; want details updated", got, err)
+	}
+
+	bad := -1
+	if _, err := uc.Execute(context.Background(), UpdateListingInput{ListingID: l.ID, OwnerID: owner, Title: "Lot", UnitPrice: 10, AgeWeeks: &bad}); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatalf("negative age: error = %v, want domain.ErrInvalid", err)
+	}
+}
+
 func TestUpdateListing_Execute_NotOwner(t *testing.T) {
 	farms, cycles, listings, _, l := newPublishedListingFixture(t)
 	uc := &UpdateListing{Farms: farms, Cycles: cycles, Listings: listings}

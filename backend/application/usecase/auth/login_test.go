@@ -114,3 +114,27 @@ func TestLogin_Execute_UnknownEmail(t *testing.T) {
 		t.Fatalf("Execute() error = %v, want domain.ErrUnauthorized (never leak that the account doesn't exist)", err)
 	}
 }
+
+// A suspended account can't sign back in; the refusal only comes after
+// the password checks out, so a wrong password still reads as "invalid
+// credentials" and reveals nothing.
+func TestLogin_Execute_SuspendedAccount(t *testing.T) {
+	users := newFakeUsers()
+	u := registeredUser(t, users, "banned@example.com", "correct-horse", domain.RoleBuyer)
+	u.Suspended = true
+	signer := &fakeSigner{}
+	uc := &Login{
+		Users: users, RefreshTokens: newFakeRefreshTokens(), Hasher: fakeHasher{}, Signer: signer,
+		Clock: fakeClock{now: time.Now()}, AccessTTL: time.Hour, RefreshTTL: time.Hour,
+	}
+
+	if _, err := uc.Execute(context.Background(), LoginInput{Email: "banned@example.com", Password: "wrong"}); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("wrong password: error = %v, want ErrUnauthorized", err)
+	}
+	if _, err := uc.Execute(context.Background(), LoginInput{Email: "banned@example.com", Password: "correct-horse"}); !errors.Is(err, domain.ErrSuspended) {
+		t.Fatalf("right password: error = %v, want ErrSuspended", err)
+	}
+	if len(signer.signed) != 0 {
+		t.Fatal("no token may be issued to a suspended account")
+	}
+}

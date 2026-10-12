@@ -30,6 +30,10 @@ func TestSellerDashboard_HTTP_ReflectsReservationsAndEscrow(t *testing.T) {
 		t.Errorf("EscrowHeldTotal = %v, want %v", out.EscrowHeldTotal, wantHeld)
 	}
 
+	if len(out.Todos) != 1 || out.Todos[0].Kind != "mark_delivered" || out.Todos[0].Count != 1 {
+		t.Errorf("Todos = %+v, want one paid reservation to deliver", out.Todos)
+	}
+
 	buyerRec := doJSON(t, router, http.MethodGet, "/farms/"+farmID+"/dashboard", nil, buyerToken)
 	if buyerRec.Code != http.StatusForbidden {
 		t.Fatalf("non-owner dashboard status = %d, want %d", buyerRec.Code, http.StatusForbidden)

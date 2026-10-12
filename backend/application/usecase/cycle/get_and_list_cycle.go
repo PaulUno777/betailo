@@ -22,6 +22,8 @@ type GetCycle struct {
 type CycleView struct {
 	Cycle    *domain.Cycle
 	Timeline []domain.TimelineStep
+	// NextStatuses is what the owner may move the cycle to next.
+	NextStatuses []domain.CycleStatus
 }
 
 func (uc *GetCycle) Execute(ctx context.Context, id bson.ObjectID) (*CycleView, error) {
@@ -29,7 +31,7 @@ func (uc *GetCycle) Execute(ctx context.Context, id bson.ObjectID) (*CycleView, 
 	if err != nil {
 		return nil, err
 	}
-	return &CycleView{Cycle: c, Timeline: domain.CycleTimeline(c, uc.Clock.Now())}, nil
+	return &CycleView{Cycle: c, Timeline: domain.CycleTimeline(c, uc.Clock.Now()), NextStatuses: NextStatuses(c.Status)}, nil
 }
 
 // ListCyclesByFarm is the usecase: list every cycle belonging to a

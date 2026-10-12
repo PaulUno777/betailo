@@ -13,8 +13,11 @@ import (
 // MinListingPhotos/MaxListingPhotos match the design's "Photos · 3 à 12"
 // requirement, enforced here — server-side — rather than left to the
 // publish form's own validation.
+// A listing can be published with a single photo: sellers work from
+// their phones, and asking for three before anything goes live made the
+// sell flow stall.
 const (
-	MinListingPhotos = 3
+	MinListingPhotos = 1
 	MaxListingPhotos = 12
 )
 

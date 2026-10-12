@@ -191,6 +191,34 @@ func (r *CycleRepository) AppendHealthEvent(ctx context.Context, id bson.ObjectI
 	return nil
 }
 
+// UpdateDetails implements ports.CycleEditor.
+func (r *CycleRepository) UpdateDetails(ctx context.Context, id bson.ObjectID, d ports.CycleDetails, capacityDelta int) error {
+	set := bson.M{"startsAt": d.StartsAt, "minPerReservation": d.MinPerReservation, "maxPerReservation": d.MaxPerReservation}
+	update := bson.M{"$set": set, "$inc": bson.M{"capacity": capacityDelta, "availableQuantity": capacityDelta}}
+	if d.EndsAt != nil {
+		set["endsAt"] = *d.EndsAt
+	} else {
+		update["$unset"] = bson.M{"endsAt": ""}
+	}
+	filter := bson.M{"_id": id}
+	if capacityDelta < 0 {
+		filter["availableQuantity"] = bson.M{"$gte": -capacityDelta}
+	}
+	res, err := r.Coll.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		if n, err := r.Coll.CountDocuments(ctx, bson.M{"_id": id}); err != nil {
+			return err
+		} else if n == 0 {
+			return domain.ErrNotFound
+		}
+		return fmt.Errorf("cycle: can't drop capacity below the places already reserved: %w", domain.ErrConflict)
+	}
+	return nil
+}
+
 // Delete implements ports.CycleStore.
 func (r *CycleRepository) Delete(ctx context.Context, id bson.ObjectID) error {
 	res, err := r.Coll.DeleteOne(ctx, bson.M{"_id": id})

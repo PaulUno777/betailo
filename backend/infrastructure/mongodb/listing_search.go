@@ -198,3 +198,40 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 
 	return ports.ListingSearchResult{Items: items, Total: total}, nil
 }
+
+// PublishedPrices implements ports.ListingSearchRepository.
+func (r *ListingRepository) PublishedPrices(ctx context.Context, species, region string, limit int) ([]float64, error) {
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"status": domain.ListingPublished, "flagged": bson.M{"$ne": true}}}},
+		{{Key: "$lookup", Value: bson.M{"from": "cycles", "localField": "cycleId", "foreignField": "_id", "as": "cycle"}}},
+		{{Key: "$unwind", Value: "$cycle"}},
+		{{Key: "$match", Value: bson.M{"cycle.species": species}}},
+	}
+	if region != "" {
+		pipeline = append(pipeline,
+			bson.D{{Key: "$lookup", Value: bson.M{"from": "farms", "localField": "cycle.farmId", "foreignField": "_id", "as": "farm"}}},
+			bson.D{{Key: "$unwind", Value: "$farm"}},
+			bson.D{{Key: "$match", Value: bson.M{"farm.location": bson.M{"$regex": regexp.QuoteMeta(region), "$options": "i"}}}},
+		)
+	}
+	pipeline = append(pipeline,
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "_id", Value: -1}}}},
+		bson.D{{Key: "$limit", Value: limit}},
+		bson.D{{Key: "$project", Value: bson.M{"unitPrice": 1}}},
+	)
+	cur, err := r.Coll.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		UnitPrice float64 `bson:"unitPrice"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	prices := make([]float64, 0, len(rows))
+	for _, row := range rows {
+		prices = append(prices, row.UnitPrice)
+	}
+	return prices, nil
+}

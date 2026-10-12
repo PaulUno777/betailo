@@ -71,6 +71,11 @@ func (uc *Login) Execute(ctx context.Context, in LoginInput) (*LoginOutput, erro
 	if err := uc.Hasher.Compare(user.PasswordHash, in.Password); err != nil {
 		return nil, fmt.Errorf("auth: invalid credentials: %w", domain.ErrUnauthorized)
 	}
+	// Refresh already refuses suspended accounts; without this a
+	// suspended user simply logged in again.
+	if user.Suspended {
+		return nil, fmt.Errorf("auth: %w", domain.ErrSuspended)
+	}
 
 	accessTTL := uc.AccessTTL
 	if accessTTL <= 0 {

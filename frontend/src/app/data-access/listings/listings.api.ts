@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Listing, ListingSearchParams } from '../../domain/models';
+import { Cycle, Listing, ListingSearchParams } from '../../domain/models';
 import { ApiClient, QueryParams } from '../../core/http/api-client';
 
 export interface ListingInput {
@@ -9,6 +9,36 @@ export interface ListingInput {
   readonly description?: string;
   readonly unitPrice: number;
   readonly unit?: string;
+}
+
+export interface ListingEditInput {
+  readonly title: string;
+  readonly description?: string;
+  readonly unitPrice: number;
+  readonly unit?: string;
+  readonly breed?: string;
+  readonly ageWeeks?: number;
+  readonly deliveryAvailable?: boolean;
+}
+
+/** The sell wizard's one call: the API creates the cycle and a draft
+ * listing together, deriving the cycle type and unit from the species. */
+export interface QuickListingInput {
+  readonly species: string;
+  readonly breed?: string;
+  readonly ageWeeks?: number;
+  readonly quantity: number;
+  readonly unitPrice: number;
+  readonly title: string;
+  readonly description?: string;
+  /** RFC3339; omitted means available now. */
+  readonly availableFrom?: string;
+  readonly deliveryAvailable: boolean;
+}
+
+export interface QuickListingResult {
+  readonly cycle: Cycle;
+  readonly listing: Listing;
 }
 
 export interface PresignPhotoResult {
@@ -37,6 +67,23 @@ export class ListingsApi {
     return this.api.url(`/listings/${id}/detail`);
   }
 
+  farmListingsUrl(farmId: string): string {
+    return this.api.url(`/farms/${farmId}/listings`);
+  }
+
+  priceHintUrl(species: string, region?: string): string {
+    return this.api.url('/listings/price-hint', { species, region });
+  }
+
+  quickCreate(farmId: string, input: QuickListingInput): Observable<QuickListingResult> {
+    return this.api.post<QuickListingResult>(`/farms/${farmId}/quick-listings`, input);
+  }
+
+  /** Needs at least one photo and an open cycle; the API says which. */
+  publish(id: string): Observable<Listing> {
+    return this.api.post<Listing>(`/listings/${id}/publish`);
+  }
+
   favoritesUrl(): string {
     return this.api.url('/me/favorites');
   }
@@ -53,7 +100,7 @@ export class ListingsApi {
     return this.api.post<Listing>('/listings', input);
   }
 
-  update(id: string, input: ListingInput): Observable<Listing> {
+  update(id: string, input: ListingEditInput): Observable<Listing> {
     return this.api.put<Listing>(`/listings/${id}`, input);
   }
 

@@ -23,6 +23,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/account"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
@@ -210,13 +211,17 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	server := &http.Server{
 		Addr: ":" + port,
 		Handler: httpserver.NewRouter(logger, httpserver.Dependencies{
-			Register:     register,
-			Login:        login,
-			RefreshToken: refreshToken,
-			Logout:       logout,
-			Signer:       signer,
-			Cookies:      cookieConfig(),
-			RateLimits:   httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
+			Register:       register,
+			Login:          login,
+			RefreshToken:   refreshToken,
+			Logout:         logout,
+			Signer:         signer,
+			Cookies:        cookieConfig(),
+			GetProfile:     &account.GetProfile{Users: users},
+			UpdateProfile:  &account.UpdateProfile{Users: users},
+			ChangePassword: &auth.ChangePassword{Users: users, Hasher: hasher, RefreshTokens: refreshTokens, Clock: systemClock},
+			BecomeSeller:   &farm.BecomeSeller{Users: users, Farms: farms, Trust: trustRecompute, Tx: txManager, Clock: systemClock},
+			RateLimits:     httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
 			CreateFarm: &farm.CreateFarm{Farms: farms, Trust: trustRecompute, Clock: systemClock},
 			GetFarmProfile: &farm.GetProfile{
@@ -236,8 +241,13 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
 
-			CreateListing: &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
-			GetListing:    &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
+			CreateListing:      &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			GetListing:         &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
+			QuickCreateListing: &listing.QuickCreate{Farms: farms, Cycles: cycles, Listings: listings, Sequencer: counters, Tx: txManager, Clock: systemClock},
+			PublishListing:     &listing.Publish{Farms: farms, Cycles: cycles, Listings: listings},
+			ListFarmListings:   &listing.ListFarmListings{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations},
+			PriceHint:          &listing.PriceHint{Search: listings},
+			UpdateCycle:        &cycle.UpdateCycle{Farms: farms, Cycles: cycles, Editor: cycles},
 			GetListingDetail: &listing.GetDetail{
 				Listings: listings, Cycles: cycles, Farms: farms, Users: users, Reviews: reviews,
 				Reservations: reservations, Favorites: favorites, ReviewStore: reviews, Clock: systemClock,

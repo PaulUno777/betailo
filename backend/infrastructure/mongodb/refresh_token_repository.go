@@ -135,3 +135,12 @@ func (r *RefreshTokenRepository) RevokeFamily(ctx context.Context, familyID bson
 	)
 	return err
 }
+
+// RevokeAllForUser implements ports.RefreshTokenRepository.
+func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID bson.ObjectID, reason string, revokedAt time.Time) error {
+	_, err := r.Coll.UpdateMany(ctx,
+		bson.M{"userId": userID, "revokedAt": nil},
+		bson.M{"$set": bson.M{"revokedAt": revokedAt, "revokedReason": reason}},
+	)
+	return err
+}

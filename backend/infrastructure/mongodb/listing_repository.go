@@ -32,6 +32,10 @@ type listingDoc struct {
 	Status      domain.ListingStatus `bson:"status"`
 	Photos      []string             `bson:"photos,omitempty"`
 	Flagged     bool                 `bson:"flagged,omitempty"`
+
+	Breed             string `bson:"breed,omitempty"`
+	AgeWeeks          int    `bson:"ageWeeks,omitempty"`
+	DeliveryAvailable bool   `bson:"deliveryAvailable,omitempty"`
 }
 
 func fromDomainListing(l *domain.Listing) listingDoc {
@@ -45,6 +49,10 @@ func fromDomainListing(l *domain.Listing) listingDoc {
 		Status:      l.Status,
 		Photos:      l.Photos,
 		Flagged:     l.Flagged,
+
+		Breed:             l.Breed,
+		AgeWeeks:          l.AgeWeeks,
+		DeliveryAvailable: l.DeliveryAvailable,
 	}
 }
 
@@ -59,6 +67,10 @@ func (d listingDoc) toDomain() *domain.Listing {
 		Status:      d.Status,
 		Photos:      d.Photos,
 		Flagged:     d.Flagged,
+
+		Breed:             d.Breed,
+		AgeWeeks:          d.AgeWeeks,
+		DeliveryAvailable: d.DeliveryAvailable,
 	}
 }
 

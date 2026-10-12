@@ -23,8 +23,8 @@ func TestListingPhotos_HTTP_PresignThenSetThenResolvedOnRead(t *testing.T) {
 		keys = append(keys, out.Key)
 	}
 
-	// Fewer than the minimum must be rejected.
-	tooFew := doJSON(t, router, http.MethodPut, "/listings/"+listingID+"/photos", setListingPhotosRequest{Keys: keys[:1]}, farmerToken)
+	// Fewer than the minimum (one) must be rejected.
+	tooFew := doJSON(t, router, http.MethodPut, "/listings/"+listingID+"/photos", setListingPhotosRequest{Keys: []string{}}, farmerToken)
 	if tooFew.Code != http.StatusBadRequest {
 		t.Fatalf("too-few-photos status = %d, want %d", tooFew.Code, http.StatusBadRequest)
 	}

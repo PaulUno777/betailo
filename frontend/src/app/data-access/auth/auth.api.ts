@@ -8,6 +8,7 @@ export interface RegisterInput {
   readonly email: string;
   readonly password: string;
   readonly role: Role;
+  readonly displayName?: string;
 }
 
 export interface LoginInput {
@@ -27,12 +28,6 @@ export interface LoginResult {
 
 export interface RefreshResult {
   readonly accessToken: string;
-}
-
-export interface MeResult {
-  readonly userId: string;
-  readonly email: string;
-  readonly role: Role;
 }
 
 /** `POST /auth/register` returns the created account, not a session —
@@ -57,9 +52,5 @@ export class AuthApi {
 
   logout(): Observable<void> {
     return this.api.post<void>('/auth/logout');
-  }
-
-  me(): Observable<MeResult> {
-    return this.api.get<MeResult>('/me');
   }
 }

@@ -30,4 +30,8 @@ export class FarmsApi {
   update(id: string, input: FarmInput): Observable<Farm> {
     return this.api.put<Farm>(`/farms/${id}`, input);
   }
+
+  delete(id: string): Observable<void> {
+    return this.api.delete<void>(`/farms/${id}`);
+  }
 }

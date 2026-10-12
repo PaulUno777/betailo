@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/account"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
@@ -27,6 +28,11 @@ type Dependencies struct {
 	Logout       *auth.Logout
 	Signer       ports.TokenSigner
 	Cookies      CookieConfig
+
+	GetProfile     *account.GetProfile
+	UpdateProfile  *account.UpdateProfile
+	ChangePassword *auth.ChangePassword
+	BecomeSeller   *farm.BecomeSeller
 	// RateLimits applies to the credential endpoints; the zero value
 	// disables limiting.
 	RateLimits RateLimitConfig
@@ -51,11 +57,16 @@ type Dependencies struct {
 	ListCyclesByFarm  *cycle.ListCyclesByFarm
 	UpdateCycleStatus *cycle.UpdateCycleStatus
 	AddHealthEvent    *cycle.AddHealthEvent
+	UpdateCycle       *cycle.UpdateCycle
 	DeleteCycle       *cycle.DeleteCycle
 
 	CreateListing       *listing.CreateListing
 	GetListing          *listing.GetListing
 	GetListingDetail    *listing.GetDetail
+	QuickCreateListing  *listing.QuickCreate
+	PublishListing      *listing.Publish
+	ListFarmListings    *listing.ListFarmListings
+	PriceHint           *listing.PriceHint
 	UpdateListing       *listing.UpdateListing
 	UnpublishListing    *listing.UnpublishListing
 	PresignListingPhoto *listing.PresignListingPhoto

@@ -162,3 +162,13 @@ func (f *fakeRefreshTokens) RevokeFamily(_ context.Context, familyID bson.Object
 	}
 	return nil
 }
+
+func (f *fakeRefreshTokens) RevokeAllForUser(_ context.Context, userID bson.ObjectID, reason string, revokedAt time.Time) error {
+	for _, t := range f.byHash {
+		if t.UserID == userID && t.RevokedAt == nil {
+			t.RevokedAt = &revokedAt
+			t.RevokedReason = reason
+		}
+	}
+	return nil
+}
