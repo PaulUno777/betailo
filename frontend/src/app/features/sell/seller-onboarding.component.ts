@@ -12,6 +12,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { NoticeComponent } from '../../shared/ui/notice/notice.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
+import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.component';
 
 /** The one step between "I want to sell" and the sell wizard: present
  * your farm. A buyer becomes a seller (the API creates the farm and
@@ -20,7 +21,7 @@ import { TextFieldComponent } from '../../shared/ui/text-field/text-field.compon
  * one. Emits the farm once it exists. */
 @Component({
   selector: 'bt-seller-onboarding',
-  imports: [FormsModule, ButtonComponent, IconComponent, NoticeComponent, TextFieldComponent, TranslatePipe],
+  imports: [FormsModule, ButtonComponent, IconComponent, NoticeComponent, TextFieldComponent, PlaceFieldsComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form class="flex flex-col gap-6" (submit)="$event.preventDefault(); submit()">
@@ -49,15 +50,7 @@ import { TextFieldComponent } from '../../shared/ui/text-field/text-field.compon
         [ngModel]="name()"
         (ngModelChange)="name.set($event)"
       />
-      <bt-text-field
-        [label]="'sellerOnboarding.locationLabel' | t"
-        [placeholder]="'sellerOnboarding.locationPlaceholder' | t"
-        [hint]="'sellerOnboarding.locationHint' | t"
-        autocomplete="address-level2"
-        name="location"
-        [ngModel]="location()"
-        (ngModelChange)="location.set($event)"
-      />
+      <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" />
       <bt-text-field
         [label]="'sellerOnboarding.phoneLabel' | t"
         [hint]="'sellerOnboarding.phoneHint' | t"
@@ -109,6 +102,8 @@ export class SellerOnboardingComponent {
   protected readonly isBuyer = computed(() => this.auth.role() !== 'farmer');
   protected readonly name = signal('');
   protected readonly location = signal('');
+  protected readonly country = signal('');
+  protected readonly region = signal('');
   protected readonly phone = signal('');
   protected readonly species = signal<SpeciesValue[]>([]);
   protected readonly saving = signal(false);
@@ -127,6 +122,8 @@ export class SellerOnboardingComponent {
     const input: FarmInput = {
       name: this.name().trim(),
       location: this.location().trim(),
+      country: this.country() || undefined,
+      region: this.region().trim() || undefined,
       species: this.species(),
       contactPhone: this.phone().trim() || undefined
     };

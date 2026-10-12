@@ -275,17 +275,27 @@ func (f *fakeListingSearch) Search(_ context.Context, c ports.ListingSearchCrite
 		if !ok {
 			continue
 		}
-		if c.Species != "" && cyc.Species != c.Species {
+		if len(c.Species) > 0 && !slices.Contains(c.Species, cyc.Species) {
 			continue
 		}
-		if c.CycleType != "" && cyc.Type != c.CycleType {
+		if len(c.CycleTypes) > 0 && !slices.ContainsFunc(c.CycleTypes, func(t string) bool { return strings.EqualFold(t, cyc.Type) }) {
+			continue
+		}
+		statuses := c.Statuses
+		if len(statuses) == 0 && len(c.IDs) == 0 {
+			statuses = []domain.CycleStatus{domain.CycleStatusPlanned, domain.CycleStatusInProgress}
+		}
+		if len(statuses) > 0 && !slices.Contains(statuses, cyc.Status) {
 			continue
 		}
 		farmVal, ok := f.farms.byID[cyc.FarmID]
 		if !ok {
 			continue
 		}
-		if c.Region != "" && !containsFold(farmVal.Location, c.Region) {
+		if c.Country != "" && farmVal.Country != c.Country {
+			continue
+		}
+		if c.Region != "" && farmVal.Region != c.Region {
 			continue
 		}
 		owner, _ := f.users.FindByID(context.Background(), farmVal.OwnerID)
@@ -303,6 +313,7 @@ func (f *fakeListingSearch) Search(_ context.Context, c ports.ListingSearchCrite
 			Listing: l, Species: cyc.Species, CycleType: cyc.Type, CycleStatus: cyc.Status,
 			StartsAt: cyc.StartsAt, EndsAt: cyc.EndsAt, Capacity: cyc.Capacity, Available: cyc.AvailableQuantity,
 			FarmID: farmVal.ID, FarmName: farmVal.Name, FarmLocation: farmVal.Location,
+			FarmCountry: farmVal.Country, FarmRegion: farmVal.Region,
 			FarmVerified: verified, FarmTrustScore: trustScore,
 			ReviewAverage: summary.Average, ReviewCount: summary.Count,
 		})

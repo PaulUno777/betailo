@@ -350,6 +350,11 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 	if err := mongodb.BackfillReferences(ctx, a.mongoDatabase); err != nil {
 		return err
 	}
+	if n, err := mongodb.BackfillFarmPlaces(ctx, a.mongoDatabase); err != nil {
+		return err
+	} else if n > 0 {
+		a.Logger.Info("gave farms a country and region", "count", n)
+	}
 	if n, err := mongodb.MigrateUnpaidToWaitingList(ctx, a.mongoDatabase); err != nil {
 		return err
 	} else if n > 0 {

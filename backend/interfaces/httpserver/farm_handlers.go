@@ -16,6 +16,8 @@ type farmResponse struct {
 	OwnerID      string   `json:"ownerId"`
 	Name         string   `json:"name"`
 	Location     string   `json:"location"`
+	Country      string   `json:"country"`
+	Region       string   `json:"region,omitempty"`
 	Species      []string `json:"species,omitempty"`
 	Description  string   `json:"description,omitempty"`
 	ContactPhone string   `json:"contactPhone,omitempty"`
@@ -23,7 +25,7 @@ type farmResponse struct {
 
 func toFarmResponse(f *domain.Farm) farmResponse {
 	return farmResponse{
-		ID: f.ID.Hex(), OwnerID: f.OwnerID.Hex(), Name: f.Name, Location: f.Location, Species: f.Species,
+		ID: f.ID.Hex(), OwnerID: f.OwnerID.Hex(), Name: f.Name, Location: f.Location, Country: f.Country, Region: f.Region, Species: f.Species,
 		Description: f.Description, ContactPhone: f.ContactPhone,
 	}
 }
@@ -58,6 +60,8 @@ func toFarmProfileResponse(p *farmstats.Profile, signedIn bool) farmProfileRespo
 type farmRequest struct {
 	Name         string   `json:"name"`
 	Location     string   `json:"location"`
+	Country      string   `json:"country,omitempty"`
+	Region       string   `json:"region,omitempty"`
 	Species      []string `json:"species,omitempty"`
 	Description  string   `json:"description,omitempty"`
 	ContactPhone string   `json:"contactPhone,omitempty"`
@@ -77,7 +81,7 @@ func handleCreateFarm(uc *farm.CreateFarm) http.HandlerFunc {
 		}
 
 		out, err := uc.Execute(r.Context(), farm.CreateFarmInput{
-			OwnerID: claims.UserID, Name: req.Name, Location: req.Location, Species: req.Species,
+			OwnerID: claims.UserID, Name: req.Name, Location: req.Location, Country: req.Country, Region: req.Region, Species: req.Species,
 			Description: req.Description, ContactPhone: req.ContactPhone,
 		})
 		if err != nil {
@@ -141,7 +145,7 @@ func handleUpdateFarm(uc *farm.UpdateFarm) http.HandlerFunc {
 		}
 
 		f, err := uc.Execute(r.Context(), farm.UpdateFarmInput{
-			FarmID: id, OwnerID: claims.UserID, Name: req.Name, Location: req.Location, Species: req.Species,
+			FarmID: id, OwnerID: claims.UserID, Name: req.Name, Location: req.Location, Country: req.Country, Region: req.Region, Species: req.Species,
 			Description: req.Description, ContactPhone: req.ContactPhone,
 		})
 		if err != nil {

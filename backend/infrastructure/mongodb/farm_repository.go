@@ -20,6 +20,8 @@ type farmDoc struct {
 	OwnerID   bson.ObjectID `bson:"ownerId"`
 	Name      string        `bson:"name"`
 	Location  string        `bson:"location"`
+	Country   string        `bson:"country,omitempty"`
+	Region    string        `bson:"region,omitempty"`
 	Species   []string      `bson:"species,omitempty"`
 	CreatedAt time.Time     `bson:"createdAt"`
 
@@ -33,6 +35,8 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 		OwnerID:   f.OwnerID,
 		Name:      f.Name,
 		Location:  f.Location,
+		Country:   f.Country,
+		Region:    f.Region,
 		Species:   f.Species,
 		CreatedAt: f.CreatedAt,
 
@@ -47,6 +51,8 @@ func (d farmDoc) toDomain() *domain.Farm {
 		OwnerID:   d.OwnerID,
 		Name:      d.Name,
 		Location:  d.Location,
+		Country:   d.Country,
+		Region:    d.Region,
 		Species:   d.Species,
 		CreatedAt: d.CreatedAt,
 

@@ -37,6 +37,9 @@ export interface Farm {
   ownerId: string;
   name: string;
   location: string;
+  /** ISO 3166-1 alpha-2. */
+  country?: string;
+  region?: string;
   species?: string[];
   description?: string;
   /** E.164. Only present for the owner and signed-in viewers. */
@@ -136,6 +139,8 @@ export interface MarketplaceListing {
   farmId: string;
   farmName: string;
   farmLocation: string;
+  farmCountry?: string;
+  farmRegion?: string;
   farmVerified: boolean;
   farmTrustScore: number;
   reviewAverage: number;
@@ -143,15 +148,43 @@ export interface MarketplaceListing {
   favorited: boolean;
 }
 
+export interface FacetCount {
+  value: string;
+  count: number;
+}
+
+export interface RegionFacet {
+  country: string;
+  region: string;
+  count: number;
+}
+
+/** What each filter would lead to, counted server-side: every
+ * dimension with the other filters applied but not its own. */
+export interface SearchFacets {
+  species: FacetCount[];
+  cycleTypes: FacetCount[];
+  statuses: FacetCount[];
+  regions: RegionFacet[];
+  priceMin: number;
+  priceMax: number;
+}
+
 export interface ListingSearchResult {
   items: MarketplaceListing[];
   total: number;
+  facets?: SearchFacets;
 }
 
+/** Multi-value filters travel comma-separated (`species=a,b`). */
 export interface ListingSearchParams {
   species?: string;
   cycleType?: string;
+  status?: string;
+  country?: string;
   region?: string;
+  /** A month (`2026-10`) or a day: lots open at some point in it. */
+  available?: string;
   minPrice?: number;
   maxPrice?: number;
   verifiedOnly?: boolean;
@@ -159,6 +192,12 @@ export interface ListingSearchParams {
   sort?: string;
   page?: number;
   pageSize?: number;
+}
+
+/** `GET /reference/geo`: the countries whose regions are a fixed list. */
+export interface GeoReference {
+  defaultCountry: string;
+  countries: { code: string; regions: string[] }[];
 }
 
 export interface ReservationPayment {

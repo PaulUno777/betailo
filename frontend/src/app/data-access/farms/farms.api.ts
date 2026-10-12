@@ -6,6 +6,8 @@ import { ApiClient } from '../../core/http/api-client';
 export interface FarmInput {
   readonly name: string;
   readonly location: string;
+  readonly country?: string;
+  readonly region?: string;
   readonly species?: string[];
   readonly description?: string;
   readonly contactPhone?: string;

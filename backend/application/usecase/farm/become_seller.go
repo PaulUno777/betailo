@@ -28,6 +28,8 @@ type BecomeSellerInput struct {
 	UserID       bson.ObjectID
 	FarmName     string
 	Location     string
+	Country      string
+	Region       string
 	Species      []string
 	Description  string
 	ContactPhone string
@@ -44,6 +46,10 @@ func (uc *BecomeSeller) Execute(ctx context.Context, in BecomeSellerInput) (*dom
 	if err != nil {
 		return nil, err
 	}
+	country, region, err := normalizePlace(in.Country, in.Region)
+	if err != nil {
+		return nil, err
+	}
 
 	u, err := uc.Users.FindByID(ctx, in.UserID)
 	if err != nil {
@@ -57,7 +63,7 @@ func (uc *BecomeSeller) Execute(ctx context.Context, in BecomeSellerInput) (*dom
 	}
 
 	f := &domain.Farm{
-		OwnerID: u.ID, Name: name, Location: location, Species: in.Species, CreatedAt: uc.Clock.Now(),
+		OwnerID: u.ID, Name: name, Location: location, Country: country, Region: region, Species: in.Species, CreatedAt: uc.Clock.Now(),
 		Description: description, ContactPhone: phone,
 	}
 	err = uc.Tx.WithinTx(ctx, func(ctx context.Context) error {
