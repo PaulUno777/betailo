@@ -72,7 +72,7 @@ func TestAdmin_HTTP_OverviewReflectsPlatformActivity(t *testing.T) {
 func TestAdmin_HTTP_UsersVerifyAndSuspend(t *testing.T) {
 	router, tf := newTestRouterAndFakes()
 	root := adminToken(t, router, tf)
-	_, targetID := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
+	targetToken, targetID := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 
 	listRec := doJSON(t, router, http.MethodGet, "/admin/users", nil, root)
 	if listRec.Code != http.StatusOK {
@@ -96,6 +96,16 @@ func TestAdmin_HTTP_UsersVerifyAndSuspend(t *testing.T) {
 	}
 	if !decodeJSON[adminUserResponse](t, suspendRec).Suspended {
 		t.Error("Suspended = false after suspend")
+	}
+
+	// The session the user already had ends right away, not when its
+	// access token would have expired.
+	meRec := doJSON(t, router, http.MethodGet, "/me", nil, targetToken)
+	if meRec.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /me with the suspended user's open session = %d, want 401", meRec.Code)
+	}
+	if got := decodeJSON[errorResponse](t, meRec).Code; got != "account_suspended" {
+		t.Errorf("code = %q, want account_suspended", got)
 	}
 }
 

@@ -129,11 +129,14 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		Payments: sandboxPayments, Tx: txManager, Clock: systemClock, Notifications: notifications,
 	}
 	cancelReservation := &reservation.CancelReservation{
-		Reservations: reservations, Listings: listings, Cycles: cycles, Tx: txManager, Clock: systemClock,
-		Parties: parties, Notifications: notifications,
+		Reservations: reservations, Clock: systemClock, Parties: parties, Notifications: notifications,
 	}
 	payReservation := &reservation.PayReservation{
-		Reservations: reservations, Payments: sandboxPayments, Clock: systemClock, Parties: parties, Notifications: notifications,
+		Reservations: reservations, Listings: listings, Cycles: cycles, Payments: sandboxPayments, Clock: systemClock,
+		Parties: parties, Notifications: notifications,
+	}
+	closeUnpaid := &reservation.CloseUnpaidForCycle{
+		Listings: listings, Reservations: reservations, Notifications: notifications, Clock: systemClock,
 	}
 	markDelivered := &reservation.MarkDelivered{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Clock: systemClock, Notifications: notifications,
@@ -174,7 +177,8 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	adminOverview := &admin.Overview{Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Clock: systemClock}
 	adminListUsers := &admin.ListUsers{Users: users}
 	adminVerifyUser := &admin.VerifyUser{Users: users, Trust: trustRecompute}
-	adminSuspendUser := &admin.SuspendUser{Users: users}
+	accountGate := &auth.AccountGate{Users: users, Clock: systemClock}
+	adminSuspendUser := &admin.SuspendUser{Users: users, Sessions: accountGate}
 	adminListCycles := &admin.ListAllCycles{Cycles: cycles}
 	adminListListings := &admin.ListAllListings{Cycles: cycles, Listings: listings}
 	adminListEscrow := &admin.ListEscrowTransactions{Cycles: cycles, Listings: listings, Reservations: reservations}
@@ -189,13 +193,11 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	adminGetReportDetail := &admin.GetReportDetail{
 		Reports: reports, Users: users, Listings: listings, Cycles: cycles, Farms: farms, Search: listings, Clock: systemClock,
 	}
-	adminResolveReport := &admin.ResolveReport{Reports: reports, Users: users, Trust: trustRecompute}
+	adminResolveReport := &admin.ResolveReport{Reports: reports, Users: users, Trust: trustRecompute, Sessions: accountGate}
 
 	bgWorker := &worker.Worker{
-		Cycles: cycles,
-		ExpireUnpaid: &reservation.ExpireUnpaidReservations{
-			Reservations: reservations, Listings: listings, Cycles: cycles, Tx: txManager, Notifications: notifications, Clock: systemClock,
-		},
+		Cycles:      cycles,
+		CloseUnpaid: closeUnpaid,
 		AutoRelease: &reservation.AutoReleaseDeliveries{
 			Reservations: reservations, Reports: reports, Listings: listings, Cycles: cycles,
 			Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock,
@@ -217,6 +219,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			RefreshToken:   refreshToken,
 			Logout:         logout,
 			Signer:         signer,
+			Accounts:       accountGate,
 			Cookies:        cookieConfig(),
 			GetProfile:     &account.GetProfile{Users: users},
 			UpdateProfile:  &account.UpdateProfile{Users: users},
@@ -239,7 +242,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 				Listings: listings, Reservations: reservations, Notifications: notifications,
 			},
 			ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: cycles},
-			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles},
+			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles, Unpaid: closeUnpaid},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
 
 			CreateListing:      &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
@@ -346,6 +349,11 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 	}
 	if err := mongodb.BackfillReferences(ctx, a.mongoDatabase); err != nil {
 		return err
+	}
+	if n, err := mongodb.MigrateUnpaidToWaitingList(ctx, a.mongoDatabase); err != nil {
+		return err
+	} else if n > 0 {
+		a.Logger.Info("moved unpaid reservations to the waiting list", "count", n)
 	}
 	a.Logger.Info("connected to MongoDB and bootstrapped collections")
 

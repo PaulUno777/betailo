@@ -30,37 +30,35 @@ type paymentInfoDoc struct {
 // domain.Reservation itself carries no bson tags (see domain/reservation.go);
 // mapping happens only here, at the infrastructure boundary.
 type reservationDoc struct {
-	ID              bson.ObjectID            `bson:"_id,omitempty"`
-	Reference       string                   `bson:"reference,omitempty"`
-	ListingID       bson.ObjectID            `bson:"listingId"`
-	BuyerID         bson.ObjectID            `bson:"buyerId"`
-	Quantity        int                      `bson:"quantity"`
-	UnitPrice       float64                  `bson:"unitPrice"`
-	ServiceFee      float64                  `bson:"serviceFee,omitempty"`
-	TotalAmount     float64                  `bson:"totalAmount"`
-	Status          domain.ReservationStatus `bson:"status"`
-	CreatedAt       time.Time                `bson:"createdAt"`
-	Priority        bool                     `bson:"priority,omitempty"`
-	PaymentDeadline *time.Time               `bson:"paymentDeadline,omitempty"`
-	DeliveredAt     *time.Time               `bson:"deliveredAt,omitempty"`
-	Payment         *paymentInfoDoc          `bson:"payment,omitempty"`
+	ID          bson.ObjectID            `bson:"_id,omitempty"`
+	Reference   string                   `bson:"reference,omitempty"`
+	ListingID   bson.ObjectID            `bson:"listingId"`
+	BuyerID     bson.ObjectID            `bson:"buyerId"`
+	Quantity    int                      `bson:"quantity"`
+	UnitPrice   float64                  `bson:"unitPrice"`
+	ServiceFee  float64                  `bson:"serviceFee,omitempty"`
+	TotalAmount float64                  `bson:"totalAmount"`
+	Status      domain.ReservationStatus `bson:"status"`
+	CreatedAt   time.Time                `bson:"createdAt"`
+	Priority    bool                     `bson:"priority,omitempty"`
+	DeliveredAt *time.Time               `bson:"deliveredAt,omitempty"`
+	Payment     *paymentInfoDoc          `bson:"payment,omitempty"`
 }
 
 func fromDomainReservation(r *domain.Reservation) reservationDoc {
 	doc := reservationDoc{
-		ID:              r.ID,
-		Reference:       r.Reference,
-		ListingID:       r.ListingID,
-		BuyerID:         r.BuyerID,
-		Quantity:        r.Quantity,
-		UnitPrice:       r.UnitPrice,
-		ServiceFee:      r.ServiceFee,
-		TotalAmount:     r.TotalAmount,
-		Status:          r.Status,
-		CreatedAt:       r.CreatedAt,
-		Priority:        r.Priority,
-		PaymentDeadline: r.PaymentDeadline,
-		DeliveredAt:     r.DeliveredAt,
+		ID:          r.ID,
+		Reference:   r.Reference,
+		ListingID:   r.ListingID,
+		BuyerID:     r.BuyerID,
+		Quantity:    r.Quantity,
+		UnitPrice:   r.UnitPrice,
+		ServiceFee:  r.ServiceFee,
+		TotalAmount: r.TotalAmount,
+		Status:      r.Status,
+		CreatedAt:   r.CreatedAt,
+		Priority:    r.Priority,
+		DeliveredAt: r.DeliveredAt,
 	}
 	if r.Payment != nil {
 		doc.Payment = &paymentInfoDoc{
@@ -79,19 +77,18 @@ func fromDomainReservation(r *domain.Reservation) reservationDoc {
 
 func (d reservationDoc) toDomain() *domain.Reservation {
 	r := &domain.Reservation{
-		ID:              d.ID,
-		Reference:       d.Reference,
-		ListingID:       d.ListingID,
-		BuyerID:         d.BuyerID,
-		Quantity:        d.Quantity,
-		UnitPrice:       d.UnitPrice,
-		ServiceFee:      d.ServiceFee,
-		TotalAmount:     d.TotalAmount,
-		Status:          d.Status,
-		CreatedAt:       d.CreatedAt,
-		Priority:        d.Priority,
-		PaymentDeadline: d.PaymentDeadline,
-		DeliveredAt:     d.DeliveredAt,
+		ID:          d.ID,
+		Reference:   d.Reference,
+		ListingID:   d.ListingID,
+		BuyerID:     d.BuyerID,
+		Quantity:    d.Quantity,
+		UnitPrice:   d.UnitPrice,
+		ServiceFee:  d.ServiceFee,
+		TotalAmount: d.TotalAmount,
+		Status:      d.Status,
+		CreatedAt:   d.CreatedAt,
+		Priority:    d.Priority,
+		DeliveredAt: d.DeliveredAt,
 	}
 	if d.Payment != nil {
 		r.Payment = &domain.PaymentInfo{
@@ -176,14 +173,6 @@ func (r *ReservationRepository) Update(ctx context.Context, res *domain.Reservat
 		return domain.ErrNotFound
 	}
 	return nil
-}
-
-// ListUnpaidExpired implements ports.ReservationRepository.
-func (r *ReservationRepository) ListUnpaidExpired(ctx context.Context, before time.Time) ([]*domain.Reservation, error) {
-	return r.find(ctx, bson.M{
-		"status":          domain.ReservationPending,
-		"paymentDeadline": bson.M{"$lte": before},
-	})
 }
 
 // ListDeliveredBefore implements ports.ReservationRepository.

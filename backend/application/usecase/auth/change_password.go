@@ -31,17 +31,17 @@ type ChangePasswordInput struct {
 // and domain.ErrInvalid for a too-short or unchanged new one.
 func (uc *ChangePassword) Execute(ctx context.Context, in ChangePasswordInput) (*domain.User, error) {
 	if len(in.New) < minPasswordLength {
-		return nil, fmt.Errorf("auth: password must be at least %d characters: %w", minPasswordLength, domain.ErrInvalid)
+		return nil, domain.CodedWith("auth.password_too_short", map[string]any{"min": minPasswordLength}, fmt.Errorf("auth: password must be at least %d characters: %w", minPasswordLength, domain.ErrInvalid))
 	}
 	if in.New == in.Current {
-		return nil, fmt.Errorf("auth: the new password must differ from the current one: %w", domain.ErrInvalid)
+		return nil, domain.Coded("auth.password_unchanged", fmt.Errorf("auth: the new password must differ from the current one: %w", domain.ErrInvalid))
 	}
 	u, err := uc.Users.FindByID(ctx, in.UserID)
 	if err != nil {
 		return nil, err
 	}
 	if err := uc.Hasher.Compare(u.PasswordHash, in.Current); err != nil {
-		return nil, fmt.Errorf("auth: current password is wrong: %w", domain.ErrUnauthorized)
+		return nil, domain.Coded("auth.current_password_wrong", fmt.Errorf("auth: current password is wrong: %w", domain.ErrUnauthorized))
 	}
 	hash, err := uc.Hasher.Hash(in.New)
 	if err != nil {

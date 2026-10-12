@@ -42,10 +42,10 @@ func (uc *OpenDispute) Execute(ctx context.Context, in OpenDisputeInput) (*domai
 		return nil, fmt.Errorf("reservation: not the buyer: %w", domain.ErrForbidden)
 	}
 	if res.Payment == nil || res.Payment.Status != domain.PaymentHeld {
-		return nil, fmt.Errorf("reservation: no held payment to dispute: %w", domain.ErrConflict)
+		return nil, domain.Coded("reservation.dispute_not_paid", fmt.Errorf("reservation: no held payment to dispute: %w", domain.ErrConflict))
 	}
 	if in.Reason == "" {
-		return nil, fmt.Errorf("reservation: a reason is required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("reservation.dispute_reason_required", fmt.Errorf("reservation: a reason is required: %w", domain.ErrInvalid))
 	}
 
 	report := &domain.Report{

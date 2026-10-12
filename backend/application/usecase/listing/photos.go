@@ -89,7 +89,7 @@ type SetListingPhotosInput struct {
 // publication" checklist, enforced here rather than only in the form.
 func (uc *SetListingPhotos) Execute(ctx context.Context, in SetListingPhotosInput) (*domain.Listing, error) {
 	if len(in.Keys) < MinListingPhotos || len(in.Keys) > MaxListingPhotos {
-		return nil, fmt.Errorf("listing: photos must number between %d and %d: %w", MinListingPhotos, MaxListingPhotos, domain.ErrInvalid)
+		return nil, domain.CodedWith("listing.photo_count", map[string]any{"min": MinListingPhotos, "max": MaxListingPhotos}, fmt.Errorf("listing: photos must number between %d and %d: %w", MinListingPhotos, MaxListingPhotos, domain.ErrInvalid))
 	}
 
 	l, err := uc.Listings.FindByID(ctx, in.ListingID)

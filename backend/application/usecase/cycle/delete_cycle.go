@@ -40,7 +40,7 @@ func (uc *DeleteCycle) Execute(ctx context.Context, cycleID, ownerID bson.Object
 
 	_, err = uc.Listings.FindByCycleID(ctx, cycleID)
 	if err == nil {
-		return fmt.Errorf("cycle: has an existing listing: %w", domain.ErrConflict)
+		return domain.Coded("cycle.has_listing", fmt.Errorf("cycle: has an existing listing: %w", domain.ErrConflict))
 	}
 	if !errors.Is(err, domain.ErrNotFound) {
 		return err

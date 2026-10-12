@@ -55,7 +55,7 @@ func (uc *AddHealthEvent) Execute(ctx context.Context, in AddHealthEventInput) (
 	detail := strings.TrimSpace(in.Detail)
 	switch {
 	case title == "":
-		return nil, fmt.Errorf("cycle: health event title is required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("cycle.health_title_required", fmt.Errorf("cycle: health event title is required: %w", domain.ErrInvalid))
 	case utf8.RuneCountInString(title) > maxHealthTitleLen:
 		return nil, fmt.Errorf("cycle: health event title must be at most %d characters: %w", maxHealthTitleLen, domain.ErrInvalid)
 	case utf8.RuneCountInString(detail) > maxHealthDetailLen:
@@ -76,10 +76,10 @@ func (uc *AddHealthEvent) Execute(ctx context.Context, in AddHealthEventInput) (
 		return nil, fmt.Errorf("cycle: not the farm owner: %w", domain.ErrForbidden)
 	}
 	if c.Status == domain.CycleStatusCancelled {
-		return nil, fmt.Errorf("cycle: cannot log health events on a cancelled cycle: %w", domain.ErrInvalid)
+		return nil, domain.Coded("cycle.cancelled", fmt.Errorf("cycle: cannot log health events on a cancelled cycle: %w", domain.ErrInvalid))
 	}
 	if in.Date.After(uc.Clock.Now().Add(healthEventFutureSlack)) {
-		return nil, fmt.Errorf("cycle: health event date is too far in the future: %w", domain.ErrInvalid)
+		return nil, domain.Coded("cycle.health_date_too_far", fmt.Errorf("cycle: health event date is too far in the future: %w", domain.ErrInvalid))
 	}
 
 	event := domain.HealthEvent{Type: title, Description: detail, Date: in.Date.UTC()}

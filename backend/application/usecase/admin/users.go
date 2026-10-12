@@ -51,6 +51,14 @@ func (uc *VerifyUser) Execute(ctx context.Context, userID bson.ObjectID) (*domai
 // reservations or escrow already in flight.
 type SuspendUser struct {
 	Users ports.UserRepository
+	// Sessions, when set, is told so the suspension applies on the
+	// user's very next request instead of after the gate's cache delay.
+	Sessions SessionForgetter
+}
+
+// SessionForgetter drops what the auth layer cached about an account.
+type SessionForgetter interface {
+	Forget(userID bson.ObjectID)
 }
 
 func (uc *SuspendUser) Execute(ctx context.Context, userID bson.ObjectID) (*domain.User, error) {
@@ -61,6 +69,9 @@ func (uc *SuspendUser) Execute(ctx context.Context, userID bson.ObjectID) (*doma
 	u.Suspended = true
 	if err := uc.Users.Update(ctx, u); err != nil {
 		return nil, err
+	}
+	if uc.Sessions != nil {
+		uc.Sessions.Forget(u.ID)
 	}
 	return u, nil
 }

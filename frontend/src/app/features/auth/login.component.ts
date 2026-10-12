@@ -42,7 +42,7 @@ interface LoginForm {
         </bt-button>
         <p class="text-center text-small text-ink-muted">
           {{ 'auth.loginNoAccount' | t }}
-          <a routerLink="/register" class="text-forest">{{ 'auth.loginCreateAccount' | t }}</a>
+          <a routerLink="/register" queryParamsHandling="preserve" class="text-forest">{{ 'auth.loginCreateAccount' | t }}</a>
         </p>
       </form>
     </bt-auth-layout>

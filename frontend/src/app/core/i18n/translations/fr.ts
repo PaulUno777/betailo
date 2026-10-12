@@ -9,9 +9,88 @@ export const fr = {
     close: 'Fermer',
     loading: 'Chargement…'
   },
-  errors: {
-    network: 'Connexion au serveur impossible.',
-    server: 'Une erreur est survenue.'
+  apiErrors: {
+    network: 'Pas de connexion. Vérifiez votre réseau et réessayez.',
+    server: 'Un problème est survenu de notre côté. Réessayez dans un instant.',
+    validation: 'Certaines informations ne sont pas valides. Vérifiez et réessayez.',
+    unauthorized: 'Votre session a expiré. Reconnectez-vous.',
+    forbidden: "Vous n'avez pas le droit de faire cela.",
+    'not-found': "Cet élément n'existe plus.",
+    conflict: "Cette action n'est plus possible dans l'état actuel.",
+    account_suspended: 'Ce compte est suspendu. Contactez le support Betailo.',
+    email_taken: 'Un compte existe déjà avec cet e-mail.',
+    insufficient_capacity: 'Il ne reste plus assez de places.',
+    auth: {
+      email_invalid: 'Entrez une adresse e-mail valide.',
+      password_too_short: 'Le mot de passe doit contenir au moins {min} caractères.',
+      password_unchanged: "Le nouveau mot de passe doit être différent de l'actuel.",
+      current_password_wrong: 'Le mot de passe actuel est incorrect.'
+    },
+    account: {
+      display_name_required: 'Indiquez votre nom.',
+      display_name_too_long: 'Le nom ne peut pas dépasser {max} caractères.'
+    },
+    farm: {
+      already_seller: 'Vous êtes déjà vendeur.',
+      admin_cannot_sell: 'Un compte administrateur ne peut pas vendre.',
+      name_location_required: 'Indiquez le nom de la ferme et sa ville.',
+      name_required: 'Indiquez le nom de la ferme.',
+      location_required: 'Indiquez la ville de la ferme.',
+      has_cycles: "Supprimez d'abord les lots de cette ferme."
+    },
+    cycle: {
+      invalid_transition: "Ce changement d'étape n'est pas possible.",
+      closed: 'Ce lot est clos : il ne peut plus être modifié.',
+      cancelled: 'Ce lot est annulé.',
+      end_before_start: 'La date de fin doit être après la date de début.',
+      capacity_positive: "Le nombre d'animaux doit être supérieur à zéro.",
+      capacity_below_reserved: "Impossible : des acheteurs ont déjà payé pour plus d'animaux.",
+      max_above_capacity: "Le maximum par achat ne peut pas dépasser le nombre d'animaux.",
+      min_above_max: 'Le minimum par achat ne peut pas dépasser le maximum.',
+      has_listing: "Ce lot a une annonce : retirez-la d'abord.",
+      health_title_required: 'Indiquez ce qui a été fait (vaccin, traitement…).',
+      health_date_too_far: 'Cette date est trop loin dans le futur.'
+    },
+    listing: {
+      photo_required: 'Ajoutez au moins une photo avant de publier.',
+      photo_count: 'Ajoutez entre {min} et {max} photos.',
+      cycle_closed: 'Ce lot est clos : l’annonce ne peut plus être publiée.',
+      title_required: 'Indiquez un titre.',
+      quantity_positive: "Le nombre d'animaux doit être supérieur à zéro.",
+      price_positive: 'Le prix doit être supérieur à zéro.',
+      date_past: 'La date de disponibilité est déjà passée.'
+    },
+    reservation: {
+      sold_out: 'Complet : les acheteurs qui ont payé ont pris toutes les places.',
+      not_enough_places: 'Il ne reste que {available} places.',
+      above_capacity: 'Ce lot ne compte que {max} animaux.',
+      below_min: "L'éleveur demande au moins {min} animaux par achat.",
+      above_max: "L'éleveur limite à {max} animaux par achat.",
+      own_listing: 'Vous ne pouvez pas réserver votre propre annonce.',
+      cycle_closed: "Ce lot n'est plus ouvert aux réservations.",
+      cancel_paid: "Une réservation payée ne s'annule pas : ouvrez un litige.",
+      not_awaiting_payment: "Cette réservation n'attend plus de paiement.",
+      not_delivered: "L'éleveur n'a pas encore indiqué la livraison.",
+      not_paid: "Cette commande n'est pas encore payée.",
+      dispute_open: "Un litige est en cours sur cette commande.",
+      dispute_not_paid: 'Un litige ne concerne que les commandes payées.',
+      dispute_reason_required: 'Expliquez le problème.'
+    },
+    payment: {
+      phone_invalid: 'Entrez un numéro Mobile Money camerounais valide.'
+    },
+    review: {
+      not_released: 'Vous pourrez noter après avoir confirmé la réception.',
+      rating_range: 'Choisissez une note de 1 à 5.',
+      own_review: 'Vous ne pouvez pas voter pour votre propre avis.'
+    },
+    report: {
+      reason_required: 'Expliquez la raison du signalement.'
+    },
+    forum: {
+      post_required: 'Choisissez une catégorie, un titre et écrivez votre question.',
+      reply_required: 'Écrivez votre réponse.'
+    }
   },
   paymentMethod: {
     mtnMomo: 'MTN Mobile Money',
@@ -194,6 +273,7 @@ export const fr = {
     error: 'Impossible de charger vos favoris.',
   },
   listingDetail: {
+    joinWaitlist: 'Rejoindre la liste d’attente',
     seeAllReviews: 'Voir les {count}',
     seeAllReviews_one: 'Voir l’avis',
     back: 'Retour',
@@ -250,11 +330,13 @@ export const fr = {
     loginCreateAccount: 'Créer un compte',
     loginErrorInvalid: 'E-mail ou mot de passe incorrect.',
     registerTitle: 'Créer un compte',
+    registerNameLabel: 'Votre nom (facultatif)',
+    registerNameHint: 'Affiché sur vos avis et réservations.',
     registerRoleLegend: 'Je suis',
     registerRoleBuyerTitle: 'Acheteur',
     registerRoleBuyerDesc: "Je réserve des animaux auprès d'éleveurs.",
     registerRoleFarmerTitle: 'Éleveur',
-    registerRoleFarmerDesc: "Je publie des cycles d'élevage à réserver.",
+    registerRoleFarmerDesc: 'Je vends mes animaux.',
     registerEmailLabel: 'Adresse e-mail',
     registerPasswordLabel: 'Mot de passe',
     registerConfirmLabel: 'Confirmer le mot de passe',
@@ -272,7 +354,7 @@ export const fr = {
     passwordStrengthStrong: 'Robuste'
   },
   checkout: {
-    paymentFailedDetail: 'Votre réservation est enregistrée sans paiement : réessayez depuis Mes réservations.',
+    paymentFailedDetail: 'Votre réservation est enregistrée sans paiement : réessayez depuis Mes achats.',
     paymentFailedTitle: 'Paiement non abouti',
     unavailable: 'Cette annonce n’est plus disponible à la réservation.',
     payAmount: 'Payer {amount}',
@@ -300,7 +382,7 @@ export const fr = {
     payNowTitle: 'Payer maintenant',
     payNowDesc: 'Places garanties, servi en premier.',
     laterTitle: 'Réserver sans payer',
-    laterDesc: 'Gratuit · passe après les réservations payées · {hours} h pour payer.',
+    laterDesc: 'Gratuit · liste d’attente : vos places ne sont confirmées qu’au paiement, après les acheteurs qui ont payé.',
     paymentMethodLabel: 'Moyen de paiement',
     subtotalLabel: 'Sous-total',
     feeNote: 'Frais de service calculés à la confirmation.',
@@ -330,7 +412,7 @@ export const fr = {
       reservation_created: 'Nouvelle réservation {ref} : {quantity} × {title}',
       reservation_paid: '{ref} payée ({amount} FCFA en séquestre) : {title}',
       reservation_cancelled: '{ref} annulée par l’acheteur : {title}',
-      reservation_expired: '{ref} non payée a expiré : les places ont été libérées',
+      reservation_expired: '{ref} non payée a été annulée : le lot est clos',
       reservation_delivered: '{ref} livrée : confirmez la réception sous {hours} h',
       escrow_released: 'Séquestre libéré pour {ref} : {amount} FCFA',
       escrow_auto_released: 'Séquestre de {ref} libéré automatiquement',
@@ -343,7 +425,7 @@ export const fr = {
     }
   },
   reservations: {
-    title: 'Mes réservations',
+    title: 'Mes achats',
     tabActive: 'En cours',
     tabCompleted: 'Terminées',
     tabCancelled: 'Annulées',
@@ -361,7 +443,7 @@ export const fr = {
     status: {
       unpaidShort: 'non payé',
       awaitingBuyer: 'Livré · confirmation de l’acheteur attendue',
-      unpaid: 'Réservé · paiement en attente',
+      unpaid: 'Liste d’attente · payez pour confirmer vos places',
       awaitingDelivery: 'Payé · en attente de livraison',
       toConfirm: 'Livré · à confirmer',
       released: 'Libéré',
@@ -369,7 +451,6 @@ export const fr = {
       cancelled: 'Annulée',
       refunded: 'Remboursée'
     },
-    payWithin: 'à payer',
     autoReleaseIn: 'libération auto.',
     action: {
       pay: 'Payer',
@@ -449,9 +530,8 @@ export const fr = {
     payNowNoticeBody:
       'Votre place est garantie dès le paiement, retenu en séquestre jusqu’à la livraison.',
     laterTitle: 'Réserver sans payer',
-    laterNoticeTitle: 'Réservation non prioritaire',
-    laterNoticeBody:
-      'Votre place n’est pas garantie : en cas de forte demande, les réservations payées passent devant la vôtre.'
+    laterNoticeTitle: 'Liste d’attente',
+    laterNoticeBody: 'Rien n’est retenu pour vous : les places vont à ceux qui paient. Payez tant qu’il en reste pour confirmer votre réservation. Si le lot se termine avant, elle est annulée.'
   },
   capacity: {
     remaining_one: '{count} place restante',
@@ -562,7 +642,7 @@ export const fr = {
     end: 'Fin du cycle',
     state: {
       done: 'terminé',
-      current: 'en cours',
+      current: 'prochaine étape',
       upcoming: 'à venir'
     },
     step1: 'Planifié',
@@ -661,7 +741,7 @@ export const fr = {
   portalReservations: {
     escrowBanner: 'retenus sous séquestre, versés à la confirmation de l’acheteur.',
     deliveredToast: 'Marqué comme livré : l’acheteur a 48 h pour confirmer',
-    title: 'Réservations reçues',
+    title: 'Mes ventes',
     empty: 'Aucune réservation pour le moment.',
     loading: 'Chargement…',
     buyerLabel: 'Acheteur',
@@ -958,6 +1038,23 @@ export const fr = {
     label: 'Rechercher des animaux',
     placeholder: 'Poussins, chèvres, porcelets… ou une ville',
     submit: 'Rechercher'
+  },
+  reportStatus: {
+    open: 'Ouvert',
+    under_review: 'En examen',
+    handled: 'Traité',
+    rejected: 'Rejeté'
+  },
+  reportTarget: {
+    listing: 'Annonce',
+    profile: 'Profil',
+    forum_post: 'Forum',
+    reservation: 'Réservation'
+  },
+  role: {
+    buyer: 'Acheteur',
+    farmer: 'Éleveur',
+    admin: 'Admin'
   },
   comingSoon: {
     body: 'Cet espace arrive dans une prochaine phase.',

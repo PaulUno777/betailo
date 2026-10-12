@@ -77,10 +77,10 @@ func (uc *UpdateListing) Execute(ctx context.Context, in UpdateListingInput) (*d
 
 	title := strings.TrimSpace(in.Title)
 	if title == "" {
-		return nil, fmt.Errorf("listing: title is required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("listing.title_required", fmt.Errorf("listing: title is required: %w", domain.ErrInvalid))
 	}
 	if in.UnitPrice < 0 {
-		return nil, fmt.Errorf("listing: unitPrice must not be negative: %w", domain.ErrInvalid)
+		return nil, domain.Coded("listing.price_positive", fmt.Errorf("listing: unitPrice must not be negative: %w", domain.ErrInvalid))
 	}
 	if utf8.RuneCountInString(title) > maxTitleLen || utf8.RuneCountInString(strings.TrimSpace(in.Description)) > maxDescriptionLen {
 		return nil, fmt.Errorf("listing: title or description too long: %w", domain.ErrInvalid)

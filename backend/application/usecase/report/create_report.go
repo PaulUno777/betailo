@@ -50,7 +50,7 @@ func (uc *CreateReport) Execute(ctx context.Context, in CreateReportInput) (*dom
 		return nil, fmt.Errorf("report: unsupported target type %q: %w", in.TargetType, domain.ErrInvalid)
 	}
 	if in.Reason == "" {
-		return nil, fmt.Errorf("report: a reason is required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("report.reason_required", fmt.Errorf("report: a reason is required: %w", domain.ErrInvalid))
 	}
 
 	now := uc.Clock.Now()

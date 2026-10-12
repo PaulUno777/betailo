@@ -39,6 +39,9 @@ func TestSeller_HTTP_WizardDraftPhotosPublish(t *testing.T) {
 	}
 	if pub := doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/publish", nil, token); pub.Code != http.StatusBadRequest {
 		t.Fatalf("publish without photos status = %d, want 400", pub.Code)
+	} else if code := decodeJSON[errorResponse](t, pub).Code; code != "listing.photo_required" {
+		// Clients translate this code; the English message is never shown.
+		t.Fatalf("publish without photos code = %q, want listing.photo_required", code)
 	}
 
 	key := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/photos/presign", nil, token)).Key
@@ -111,7 +114,7 @@ func TestSeller_HTTP_CycleEditCantUnsellReservedPlaces(t *testing.T) {
 	router := newTestRouter()
 	listingID, farmerToken := setupListing(t, router, 120)
 	buyer, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
-	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 100}, buyer)
+	doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{Quantity: 100, PayNow: true, PaymentMethod: "card"}, buyer)
 	cycleID := *decodeJSON[listingResponse](t, doJSON(t, router, http.MethodGet, "/listings/"+listingID, nil, "")).CycleID
 
 	starts := time.Now().Add(48 * time.Hour)

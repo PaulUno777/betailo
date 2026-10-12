@@ -47,7 +47,7 @@ func (uc *MarkDelivered) Execute(ctx context.Context, in MarkDeliveredInput) (*d
 		return nil, fmt.Errorf("reservation: not the farm owner: %w", domain.ErrForbidden)
 	}
 	if res.Status != domain.ReservationConfirmed {
-		return nil, fmt.Errorf("reservation: only a paid, held reservation can be marked delivered: %w", domain.ErrConflict)
+		return nil, domain.Coded("reservation.not_paid", fmt.Errorf("reservation: only a paid, held reservation can be marked delivered: %w", domain.ErrConflict))
 	}
 
 	now := uc.Clock.Now()

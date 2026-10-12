@@ -31,8 +31,15 @@ var errMissingPathParam = fmt.Errorf("httpserver: invalid or missing path parame
 // errorResponse is every error body's shape — one consistent structure
 // so a client never has to guess whether an endpoint reports failures
 // differently from another.
+//
+// Code is stable and machine-readable: the tag a usecase gave the
+// refusal (domain.Coded), or else the generic code of its kind. Clients
+// translate Code (with Params) and never show Error, which stays an
+// English developer message.
 type errorResponse struct {
-	Error string `json:"error"`
+	Error  string         `json:"error"`
+	Code   string         `json:"code"`
+	Params map[string]any `json:"params,omitempty"`
 }
 
 // writeError maps a domain sentinel error to an HTTP status and writes
@@ -40,7 +47,39 @@ type errorResponse struct {
 // never the raw Go error string for anything writeErrorStatus doesn't
 // recognize (that would leak internals to the client).
 func writeError(w http.ResponseWriter, err error) {
-	writeJSON(w, errorStatus(err), errorResponse{Error: errorMessage(err)})
+	status := errorStatus(err)
+	code, params := domain.CodeOf(err)
+	// A tag only reaches the client on statuses that already explain the
+	// refusal; an internal error stays opaque.
+	if code == "" || status == http.StatusInternalServerError {
+		code, params = defaultCode(err), nil
+	}
+	writeJSON(w, status, errorResponse{Error: errorMessage(err), Code: code, Params: params})
+}
+
+// defaultCode is the generic code of an error's kind, for refusals no
+// usecase tagged more precisely.
+func defaultCode(err error) string {
+	switch {
+	case errors.Is(err, domain.ErrInvalid):
+		return "invalid"
+	case errors.Is(err, domain.ErrUnauthorized):
+		return "unauthorized"
+	case errors.Is(err, domain.ErrSuspended):
+		return "account_suspended"
+	case errors.Is(err, domain.ErrForbidden):
+		return "forbidden"
+	case errors.Is(err, domain.ErrNotFound):
+		return "not_found"
+	case errors.Is(err, domain.ErrEmailTaken):
+		return "email_taken"
+	case errors.Is(err, domain.ErrConflict):
+		return "conflict"
+	case errors.Is(err, domain.ErrInsufficientCapacity):
+		return "insufficient_capacity"
+	default:
+		return "internal"
+	}
 }
 
 // errorStatus maps a domain sentinel error to its HTTP status. Errors

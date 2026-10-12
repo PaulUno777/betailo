@@ -38,7 +38,7 @@ type BecomeSellerInput struct {
 func (uc *BecomeSeller) Execute(ctx context.Context, in BecomeSellerInput) (*domain.Farm, error) {
 	name, location := strings.TrimSpace(in.FarmName), strings.TrimSpace(in.Location)
 	if name == "" || location == "" {
-		return nil, fmt.Errorf("farm: name and location are required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("farm.name_location_required", fmt.Errorf("farm: name and location are required: %w", domain.ErrInvalid))
 	}
 	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone)
 	if err != nil {
@@ -51,9 +51,9 @@ func (uc *BecomeSeller) Execute(ctx context.Context, in BecomeSellerInput) (*dom
 	}
 	switch u.Role {
 	case domain.RoleFarmer:
-		return nil, fmt.Errorf("farm: already a seller: %w", domain.ErrConflict)
+		return nil, domain.Coded("farm.already_seller", fmt.Errorf("farm: already a seller: %w", domain.ErrConflict))
 	case domain.RoleAdmin:
-		return nil, fmt.Errorf("farm: admin accounts don't sell: %w", domain.ErrForbidden)
+		return nil, domain.Coded("farm.admin_cannot_sell", fmt.Errorf("farm: admin accounts don't sell: %w", domain.ErrForbidden))
 	}
 
 	f := &domain.Farm{

@@ -417,16 +417,6 @@ func (f *fakeReservationRepo) Update(_ context.Context, r *domain.Reservation) e
 	return nil
 }
 
-func (f *fakeReservationRepo) ListUnpaidExpired(_ context.Context, before time.Time) ([]*domain.Reservation, error) {
-	var out []*domain.Reservation
-	for _, r := range f.byID {
-		if r.Status == domain.ReservationPending && r.PaymentDeadline != nil && !r.PaymentDeadline.After(before) {
-			out = append(out, r)
-		}
-	}
-	return out, nil
-}
-
 func (f *fakeReservationRepo) ListDeliveredBefore(_ context.Context, before time.Time) ([]*domain.Reservation, error) {
 	var out []*domain.Reservation
 	for _, r := range f.byID {

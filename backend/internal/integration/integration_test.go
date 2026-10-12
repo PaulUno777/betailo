@@ -172,7 +172,10 @@ func TestReserveCycle_ConcurrentReservationsNeverOversell(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			_, err := uc.Execute(context.Background(), reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyerID, Quantity: perBuyer})
+			// Only paying takes places, so that's what races here.
+			_, err := uc.Execute(context.Background(), reservation.ReserveCycleInput{
+				ListingID: listing.ID, BuyerID: buyerID, Quantity: perBuyer, PayNow: true, PaymentMethod: ports.PaymentMethodCard,
+			})
 			mu.Lock()
 			defer mu.Unlock()
 			switch {
@@ -342,11 +345,12 @@ type fixedClock struct{ t time.Time }
 
 func (c fixedClock) Now() time.Time { return c.t }
 
-// TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox runs the
-// real worker loop (Phase 5 DoD): it advances cycle statuses, expires
-// an unpaid reservation past its deadline (restoring stock), drains the
-// notification that expiry enqueued, and stops promptly on cancel.
-func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
+// TestWorker_TickAdvancesCyclesClosesUnpaidAndDrainsOutbox runs the
+// real worker loop: it advances cycle statuses, cancels the waiting list
+// of a cycle that just ended (unpaid reservations never expire on their
+// own, and never held places), drains the notification that enqueued,
+// and stops promptly on cancel.
+func TestWorker_TickAdvancesCyclesClosesUnpaidAndDrainsOutbox(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	now := time.Now().UTC()
@@ -354,11 +358,15 @@ func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
 	_, cycle, listing := e.seed(t, 100)
 	buyer := e.buyer(t)
 
-	// A reservation made 25h ago is past the 24h unpaid grace period.
-	past := fixedClock{t: now.Add(-reservation.UnpaidReservationGrace - time.Hour)}
+	// An unpaid reservation made long ago is still open: no deadline.
+	past := fixedClock{t: now.Add(-30 * 24 * time.Hour)}
 	reserve := &reservation.ReserveCycle{Listings: e.listings, Cycles: e.cycles, Farms: e.farms, Sequencer: e.counters, Reservations: e.reservations, Payments: payment.Sandbox{}, Tx: e.tx, Clock: past}
 	out, err := reserve.Execute(ctx, reservation.ReserveCycleInput{ListingID: listing.ID, BuyerID: buyer.ID, Quantity: 30})
 	if err != nil {
+		t.Fatal(err)
+	}
+	// Its cycle has just ended: the worker closes it and its waiting list.
+	if _, err := e.db.Collection("cycles").UpdateOne(ctx, bson.M{"_id": cycle.ID}, bson.M{"$set": bson.M{"endsAt": now.Add(-time.Minute)}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -376,8 +384,8 @@ func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
 
 	sys := clock.System{}
 	w := &worker.Worker{
-		Cycles:       e.cycles,
-		ExpireUnpaid: &reservation.ExpireUnpaidReservations{Reservations: e.reservations, Listings: e.listings, Cycles: e.cycles, Tx: e.tx, Notifications: e.notifs, Clock: sys},
+		Cycles:      e.cycles,
+		CloseUnpaid: &reservation.CloseUnpaidForCycle{Listings: e.listings, Reservations: e.reservations, Notifications: e.notifs, Clock: sys},
 		AutoRelease: &reservation.AutoReleaseDeliveries{
 			Reservations: e.reservations, Reports: e.reports, Listings: e.listings, Cycles: e.cycles,
 			Farms: e.farms, Trust: e.trust, Notifications: e.notifs, Clock: sys,
@@ -405,7 +413,7 @@ func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("worker didn't expire the reservation and drain the outbox in time: status=%q pending=%d", res.Status, len(pending))
+			t.Fatalf("worker didn't close the waiting list and drain the outbox in time: status=%q pending=%d", res.Status, len(pending))
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -422,9 +430,9 @@ func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stored.AvailableQuantity != stored.Capacity {
-		t.Errorf("availableQuantity = %d, want %d restored after expiry", stored.AvailableQuantity, stored.Capacity)
+		t.Errorf("availableQuantity = %d, want %d: an unpaid reservation never takes places", stored.AvailableQuantity, stored.Capacity)
 	}
-	for c, want := range map[bson.ObjectID]domain.CycleStatus{toStart.ID: domain.CycleStatusInProgress, toEnd.ID: domain.CycleStatusDone} {
+	for c, want := range map[bson.ObjectID]domain.CycleStatus{toStart.ID: domain.CycleStatusInProgress, toEnd.ID: domain.CycleStatusDone, cycle.ID: domain.CycleStatusDone} {
 		got, err := e.cycles.FindByID(ctx, c)
 		if err != nil {
 			t.Fatal(err)
@@ -718,5 +726,39 @@ func TestListingSearch_PublishedPricesBySpeciesAndRegion(t *testing.T) {
 	}
 	if none, _ := e.listings.PublishedPrices(ctx, "porcs", "", 10); len(none) != 0 {
 		t.Fatalf("other species = %v, want none", none)
+	}
+}
+
+// Reservations made under the old 24h-hold rule give their places back
+// once, and the migration is a no-op on the next startup.
+func TestMigrateUnpaidToWaitingList_ReturnsPlacesOnce(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	_, cycle, listing := e.seed(t, 100)
+
+	// The old rule: the unpaid reservation had already taken 30 places.
+	if _, err := e.db.Collection("cycles").UpdateOne(ctx, bson.M{"_id": cycle.ID}, bson.M{"$set": bson.M{"availableQuantity": 70}}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Hour)
+	if _, err := e.db.Collection("reservations").InsertOne(ctx, bson.M{
+		"_id": bson.NewObjectID(), "listingId": listing.ID, "buyerId": bson.NewObjectID(), "quantity": 30,
+		"unitPrice": 2500.0, "totalAmount": 76500.0, "status": "pending", "createdAt": time.Now(), "paymentDeadline": deadline,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	for run, want := range []int{1, 0} {
+		n, err := mongodb.MigrateUnpaidToWaitingList(ctx, e.db)
+		if err != nil || n != want {
+			t.Fatalf("run %d: migrated = %d, %v; want %d, nil", run+1, n, err, want)
+		}
+	}
+	stored, err := e.cycles.FindByID(ctx, cycle.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.AvailableQuantity != 100 {
+		t.Errorf("availableQuantity = %d, want 100: the waiting list holds no places", stored.AvailableQuantity)
 	}
 }

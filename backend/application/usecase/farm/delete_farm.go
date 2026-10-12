@@ -35,7 +35,7 @@ func (uc *DeleteFarm) Execute(ctx context.Context, farmID, ownerID bson.ObjectID
 		return err
 	}
 	if len(cycles) > 0 {
-		return fmt.Errorf("farm: has %d existing cycle(s): %w", len(cycles), domain.ErrConflict)
+		return domain.Coded("farm.has_cycles", fmt.Errorf("farm: has %d existing cycle(s): %w", len(cycles), domain.ErrConflict))
 	}
 
 	return uc.Farms.Delete(ctx, farmID)

@@ -65,7 +65,7 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 	breed := strings.TrimSpace(in.Breed)
 	switch {
 	case title == "":
-		return nil, fmt.Errorf("listing: a title is required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("listing.title_required", fmt.Errorf("listing: a title is required: %w", domain.ErrInvalid))
 	case utf8.RuneCountInString(title) > maxTitleLen:
 		return nil, fmt.Errorf("listing: title must be at most %d characters: %w", maxTitleLen, domain.ErrInvalid)
 	case utf8.RuneCountInString(description) > maxDescriptionLen:
@@ -75,9 +75,9 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 	case in.AgeWeeks < 0 || in.AgeWeeks > maxAgeWeeks:
 		return nil, fmt.Errorf("listing: age is out of range: %w", domain.ErrInvalid)
 	case in.Quantity <= 0:
-		return nil, fmt.Errorf("listing: quantity must be positive: %w", domain.ErrInvalid)
+		return nil, domain.Coded("listing.quantity_positive", fmt.Errorf("listing: quantity must be positive: %w", domain.ErrInvalid))
 	case in.UnitPrice <= 0:
-		return nil, fmt.Errorf("listing: price must be positive: %w", domain.ErrInvalid)
+		return nil, domain.Coded("listing.price_positive", fmt.Errorf("listing: price must be positive: %w", domain.ErrInvalid))
 	}
 
 	f, err := uc.Farms.FindByID(ctx, in.FarmID)
@@ -93,7 +93,7 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 	if in.AvailableFrom != nil {
 		day := now.Truncate(24 * time.Hour)
 		if in.AvailableFrom.Before(day) {
-			return nil, fmt.Errorf("listing: the availability date is in the past: %w", domain.ErrInvalid)
+			return nil, domain.Coded("listing.date_past", fmt.Errorf("listing: the availability date is in the past: %w", domain.ErrInvalid))
 		}
 		if in.AvailableFrom.After(now) {
 			status, startsAt = domain.CycleStatusPlanned, *in.AvailableFrom
@@ -151,14 +151,14 @@ func (uc *Publish) Execute(ctx context.Context, listingID, ownerID bson.ObjectID
 		return l, nil
 	}
 	if len(l.Photos) < MinListingPhotos {
-		return nil, fmt.Errorf("listing: add at least %d photo before publishing: %w", MinListingPhotos, domain.ErrInvalid)
+		return nil, domain.Coded("listing.photo_required", fmt.Errorf("listing: add at least %d photo before publishing: %w", MinListingPhotos, domain.ErrInvalid))
 	}
 	c, err := uc.Cycles.FindByID(ctx, *l.CycleID)
 	if err != nil {
 		return nil, err
 	}
 	if c.Status != domain.CycleStatusPlanned && c.Status != domain.CycleStatusInProgress {
-		return nil, fmt.Errorf("listing: its cycle is closed: %w", domain.ErrConflict)
+		return nil, domain.Coded("listing.cycle_closed", fmt.Errorf("listing: its cycle is closed: %w", domain.ErrConflict))
 	}
 	l.Status = domain.ListingPublished
 	if err := uc.Listings.Update(ctx, l); err != nil {

@@ -45,21 +45,21 @@ func (uc *UpdateCycle) Execute(ctx context.Context, in UpdateCycleInput) (*domai
 		return nil, fmt.Errorf("cycle: not the farm owner: %w", domain.ErrForbidden)
 	}
 	if c.Status == domain.CycleStatusDone || c.Status == domain.CycleStatusCancelled {
-		return nil, fmt.Errorf("cycle: a closed cycle can't be edited: %w", domain.ErrConflict)
+		return nil, domain.Coded("cycle.closed", fmt.Errorf("cycle: a closed cycle can't be edited: %w", domain.ErrConflict))
 	}
 	switch {
 	case in.StartsAt.IsZero():
 		return nil, fmt.Errorf("cycle: startsAt is required: %w", domain.ErrInvalid)
 	case in.EndsAt != nil && !in.EndsAt.After(in.StartsAt):
-		return nil, fmt.Errorf("cycle: endsAt must be after startsAt: %w", domain.ErrInvalid)
+		return nil, domain.Coded("cycle.end_before_start", fmt.Errorf("cycle: endsAt must be after startsAt: %w", domain.ErrInvalid))
 	case in.Capacity <= 0:
-		return nil, fmt.Errorf("cycle: capacity must be positive: %w", domain.ErrInvalid)
+		return nil, domain.Coded("cycle.capacity_positive", fmt.Errorf("cycle: capacity must be positive: %w", domain.ErrInvalid))
 	case in.MinPerReservation < 0 || in.MaxPerReservation < 0:
 		return nil, fmt.Errorf("cycle: reservation bounds must not be negative: %w", domain.ErrInvalid)
 	case in.MaxPerReservation > in.Capacity:
-		return nil, fmt.Errorf("cycle: maxPerReservation must not exceed capacity: %w", domain.ErrInvalid)
+		return nil, domain.Coded("cycle.max_above_capacity", fmt.Errorf("cycle: maxPerReservation must not exceed capacity: %w", domain.ErrInvalid))
 	case in.MinPerReservation > 0 && in.MaxPerReservation > 0 && in.MinPerReservation > in.MaxPerReservation:
-		return nil, fmt.Errorf("cycle: minPerReservation must not exceed maxPerReservation: %w", domain.ErrInvalid)
+		return nil, domain.Coded("cycle.min_above_max", fmt.Errorf("cycle: minPerReservation must not exceed maxPerReservation: %w", domain.ErrInvalid))
 	}
 
 	details := ports.CycleDetails{

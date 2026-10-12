@@ -127,7 +127,7 @@ function readStoredPhone(): string {
                 name="mode"
                 value="later"
                 [title]="'priorityChoice.laterTitle' | t"
-                [description]="'checkout.laterDesc' | t: { hours: quote()?.unpaidHours ?? 24 }"
+                [description]="'checkout.laterDesc' | t"
                 [checked]="!payNow()"
                 (selected)="payNow.set(false)"
               />
@@ -245,7 +245,8 @@ export class CheckoutComponent {
   );
 
   protected readonly quantity = signal(1);
-  protected readonly payNow = signal(true);
+  /** Starts on the waiting list when the lot is full (`?waitlist=1`). */
+  protected readonly payNow = signal(this.route.snapshot.queryParamMap.get('waitlist') !== '1');
   protected readonly method = signal<PaymentMethod>('mtn_momo');
   protected readonly phone = signal(readStoredPhone());
   protected readonly submitting = signal(false);
@@ -253,11 +254,11 @@ export class CheckoutComponent {
   /** The quote follows the quantity (debounced), so the stepper stays
    * instant while the totals catch up a beat later. */
   private readonly quoteState = toSignal<QuoteState>(
-    toObservable(computed(() => ({ id: this.listingId(), q: this.quantity() }))).pipe(
+    toObservable(computed(() => ({ id: this.listingId(), q: this.quantity(), payNow: this.payNow() }))).pipe(
       debounceTime(QUOTE_DEBOUNCE_MS),
-      switchMap(({ id, q }) =>
+      switchMap(({ id, q, payNow }) =>
         id
-          ? this.reservationsApi.quote(id, q).pipe(
+          ? this.reservationsApi.quote(id, q, payNow).pipe(
               map((quote): QuoteState => ({ quote, error: null })),
               catchError((error: AppError) => of<QuoteState>({ quote: null, error }))
             )

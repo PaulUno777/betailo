@@ -344,7 +344,7 @@ export class SellWizardComponent {
       this.photos().length > 0,
       !!d.species,
       d.quantity > 0 && (d.unitPrice ?? 0) > 0,
-      d.when === 'now' || !!d.date
+      d.when === 'now' || (d.when === 'date' && !!d.date)
     ];
   });
   protected readonly doneCount = computed(() => this.complete().filter(Boolean).length);

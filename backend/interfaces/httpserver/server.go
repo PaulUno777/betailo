@@ -39,7 +39,7 @@ func chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler 
 // published listings are the public marketplace.
 func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux := http.NewServeMux()
-	auth := RequireAuth(deps.Signer)
+	auth := RequireAuth(deps.Signer, deps.Accounts)
 	farmerOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireRole(domain.RoleFarmer)) }
 
 	mux.HandleFunc("GET /health", handleHealth)
@@ -61,7 +61,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /me/become-seller", chain(handleBecomeSeller(deps.BecomeSeller), auth))
 
 	mux.Handle("POST /farms", farmerOnly(handleCreateFarm(deps.CreateFarm)))
-	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer)))
+	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms), auth))
 	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm), auth))
 	mux.Handle("DELETE /farms/{id}", chain(handleDeleteFarm(deps.DeleteFarm), auth))
@@ -75,9 +75,9 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /cycles/{id}/health-events", chain(handleAddHealthEvent(deps.AddHealthEvent), auth))
 
 	mux.Handle("POST /listings", farmerOnly(handleCreateListing(deps.CreateListing, deps.Storage)))
-	mux.Handle("GET /listings/{id}", chain(handleGetListing(deps.GetListing, deps.Storage), OptionalAuth(deps.Signer)))
-	mux.Handle("GET /listings/{id}/detail", chain(handleGetListingDetail(deps.GetListingDetail, deps.Storage), OptionalAuth(deps.Signer)))
-	mux.Handle("GET /listings", chain(handleSearchListings(deps.SearchListings, deps.Storage), OptionalAuth(deps.Signer)))
+	mux.Handle("GET /listings/{id}", chain(handleGetListing(deps.GetListing, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
+	mux.Handle("GET /listings/{id}/detail", chain(handleGetListingDetail(deps.GetListingDetail, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
+	mux.Handle("GET /listings", chain(handleSearchListings(deps.SearchListings, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("POST /farms/{farmId}/quick-listings", farmerOnly(handleQuickCreateListing(deps.QuickCreateListing, deps.Storage)))
 	mux.Handle("POST /listings/{id}/publish", chain(handlePublishListing(deps.PublishListing, deps.Storage), auth))
 	mux.Handle("GET /farms/{farmId}/listings", chain(handleListFarmListings(deps.ListFarmListings, deps.Storage), auth))
@@ -112,7 +112,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// farm's reviews is public, like its listings.
 	mux.Handle("POST /reservations/{id}/reviews", chain(handleCreateReview(deps.CreateReview, deps.Storage), auth))
 	mux.Handle("POST /reservations/{id}/reviews/photos/presign", chain(handlePresignReviewPhoto(deps.PresignReviewPhoto), auth))
-	mux.Handle("GET /farms/{id}/reviews", chain(handleListFarmReviews(deps.ListFarmReviews, deps.Storage), OptionalAuth(deps.Signer)))
+	mux.Handle("GET /farms/{id}/reviews", chain(handleListFarmReviews(deps.ListFarmReviews, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("POST /reviews/{id}/helpful", chain(handleMarkReviewHelpful(deps.MarkReviewHelpful), auth))
 	mux.Handle("POST /reviews/{id}/reply", chain(handleReplyToReview(deps.ReplyToReview, deps.Storage), auth))
 

@@ -42,7 +42,7 @@ func (uc *ConfirmDelivery) Execute(ctx context.Context, in ConfirmDeliveryInput)
 		return nil, fmt.Errorf("reservation: not the buyer: %w", domain.ErrForbidden)
 	}
 	if res.Status != domain.ReservationDelivered || res.Payment == nil || res.Payment.Status != domain.PaymentHeld {
-		return nil, fmt.Errorf("reservation: not awaiting delivery confirmation: %w", domain.ErrConflict)
+		return nil, domain.Coded("reservation.not_delivered", fmt.Errorf("reservation: not awaiting delivery confirmation: %w", domain.ErrConflict))
 	}
 
 	disputed, err := hasOpenDispute(ctx, uc.Reports, res.ID)
@@ -50,7 +50,7 @@ func (uc *ConfirmDelivery) Execute(ctx context.Context, in ConfirmDeliveryInput)
 		return nil, err
 	}
 	if disputed {
-		return nil, fmt.Errorf("reservation: an open dispute must be resolved first: %w", domain.ErrConflict)
+		return nil, domain.Coded("reservation.dispute_open", fmt.Errorf("reservation: an open dispute must be resolved first: %w", domain.ErrConflict))
 	}
 
 	release(res, uc.Clock)

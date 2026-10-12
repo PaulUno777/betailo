@@ -24,16 +24,18 @@ type QuoteInput struct {
 	ListingID bson.ObjectID
 	BuyerID   bson.ObjectID
 	Quantity  int
+	// PayNow quotes a paid reservation, which needs places left now. A
+	// waiting-list one (false) only has to fit the cycle's capacity.
+	PayNow bool
 }
 
 type QuoteOutput struct {
 	Amounts
-	Quantity    int
-	FeeRate     float64
-	Min         int // 1 when the cycle sets no minimum
-	Max         int // the tighter of the cycle's maximum and what's left
-	Available   int
-	UnpaidHours int // how long an unpaid reservation holds its places
+	Quantity  int
+	FeeRate   float64
+	Min       int // 1 when the cycle sets no minimum
+	Max       int // the tighter of the cycle's maximum and what's left (capacity when not paying now)
+	Available int
 }
 
 func (uc *Quote) Execute(ctx context.Context, in QuoteInput) (*QuoteOutput, error) {
@@ -42,10 +44,14 @@ func (uc *Quote) Execute(ctx context.Context, in QuoteInput) (*QuoteOutput, erro
 		return nil, err
 	}
 	available := ok.cycle.AvailableQuantity
-	if in.Quantity > available {
-		return nil, fmt.Errorf("reservation: only %d places left: %w", available, domain.ErrInsufficientCapacity)
+	limit := ok.cycle.Capacity
+	if in.PayNow {
+		limit = available
 	}
-	minQ, maxQ := 1, available
+	if in.Quantity > limit {
+		return nil, domain.CodedWith("reservation.not_enough_places", map[string]any{"available": limit}, fmt.Errorf("reservation: only %d places: %w", limit, domain.ErrInsufficientCapacity))
+	}
+	minQ, maxQ := 1, limit
 	if ok.cycle.MinPerReservation > 0 {
 		minQ = ok.cycle.MinPerReservation
 	}
@@ -53,12 +59,11 @@ func (uc *Quote) Execute(ctx context.Context, in QuoteInput) (*QuoteOutput, erro
 		maxQ = ok.cycle.MaxPerReservation
 	}
 	return &QuoteOutput{
-		Amounts:     priceOf(ok.listing.UnitPrice, in.Quantity),
-		Quantity:    in.Quantity,
-		FeeRate:     ServiceFeeRate,
-		Min:         minQ,
-		Max:         maxQ,
-		Available:   available,
-		UnpaidHours: int(UnpaidReservationGrace.Hours()),
+		Amounts:   priceOf(ok.listing.UnitPrice, in.Quantity),
+		Quantity:  in.Quantity,
+		FeeRate:   ServiceFeeRate,
+		Min:       minQ,
+		Max:       maxQ,
+		Available: available,
 	}, nil
 }

@@ -50,7 +50,7 @@ type CreateReviewInput struct {
 // domain.ErrInvalid for a rating outside 1-5.
 func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*domain.Review, error) {
 	if in.Rating < 1 || in.Rating > 5 {
-		return nil, fmt.Errorf("review: rating must be between 1 and 5: %w", domain.ErrInvalid)
+		return nil, domain.Coded("review.rating_range", fmt.Errorf("review: rating must be between 1 and 5: %w", domain.ErrInvalid))
 	}
 	if err := in.Criteria.Validate(); err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*dom
 		return nil, fmt.Errorf("review: not the reservation's buyer: %w", domain.ErrForbidden)
 	}
 	if res.Payment == nil || res.Payment.Status != domain.PaymentReleased {
-		return nil, fmt.Errorf("review: only reviewable once escrow has released: %w", domain.ErrConflict)
+		return nil, domain.Coded("review.not_released", fmt.Errorf("review: only reviewable once escrow has released: %w", domain.ErrConflict))
 	}
 
 	l, err := uc.Listings.FindByID(ctx, res.ListingID)

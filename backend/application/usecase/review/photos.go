@@ -37,7 +37,7 @@ func (uc *PresignReviewPhoto) Execute(ctx context.Context, reservationID, buyerI
 		return nil, fmt.Errorf("review: not the reservation's buyer: %w", domain.ErrForbidden)
 	}
 	if res.Payment == nil || res.Payment.Status != domain.PaymentReleased {
-		return nil, fmt.Errorf("review: only reviewable once escrow has released: %w", domain.ErrConflict)
+		return nil, domain.Coded("review.not_released", fmt.Errorf("review: only reviewable once escrow has released: %w", domain.ErrConflict))
 	}
 	key := PhotoPrefix(reservationID) + bson.NewObjectID().Hex() + ".jpg"
 	url, err := uc.Storage.PresignUpload(ctx, key)

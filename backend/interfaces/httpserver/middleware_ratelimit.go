@@ -34,12 +34,16 @@ type RateLimitConfig struct {
 	TrustProxyHeaders bool
 }
 
-// DefaultRateLimits are the production policies.
+// DefaultRateLimits are the production policies. They are per IP, and
+// Cameroonian mobile carriers put many subscribers behind one public IP
+// (carrier-grade NAT), so they are sized for a market day's worth of
+// real people sharing an address, not for one device: tight enough to
+// slow scripted abuse, loose enough that a busy town isn't locked out.
 func DefaultRateLimits(trustProxyHeaders bool) RateLimitConfig {
 	return RateLimitConfig{
-		Login:             RateLimit{PerMinute: 10, Burst: 10},
-		Register:          RateLimit{PerMinute: 5, Burst: 5},
-		Refresh:           RateLimit{PerMinute: 30, Burst: 30},
+		Login:             RateLimit{PerMinute: 60, Burst: 20},
+		Register:          RateLimit{PerMinute: 30, Burst: 15},
+		Refresh:           RateLimit{PerMinute: 120, Burst: 60},
 		TrustProxyHeaders: trustProxyHeaders,
 	}
 }

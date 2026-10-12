@@ -1,21 +1,21 @@
-/** Every backend error response is `{ error: string }`; the status code
- * carries the meaning (verified from backend/interfaces/httpserver —
- * writeError()/writeJSON()). This normalizes both into one shape so
- * features branch on `kind`, never on a raw HTTP status.
+/** Every backend error response is `{ error, code, params? }`. `error`
+ * is an English developer message (ADR-0005) and is never shown: users
+ * read our translation of `code`. This normalizes a failed response into
+ * one shape so features branch on `kind`, never on a raw HTTP status.
  *
- * `message` is either the backend's own text (always English, per
- * ADR-0005 — passed through as-is: there is no reliable way to translate
- * arbitrary backend strings) or, when there is none, one of our own
- * `errors.*` translation keys. `LocaleService.t()` returns an unknown
- * key unchanged, so a consumer can always call `locale.t(err.message)`
- * — a real backend message (no dots) passes straight through, and a
- * fallback key resolves to the localized generic text. */
+ * `message` is always a translation key: `apiErrors.<code>` for the
+ * refusal the backend named, else the generic `apiErrors.<kind>`.
+ * `errorInterceptor` resolves it (with `params`) to the user's language,
+ * so by the time a feature sees an AppError, `message` is display text. */
 export type AppErrorKind = 'validation' | 'unauthorized' | 'forbidden' | 'not-found' | 'conflict' | 'server' | 'network';
 
 export interface AppError {
   readonly kind: AppErrorKind;
   readonly message: string;
   readonly status: number;
+  /** The backend's stable refusal code ("listing.photo_required"). */
+  readonly code?: string;
+  readonly params?: Readonly<Record<string, string | number>>;
 }
 
 const KIND_BY_STATUS: Readonly<Record<number, AppErrorKind>> = {
@@ -26,10 +26,28 @@ const KIND_BY_STATUS: Readonly<Record<number, AppErrorKind>> = {
   409: 'conflict'
 };
 
-export function toAppError(status: number, backendMessage: string | undefined): AppError {
+export interface BackendErrorBody {
+  readonly error?: string;
+  readonly code?: string;
+  readonly params?: Record<string, string | number>;
+}
+
+/** The generic message for a kind, used when no code is translated. */
+export function genericErrorKey(kind: AppErrorKind): string {
+  return `apiErrors.${kind}`;
+}
+
+export function toAppError(status: number, body?: BackendErrorBody | null): AppError {
   if (status === 0) {
-    return { kind: 'network', message: backendMessage ?? 'errors.network', status };
+    return { kind: 'network', message: genericErrorKey('network'), status };
   }
   const kind = KIND_BY_STATUS[status] ?? 'server';
-  return { kind, message: backendMessage ?? 'errors.server', status };
+  const code = body?.code || undefined;
+  return {
+    kind,
+    status,
+    code,
+    params: body?.params,
+    message: code && kind !== 'server' ? `apiErrors.${code}` : genericErrorKey(kind)
+  };
 }

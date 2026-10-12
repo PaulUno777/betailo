@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Cycle, Listing } from '../../domain/models';
+import { speciesLabelKey } from '../../domain/reference/species';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
@@ -27,7 +28,7 @@ import { apiResource } from '../../core/http/api-resource';
           <div class="mt-3 flex flex-col gap-2">
             @for (c of cycles.value()!; track c.id) {
               <div class="flex flex-wrap items-center gap-4 rounded-md border border-line bg-surface-card p-3">
-                <span class="min-w-[160px] flex-1 text-body-strong">{{ c.species }} · {{ c.type }}</span>
+                <span class="min-w-[160px] flex-1 text-body-strong">{{ speciesKey(c.species) | t }} · {{ c.type }}</span>
                 <bt-status-badge kind="cycle" [status]="c.status" />
                 <span class="text-small text-ink-muted">{{ c.availableQuantity }} / {{ c.capacity }}</span>
               </div>
@@ -58,6 +59,10 @@ import { apiResource } from '../../core/http/api-resource';
   `
 })
 export class AdminListingsComponent {
+  protected speciesKey(value: string): string {
+    return speciesLabelKey(value);
+  }
+
   private readonly adminApi = inject(AdminApi);
 
   protected readonly cycles = apiResource<Cycle[]>(() => this.adminApi.cyclesUrl());

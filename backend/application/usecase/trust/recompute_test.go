@@ -113,9 +113,6 @@ func (f *fakeReservations) ListByListingIDs(_ context.Context, listingIDs []bson
 	return out, nil
 }
 func (f *fakeReservations) Update(context.Context, *domain.Reservation) error { return nil }
-func (f *fakeReservations) ListUnpaidExpired(context.Context, time.Time) ([]*domain.Reservation, error) {
-	return nil, nil
-}
 func (f *fakeReservations) ListDeliveredBefore(context.Context, time.Time) ([]*domain.Reservation, error) {
 	return nil, nil
 }

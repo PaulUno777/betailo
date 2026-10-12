@@ -2,8 +2,11 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"
@@ -14,13 +17,21 @@ import (
 // request-scoped values (see context.WithValue's own documentation).
 type claimsContextKey struct{}
 
+// AccountChecker says whether a signed-in account may still act. A
+// token stays valid until it expires; this is what ends the sessions of
+// an account suspended (or deleted) since. Nil skips the check.
+type AccountChecker interface {
+	CheckActive(ctx context.Context, userID bson.ObjectID) error
+}
+
 // RequireAuth verifies the request's Authorization: Bearer <token>
 // header via signer and, on success, stores the token's claims in the
 // request context for downstream handlers to read with ClaimsFromContext.
 // Any missing, malformed, expired, or invalid token gets 401 — the
 // handler behind this middleware never runs without valid claims
-// available.
-func RequireAuth(signer ports.TokenSigner) func(http.Handler) http.Handler {
+// available. With accounts set, a suspended account also gets 401, so
+// the client's refresh fails and it signs out.
+func RequireAuth(signer ports.TokenSigner, accounts AccountChecker) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, ok := bearerToken(r)
@@ -33,6 +44,16 @@ func RequireAuth(signer ports.TokenSigner) func(http.Handler) http.Handler {
 			if err != nil {
 				writeError(w, errUnauthorized)
 				return
+			}
+			if accounts != nil {
+				if err := accounts.CheckActive(r.Context(), claims.UserID); err != nil {
+					if errors.Is(err, domain.ErrSuspended) || errors.Is(err, domain.ErrUnauthorized) {
+						writeError(w, domain.Coded("account_suspended", errUnauthorized))
+					} else {
+						writeError(w, err)
+					}
+					return
+				}
 			}
 
 			ctx := context.WithValue(r.Context(), claimsContextKey{}, claims)
@@ -52,14 +73,14 @@ func RequireAuth(signer ports.TokenSigner) func(http.Handler) http.Handler {
 // A header that's present but invalid (typically an expired access
 // token) is still a 401, so the client's refresh-and-retry flow kicks in
 // instead of silently serving the anonymous view to a signed-in user.
-func OptionalAuth(signer ports.TokenSigner) func(http.Handler) http.Handler {
+func OptionalAuth(signer ports.TokenSigner, accounts AccountChecker) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.TrimSpace(r.Header.Get("Authorization")) == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
-			RequireAuth(signer)(next).ServeHTTP(w, r)
+			RequireAuth(signer, accounts)(next).ServeHTTP(w, r)
 		})
 	}
 }

@@ -8,7 +8,8 @@ export interface SellDraft {
   ageWeeks: number | null;
   quantity: number;
   unitPrice: number | null;
-  when: 'now' | 'date';
+  /** '' until the farmer picks: the section only counts once answered. */
+  when: 'now' | 'date' | '';
   date: string;
   delivery: boolean;
   description: string;
@@ -20,7 +21,7 @@ export const EMPTY_DRAFT: SellDraft = {
   ageWeeks: null,
   quantity: 10,
   unitPrice: null,
-  when: 'now',
+  when: '',
   date: '',
   delivery: false,
   description: ''
@@ -43,7 +44,7 @@ export function loadDraft(userId: string): SellDraft | null {
       ageWeeks: num(d.ageWeeks),
       quantity: num(d.quantity) || EMPTY_DRAFT.quantity,
       unitPrice: num(d.unitPrice),
-      when: d.when === 'date' ? 'date' : 'now',
+      when: d.when === 'date' || d.when === 'now' ? d.when : '',
       date: /^\d{4}-\d{2}-\d{2}$/.test(str(d.date)) ? str(d.date) : '',
       delivery: d.delivery === true,
       description: str(d.description)

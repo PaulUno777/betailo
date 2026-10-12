@@ -33,7 +33,7 @@ type CreatePostInput struct {
 
 func (uc *CreatePost) Execute(ctx context.Context, in CreatePostInput) (*domain.ForumPost, error) {
 	if in.Category == "" || in.Title == "" || in.Body == "" {
-		return nil, fmt.Errorf("forum: category, title and body are required: %w", domain.ErrInvalid)
+		return nil, domain.Coded("forum.post_required", fmt.Errorf("forum: category, title and body are required: %w", domain.ErrInvalid))
 	}
 	p := &domain.ForumPost{
 		ID: bson.NewObjectID(), AuthorID: in.AuthorID, Category: in.Category,
@@ -84,7 +84,7 @@ type AddReplyInput struct {
 func (uc *AddReply) Execute(ctx context.Context, in AddReplyInput) error {
 	body := strings.TrimSpace(in.Body)
 	if body == "" {
-		return fmt.Errorf("forum: reply body is required: %w", domain.ErrInvalid)
+		return domain.Coded("forum.reply_required", fmt.Errorf("forum: reply body is required: %w", domain.ErrInvalid))
 	}
 	if utf8.RuneCountInString(body) > maxReplyLen {
 		return fmt.Errorf("forum: reply must be at most %d characters: %w", maxReplyLen, domain.ErrInvalid)
