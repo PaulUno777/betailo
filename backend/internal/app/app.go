@@ -151,6 +151,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	listReservationsByFarm := &reservation.ListReservationsByFarm{
 		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Reviews: reviews,
 	}
+	navCounts := &reservation.NavCounts{Farms: farms, Buyer: listMyReservations, ForFarm: listReservationsByFarm}
 
 	createReview := &review.CreateReview{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reviews: reviews, Trust: trustRecompute,
@@ -275,6 +276,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			OpenDispute:            openDispute,
 			ListMyReservations:     listMyReservations,
 			ListReservationsByFarm: listReservationsByFarm,
+			NavCounts:              navCounts,
 
 			CreateReview:       createReview,
 			ListFarmReviews:    listFarmReviews,

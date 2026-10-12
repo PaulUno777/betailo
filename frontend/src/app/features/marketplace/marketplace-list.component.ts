@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { debounceTime, distinctUntilChanged } from 'rxjs';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
 import { ListingSearchParams, ListingSearchResult, MarketplaceListing } from '../../domain/models';
 import { SPECIES_LABEL_KEYS, SPECIES_VALUES } from '../../domain/reference/species';
 import { ListingsApi } from '../../data-access/listings/listings.api';
@@ -89,7 +89,9 @@ const EMPTY_FILTERS: Filters = {
         </div>
       </header>
 
-      <div class="mt-4 flex items-center gap-3 lg:mt-6">
+      <!-- From lg up the site header's search is the search box (it
+           mirrors the query), so the page doesn't show a second one. -->
+      <div class="mt-4 flex items-center gap-3 lg:hidden">
         <div class="relative flex flex-1 items-center">
           <bt-icon name="search" [size]="20" class="pointer-events-none absolute left-4 text-ink-muted" />
           <label for="mk-q" class="sr-only">{{ 'marketplace.searchLabel' | t }}</label>
@@ -327,6 +329,16 @@ export class MarketplaceListComponent {
   protected readonly sortLabelKey = computed(() => SORT_LABEL_KEYS[this.filters().sort]);
 
   constructor() {
+    // A search or species chip in the header while already on this page
+    // changes the URL without re-creating the component: follow it. The
+    // mirror below writes back the same params, which compare equal.
+    this.route.queryParamMap.pipe(skip(1), takeUntilDestroyed()).subscribe((p) => {
+      const next = this.filtersFromUrl(p);
+      if (JSON.stringify(next) !== JSON.stringify(this.filters())) {
+        this.filters.set(next);
+        this.queryInput.set(next.q);
+      }
+    });
     effect(() => {
       const q = this.debouncedQuery();
       if (q !== this.filters().q) {
@@ -369,8 +381,7 @@ export class MarketplaceListComponent {
     );
   }
 
-  private filtersFromUrl(): Filters {
-    const p = this.route.snapshot.queryParamMap;
+  private filtersFromUrl(p: ParamMap = this.route.snapshot.queryParamMap): Filters {
     const sort = p.get('sort');
     return {
       q: p.get('q') ?? '',

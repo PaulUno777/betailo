@@ -1,0 +1,25 @@
+#!/bin/sh
+# Refuses a commit whose staged Go files aren't gofmt-clean — the same
+# check CI's "Format check (gofmt)" step runs. Enable once per clone
+# with `make -C backend hooks`.
+#
+# It reads the staged blob (`git show :path`), not the working tree, so
+# a file fixed on disk but not re-added still fails here, as it would
+# in CI.
+
+files=$(git diff --cached --name-only --diff-filter=ACMR -- 'backend/*.go')
+[ -z "$files" ] && exit 0
+
+bad=""
+for f in $files; do
+  if [ -n "$(git show ":$f" | gofmt -l 2>&1)" ]; then
+    bad="$bad
+  $f"
+  fi
+done
+
+if [ -n "$bad" ]; then
+  echo "gofmt: these staged files aren't formatted:$bad"
+  echo "Run 'make -C backend fmt', then 'git add' them again."
+  exit 1
+fi

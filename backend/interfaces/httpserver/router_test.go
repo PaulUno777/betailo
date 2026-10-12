@@ -323,6 +323,15 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		ListReservationsByFarm: &reservation.ListReservationsByFarm{
 			Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Reviews: tf.reviews,
 		},
+		NavCounts: &reservation.NavCounts{
+			Farms: tf.farms,
+			Buyer: &reservation.ListMyReservations{
+				Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reports: tf.reports, Reviews: tf.reviews,
+			},
+			ForFarm: &reservation.ListReservationsByFarm{
+				Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Reviews: tf.reviews,
+			},
+		},
 
 		CreateReview: &review.CreateReview{
 			Reservations: tf.reservations, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Reviews: tf.reviews, Trust: trustRecompute,

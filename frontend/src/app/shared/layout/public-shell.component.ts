@@ -6,6 +6,11 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BottomNavCenter, BottomNavComponent, BottomNavItem } from '../ui/bottom-nav/bottom-nav.component';
+import { HeaderSearchComponent } from '../ui/header-search/header-search.component';
+import { IconComponent } from '../ui/icon/icon.component';
+import { ModeSwitchComponent } from '../ui/mode-switch/mode-switch.component';
+import { NavCountsService } from '../../core/navigation/nav-counts.service';
+import { SPECIES_LABEL_KEYS, SPECIES_VALUES } from '../../domain/reference/species';
 import { ButtonComponent } from '../ui/button/button.component';
 import { IconButtonComponent } from '../ui/icon-button/icon-button.component';
 import { LogoComponent } from '../ui/logo/logo.component';
@@ -15,29 +20,26 @@ import { NotificationBellComponent } from '../ui/notification-bell/notification-
 import { ToastHostComponent } from '../ui/toast/toast-host.component';
 import { SiteFooterComponent } from './site-footer.component';
 
-const BUYER_TABS: readonly BottomNavItem[] = [
-  { kind: 'link', labelKey: 'bottomNav.home', icon: 'home', route: '/', exact: true },
-  { kind: 'link', labelKey: 'bottomNav.market', icon: 'search', route: '/marketplace' },
-  { kind: 'link', labelKey: 'bottomNav.reservations', icon: 'calendar', route: '/account/reservations' },
-  { kind: 'link', labelKey: 'bottomNav.profile', icon: 'user', route: '/account', exact: true }
-];
+/** Desktop's second header row: one chip per species, like the
+ * category bar under every marketplace's search. */
+const CATEGORY_CHIPS = SPECIES_VALUES.map((value) => ({ value, labelKey: SPECIES_LABEL_KEYS[value] }));
 
-/** The shell for every public-site route (Home, Marketplace, Listing,
- * Auth, Forum): desktop header nav, the router outlet, and the mobile
- * `BottomNav` — one responsive page per route, not a separate mobile
- * route, per the design's `M_*` boards being viewport variants.
+/** The shell for every public-site route (home, marketplace, listing,
+ * auth, forum, account), laid out like the marketplaces our users
+ * already know (Jumia, Leboncoin):
  *
- * The header's right side stays short regardless of who's looking: an
- * anonymous visitor gets the marketing anchors (how it works / farmers)
- * and sign-in actions; a signed-in user gets locale, theme, notifications
- * and one `UserMenu` trigger — their role destination, account and
- * sign-out all live inside that one dropdown rather than as separate
- * buttons.
+ * - Desktop (`lg` and up): logo, a wide search field, a "Vendre" button,
+ *   then sign-in, or the bell, the Acheter/Vendre switch (farmers) and
+ *   the account menu. A second row lists the species as category chips.
+ * - Phone and tablet: a compact header (logo, then the bell or
+ *   "Se connecter") and five labelled bottom tabs: Accueil, Acheter,
+ *   the raised Vendre, Mes achats (badged when something waits on the
+ *   buyer) and Compte, which holds everything else, so there is no
+ *   avatar menu to discover. Home and the marketplace carry their own
+ *   search field.
  *
- * Below `sm` the header shrinks to what a phone needs (logo, then either
- * the bell and account menu or a single sign-in button); theme and
- * language move into the account menu, and the bottom nav takes over
- * primary navigation. */
+ * Focus pages (`data: { focus: true }`: listing detail, checkout, the
+ * sell wizard) drop the phone header and tabs for their own action bar. */
 @Component({
   selector: 'bt-public-shell',
   imports: [
@@ -45,6 +47,9 @@ const BUYER_TABS: readonly BottomNavItem[] = [
     RouterLinkActive,
     RouterOutlet,
     BottomNavComponent,
+    HeaderSearchComponent,
+    IconComponent,
+    ModeSwitchComponent,
     ButtonComponent,
     IconButtonComponent,
     LogoComponent,
@@ -60,44 +65,56 @@ const BUYER_TABS: readonly BottomNavItem[] = [
     <div class="flex min-h-full flex-col bg-surface">
       <header
         class="sticky top-0 z-30 border-b border-line bg-surface-raised/95 backdrop-blur"
-        [class.max-sm:hidden]="focus()"
+        [class.max-lg:hidden]="focus()"
         style="padding-top: env(safe-area-inset-top)"
       >
-        <div class="mx-auto flex h-14 max-w-content-max items-center justify-between gap-3 px-4 sm:h-16 sm:px-18">
+        <div class="mx-auto flex h-14 max-w-content-max items-center gap-3 px-4 lg:h-[72px] lg:gap-6 lg:px-10">
           <a routerLink="/" class="shrink-0"><bt-logo /></a>
-          <nav class="hidden items-center gap-6 text-body-strong text-ink sm:flex">
-            <a routerLink="/marketplace" routerLinkActive="text-forest">{{ 'nav.marketplace' | t }}</a>
-            <a routerLink="/forum" routerLinkActive="text-forest">{{ 'nav.forum' | t }}</a>
-            @if (!auth.isAuthenticated()) {
-              <a routerLink="/" fragment="how">{{ 'nav.howItWorks' | t }}</a>
-              <a routerLink="/" fragment="eleveurs">{{ 'nav.farmers' | t }}</a>
-            }
-          </nav>
-          <div class="flex items-center gap-1 sm:gap-3">
-            <bt-locale-toggle class="hidden sm:block" />
-            <bt-icon-button
-              class="hidden sm:inline-flex"
-              [icon]="theme.isDark() ? 'sun' : 'moon'"
-              [label]="'nav.theme' | t"
-              (click)="theme.toggle()"
-            />
+          <div class="hidden max-w-xl flex-1 lg:block">
+            <bt-header-search />
+          </div>
+          <div class="ml-auto flex items-center gap-1 lg:gap-3">
+            <bt-button class="hidden lg:inline-flex" variant="primary" size="sm" [href]="sellRoute">
+              <bt-icon name="plus" [size]="16" />
+              <!-- A farmer already has the switch's "Vendre" beside it. -->
+              {{ (auth.role() === 'farmer' ? 'nav.newListing' : 'nav.sell') | t }}
+            </bt-button>
             @if (auth.isAuthenticated()) {
+              <bt-mode-switch class="hidden lg:block" mode="buy" />
               <bt-notification-bell />
-              <bt-user-menu />
+              <bt-user-menu class="hidden lg:block" />
             } @else {
-              <bt-locale-toggle class="sm:hidden" />
+              <bt-locale-toggle class="lg:hidden" />
               <bt-button variant="ghost" size="sm" href="/login">{{ 'nav.login' | t }}</bt-button>
-              <bt-button class="hidden sm:inline-flex" variant="solid" size="sm" href="/register">{{ 'nav.register' | t }}</bt-button>
+              <bt-button class="hidden lg:inline-flex" variant="solid" size="sm" href="/register">{{ 'nav.register' | t }}</bt-button>
             }
           </div>
         </div>
+        <nav [attr.aria-label]="'nav.categories' | t" class="hidden border-t border-line lg:block">
+          <div class="mx-auto flex h-11 max-w-content-max items-center gap-1 px-10 text-small">
+            <a
+              routerLink="/marketplace"
+              [class]="chipClass(onMarket() && !activeSpecies())"
+            >{{ 'nav.allAnimals' | t }}</a>
+            @for (c of categories; track c.value) {
+              <a routerLink="/marketplace" [queryParams]="{ species: c.value }" [class]="chipClass(activeSpecies() === c.value)">{{ c.labelKey | t }}</a>
+            }
+            <span class="ml-auto"></span>
+            <a routerLink="/forum" routerLinkActive="text-forest" [class]="chipClass(false)">
+              <bt-icon name="message" [size]="16" />
+              {{ 'nav.forum' | t }}
+            </a>
+            <bt-locale-toggle />
+            <bt-icon-button [icon]="theme.isDark() ? 'sun' : 'moon'" [label]="'nav.theme' | t" (click)="theme.toggle()" />
+          </div>
+        </nav>
       </header>
       <main class="flex-1">
         <router-outlet />
       </main>
       @if (!focus()) {
-        <bt-site-footer class="pb-[calc(var(--height-bottom-nav)+env(safe-area-inset-bottom))] sm:pb-0" />
-        <bt-bottom-nav [items]="tabs" [center]="center()" />
+        <bt-site-footer class="pb-[calc(var(--height-bottom-nav)+env(safe-area-inset-bottom))] lg:pb-0" />
+        <bt-bottom-nav [items]="tabs()" [center]="center" />
       } @else {
         <bt-site-footer class="hidden lg:block" />
       }
@@ -108,10 +125,38 @@ const BUYER_TABS: readonly BottomNavItem[] = [
 export class PublicShellComponent {
   protected readonly auth = inject(AuthService);
   protected readonly theme = inject(ThemeService);
-
-  protected readonly tabs = BUYER_TABS;
-
+  private readonly navCounts = inject(NavCountsService);
   private readonly router = inject(Router);
+
+  protected readonly categories = CATEGORY_CHIPS;
+  /** Everyone starts selling at /sell: farmers get the wizard, anyone
+   * else presents their farm first (or signs in, via its guard). */
+  protected readonly sellRoute = '/sell';
+  protected readonly center: BottomNavCenter = { labelKey: 'bottomNav.sell', icon: 'plus', route: '/sell' };
+
+  protected readonly tabs = computed<readonly BottomNavItem[]>(() => [
+    { kind: 'link', labelKey: 'bottomNav.home', icon: 'home', route: '/', exact: true },
+    { kind: 'link', labelKey: 'bottomNav.buy', icon: 'search', route: '/marketplace' },
+    {
+      kind: 'link',
+      labelKey: 'bottomNav.purchases',
+      icon: 'calendar',
+      route: '/account/reservations',
+      badge: this.navCounts.counts().buyer
+    },
+    { kind: 'link', labelKey: 'bottomNav.account', icon: 'user', route: '/account', exact: true }
+  ]);
+
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      startWith(null),
+      map(() => this.router.parseUrl(this.router.url))
+    ),
+    { requireSync: true }
+  );
+  protected readonly onMarket = computed(() => this.url().root.children['primary']?.segments[0]?.path === 'marketplace');
+  protected readonly activeSpecies = computed(() => (this.onMarket() ? this.url().queryParamMap.get('species') : null));
 
   /** Focus pages (`data: { focus: true }`: listing detail, checkout…)
    * replace the bottom nav with their own sticky action bar on phones,
@@ -131,12 +176,10 @@ export class PublicShellComponent {
     { initialValue: false }
   );
 
-  /** "Publier": farmers go straight to the listing form; anyone else
-   * lands on /sell, which walks them through becoming a seller (or to
-   * sign-in first, via its auth guard). */
-  protected readonly center = computed<BottomNavCenter>(() => ({
-    labelKey: 'bottomNav.publish',
-    icon: 'plus',
-    route: this.auth.role() === 'farmer' ? '/portal/listings/new' : '/sell'
-  }));
+  protected chipClass(active: boolean): string {
+    return (
+      'inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-semibold transition ' +
+      (active ? 'bg-forest-soft text-forest-deep' : 'text-ink hover:bg-surface-sunken')
+    );
+  }
 }

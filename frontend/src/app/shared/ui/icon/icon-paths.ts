@@ -5,12 +5,13 @@ export const ICON_NAMES = [
   'home', 'search', 'bell', 'plus', 'minus', 'check', 'x', 'chevron-right', 'chevron-left',
   'chevron-down', 'calendar', 'pin', 'shield', 'lock', 'flag', 'message', 'upload', 'camera',
   'heart', 'share', 'wallet', 'cycle', 'alert', 'clock', 'filter', 'user', 'users', 'chart',
-  'grid', 'bolt', 'thumb', 'leaf', 'star', 'sun', 'moon', 'logout', 'settings'
+  'grid', 'bolt', 'thumb', 'leaf', 'star', 'sun', 'moon', 'logout', 'settings', 'more'
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
 
 export const ICON_PATHS: Readonly<Record<IconName, string>> = {
+  more: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
   home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',

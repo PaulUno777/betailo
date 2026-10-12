@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -236,9 +237,16 @@ func TestMe_HTTP_TokenFromDifferentSecretRejected(t *testing.T) {
 
 	// A second router, built with its own newTestRouter() call, uses a
 	// signer with the same hardcoded test secret in this suite, so
-	// forge a token instead: tamper with the last character to prove a
-	// modified signature is rejected.
-	tampered := login.AccessToken[:len(login.AccessToken)-1] + "x"
+	// forge a token instead: change the signature's first character to
+	// prove a modified signature is rejected. Not the last one: in a
+	// 43-char base64url HS256 signature it carries two padding bits the
+	// decoder ignores, so some substitutions decode to the same bytes.
+	sigStart := strings.LastIndex(login.AccessToken, ".") + 1
+	swap := byte('A')
+	if login.AccessToken[sigStart] == swap {
+		swap = 'B'
+	}
+	tampered := login.AccessToken[:sigStart] + string(swap) + login.AccessToken[sigStart+1:]
 	rec := doJSON(t, router, http.MethodGet, "/me", nil, tampered)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d for a tampered token", rec.Code, http.StatusUnauthorized)

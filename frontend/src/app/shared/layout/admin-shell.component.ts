@@ -11,8 +11,13 @@ const ITEMS: readonly (Omit<SidebarNavItem, 'label'> & { labelKey: string })[] =
   { labelKey: 'adminNav.listings', icon: 'grid', route: '/admin/listings' },
   { labelKey: 'adminNav.escrow', icon: 'wallet', route: '/admin/escrow' },
   { labelKey: 'adminNav.reports', icon: 'flag', route: '/admin/reports' },
-  { labelKey: 'adminNav.forum', icon: 'message', route: '/forum' },
-  { labelKey: 'adminNav.settings', icon: 'settings', route: '/admin/settings' }
+  { labelKey: 'adminNav.forum', icon: 'message', route: '/forum' }
+];
+
+const FOOTER: readonly (Omit<SidebarNavItem, 'label'> & { labelKey: string })[] = [
+  { labelKey: 'adminNav.settings', icon: 'settings', route: '/admin/settings' },
+  { labelKey: 'adminNav.viewSite', icon: 'search', route: '/' },
+  { labelKey: 'nav.myAccount', icon: 'user', route: '/account' }
 ];
 
 // No raised center action: admins moderate, they don't publish.
@@ -21,14 +26,15 @@ const BOTTOM_ITEMS: readonly BottomNavItem[] = [
   { kind: 'link', labelKey: 'adminNav.reports', icon: 'flag', route: '/admin/reports' },
   { kind: 'link', labelKey: 'adminNav.escrow', icon: 'wallet', route: '/admin/escrow' },
   { kind: 'link', labelKey: 'adminNav.users', icon: 'users', route: '/admin/users' },
-  { kind: 'more', labelKey: 'moreSheet.tab', icon: 'grid' }
+  { kind: 'more', labelKey: 'moreSheet.tab', icon: 'more' }
 ];
 
 const MORE_LINKS: readonly MoreSheetLink[] = [
   { labelKey: 'adminNav.listings', icon: 'grid', route: '/admin/listings' },
   { labelKey: 'adminNav.forum', icon: 'message', route: '/forum' },
   { labelKey: 'adminNav.settings', icon: 'settings', route: '/admin/settings' },
-  { labelKey: 'nav.marketplace', icon: 'search', route: '/marketplace' }
+  { labelKey: 'adminNav.viewSite', icon: 'search', route: '/' },
+  { labelKey: 'nav.myAccount', icon: 'user', route: '/account' }
 ];
 
 /** Admin: `SidebarShell` on `ink` — a deliberately distinct back-office
@@ -42,7 +48,9 @@ const MORE_LINKS: readonly MoreSheetLink[] = [
   template: `
     <bt-sidebar-shell
       [items]="items()"
+      [footer]="footer()"
       surface="ink"
+      spaceLabelKey="adminNav.space"
       homeRoute="/admin"
       [bottomItems]="bottomItems"
       [moreLinks]="moreLinks"
@@ -57,5 +65,9 @@ export class AdminShellComponent {
 
   protected readonly items = computed<SidebarNavItem[]>(() =>
     ITEMS.map(({ labelKey, ...item }) => ({ ...item, label: this.locale.t(labelKey) }))
+  );
+
+  protected readonly footer = computed<SidebarNavItem[]>(() =>
+    FOOTER.map(({ labelKey, ...item }) => ({ ...item, label: this.locale.t(labelKey) }))
   );
 }

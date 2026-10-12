@@ -381,3 +381,25 @@ func handleQuoteReservation(uc *reservation.Quote) http.HandlerFunc {
 		})
 	}
 }
+
+// navCountsResponse is the navigation's badge numbers.
+type navCountsResponse struct {
+	Buyer  int `json:"buyer"`
+	Seller int `json:"seller"`
+}
+
+func handleNavCounts(uc *reservation.NavCounts) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		out, err := uc.Execute(r.Context(), claims.UserID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, navCountsResponse{Buyer: out.Buyer, Seller: out.Seller})
+	}
+}

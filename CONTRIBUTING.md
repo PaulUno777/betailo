@@ -17,7 +17,11 @@ Chaque dossier a ses propres dépendances et sa propre pipeline CI (voir
 
 ## Avant de committer
 
-- Backend : `make fmt && make lint && make test`
+- Backend : `make fmt && make lint && make check` (`check` rejoue les étapes
+  de la CI dans le même ordre).
+- Une fois par clone : `make -C backend hooks` active le hook `pre-commit`
+  versionné (`.githooks/`), qui refuse un commit dont les fichiers Go indexés
+  ne sont pas formatés par `gofmt`, exactement comme la CI.
 - Frontend : `pnpm run lint && pnpm test -- --watch=false && pnpm run build`
 
 ## Convention de commits
