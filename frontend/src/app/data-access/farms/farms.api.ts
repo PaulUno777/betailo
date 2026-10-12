@@ -7,6 +7,8 @@ export interface FarmInput {
   readonly name: string;
   readonly location: string;
   readonly species?: string[];
+  readonly description?: string;
+  readonly contactPhone?: string;
 }
 
 @Injectable({ providedIn: 'root' })

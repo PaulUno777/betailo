@@ -7,6 +7,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
 	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
+	"github.com/pauluno777/betailo/backend/application/usecase/favorite"
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
@@ -29,20 +30,26 @@ type Dependencies struct {
 	// disables limiting.
 	RateLimits RateLimitConfig
 
-	CreateFarm  *farm.CreateFarm
-	GetFarm     *farm.GetFarm
-	ListMyFarms *farm.ListMyFarms
-	UpdateFarm  *farm.UpdateFarm
-	DeleteFarm  *farm.DeleteFarm
+	AddFavorite     *favorite.Add
+	RemoveFavorite  *favorite.Remove
+	ListMyFavorites *favorite.ListMine
+
+	CreateFarm     *farm.CreateFarm
+	GetFarmProfile *farm.GetProfile
+	ListMyFarms    *farm.ListMyFarms
+	UpdateFarm     *farm.UpdateFarm
+	DeleteFarm     *farm.DeleteFarm
 
 	CreateCycle       *cycle.CreateCycle
 	GetCycle          *cycle.GetCycle
 	ListCyclesByFarm  *cycle.ListCyclesByFarm
 	UpdateCycleStatus *cycle.UpdateCycleStatus
+	AddHealthEvent    *cycle.AddHealthEvent
 	DeleteCycle       *cycle.DeleteCycle
 
 	CreateListing       *listing.CreateListing
 	GetListing          *listing.GetListing
+	GetListingDetail    *listing.GetDetail
 	UpdateListing       *listing.UpdateListing
 	UnpublishListing    *listing.UnpublishListing
 	PresignListingPhoto *listing.PresignListingPhoto

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -115,6 +116,22 @@ func (f *fakeCycleStore) UpdateStatus(_ context.Context, id bson.ObjectID, statu
 		return domain.ErrNotFound
 	}
 	c.Status = status
+	return nil
+}
+
+func (f *fakeCycleStore) AppendHealthEvent(_ context.Context, id bson.ObjectID, e domain.HealthEvent, maxEntries int) error {
+	c, ok := f.byID[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if len(c.HealthLog) >= maxEntries {
+		return domain.ErrConflict
+	}
+	// Store a fresh copy, like a database would, rather than mutating
+	// the *Cycle a caller may still hold from FindByID.
+	updated := *c
+	updated.HealthLog = append(append([]domain.HealthEvent(nil), c.HealthLog...), e)
+	f.byID[id] = &updated
 	return nil
 }
 
@@ -236,6 +253,9 @@ func (f *fakeListingSearch) Search(_ context.Context, c ports.ListingSearchCrite
 	var items []ports.ListingSearchItem
 	for _, l := range f.store.byID {
 		if l.Status != domain.ListingPublished || l.Flagged {
+			continue
+		}
+		if len(c.IDs) > 0 && !slices.Contains(c.IDs, l.ID) {
 			continue
 		}
 		if c.Query != "" && !containsFold(l.Title, c.Query) {
@@ -604,4 +624,41 @@ func (f *fakeForumRepo) SetBestReplyIndex(_ context.Context, postID bson.ObjectI
 	}
 	p.BestReplyIndex = &index
 	return nil
+}
+
+// fakeFavoriteRepo keeps saves in insertion order per user.
+type fakeFavoriteRepo struct {
+	byUser map[bson.ObjectID][]bson.ObjectID
+}
+
+func newFakeFavoriteRepo() *fakeFavoriteRepo {
+	return &fakeFavoriteRepo{byUser: map[bson.ObjectID][]bson.ObjectID{}}
+}
+
+func (f *fakeFavoriteRepo) Add(_ context.Context, userID, listingID bson.ObjectID, _ time.Time) error {
+	if !slices.Contains(f.byUser[userID], listingID) {
+		f.byUser[userID] = append(f.byUser[userID], listingID)
+	}
+	return nil
+}
+
+func (f *fakeFavoriteRepo) Remove(_ context.Context, userID, listingID bson.ObjectID) error {
+	f.byUser[userID] = slices.DeleteFunc(f.byUser[userID], func(id bson.ObjectID) bool { return id == listingID })
+	return nil
+}
+
+func (f *fakeFavoriteRepo) ListListingIDs(_ context.Context, userID bson.ObjectID) ([]bson.ObjectID, error) {
+	ids := slices.Clone(f.byUser[userID])
+	slices.Reverse(ids) // most recently saved first
+	return ids, nil
+}
+
+func (f *fakeFavoriteRepo) FavoritedAmong(_ context.Context, userID bson.ObjectID, listingIDs []bson.ObjectID) (map[bson.ObjectID]bool, error) {
+	out := map[bson.ObjectID]bool{}
+	for _, id := range listingIDs {
+		if slices.Contains(f.byUser[userID], id) {
+			out[id] = true
+		}
+	}
+	return out, nil
 }

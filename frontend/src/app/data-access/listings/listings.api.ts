@@ -32,6 +32,23 @@ export class ListingsApi {
     return this.api.url(`/listings/${id}`);
   }
 
+  /** The listing page's single payload — see `ListingDetail`. */
+  fullDetailUrl(id: string): string {
+    return this.api.url(`/listings/${id}/detail`);
+  }
+
+  favoritesUrl(): string {
+    return this.api.url('/me/favorites');
+  }
+
+  favorite(id: string): Observable<void> {
+    return this.api.put<void>(`/listings/${id}/favorite`);
+  }
+
+  unfavorite(id: string): Observable<void> {
+    return this.api.delete<void>(`/listings/${id}/favorite`);
+  }
+
   create(input: ListingInput): Observable<Listing> {
     return this.api.post<Listing>('/listings', input);
   }

@@ -89,12 +89,59 @@ func handleGetListing(uc *listing.GetListing, storage ports.ObjectStorage) http.
 		if !ok {
 			return
 		}
-		l, err := uc.Execute(r.Context(), id)
+		claims, _ := ClaimsFromContext(r.Context())
+		l, err := uc.Execute(r.Context(), id, claims.UserID)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, toListingResponse(r.Context(), storage, l))
+	}
+}
+
+// listingDetailResponse is the listing page in one payload. See
+// listing.Detail.
+type listingDetailResponse struct {
+	Listing       listingResponse       `json:"listing"`
+	Cycle         cycleDetailResponse   `json:"cycle"`
+	Farm          farmProfileResponse   `json:"farm"`
+	ReviewSummary reviewSummaryResponse `json:"reviewSummary"`
+	TopReviews    []reviewResponse      `json:"topReviews"`
+	Favorited     bool                  `json:"favorited"`
+	IsOwner       bool                  `json:"isOwner"`
+	CanReserve    bool                  `json:"canReserve"`
+}
+
+func handleGetListingDetail(uc *listing.GetDetail, storage ports.ObjectStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		claims, signedIn := ClaimsFromContext(r.Context())
+		d, err := uc.Execute(r.Context(), id, claims.UserID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		reviews := make([]reviewResponse, 0, len(d.TopReviews))
+		for _, rv := range d.TopReviews {
+			reviews = append(reviews, toReviewResponse(rv))
+		}
+		histogram := d.ReviewSummary.Histogram
+		if histogram == nil {
+			histogram = map[int]int{}
+		}
+		writeJSON(w, http.StatusOK, listingDetailResponse{
+			Listing:       toListingResponse(r.Context(), storage, d.Listing),
+			Cycle:         cycleDetailResponse{cycleResponse: toCycleResponse(d.Cycle), Timeline: toTimelineResponse(d.Timeline)},
+			Farm:          toFarmProfileResponse(d.Farm, signedIn),
+			ReviewSummary: reviewSummaryResponse{Average: d.ReviewSummary.Average, Count: d.ReviewSummary.Count, Histogram: histogram},
+			TopReviews:    reviews,
+			Favorited:     d.Favorited,
+			IsOwner:       d.IsOwner,
+			CanReserve:    d.CanReserve,
+		})
 	}
 }
 

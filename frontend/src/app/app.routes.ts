@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
 import { guestGuard } from './core/auth/guest.guard';
-import { homeRedirectGuard } from './core/auth/home-redirect.guard';
 import { roleGuard } from './core/auth/role.guard';
 
 export const routes: Routes = [
@@ -11,8 +10,7 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        loadComponent: () => import('./features/marketplace/home.component').then((m) => m.HomeComponent),
-        canActivate: [homeRedirectGuard]
+        loadComponent: () => import('./features/marketplace/home.component').then((m) => m.HomeComponent)
       },
       {
         path: 'marketplace',
@@ -20,7 +18,8 @@ export const routes: Routes = [
       },
       {
         path: 'marketplace/:id',
-        loadComponent: () => import('./features/marketplace/listing-detail.component').then((m) => m.ListingDetailComponent)
+        loadComponent: () => import('./features/marketplace/listing-detail.component').then((m) => m.ListingDetailComponent),
+        data: { focus: true }
       },
       {
         path: 'login',
@@ -43,12 +42,18 @@ export const routes: Routes = [
       {
         path: 'checkout/:listingId',
         loadComponent: () => import('./features/checkout/checkout.component').then((m) => m.CheckoutComponent),
-        canActivate: [authGuard]
+        canActivate: [authGuard],
+        data: { focus: true }
       },
       {
         path: 'account',
         loadComponent: () => import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent),
         data: { titleKey: 'comingSoon.myAccount' },
+        canActivate: [authGuard]
+      },
+      {
+        path: 'account/favorites',
+        loadComponent: () => import('./features/account/favorites.component').then((m) => m.FavoritesComponent),
         canActivate: [authGuard]
       },
       {

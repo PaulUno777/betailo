@@ -16,6 +16,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
 	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
+	"github.com/pauluno777/betailo/backend/application/usecase/favorite"
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
@@ -158,6 +159,7 @@ type testFakes struct {
 	reports       *fakeReportRepo
 	forumPosts    *fakeForumRepo
 	storage       fakeObjectStorage
+	favorites     *fakeFavoriteRepo
 	signer        *jwt.Signer
 	clock         clock.System
 }
@@ -193,7 +195,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 	tf := &testFakes{
 		users: newFakeUserRepo(), refreshTokens: newFakeRefreshTokenRepo(), farms: newFakeFarmRepo(), cycles: newFakeCycleStore(),
 		listings: newFakeListingStore(), reservations: newFakeReservationRepo(),
-		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(),
+		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(),
 		signer: &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")},
 		clock:  clock.System{},
 	}
@@ -221,25 +223,35 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		Signer:  tf.signer,
 		Cookies: CookieConfig{Secure: true, SameSite: http.SameSiteNoneMode},
 
-		CreateFarm:  &farm.CreateFarm{Farms: tf.farms, Clock: tf.clock},
-		GetFarm:     &farm.GetFarm{Farms: tf.farms},
+		CreateFarm: &farm.CreateFarm{Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock},
+		GetFarmProfile: &farm.GetProfile{
+			Farms: tf.farms, Users: tf.users, Reviews: tf.reviews, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations,
+		},
 		ListMyFarms: &farm.ListMyFarms{Farms: tf.farms},
 		UpdateFarm:  &farm.UpdateFarm{Farms: tf.farms},
 		DeleteFarm:  &farm.DeleteFarm{Farms: tf.farms, Cycles: tf.cycles},
 
 		CreateCycle:       &cycle.CreateCycle{Farms: tf.farms, Cycles: tf.cycles},
-		GetCycle:          &cycle.GetCycle{Cycles: tf.cycles},
+		GetCycle:          &cycle.GetCycle{Cycles: tf.cycles, Clock: tf.clock},
+		AddHealthEvent:    &cycle.AddHealthEvent{Farms: tf.farms, Cycles: tf.cycles, Clock: tf.clock},
 		ListCyclesByFarm:  &cycle.ListCyclesByFarm{Cycles: tf.cycles},
 		UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: tf.farms, Cycles: tf.cycles},
 		DeleteCycle:       &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 
-		CreateListing:       &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
-		GetListing:          &listing.GetListing{Listings: tf.listings},
+		CreateListing: &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		GetListing:    &listing.GetListing{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
+		GetListingDetail: &listing.GetDetail{
+			Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms, Users: tf.users, Reviews: tf.reviews,
+			Reservations: tf.reservations, Favorites: tf.favorites, Clock: tf.clock,
+		},
 		UpdateListing:       &listing.UpdateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		UnpublishListing:    &listing.UnpublishListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		PresignListingPhoto: &listing.PresignListingPhoto{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Storage: tf.storage},
 		SetListingPhotos:    &listing.SetListingPhotos{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
-		SearchListings:      &listing.SearchListings{Search: search},
+		SearchListings:      &listing.SearchListings{Search: search, Favorites: tf.favorites},
+		AddFavorite:         &favorite.Add{Listings: tf.listings, Favorites: tf.favorites, Clock: tf.clock},
+		RemoveFavorite:      &favorite.Remove{Favorites: tf.favorites},
+		ListMyFavorites:     &favorite.ListMine{Favorites: tf.favorites, Search: search},
 		Storage:             tf.storage,
 
 		ReserveCycle: &reservation.ReserveCycle{

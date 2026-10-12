@@ -3,6 +3,7 @@
  * is a faithful translation of this file, key for key. */
 export const fr = {
   common: {
+    retry: 'Réessayer',
     cancel: 'Annuler',
     close: 'Fermer',
     loading: 'Chargement…'
@@ -25,6 +26,7 @@ export const fr = {
     chevres: 'Chèvres'
   },
   nav: {
+    favorites: 'Mes favoris',
     marketplace: 'Marché',
     forum: 'Forum',
     howItWorks: 'Comment ça marche',
@@ -59,6 +61,11 @@ export const fr = {
     defaultCancel: 'Annuler'
   },
   home: {
+    mobileTitle: 'Quel élevage cherchez-vous ?',
+    mobileSearchPlaceholder: 'Brahma, poussins, porcelets…',
+    verifiedBreeder: 'Éleveur vérifié',
+    latestTitle: 'Nouveautés',
+    seeAll: 'Tout voir',
     heroTrustChip: 'Paiement sous séquestre sur chaque réservation',
     heroTitleStart: 'Réservez votre prochain lot',
     heroTitleAccent: 'directement à la ferme.',
@@ -103,6 +110,7 @@ export const fr = {
     forumTitle: 'Les éleveurs se répondent entre eux.',
     forumBody: 'Questions sanitaires, alimentation, retours d’expérience : un forum simple, modéré par les mêmes règles que la marketplace.',
     forumCta: 'Ouvrir le forum',
+    forumReplyCount_one: '{count} réponse',
     forumReplyCount: '{count} réponses',
     farmerCtaEyebrow: 'Pour les éleveurs',
     farmerCtaTitle: 'Vous êtes éleveur ?',
@@ -110,7 +118,15 @@ export const fr = {
     farmerCtaButton: 'Créer un compte éleveur'
   },
   marketplace: {
+    titleShort: 'Marché',
+    allChip: 'Tout',
+    resultsSorted_one: '{count} annonce · {sort}',
+    resultsSorted: '{count} annonces · {sort}',
+    showResults_one: 'Voir {count} annonce',
+    showResults: 'Voir {count} annonces',
+    loadMore: 'Voir plus d’annonces',
     eyebrow: 'Marché',
+    eyebrowCount_one: 'Marché · {count} cycle ouvert',
     eyebrowCount: 'Marché · {count} cycles ouverts',
     title: 'Trouvez votre prochain lot',
     searchLabel: 'Rechercher',
@@ -125,6 +141,7 @@ export const fr = {
     minPriceLabel: 'Prix min (FCFA)',
     maxPriceLabel: 'Prix max (FCFA)',
     verifiedOnlyLabel: 'Éleveurs vérifiés uniquement',
+    results_one: '{count} résultat',
     results: '{count} résultats',
     sortLabel: 'Trier par',
     sortRecent: 'Plus récentes',
@@ -139,10 +156,54 @@ export const fr = {
     pageOf: 'Page {page} / {total}'
   },
   listing: {
+    saved: 'Dans vos favoris',
     verifiedBadge: 'Vérifiée',
+    placesLeft_one: '{count} place restante',
     placesLeft: '{count} places restantes'
   },
+  farmCard: {
+    sales_one: '{count} vente',
+    sales: '{count} ventes',
+    since: 'depuis {year}',
+    trust: 'Confiance',
+    verified: 'Éleveur vérifié',
+    whatsapp: 'WhatsApp',
+    call: 'Appeler',
+    signInToContact: 'Connectez-vous pour contacter l’éleveur'
+  },
+  gallery: {
+    label_one: '{count} photo',
+    label: '{count} photos',
+    goTo: 'Photo {n}',
+    noPhotos: 'Pas encore de photo'
+  },
+  favorites: {
+    title: 'Mes favoris',
+    count_one: '{count} annonce enregistrée',
+    count: '{count} annonces enregistrées',
+    emptyTitle: 'Aucun favori pour l’instant',
+    emptyBody: 'Touchez le cœur sur une annonce pour la retrouver ici.',
+    emptyCta: 'Parcourir le marché',
+    error: 'Impossible de charger vos favoris.',
+  },
   listingDetail: {
+    back: 'Retour',
+    share: 'Partager',
+    favorite: 'Enregistrer',
+    unfavorite: 'Retirer des favoris',
+    savedTitle: 'Ajoutée à vos favoris',
+    favoriteFailed: 'Impossible de mettre à jour vos favoris.',
+    linkCopied: 'Lien copié',
+    linkCopyFailed: 'Impossible de copier le lien.',
+    verifiedReviews_one: '{count} avis vérifié',
+    verifiedReviews: '{count} avis vérifiés',
+    noReviews: 'Pas encore d’avis sur cet éleveur.',
+    priorityHint: 'Payé = prioritaire · ou réservez sans payer',
+    soldOut: 'Complet',
+    unavailable: 'Indisponible',
+    ownerManage: 'Gérer mon annonce',
+    backToMarket: 'Retour au marché',
+    whatsappMessage: 'Bonjour, je suis intéressé(e) par votre annonce « {title} » sur Betailo.',
     breadcrumbMarketplace: 'Marché',
     loading: 'Chargement…',
     notFound: 'Cette annonce est introuvable.',
@@ -224,6 +285,7 @@ export const fr = {
     submitLater: 'Réserver sans payer',
     submitting: 'Confirmation…',
     conflictTitle: 'Impossible de réserver',
+    conflictBody_one: 'Il ne reste que {count} place pour cette annonce. Ajustez la quantité pour continuer.',
     conflictBody: 'Il ne reste que {count} places pour cette annonce. Ajustez la quantité pour continuer.',
     conflictReduce: 'Réduire à {count}',
     conflictClose: 'Fermer',
@@ -283,6 +345,7 @@ export const fr = {
     newPostButton: 'Nouveau sujet',
     loading: 'Chargement…',
     empty: 'Aucun sujet pour le moment.',
+    repliesCount_one: '{count} réponse',
     repliesCount: '{count} réponses',
     postedOn: 'Publié le {date}',
     newPostDialogTitle: 'Nouveau sujet',
@@ -317,12 +380,14 @@ export const fr = {
       'Votre place n’est pas garantie : en cas de forte demande, les réservations payées passent devant la vôtre.'
   },
   capacity: {
+    remaining_one: '{count} place restante',
     remaining: '{count} places restantes',
     complete: 'Complet'
   },
   quantityStepper: {
     decrease: 'Diminuer la quantité',
     increase: 'Augmenter la quantité',
+    maxHint_one: 'Maximum {count} place disponible',
     maxHint: 'Maximum {count} places disponibles'
   },
   status: {
@@ -346,11 +411,19 @@ export const fr = {
     priorityUnpaid: 'Non prioritaire'
   },
   review: {
+    count_one: '{count} avis',
     count: '{count} avis',
     verified: 'Avis vérifié · {id}',
     farmerReply: "Réponse de l'éleveur"
   },
   cycleTimeline: {
+    start: 'Démarrage du cycle',
+    end: 'Fin du cycle',
+    state: {
+      done: 'terminé',
+      current: 'en cours',
+      upcoming: 'à venir'
+    },
     step1: 'Planifié',
     step2: 'En cours',
     step3: 'Terminé',

@@ -82,8 +82,19 @@ func (f *fakeCycleStore) ListByStatus(context.Context, domain.CycleStatus) ([]*d
 func (f *fakeCycleStore) UpdateStatus(context.Context, bson.ObjectID, domain.CycleStatus) error {
 	return nil
 }
+
+func (f *fakeCycleStore) AppendHealthEvent(context.Context, bson.ObjectID, domain.HealthEvent, int) error {
+	return nil
+}
 func (f *fakeCycleStore) Delete(context.Context, bson.ObjectID) error { return nil }
 
 type fakeClock struct{ now time.Time }
 
 func (c fakeClock) Now() time.Time { return c.now }
+
+type fakeTrust struct{ calls []bson.ObjectID }
+
+func (f *fakeTrust) Execute(_ context.Context, userID bson.ObjectID) error {
+	f.calls = append(f.calls, userID)
+	return nil
+}

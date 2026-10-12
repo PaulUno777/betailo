@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -56,6 +58,7 @@ const BUYER_TABS: readonly BottomNavItem[] = [
     <div class="flex min-h-full flex-col bg-surface">
       <header
         class="sticky top-0 z-30 border-b border-line bg-surface-raised/95 backdrop-blur"
+        [class.max-sm:hidden]="focus()"
         style="padding-top: env(safe-area-inset-top)"
       >
         <div class="mx-auto flex h-14 max-w-content-max items-center justify-between gap-3 px-4 sm:h-16 sm:px-18">
@@ -90,8 +93,12 @@ const BUYER_TABS: readonly BottomNavItem[] = [
       <main class="flex-1">
         <router-outlet />
       </main>
-      <bt-site-footer class="pb-[calc(var(--height-bottom-nav)+env(safe-area-inset-bottom))] sm:pb-0" />
-      <bt-bottom-nav [items]="tabs" [center]="center()" />
+      @if (!focus()) {
+        <bt-site-footer class="pb-[calc(var(--height-bottom-nav)+env(safe-area-inset-bottom))] sm:pb-0" />
+        <bt-bottom-nav [items]="tabs" [center]="center()" />
+      } @else {
+        <bt-site-footer class="hidden lg:block" />
+      }
       <bt-toast-host />
     </div>
   `
@@ -101,6 +108,26 @@ export class PublicShellComponent {
   protected readonly theme = inject(ThemeService);
 
   protected readonly tabs = BUYER_TABS;
+
+  private readonly router = inject(Router);
+
+  /** Focus pages (`data: { focus: true }`: listing detail, checkout…)
+   * replace the bottom nav with their own sticky action bar on phones,
+   * per the design, so the primary action owns the thumb zone. */
+  protected readonly focus = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      startWith(null),
+      map(() => {
+        let r = this.router.routerState.snapshot.root;
+        while (r.firstChild) {
+          r = r.firstChild;
+        }
+        return !!r.data['focus'];
+      })
+    ),
+    { initialValue: false }
+  );
 
   /** "Publier": farmers go straight to the listing form; anyone else
    * lands on /sell, which walks them through becoming a seller (or to

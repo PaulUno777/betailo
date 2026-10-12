@@ -56,6 +56,10 @@ func (f *fakeCycleStore) ListByStatus(context.Context, domain.CycleStatus) ([]*d
 func (f *fakeCycleStore) UpdateStatus(context.Context, bson.ObjectID, domain.CycleStatus) error {
 	return nil
 }
+
+func (f *fakeCycleStore) AppendHealthEvent(context.Context, bson.ObjectID, domain.HealthEvent, int) error {
+	return nil
+}
 func (f *fakeCycleStore) Delete(context.Context, bson.ObjectID) error { return nil }
 
 type fakeFarms struct {

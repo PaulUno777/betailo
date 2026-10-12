@@ -77,7 +77,7 @@ const DISMISS_DRAG_PX = 96;
           type="button"
           (click)="close()"
           [attr.aria-label]="'common.close' | t"
-          class="-mr-2 inline-flex h-control-md w-control-md items-center justify-center rounded-full text-ink-muted hover:bg-surface-sunken"
+          class="-mr-2 inline-flex h-control-md w-11 items-center justify-center rounded-full text-ink-muted hover:bg-surface-sunken"
         >
           <bt-icon name="x" [size]="20" />
         </button>

@@ -372,6 +372,16 @@ body {
   box-shadow: none;
 }
 
+/* iOS Safari zooms the whole page in when a field under 16px gets focus,
+ * and doesn't zoom back out. Form text is 15px in the type scale, so on
+ * phones every field is bumped to 16px. !important because the type
+ * utilities on the controls (text-body) would otherwise win. */
+@media (width < 40rem) {
+  :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    font-size: 16px !important;
+  }
+}
+
 /* Chrome fills a known-autofilled field with its own yellow background
  * that ordinary background-color rules can't override — this delays the
  * paint long enough to layer our own surface color in in its place. */

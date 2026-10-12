@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -17,13 +18,16 @@ func TestGetCycle_Execute(t *testing.T) {
 		t.Fatalf("Create() error = %v", err)
 	}
 
-	uc := &GetCycle{Cycles: cycles}
+	uc := &GetCycle{Cycles: cycles, Clock: fakeClock{now: time.Now()}}
 	got, err := uc.Execute(context.Background(), c.ID)
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
 	}
-	if got.Species != "poule" {
-		t.Errorf("Species = %q, want %q", got.Species, "poule")
+	if got.Cycle.Species != "poule" {
+		t.Errorf("Species = %q, want %q", got.Cycle.Species, "poule")
+	}
+	if len(got.Timeline) == 0 || got.Timeline[0].Kind != domain.TimelineStart {
+		t.Errorf("Timeline = %+v, want it to open with the start step", got.Timeline)
 	}
 
 	_, err = uc.Execute(context.Background(), bson.NewObjectID())

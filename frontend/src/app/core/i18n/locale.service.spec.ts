@@ -59,4 +59,15 @@ describe('LocaleService', () => {
     const locale = TestBed.inject(LocaleService);
     expect(locale.t('insufficient capacity')).toBe('insufficient capacity');
   });
+
+  it('uses the singular `_one` variant per each language’s plural rules', () => {
+    const locale = TestBed.inject(LocaleService);
+    locale.setLocale('fr');
+    expect(locale.t('farmCard.sales', { count: 1 })).toBe('1 vente');
+    expect(locale.t('farmCard.sales', { count: 0 })).toBe('0 vente');
+    expect(locale.t('farmCard.sales', { count: 47 })).toBe('47 ventes');
+    locale.setLocale('en');
+    expect(locale.t('farmCard.sales', { count: 1 })).toBe('1 sale');
+    expect(locale.t('farmCard.sales', { count: 0 })).toBe('0 sales');
+  });
 });

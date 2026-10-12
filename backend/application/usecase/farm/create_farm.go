@@ -19,6 +19,10 @@ import (
 // owned by the authenticated user.
 type CreateFarm struct {
 	Farms ports.FarmRepository
+	// Trust gives the new farmer their baseline trust score straight
+	// away. Without it, the score reads 0/100 until the first sale,
+	// review or report.
+	Trust ports.TrustRecomputer
 	Clock ports.Clock
 }
 
@@ -30,6 +34,9 @@ type CreateFarmInput struct {
 	Name     string
 	Location string
 	Species  []string
+
+	Description  string
+	ContactPhone string
 }
 
 // CreateFarmOutput wraps the usecase's result.
@@ -48,15 +55,26 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 		return nil, fmt.Errorf("farm: location is required: %w", domain.ErrInvalid)
 	}
 
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone)
+	if err != nil {
+		return nil, err
+	}
+
 	f := &domain.Farm{
 		OwnerID:   in.OwnerID,
 		Name:      name,
 		Location:  location,
 		Species:   in.Species,
 		CreatedAt: uc.Clock.Now(),
+
+		Description:  description,
+		ContactPhone: phone,
 	}
 
 	if err := uc.Farms.Create(ctx, f); err != nil {
+		return nil, err
+	}
+	if err := uc.Trust.Execute(ctx, in.OwnerID); err != nil {
 		return nil, err
 	}
 

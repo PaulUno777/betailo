@@ -58,7 +58,18 @@ export class LocaleService {
   /** Reads `dictionary()` internally, so any signal-tracked read of this
    * (directly, or via the `translate` pipe) re-renders on locale change. */
   t(key: string, params?: Record<string, string | number>): string {
-    const template = readPath(this.dictionary(), key) ?? key;
+    const template = this.pluralVariant(key, params) ?? readPath(this.dictionary(), key) ?? key;
     return interpolate(template, params);
+  }
+
+  /** With a numeric `count` param, a singular count uses the key's
+   * `_one` variant when the dictionary has one ("1 vente" vs "3 ventes").
+   * Intl.PluralRules decides what counts as singular per language: in
+   * French 0 and 1 both do, in English only 1. */
+  private pluralVariant(key: string, params?: Record<string, string | number>): string | undefined {
+    const count = params?.['count'];
+    if (typeof count !== 'number') return undefined;
+    const category = new Intl.PluralRules(this.locale()).select(count);
+    return category === 'one' ? readPath(this.dictionary(), `${key}_one`) : undefined;
   }
 }

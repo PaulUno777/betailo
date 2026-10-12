@@ -30,6 +30,7 @@ var Names = []string{
 	"reports",
 	"forum_posts",
 	"notifications",
+	"favorites",
 }
 
 // Load parses the named collection's $jsonSchema validator document.

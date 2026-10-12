@@ -9,6 +9,8 @@
       "bsonType": "array",
       "items": { "bsonType": "string" }
     },
-    "createdAt": { "bsonType": "date" }
+    "createdAt": { "bsonType": "date" },
+    "description": { "bsonType": "string", "maxLength": 1000 },
+    "contactPhone": { "bsonType": "string", "pattern": "^\\+[0-9]{8,15}$" }
   }
 }

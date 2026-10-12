@@ -28,6 +28,19 @@ export interface Farm {
   name: string;
   location: string;
   species?: string[];
+  description?: string;
+  /** E.164. Only present for the owner and signed-in viewers. */
+  contactPhone?: string;
+}
+
+/** `GET /farms/{id}`: a farm plus its server-computed trust signals. */
+export interface FarmProfile extends Farm {
+  trustScore: number;
+  verified: boolean;
+  salesCount: number;
+  memberSince: string;
+  reviewAverage: number;
+  reviewCount: number;
 }
 
 export interface Cycle {
@@ -40,6 +53,26 @@ export interface Cycle {
   availableQuantity: number;
   startsAt: string;
   endsAt?: string;
+  minPerReservation?: number;
+  maxPerReservation?: number;
+}
+
+export type TimelineStepKind = 'start' | 'health' | 'end';
+export type TimelineStepState = 'done' | 'current' | 'upcoming';
+
+/** One step of a cycle's server-built timeline. `title`/`detail` only
+ * exist on health entries (the farmer's own words); start and end steps
+ * are labelled client-side. */
+export interface TimelineStep {
+  kind: TimelineStepKind;
+  date: string;
+  title?: string;
+  detail?: string;
+  state: TimelineStepState;
+}
+
+export interface CycleDetail extends Cycle {
+  timeline: TimelineStep[];
 }
 
 export interface Listing {
@@ -71,6 +104,7 @@ export interface MarketplaceListing {
   farmTrustScore: number;
   reviewAverage: number;
   reviewCount: number;
+  favorited: boolean;
 }
 
 export interface ListingSearchResult {
@@ -124,6 +158,19 @@ export interface Review {
   id: string;
   rating: number;
   comment?: string;
+}
+
+/** `GET /listings/{id}/detail`: the whole listing page in one payload,
+ * including viewer-specific decisions the client must not recompute. */
+export interface ListingDetail {
+  listing: Listing;
+  cycle: CycleDetail;
+  farm: FarmProfile;
+  reviewSummary: ReviewSummary;
+  topReviews: Review[];
+  favorited: boolean;
+  isOwner: boolean;
+  canReserve: boolean;
 }
 
 export interface FarmReviews {

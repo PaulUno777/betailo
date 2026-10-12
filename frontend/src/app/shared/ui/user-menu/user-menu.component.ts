@@ -16,6 +16,7 @@ interface RoleLink {
 }
 
 const MY_RESERVATIONS_LINK: RoleLink = { route: '/account/reservations', labelKey: 'nav.myReservations', icon: 'wallet' };
+const FAVORITES_LINK: RoleLink = { route: '/account/favorites', labelKey: 'nav.favorites', icon: 'heart' };
 
 // Extra destination on top of "Mes réservations" — the backend has no
 // role check on creating a reservation, so a farmer or admin can buy too;
@@ -122,7 +123,7 @@ export class UserMenuComponent {
       return [];
     }
     const extra = EXTRA_ROLE_LINK[role];
-    return extra ? [extra, MY_RESERVATIONS_LINK] : [MY_RESERVATIONS_LINK];
+    return extra ? [extra, MY_RESERVATIONS_LINK, FAVORITES_LINK] : [MY_RESERVATIONS_LINK, FAVORITES_LINK];
   });
 
   protected signOut(): void {

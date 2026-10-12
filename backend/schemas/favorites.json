@@ -1,0 +1,9 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "listingId", "createdAt"],
+  "properties": {
+    "userId": { "bsonType": "objectId" },
+    "listingId": { "bsonType": "objectId" },
+    "createdAt": { "bsonType": "date" }
+  }
+}

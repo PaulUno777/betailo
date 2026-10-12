@@ -70,6 +70,7 @@ type env struct {
 	reviews      *mongodb.ReviewRepository
 	reports      *mongodb.ReportRepository
 	notifs       *mongodb.NotificationRepository
+	favorites    *mongodb.FavoriteRepository
 	tx           *mongodb.TxManager
 	trust        *trust.Recompute
 }
@@ -91,6 +92,7 @@ func newEnv(t *testing.T) *env {
 		reviews:      &mongodb.ReviewRepository{Coll: db.Collection("reviews")},
 		reports:      &mongodb.ReportRepository{Coll: db.Collection("reports")},
 		notifs:       &mongodb.NotificationRepository{Coll: db.Collection("notifications")},
+		favorites:    &mongodb.FavoriteRepository{Coll: db.Collection("favorites")},
 		tx:           &mongodb.TxManager{Client: client},
 	}
 	e.trust = &trust.Recompute{
@@ -426,5 +428,83 @@ func TestWorker_TickAdvancesCyclesExpiresUnpaidAndDrainsOutbox(t *testing.T) {
 		if got.Status != want {
 			t.Errorf("cycle %s status = %q, want %q", c.Hex(), got.Status, want)
 		}
+	}
+}
+
+// The health-log cap must hold under concurrency: it's one conditional
+// update, so racing appends can never push the log past the limit.
+func TestCycleRepository_AppendHealthEventCapIsAtomic(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	_, cycle, _ := e.seed(t, 10)
+	const limit = 5
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var ok, full int
+	for range 20 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := e.cycles.AppendHealthEvent(ctx, cycle.ID, domain.HealthEvent{Type: "Pesée", Date: time.Now()}, limit)
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case err == nil:
+				ok++
+			case errors.Is(err, domain.ErrConflict):
+				full++
+			default:
+				t.Errorf("unexpected error: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	stored, err := e.cycles.FindByID(ctx, cycle.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok != limit || full != 20-limit || len(stored.HealthLog) != limit {
+		t.Fatalf("ok=%d full=%d stored=%d, want exactly %d appended", ok, full, len(stored.HealthLog), limit)
+	}
+	if err := e.cycles.AppendHealthEvent(ctx, bson.NewObjectID(), domain.HealthEvent{Type: "x", Date: time.Now()}, limit); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("unknown cycle: error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestFavoriteRepository_IdempotentAndOrdered(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	user := bson.NewObjectID()
+	a, b := bson.NewObjectID(), bson.NewObjectID()
+	t0 := time.Now().UTC()
+
+	for _, step := range []struct {
+		id bson.ObjectID
+		at time.Time
+	}{{a, t0}, {b, t0.Add(time.Minute)}, {a, t0.Add(2 * time.Minute)}} { // re-saving a keeps its first timestamp
+		if err := e.favorites.Add(ctx, user, step.id, step.at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ids, err := e.favorites.ListListingIDs(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 2 || ids[0] != b || ids[1] != a {
+		t.Fatalf("ids = %v, want [b a] (most recent first, no duplicate)", ids)
+	}
+
+	saved, err := e.favorites.FavoritedAmong(ctx, user, []bson.ObjectID{a, bson.NewObjectID()})
+	if err != nil || !saved[a] || len(saved) != 1 {
+		t.Fatalf("FavoritedAmong = %v, %v; want only a", saved, err)
+	}
+
+	if err := e.favorites.Remove(ctx, user, a); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.favorites.Remove(ctx, user, a); err != nil {
+		t.Fatalf("removing twice should be a no-op, got %v", err)
 	}
 }

@@ -9,13 +9,12 @@ package trust
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
-	"github.com/pauluno777/betailo/backend/domain"
+	"github.com/pauluno777/betailo/backend/application/usecase/farmstats"
 )
 
 // Score weights. Chosen to keep the formula legible and explainable in
@@ -91,49 +90,18 @@ func (uc *Recompute) Execute(ctx context.Context, userID bson.ObjectID) error {
 	return uc.Users.Update(ctx, u)
 }
 
-// releasedSalesCount counts reservations with released escrow across
-// every listing published from every cycle of every farm this user
-// owns — "sales" the design's trust panel means literal completed,
-// paid transactions, not merely confirmed ones.
+// releasedSalesCount counts released-escrow sales across every farm
+// this user owns. See farmstats.ReleasedSales for what counts as a sale.
 func (uc *Recompute) releasedSalesCount(ctx context.Context, userID bson.ObjectID) (int, error) {
 	farms, err := uc.Farms.ListByOwner(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
-
-	var listingIDs []bson.ObjectID
+	ids := make([]bson.ObjectID, 0, len(farms))
 	for _, f := range farms {
-		cycles, err := uc.Cycles.ListByFarm(ctx, f.ID)
-		if err != nil {
-			return 0, err
-		}
-		for _, c := range cycles {
-			l, err := uc.Listings.FindByCycleID(ctx, c.ID)
-			if errors.Is(err, domain.ErrNotFound) {
-				continue
-			}
-			if err != nil {
-				return 0, err
-			}
-			listingIDs = append(listingIDs, l.ID)
-		}
+		ids = append(ids, f.ID)
 	}
-	if len(listingIDs) == 0 {
-		return 0, nil
-	}
-
-	reservations, err := uc.Reservations.ListByListingIDs(ctx, listingIDs)
-	if err != nil {
-		return 0, err
-	}
-
-	count := 0
-	for _, r := range reservations {
-		if r.Payment != nil && r.Payment.Status == domain.PaymentReleased {
-			count++
-		}
-	}
-	return count, nil
+	return farmstats.ReleasedSales(ctx, farmstats.Sources{Cycles: uc.Cycles, Listings: uc.Listings, Reservations: uc.Reservations}, ids...)
 }
 
 // reviewSignal aggregates ReviewRepository.Summary across every farm
