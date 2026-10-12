@@ -50,6 +50,9 @@ export type PaymentMethod = 'mtn_momo' | 'orange_money' | 'card';
 
 export type ReportTargetType = 'listing' | 'profile' | 'forum_post' | 'reservation';
 
+/** How urgent a report looks in the queue; the API decides. */
+export type ReportLevel = 'high' | 'medium' | 'low';
+
 export type ReportStatus = 'open' | 'under_review' | 'handled' | 'rejected';
 
 export type ResolveAction = 'dismiss' | 'suspend';

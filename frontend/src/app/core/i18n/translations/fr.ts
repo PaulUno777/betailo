@@ -155,7 +155,10 @@ export const fr = {
     addFarm: 'Ajouter une ferme',
     addFarmHint: 'Vendez vos animaux sur Betailo',
     admin: 'Administration',
-    signOut: 'Se déconnecter'
+    signOut: 'Se déconnecter',
+    viewSite: 'Voir le site',
+    accountOptions: 'Options du compte',
+    languageShort: 'Langue'
   },
   moreSheet: {
     language: 'Langue',
@@ -744,7 +747,8 @@ export const fr = {
     weeklyChartHint: '8 dernières semaines',
     weekLabel: 'S{n}',
     buyerUnnamed: 'Acheteur',
-    todoEmpty: 'Rien d’urgent : vos livraisons et vos relevés sont à jour.'
+    todoEmpty: 'Rien d’urgent : vos livraisons et vos relevés sont à jour.',
+    searchLabel: 'Rechercher une réservation'
   },
   portalCycles: {
     title: 'Mes lots',
@@ -805,7 +809,8 @@ export const fr = {
     loading: 'Chargement…',
     buyerLabel: 'Acheteur',
     markDeliveredButton: 'Marquer livré',
-    markDeliveredFailedTitle: 'Échec de la mise à jour'
+    markDeliveredFailedTitle: 'Échec de la mise à jour',
+    noMatch: 'Aucune commande ne correspond à cette recherche.'
   },
   portalPayments: {
     title: 'Paiements',
@@ -875,7 +880,8 @@ export const fr = {
     off: 'désactivée',
     queueOpen: 'Ouvrir la file',
     escrowTitle: 'Dernières transactions',
-    seeAll: 'Tout voir'
+    seeAll: 'Tout voir',
+    exportCsv: 'Exporter CSV'
   },
   adminUsers: {
     farmLimitDefault: 'Fermes : par défaut',
@@ -971,28 +977,56 @@ export const fr = {
   adminReports: {
     title: 'Signalements',
     loading: 'Chargement…',
-    empty: 'Aucun signalement.',
+    empty: 'Aucun signalement ici.',
     statusFilterLabel: 'Statut',
     allStatuses: 'Tous',
     backToReports: 'Retour aux signalements',
     riskScoreLabel: 'Score de risque',
-    signalsTitle: 'Signaux',
+    signalsTitle: 'Signaux combinés',
     historyTitle: 'Historique',
-    resolveDismiss: 'Ignorer',
-    resolveSuspend: 'Suspendre',
+    resolveDismiss: 'Classer sans suite',
+    resolveSuspend: 'Suspendre le compte',
     resolveFailedTitle: "Échec de la résolution",
-    suspendConfirmBody: 'Le compte visé sera suspendu immédiatement.',
+    suspendConfirmBody: 'Le compte de {name} sera suspendu immédiatement et ses sessions fermées.',
     notFound: 'Signalement introuvable.',
     subtitle: 'Annonces, profils et messages du forum signalés par les membres.',
     disputesTitle: 'Litiges',
     disputesSubtitle: 'Désaccords entre un acheteur et un éleveur sur une réservation payée.',
-    disputesEmpty: 'Aucun litige.',
+    disputesEmpty: 'Aucun litige ici.',
     filter: {
       open: 'À traiter',
       all: 'Tous',
       handled: 'Traités'
     },
-    readOnly: 'Votre rôle consulte les signalements ; la décision revient à la modération.'
+    readOnly: 'Votre rôle consulte les signalements ; la décision revient à la modération.',
+    eyebrow: 'Trust & sécurité',
+    queueLabel: 'File des signalements',
+    queue: {
+      open: 'Ouverts',
+      review: 'Sous revue',
+      handled: 'Traités'
+    },
+    level: {
+      high: 'Élevé',
+      medium: 'Moyen',
+      low: 'Faible'
+    },
+    risk: {
+      high: 'Risque élevé',
+      medium: 'Risque moyen',
+      low: 'Risque faible'
+    },
+    pick: 'Choisissez un signalement dans la file pour l’examiner.',
+    publishedBy: 'Publiée par',
+    account: 'Compte',
+    accountAge: 'compte créé il y a {age}',
+    alreadySuspended: 'compte suspendu',
+    viewListing: 'Voir l’annonce',
+    riskScore: 'score de risque {score} / 100',
+    noSignal: 'Aucun signal de risque sur cette cible.',
+    receivedTitle: 'Rapports reçus',
+    reporterUnknown: 'Membre',
+    closed: 'Ce signalement est traité.'
   },
   adminNav: {
     farms: 'Fermes à valider',
@@ -1319,12 +1353,12 @@ export const fr = {
     title: 'Mes fermes',
     count: '{count} sur {max} fermes',
     count_one: '{count} sur {max} ferme',
-    add: 'Ajouter une ferme',
+    add: 'Créer une ferme',
     current: 'Ferme en cours',
     manage: 'Gérer cette ferme',
     edit: 'Modifier la fiche',
     draftTitle: 'Justificatifs à envoyer',
-    draftBody: 'Cette ferme ne peut pas encore publier. Envoyez votre pièce d’identité et des photos de la ferme.',
+    draftBody: 'Cette ferme ne peut pas encore publier. Envoyez votre pièce d’identité et 1 à 3 photos de la ferme pour la faire vérifier.',
     pendingTitle: 'En cours de validation',
     pendingBody: 'Soumise le {date}. Vous recevrez une notification dès la décision.',
     rejectedTitle: 'Validation refusée',
@@ -1332,12 +1366,52 @@ export const fr = {
     suspendedTitle: 'Ferme suspendue',
     suspendedBody: 'Ses annonces ne sont plus visibles. Contactez le support Betailo.',
     autoApproved: 'Validée automatiquement (plateforme de test). Notre équipe pourra la revoir.',
-    submit: 'Soumettre pour validation',
-    resubmit: 'Soumettre de nouveau',
+    submit: 'Envoyer pour vérification',
+    resubmit: 'Corriger et renvoyer',
     submittedToast: 'Ferme soumise',
     submittedToastDetail: 'Notre équipe l’examine. Vous serez notifié de la décision.',
     approvedToast: 'Ferme validée',
-    limitReached: 'Vous avez atteint le nombre de fermes autorisé pour votre compte ({count}). Contactez le support Betailo pour en ajouter.'
+    limitReached: 'Vous avez atteint le nombre de fermes autorisé pour votre compte ({count}). Contactez le support Betailo pour en ajouter.',
+    eyebrow: 'Espace vendeur',
+    intro: 'Chaque ferme est vérifiée séparément par l’équipe Betailo. Seule une ferme approuvée peut publier des cycles et des annonces.',
+    quota: '{count} fermes sur {max} autorisées',
+    quota_one: '{count} ferme sur {max} autorisée',
+    quotaReached: 'limite atteinte',
+    limitRaised: 'Limite relevée à {max} par l’équipe le {date}',
+    limitHelp: 'Contactez le support Betailo pour ajouter une ferme.',
+    photoAlt: 'Photo de {name}',
+    sentOn: 'envoyée le {date}',
+    approvedOn: 'approuvée le {date}',
+    rejectedOn: 'refusée le {date}',
+    statCycles: 'cycles actifs',
+    statSales: 'ventes réussies',
+    statTrust: 'score de confiance',
+    statReviews: '{count} avis vérifiés',
+    statReviews_one: '{count} avis vérifié',
+    stepSent: 'Demande envoyée',
+    stepSentHint: 'Pièce d’identité et photos de la ferme',
+    stepReview: 'Vérification par l’équipe',
+    stepReviewHint: 'En cours depuis {elapsed}',
+    stepDecision: 'Décision',
+    stepDecisionHint: 'En général sous 48 h, par notification',
+    pendingLock: 'Publication bloquée tant que la ferme n’est pas approuvée. Vous pouvez déjà préparer des cycles en brouillon : ils seront prêts à publier le jour de l’approbation.',
+    rejectedReason: 'Motif : {reason}',
+    rejectedHint: 'Corrigez ce que le motif indique. La ferme compte toujours dans votre limite.',
+    draftHint: 'Notre équipe répond en général sous 48 h.',
+    suspendedHelp: 'Contactez le support Betailo pour en savoir plus.',
+    newCycle: 'Nouveau cycle',
+    dashboard: 'Voir le tableau de bord',
+    publicPage: 'Page publique de la ferme',
+    prepareDraft: 'Préparer un brouillon',
+    publishCycle: 'Publier un cycle',
+    publishLocked: 'Disponible après l’approbation',
+    howLabel: 'Comment une ferme est vérifiée',
+    how1Title: 'Vous envoyez',
+    how1Body: 'Pièce d’identité du responsable et 1 à 3 photos récentes de la ferme.',
+    how2Title: 'L’équipe vérifie',
+    how2Body: 'Un modérateur compare la pièce, le nom et les photos. Sous 48 h en général.',
+    how3Title: 'Vous publiez',
+    how3Body: 'Approuvée : la ferme publie. Refusée : le motif dit quoi corriger, vous renvoyez.'
   },
   adminFarms: {
     eyebrow: 'Vérification',
@@ -1599,6 +1673,17 @@ export const fr = {
   farmQuota: {
     used: '{count} fermes sur {max}',
     used_one: '{count} ferme sur {max}'
+  },
+  adminSettings: {
+    title: 'Paramètres',
+    subtitle: 'Les réglages de la plateforme, tels que l’API les applique. Ils se changent dans la configuration du serveur, puis au redémarrage.',
+    readOnly: 'variable d’environnement, lecture seule',
+    farmLimit: 'Fermes par compte, par défaut',
+    farmLimitLink: 'Gérer les exceptions',
+    autoApprove: 'Validation automatique des fermes',
+    autoApproveWarning: 'À désactiver avant l’arrivée de vrais vendeurs : aucune ferme n’est vérifiée par l’équipe.',
+    root: 'Compte racine',
+    rootHint: 'Créé au démarrage. Il ne peut être ni rétrogradé ni suspendu.'
   }
 } as const;
 

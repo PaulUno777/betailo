@@ -157,7 +157,10 @@ export const en: TranslationDictionary = {
     addFarm: 'Add a farm',
     addFarmHint: 'Sell your animals on Betailo',
     admin: 'Admin',
-    signOut: 'Sign out'
+    signOut: 'Sign out',
+    viewSite: 'View the site',
+    accountOptions: 'Account options',
+    languageShort: 'Language'
   },
   moreSheet: {
     language: 'Language',
@@ -745,7 +748,8 @@ export const en: TranslationDictionary = {
     weeklyChartHint: 'Last 8 weeks',
     weekLabel: 'W{n}',
     buyerUnnamed: 'Buyer',
-    todoEmpty: 'Nothing urgent: your deliveries and health logs are up to date.'
+    todoEmpty: 'Nothing urgent: your deliveries and health logs are up to date.',
+    searchLabel: 'Search a reservation'
   },
   portalCycles: {
     title: 'My batches',
@@ -806,7 +810,8 @@ export const en: TranslationDictionary = {
     loading: 'Loading…',
     buyerLabel: 'Buyer',
     markDeliveredButton: 'Mark delivered',
-    markDeliveredFailedTitle: 'Couldn’t update'
+    markDeliveredFailedTitle: 'Couldn’t update',
+    noMatch: 'No order matches this search.'
   },
   portalPayments: {
     title: 'Payments',
@@ -876,7 +881,8 @@ export const en: TranslationDictionary = {
     off: 'off',
     queueOpen: 'Open the queue',
     escrowTitle: 'Latest transactions',
-    seeAll: 'See all'
+    seeAll: 'See all',
+    exportCsv: 'Export CSV'
   },
   adminUsers: {
     farmLimitDefault: 'Farms: default',
@@ -972,28 +978,56 @@ export const en: TranslationDictionary = {
   adminReports: {
     title: 'Reports',
     loading: 'Loading…',
-    empty: 'No report.',
+    empty: 'No report here.',
     statusFilterLabel: 'Status',
     allStatuses: 'All',
     backToReports: 'Back to reports',
     riskScoreLabel: 'Risk score',
-    signalsTitle: 'Signals',
+    signalsTitle: 'Combined signals',
     historyTitle: 'History',
     resolveDismiss: 'Dismiss',
-    resolveSuspend: 'Suspend',
+    resolveSuspend: 'Suspend the account',
     resolveFailedTitle: 'Couldn’t resolve',
-    suspendConfirmBody: 'The targeted account will be suspended immediately.',
+    suspendConfirmBody: '{name}’s account will be suspended at once and its sessions ended.',
     notFound: 'Report not found.',
     subtitle: 'Listings, profiles and forum posts reported by members.',
     disputesTitle: 'Disputes',
     disputesSubtitle: 'Disagreements between a buyer and a seller over a paid reservation.',
-    disputesEmpty: 'No dispute.',
+    disputesEmpty: 'No dispute here.',
     filter: {
       open: 'To do',
       all: 'All',
       handled: 'Handled'
     },
-    readOnly: 'Your role reads reports; the decision belongs to moderation.'
+    readOnly: 'Your role reads reports; the decision belongs to moderation.',
+    eyebrow: 'Trust & safety',
+    queueLabel: 'Report queue',
+    queue: {
+      open: 'Open',
+      review: 'Under review',
+      handled: 'Handled'
+    },
+    level: {
+      high: 'High',
+      medium: 'Medium',
+      low: 'Low'
+    },
+    risk: {
+      high: 'High risk',
+      medium: 'Medium risk',
+      low: 'Low risk'
+    },
+    pick: 'Pick a report in the queue to review it.',
+    publishedBy: 'Published by',
+    account: 'Account',
+    accountAge: 'account created {age} ago',
+    alreadySuspended: 'account suspended',
+    viewListing: 'View the listing',
+    riskScore: 'risk score {score} / 100',
+    noSignal: 'No risk signal on this target.',
+    receivedTitle: 'Reports received',
+    reporterUnknown: 'Member',
+    closed: 'This report is closed.'
   },
   adminNav: {
     farms: 'Farms to review',
@@ -1320,12 +1354,12 @@ export const en: TranslationDictionary = {
     title: 'My farms',
     count: '{count} of {max} farms',
     count_one: '{count} of {max} farm',
-    add: 'Add a farm',
+    add: 'Create a farm',
     current: 'Current farm',
     manage: 'Manage this farm',
     edit: 'Edit details',
     draftTitle: 'Proof to send',
-    draftBody: 'This farm cannot publish yet. Send your identity document and photos of the farm.',
+    draftBody: 'This farm cannot publish yet. Send your identity document and 1 to 3 photos of the farm to have it checked.',
     pendingTitle: 'Under review',
     pendingBody: 'Submitted on {date}. You will be notified of the decision.',
     rejectedTitle: 'Not approved',
@@ -1333,12 +1367,52 @@ export const en: TranslationDictionary = {
     suspendedTitle: 'Farm suspended',
     suspendedBody: 'Its listings are no longer visible. Contact Betailo support.',
     autoApproved: 'Approved automatically (test platform). Our team may review it later.',
-    submit: 'Submit for review',
-    resubmit: 'Submit again',
+    submit: 'Send for review',
+    resubmit: 'Fix and resend',
     submittedToast: 'Farm submitted',
     submittedToastDetail: 'Our team is reviewing it. You will be notified of the decision.',
     approvedToast: 'Farm approved',
-    limitReached: 'You have reached the number of farms allowed for your account ({count}). Contact Betailo support to add more.'
+    limitReached: 'You have reached the number of farms allowed for your account ({count}). Contact Betailo support to add more.',
+    eyebrow: 'Seller space',
+    intro: 'Each farm is checked separately by the Betailo team. Only an approved farm can publish cycles and listings.',
+    quota: '{count} of {max} farms allowed',
+    quota_one: '{count} of {max} farm allowed',
+    quotaReached: 'limit reached',
+    limitRaised: 'Limit raised to {max} by the team on {date}',
+    limitHelp: 'Contact Betailo support to add a farm.',
+    photoAlt: 'Photo of {name}',
+    sentOn: 'sent on {date}',
+    approvedOn: 'approved on {date}',
+    rejectedOn: 'refused on {date}',
+    statCycles: 'active cycles',
+    statSales: 'completed sales',
+    statTrust: 'trust score',
+    statReviews: '{count} verified reviews',
+    statReviews_one: '{count} verified review',
+    stepSent: 'Request sent',
+    stepSentHint: 'Identity document and farm photos',
+    stepReview: 'Review by the team',
+    stepReviewHint: 'In progress for {elapsed}',
+    stepDecision: 'Decision',
+    stepDecisionHint: 'Usually within 48 h, by notification',
+    pendingLock: 'Publishing is blocked until the farm is approved. You can already prepare draft cycles: they will be ready to publish on approval day.',
+    rejectedReason: 'Reason: {reason}',
+    rejectedHint: 'Fix what the reason says. The farm still counts towards your limit.',
+    draftHint: 'Our team usually answers within 48 h.',
+    suspendedHelp: 'Contact Betailo support to find out more.',
+    newCycle: 'New cycle',
+    dashboard: 'View the dashboard',
+    publicPage: 'Farm’s public page',
+    prepareDraft: 'Prepare a draft',
+    publishCycle: 'Publish a cycle',
+    publishLocked: 'Available after approval',
+    howLabel: 'How a farm is checked',
+    how1Title: 'You send',
+    how1Body: 'The manager’s identity document and 1 to 3 recent photos of the farm.',
+    how2Title: 'The team checks',
+    how2Body: 'A moderator compares the document, the name and the photos. Usually within 48 h.',
+    how3Title: 'You publish',
+    how3Body: 'Approved: the farm publishes. Refused: the reason says what to fix, and you resend.'
   },
   adminFarms: {
     eyebrow: 'Verification',
@@ -1600,5 +1674,17 @@ export const en: TranslationDictionary = {
   farmQuota: {
     used: '{count} farms out of {max}',
     used_one: '{count} farm out of {max}'
+  },
+
+  adminSettings: {
+    title: 'Settings',
+    subtitle: 'The platform’s settings as the API applies them. They are changed in the server configuration, then on restart.',
+    readOnly: 'environment variable, read-only',
+    farmLimit: 'Farms per account, by default',
+    farmLimitLink: 'Manage exceptions',
+    autoApprove: 'Automatic farm approval',
+    autoApproveWarning: 'Turn off before real sellers arrive: no farm is checked by the team.',
+    root: 'Root account',
+    rootHint: 'Created at startup. It can be neither demoted nor suspended.'
   }
 };

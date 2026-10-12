@@ -37,6 +37,11 @@ export class FarmsApi {
     return this.api.url('/farms/mine');
   }
 
+  /** The caller's farms with their photo and figures. */
+  mineCardsUrl(): string {
+    return this.api.url('/farms/mine/cards');
+  }
+
   create(input: FarmInput): Observable<Farm> {
     return this.api.post<Farm>('/farms', input);
   }

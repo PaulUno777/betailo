@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { StaffSpaceService } from '../../core/auth/staff-space.service';
 import { apiResource } from '../../core/http/api-resource';
+import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AdminApi } from '../../data-access/admin/admin.api';
@@ -25,7 +26,7 @@ const CHART_HEIGHT = 180;
  * escrow table only appears for roles that may read escrow. */
 @Component({
   selector: 'bt-admin-overview',
-  imports: [RouterLink, AdminPageHeaderComponent, ButtonComponent, NoticeComponent, StatusBadgeComponent, LocalDatePipe, TranslatePipe],
+  imports: [RouterLink, AdminPageHeaderComponent, ButtonComponent, IconComponent, NoticeComponent, StatusBadgeComponent, LocalDatePipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-[22px] p-4 sm:p-7 lg:px-9">
@@ -43,6 +44,17 @@ const CHART_HEIGHT = 180;
             </button>
           }
         </div>
+        @if (staff.can('escrow.read')) {
+          <button
+            type="button"
+            [disabled]="(escrow.value() ?? []).length === 0"
+            (click)="exportCsv()"
+            class="inline-flex h-11 items-center gap-2 rounded-[10px] border border-line bg-surface-card px-4 text-small font-semibold text-ink transition hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <bt-icon name="upload" [size]="16" class="rotate-180" />
+            {{ 'adminOverview.exportCsv' | t }}
+          </button>
+        }
       </bt-admin-page-header>
 
       @if (overview.value(); as o) {
@@ -228,6 +240,23 @@ export class AdminOverviewComponent {
 
   protected readonly overview = apiResource<AdminOverview>(() => this.adminApi.overviewUrl(this.period()));
   protected readonly escrow = apiResource<AdminEscrowItem[]>(() => (this.staff.can('escrow.read') ? this.adminApi.escrowUrl() : undefined));
+
+  /** Saves the escrow transactions the API returned as a CSV file: the
+   * same rows as the escrow page, for a spreadsheet. */
+  protected exportCsv(): void {
+    const rows = this.escrow.value() ?? [];
+    const cell = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const lines = [
+      ['reservation', 'buyer', 'farm', 'amount_fcfa', 'status', 'created_at'].join(','),
+      ...rows.map((r) => [r.reference, r.buyerName, r.farmName, r.totalAmount, r.payment?.status ?? r.status, r.createdAt].map(cell).join(','))
+    ];
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `betailo-sequestre-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   /** The latest few, as the artboard's table does. */
   protected readonly latest = computed(() => (this.escrow.value() ?? []).slice(0, 6));

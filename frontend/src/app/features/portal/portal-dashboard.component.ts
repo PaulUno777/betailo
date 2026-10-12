@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { NotificationBadgeService } from '../../core/notifications/notification-badge.service';
 import { CycleSummary, DashboardReservation, DashboardTodo, SellerDashboard } from '../../domain/models';
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { speciesLabelKey } from '../../domain/reference/species';
@@ -59,10 +60,33 @@ function isoWeek(date: Date): number {
             <span class="text-small text-ink-muted first-letter:uppercase">{{ today() }} · {{ myFarm()!.name }}</span>
             <h1 class="font-display text-[30px] leading-none font-extrabold tracking-[-0.03em] sm:text-[36px]">{{ 'portal.greeting' | t: { name: firstName() } }}</h1>
           </div>
-          <bt-button variant="primary" href="/portal/cycles/new">
-            <bt-icon name="plus" [size]="18" />
-            {{ 'portal.newCycleButton' | t }}
-          </bt-button>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <form class="relative hidden w-[280px] items-center md:flex" role="search" (submit)="search($event, q.value)">
+              <bt-icon name="search" [size]="18" class="pointer-events-none absolute left-4 text-ink-muted" />
+              <input
+                #q
+                type="search"
+                name="q"
+                [attr.aria-label]="'portal.searchLabel' | t"
+                [placeholder]="'portal.searchPlaceholder' | t"
+                class="h-11 w-full rounded-full border-[1.5px] border-line-strong bg-surface-card pr-3.5 pl-11 text-[15px] font-medium text-ink placeholder:text-ink-muted"
+              />
+            </form>
+            <a
+              routerLink="/notifications"
+              [attr.aria-label]="'nav.notifications' | t"
+              class="relative hidden h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-line-strong text-ink transition hover:border-ink lg:inline-flex"
+            >
+              <bt-icon name="bell" [size]="18" />
+              @if (notifications.unread() > 0) {
+                <span class="absolute top-2 right-[9px] h-[9px] w-[9px] rounded-full bg-clay ring-2 ring-surface" aria-hidden="true"></span>
+              }
+            </a>
+            <bt-button variant="solid" href="/portal/cycles/new">
+              <bt-icon name="plus" [size]="16" />
+              {{ 'portal.newCycleButton' | t }}
+            </bt-button>
+          </div>
         </header>
 
         @if (dashboard.value(); as d) {
@@ -251,7 +275,17 @@ export class PortalDashboardComponent {
   private readonly dashboardApi = inject(DashboardApi);
   private readonly locale = inject(LocaleService);
 
+  protected readonly notifications = inject(NotificationBadgeService);
+  private readonly router = inject(Router);
   protected readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
+
+  /** The header search opens the orders, narrowed to what was typed. */
+  protected search(event: Event, value: string): void {
+    event.preventDefault();
+    const q = value.trim();
+    this.router.navigate(['/portal/reservations'], { queryParams: q ? { q } : {} });
+  }
+
 
   protected readonly dashboard = apiResource<SellerDashboard>(() => {
     const farmId = this.myFarm()?.id;

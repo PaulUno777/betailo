@@ -5,7 +5,6 @@ import { filter } from 'rxjs';
 import { StaffSpaceService } from '../../core/auth/staff-space.service';
 import { apiResource } from '../../core/http/api-resource';
 import { LocaleService } from '../../core/i18n/locale.service';
-import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { Permission } from '../../domain/enums';
 import { AdminNavCounts, StaffOverview } from '../../domain/models';
@@ -43,7 +42,9 @@ const NAV: readonly NavDef[] = [
   { labelKey: 'adminNav.farms', icon: 'leaf', route: '/admin/farms', group: 'trust', permission: 'farms.read', count: 'pendingFarms', countTone: 'clay' },
   { labelKey: 'adminNav.reports', icon: 'flag', route: '/admin/reports', group: 'trust', permission: 'reports.read', count: 'openReports', countTone: 'alert' },
   { labelKey: 'adminNav.disputes', icon: 'alert', route: '/admin/disputes', group: 'trust', permission: 'reports.read', count: 'openDisputes', countTone: 'muted' },
+  { labelKey: 'adminNav.forum', icon: 'message', route: '/forum', group: 'trust', permission: 'overview.read' },
   { labelKey: 'adminNav.staff', icon: 'shield', route: '/admin/staff', group: 'system', permission: 'staff.manage' },
+  { labelKey: 'adminNav.settings', icon: 'settings', route: '/admin/settings', group: 'system', permission: 'staff.manage' },
   { labelKey: 'adminNav.audit', icon: 'clock', route: '/admin/audit', group: 'system', permission: 'audit.read' }
 ];
 
@@ -58,7 +59,7 @@ const TAB_LABELS: Readonly<Record<string, string>> = { '/admin': 'adminNav.overv
  * staff counted beside it (`GET /admin/nav-counts`). */
 @Component({
   selector: 'bt-admin-shell',
-  imports: [RouterLink, SidebarShellComponent, AvatarComponent, StaffRoleBadgeComponent, TranslatePipe],
+  imports: [RouterLink, SidebarShellComponent, AvatarComponent, StaffRoleBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <bt-sidebar-shell
@@ -70,20 +71,15 @@ const TAB_LABELS: Readonly<Record<string, string>> = { '/admin': 'adminNav.overv
       [bottomItems]="bottomItems()"
       [moreLinks]="moreLinks()"
     >
-      <div sidebarFooter class="flex flex-col gap-2">
-        <a routerLink="/" class="flex min-h-10 items-center rounded-[10px] px-3 text-small font-medium text-on-forest-deep/70 transition hover:bg-white/6 hover:text-white">
-          {{ 'adminNav.viewSite' | t }}
-        </a>
-        <a routerLink="/account" class="flex items-center gap-2.5 rounded-xl bg-white/5 px-3 py-2.5 transition hover:bg-white/10">
-          <bt-avatar [name]="staff.name()" [size]="34" tone="forest" />
-          <span class="flex min-w-0 flex-col items-start gap-1">
-            <b class="max-w-full truncate text-[13.5px] text-on-forest-deep">{{ staff.name() }}</b>
-            @if (staff.role(); as role) {
-              <bt-staff-role-badge [role]="role" onDark />
-            }
-          </span>
-        </a>
-      </div>
+      <a sidebarFooter routerLink="/account" class="flex items-center gap-2.5 rounded-xl bg-white/5 px-3 py-2.5 transition hover:bg-white/10">
+        <bt-avatar [name]="staff.name()" [size]="34" tone="forest" />
+        <span class="flex min-w-0 flex-col items-start gap-1">
+          <b class="max-w-full truncate text-[13.5px] text-on-forest-deep">{{ staff.name() }}</b>
+          @if (staff.role(); as role) {
+            <bt-staff-role-badge [role]="role" onDark />
+          }
+        </span>
+      </a>
     </bt-sidebar-shell>
   `
 })

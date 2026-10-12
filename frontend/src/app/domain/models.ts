@@ -8,6 +8,7 @@ import {
   PaymentStatus,
   Permission,
   RejectionCode,
+  ReportLevel,
   ReportStatus,
   ReportTargetType,
   ReservationStatus,
@@ -44,6 +45,8 @@ export interface Account extends Profile {
   farms: Farm[];
   farmLimit: number;
   canAddFarm: boolean;
+  /** Set when staff gave this account its own farm limit. */
+  farmLimitRaisedAt?: string;
   /** What the account's staff role allows; empty for everyone else. */
   permissions: Permission[];
   /** The platform's root account. */
@@ -112,6 +115,18 @@ export interface AdminFarmList {
 }
 
 /** `GET /farms/{id}`: a farm plus its server-computed trust signals. */
+/** One farm on its owner's "Mes fermes" page: the farm with a photo of
+ * it and the figures that say how it is doing. */
+export interface FarmCard extends Farm {
+  /** Short-lived link to the first photo sent with the farm's proof. */
+  coverUrl?: string;
+  activeCycles: number;
+  salesCount: number;
+  trustScore: number;
+  reviewAverage: number;
+  reviewCount: number;
+}
+
 export interface FarmProfile extends Farm {
   trustScore: number;
   verified: boolean;
@@ -407,6 +422,13 @@ export interface Report {
   targetType: ReportTargetType;
   reason: string;
   status: ReportStatus;
+  /** Staff queue only: what was reported by name, who reported it, how
+   * many reports the target drew, and how urgent it looks. */
+  targetLabel?: string;
+  reporterName?: string;
+  createdAt?: string;
+  count: number;
+  level: ReportLevel;
 }
 
 export interface ReportRiskSignal {
@@ -420,6 +442,10 @@ export interface ReportDetail {
   history: Report[];
   riskScore: number;
   signals: ReportRiskSignal[];
+  /** The account behind the report, when there is one to act on. */
+  subject?: { id: string; name: string; city?: string; createdAt: string; suspended: boolean };
+  /** The reported listing, previewed. */
+  listing?: { id: string; title: string; unitPrice: number; unit?: string; status: ListingStatus; photoUrl?: string; farmName?: string };
 }
 
 export interface ForumReply {

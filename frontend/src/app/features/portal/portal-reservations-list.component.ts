@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { ReservationAction, ReservationGroup, ReservationList, ReservationView } from '../../domain/models';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
 import { AppError } from '../../core/http/app-error';
@@ -29,6 +30,18 @@ const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
     <div class="mx-auto max-w-3xl p-4 sm:p-8">
       <h1 class="text-heading-2">{{ 'portalReservations.title' | t }}</h1>
 
+      <div class="relative mt-4 flex items-center">
+        <bt-icon name="search" [size]="18" class="pointer-events-none absolute left-4 text-ink-muted" />
+        <input
+          type="search"
+          [value]="query()"
+          (input)="query.set($any($event.target).value)"
+          [attr.aria-label]="'portal.searchLabel' | t"
+          [placeholder]="'portal.searchPlaceholder' | t"
+          class="h-11 w-full rounded-full border-[1.5px] border-line-strong bg-surface-card pr-3.5 pl-11 text-[15px] font-medium text-ink placeholder:text-ink-muted"
+        />
+      </div>
+
       <div class="mt-4 grid grid-cols-3 gap-1 rounded-full bg-surface-sunken p-1" role="tablist">
         @for (tab of tabs; track tab.id) {
           <button
@@ -56,11 +69,11 @@ const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
 
       <div class="mt-5 flex flex-col gap-3">
         @if (list.value(); as l) {
-          @for (v of l.items; track v.id) {
+          @for (v of matching(l.items); track v.id) {
             <bt-reservation-card [view]="v" perspective="farmer" (action)="onAction($event, v)" />
           } @empty {
             <p class="rounded-xl border border-dashed border-line-strong px-6 py-12 text-center text-body text-ink-muted">
-              {{ 'portalReservations.empty' | t }}
+              {{ (query().trim() ? 'portalReservations.noMatch' : 'portalReservations.empty') | t }}
             </p>
           }
         } @else if (list.isLoading() || !seller.loaded()) {
@@ -83,6 +96,16 @@ export class PortalReservationsListComponent {
 
   protected readonly tabs = TABS;
   protected readonly group = signal<ReservationGroup>('active');
+  /** What the seller typed, here or in the dashboard's search. */
+  protected readonly query = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('q') ?? '');
+
+  /** Narrows the loaded orders to the ones naming what was typed: a
+   * reference, a cycle or a listing. */
+  protected matching(items: ReservationView[]): ReservationView[] {
+    const q = this.query().trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((v) => [v.reference, v.cycle?.reference, v.listing?.title].some((text) => text?.toLowerCase().includes(q)));
+  }
 
   private readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 

@@ -175,23 +175,34 @@ export const routes: Routes = [
       },
       {
         path: 'reports',
-        loadComponent: () => import('./features/admin/admin-reports-list.component').then((m) => m.AdminReportsListComponent),
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
+        canActivate: [permissionGuard('reports.read')]
+      },
+      {
+        path: 'reports/:id',
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
         canActivate: [permissionGuard('reports.read')]
       },
       {
         path: 'disputes',
-        loadComponent: () => import('./features/admin/admin-reports-list.component').then((m) => m.AdminReportsListComponent),
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
         canActivate: [permissionGuard('reports.read')],
         data: { disputes: true }
       },
       {
-        path: 'reports/:id',
-        loadComponent: () => import('./features/admin/admin-report-detail.component').then((m) => m.AdminReportDetailComponent),
-        canActivate: [permissionGuard('reports.read')]
+        path: 'disputes/:id',
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
+        canActivate: [permissionGuard('reports.read')],
+        data: { disputes: true }
       },
       {
         path: 'staff',
         loadComponent: () => import('./features/admin/admin-staff.component').then((m) => m.AdminStaffComponent),
+        canActivate: [permissionGuard('staff.manage')]
+      },
+      {
+        path: 'settings',
+        loadComponent: () => import('./features/admin/admin-settings.component').then((m) => m.AdminSettingsComponent),
         canActivate: [permissionGuard('staff.manage')]
       },
       {
