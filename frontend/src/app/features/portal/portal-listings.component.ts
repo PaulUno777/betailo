@@ -126,7 +126,11 @@ export class PortalListingsComponent {
       },
       error: (err: AppError) => {
         this.acting.set(null);
-        this.toast.show({ tone: 'danger', title: 'portalListings.actionFailed', detail: err.message });
+        if (err.code === 'farm.not_verified') {
+          this.toast.show({ tone: 'info', title: 'sellerSpace.pendingTitle', detail: err.message });
+        } else {
+          this.toast.show({ tone: 'danger', title: 'portalListings.actionFailed', detail: err.message });
+        }
       }
     });
   }
