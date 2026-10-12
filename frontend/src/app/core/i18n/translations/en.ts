@@ -42,7 +42,15 @@ export const en: TranslationDictionary = {
     admin: 'Admin',
     signOut: 'Sign out'
   },
+  moreSheet: {
+    language: 'Language',
+    tab: 'More',
+    title: 'More',
+    darkMode: 'Dark mode',
+    lightMode: 'Light mode'
+  },
   bottomNav: {
+    label: 'Main navigation',
     home: 'Home',
     market: 'Market',
     publish: 'Publish',
@@ -444,6 +452,7 @@ export const en: TranslationDictionary = {
     empty: 'No payment yet.'
   },
   portalNav: {
+    dashboardShort: 'Home',
     dashboard: 'Dashboard',
     cycles: 'My cycles',
     listings: 'Listings',
@@ -508,6 +517,7 @@ export const en: TranslationDictionary = {
     notFound: 'Report not found.'
   },
   adminNav: {
+    overviewShort: 'Overview',
     overview: 'Overview',
     users: 'Users',
     listings: 'Cycles & listings',

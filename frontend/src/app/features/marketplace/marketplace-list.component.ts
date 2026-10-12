@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -13,6 +12,7 @@ import { ListingCardComponent } from '../../shared/ui/listing-card/listing-card.
 import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { apiResource } from '../../core/http/api-resource';
 
 // Must match the backend's ports.ListingSort* constants verbatim.
 const SORT_VALUES = ['recent', 'rating', 'price_asc', 'price_desc'] as const;
@@ -204,7 +204,7 @@ export class MarketplaceListComponent {
     pageSize: PAGE_SIZE
   }));
 
-  protected readonly result = httpResource<ListingSearchResult>(() => this.listingsApi.searchUrl(this.params()));
+  protected readonly result = apiResource<ListingSearchResult>(() => this.listingsApi.searchUrl(this.params()));
 
   protected resetFilters(): void {
     this.query.set('');

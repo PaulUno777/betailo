@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ForumPost, ListingSearchResult } from '../../domain/models';
@@ -13,6 +12,7 @@ import { ListingCardComponent } from '../../shared/ui/listing-card/listing-card.
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { categoryTone } from '../../domain/rules/category-tone';
+import { apiResource } from '../../core/http/api-resource';
 
 @Component({
   selector: 'bt-home',
@@ -251,11 +251,11 @@ export class HomeComponent {
   protected readonly species = signal('');
   protected readonly city = signal('');
 
-  protected readonly featured = httpResource<ListingSearchResult>(() =>
+  protected readonly featured = apiResource<ListingSearchResult>(() =>
     this.listingsApi.searchUrl({ pageSize: 4, sort: 'recent' })
   );
 
-  protected readonly forumTeaser = httpResource<ForumPost[]>(() => this.forumApi.postsUrl({ sort: 'recent' }));
+  protected readonly forumTeaser = apiResource<ForumPost[]>(() => this.forumApi.postsUrl({ sort: 'recent' }));
 
   protected search(): void {
     this.router.navigate(['/marketplace'], {

@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { Reservation } from '../../domain/models';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
 import { ReservationRowComponent } from './reservation-row.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { apiResource } from '../../core/http/api-resource';
 
 type ReservationTab = 'active' | 'completed' | 'cancelled';
 
@@ -67,7 +67,7 @@ export class ReservationsListComponent {
   protected readonly tabs = TABS;
   protected readonly activeTab = signal<ReservationTab>('active');
 
-  protected readonly reservations = httpResource<Reservation[]>(() => this.reservationsApi.mineUrl());
+  protected readonly reservations = apiResource<Reservation[]>(() => this.reservationsApi.mineUrl());
 
   protected readonly filtered = computed(() => this.byTab(this.activeTab()));
 

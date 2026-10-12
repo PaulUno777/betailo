@@ -6,6 +6,8 @@ import { Role } from '../../../domain/enums';
 import { AvatarComponent } from '../avatar/avatar.component';
 import { IconComponent } from '../icon/icon.component';
 import { IconName } from '../icon/icon-paths';
+import { ThemeService } from '../../../core/theme/theme.service';
+import { LocaleToggleComponent } from '../locale-toggle/locale-toggle.component';
 
 interface RoleLink {
   readonly route: string;
@@ -30,7 +32,7 @@ const EXTRA_ROLE_LINK: Readonly<Partial<Record<Role, RoleLink>>> = {
  * the header's right side stays short regardless of role. */
 @Component({
   selector: 'bt-user-menu',
-  imports: [RouterLink, AvatarComponent, IconComponent, TranslatePipe],
+  imports: [RouterLink, AvatarComponent, IconComponent, LocaleToggleComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="relative">
@@ -74,6 +76,21 @@ const EXTRA_ROLE_LINK: Readonly<Partial<Record<Role, RoleLink>>> = {
             <bt-icon name="user" [size]="18" />
             {{ 'nav.myAccount' | t }}
           </a>
+          <!-- Phones only: the compact mobile header drops these two. -->
+          <div class="border-t border-line sm:hidden"></div>
+          <div class="flex items-center justify-between gap-3 px-4 py-2 sm:hidden">
+            <span class="text-body text-ink">{{ 'moreSheet.language' | t }}</span>
+            <bt-locale-toggle />
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            (click)="theme.toggle()"
+            class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-body text-ink hover:bg-surface-sunken sm:hidden"
+          >
+            <bt-icon [name]="theme.isDark() ? 'sun' : 'moon'" [size]="18" />
+            {{ (theme.isDark() ? 'moreSheet.lightMode' : 'moreSheet.darkMode') | t }}
+          </button>
           <div class="border-t border-line"></div>
           <button
             type="button"
@@ -91,6 +108,7 @@ const EXTRA_ROLE_LINK: Readonly<Partial<Record<Role, RoleLink>>> = {
 })
 export class UserMenuComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
 

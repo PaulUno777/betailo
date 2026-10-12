@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { Cycle, Farm, Listing, Reservation } from '../../domain/models';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
@@ -18,6 +17,7 @@ import { RatingComponent } from '../../shared/ui/rating/rating.component';
 import { EscrowStepsComponent, EscrowStep } from '../../shared/ui/escrow-steps/escrow-steps.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { FormsModule } from '@angular/forms';
+import { apiResource } from '../../core/http/api-resource';
 
 /** One row in "my reservations". `GET /reservations/mine` doesn't return a
  * joined listing summary (see docs/backend-improvements-needed.md), so
@@ -132,17 +132,17 @@ export class ReservationRowComponent {
   readonly reservation = input.required<Reservation>();
   readonly refresh = output<void>();
 
-  protected readonly listing = httpResource<Listing>(() => this.listingsApi.detailUrl(this.reservation().listingId));
+  protected readonly listing = apiResource<Listing>(() => this.listingsApi.detailUrl(this.reservation().listingId));
 
   /** `GET /reservations/mine` has no joined listing/farm summary (see
    * docs/backend-improvements-needed.md), so this row chains its own
    * listing → cycle → farm fetches rather than showing a raw ID. */
-  protected readonly cycle = httpResource<Cycle>(() => {
+  protected readonly cycle = apiResource<Cycle>(() => {
     const cycleId = this.listing.value()?.cycleId;
     return cycleId ? this.cyclesApi.detailUrl(cycleId) : undefined;
   });
 
-  protected readonly farm = httpResource<Farm>(() => {
+  protected readonly farm = apiResource<Farm>(() => {
     const farmId = this.cycle.value()?.farmId;
     return farmId ? this.farmsApi.detailUrl(farmId) : undefined;
   });

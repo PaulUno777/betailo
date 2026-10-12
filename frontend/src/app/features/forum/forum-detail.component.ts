@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -15,6 +14,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/forum/:id` — thread + reply composer + "mark as best answer", per
  * `Forum.dc.html`'s open-thread state. The mark-best affordance is shown
@@ -96,7 +96,7 @@ export class ForumDetailComponent {
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((p) => p.get('id') ?? '')), { initialValue: '' });
 
-  protected readonly post = httpResource<ForumPost>(() => (this.id() ? this.forumApi.postUrl(this.id()) : undefined));
+  protected readonly post = apiResource<ForumPost>(() => (this.id() ? this.forumApi.postUrl(this.id()) : undefined));
 
   protected readonly categoryTone = categoryTone;
 

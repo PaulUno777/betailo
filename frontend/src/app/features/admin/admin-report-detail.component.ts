@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -11,6 +10,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/admin/reports/:id` — per `Moderation.dc.html`'s detail view: the
  * risk score + signal breakdown from `GET /admin/reports/{id}`, plus the
@@ -96,7 +96,7 @@ export class AdminReportDetailComponent {
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((p) => p.get('id') ?? '')), { initialValue: '' });
 
-  protected readonly detail = httpResource<ReportDetail>(() => (this.id() ? this.adminApi.reportDetailUrl(this.id()) : undefined));
+  protected readonly detail = apiResource<ReportDetail>(() => (this.id() ? this.adminApi.reportDetailUrl(this.id()) : undefined));
 
   protected readonly resolving = signal(false);
   protected readonly suspendConfirmOpen = signal(false);

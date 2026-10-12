@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -25,6 +24,7 @@ import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { FormsModule } from '@angular/forms';
+import { apiResource } from '../../core/http/api-resource';
 
 @Component({
   selector: 'bt-listing-detail',
@@ -173,19 +173,19 @@ export class ListingDetailComponent {
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((params) => params.get('id') ?? '')), { initialValue: '' });
 
-  protected readonly listing = httpResource<Listing>(() => (this.id() ? this.listingsApi.detailUrl(this.id()) : undefined));
+  protected readonly listing = apiResource<Listing>(() => (this.id() ? this.listingsApi.detailUrl(this.id()) : undefined));
 
-  protected readonly cycle = httpResource<Cycle>(() => {
+  protected readonly cycle = apiResource<Cycle>(() => {
     const cycleId = this.listing.value()?.cycleId;
     return cycleId ? this.cyclesApi.detailUrl(cycleId) : undefined;
   });
 
-  protected readonly farm = httpResource<Farm>(() => {
+  protected readonly farm = apiResource<Farm>(() => {
     const farmId = this.cycle.value()?.farmId;
     return farmId ? this.farmsApi.detailUrl(farmId) : undefined;
   });
 
-  protected readonly reviews = httpResource<FarmReviews>(() => {
+  protected readonly reviews = apiResource<FarmReviews>(() => {
     const farmId = this.cycle.value()?.farmId;
     return farmId ? this.farmsApi.reviewsUrl(farmId) : undefined;
   });

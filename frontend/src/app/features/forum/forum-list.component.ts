@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ForumPost } from '../../domain/models';
@@ -15,6 +14,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/forum` — per `Forum.dc.html`: search + category filter, a thread
  * list (category chip, title, reply count), and a "new topic" dialog for
@@ -111,7 +111,7 @@ export class ForumListComponent {
   protected readonly query = signal('');
   protected readonly category = signal('');
 
-  protected readonly posts = httpResource<ForumPost[]>(() =>
+  protected readonly posts = apiResource<ForumPost[]>(() =>
     this.forumApi.postsUrl({ q: this.query() || undefined, category: this.category() || undefined, sort: 'recent' })
   );
 

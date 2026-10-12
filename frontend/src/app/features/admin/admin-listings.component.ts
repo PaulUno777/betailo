@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { Cycle, Listing } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/admin/listings` — per `Admin.dc.html`: platform-wide cycles and
  * listings, read-only (no per-row admin action exists on either
@@ -60,6 +60,6 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 export class AdminListingsComponent {
   private readonly adminApi = inject(AdminApi);
 
-  protected readonly cycles = httpResource<Cycle[]>(() => this.adminApi.cyclesUrl());
-  protected readonly listings = httpResource<Listing[]>(() => this.adminApi.listingsUrl());
+  protected readonly cycles = apiResource<Cycle[]>(() => this.adminApi.cyclesUrl());
+  protected readonly listings = apiResource<Listing[]>(() => this.adminApi.listingsUrl());
 }

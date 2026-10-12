@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { httpResource } from '@angular/common/http';
 import { Reservation } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { AppError } from '../../core/http/app-error';
@@ -8,6 +7,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { apiResource } from '../../core/http/api-resource';
 
 /** `/admin/escrow` — every reservation with a payment, plus the two
  * admin-only escrow actions (`release`/`refund`), from `GET
@@ -54,7 +54,7 @@ export class AdminEscrowComponent {
   private readonly adminApi = inject(AdminApi);
   private readonly toast = inject(ToastService);
 
-  protected readonly escrow = httpResource<Reservation[]>(() => this.adminApi.escrowUrl());
+  protected readonly escrow = apiResource<Reservation[]>(() => this.adminApi.escrowUrl());
   protected readonly acting = signal<string | null>(null);
 
   protected release(id: string): void {
