@@ -1,3 +1,4 @@
+import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DashboardTodo, Farm, SellerDashboard } from '../../domain/models';
@@ -92,7 +93,7 @@ const TODO_ICONS: Readonly<Record<DashboardTodo['kind'], IconName>> = {
             </div>
             <div class="order-2 rounded-lg bg-forest-deep p-4 text-on-forest-deep sm:p-5 lg:order-none">
               <span class="text-eyebrow text-on-forest-deep/70">{{ 'portal.kpiTrustScore' | t }}</span>
-              <p class="mt-2 text-heading-2 sm:text-number-xl">{{ d.trustScore }}<span class="text-body text-on-forest-deep/70">/100</span></p>
+              <p class="mt-2 text-heading-2 sm:text-number-xl">{{ trust(d.trustScore) }}<span class="text-body text-on-forest-deep/70">/100</span></p>
             </div>
           </div>
 
@@ -109,7 +110,7 @@ const TODO_ICONS: Readonly<Record<DashboardTodo['kind'], IconName>> = {
                       class="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 rounded-md border border-line p-3 transition hover:bg-surface-sunken sm:grid-cols-[1fr_auto_1.4fr_auto]"
                     >
                       <div class="flex flex-col">
-                        <span class="text-body-strong">{{ speciesKey(c.cycle.species) | t }} · {{ c.cycle.type }}</span>
+                        <span class="text-body-strong">{{ speciesKey(c.cycle.species) | t }} · {{ typeKey(c.cycle.type) | t }}</span>
                         <span class="text-caption text-ink-muted">{{ c.cycle.reference || c.cycle.id.slice(-6) }}</span>
                       </div>
                       <bt-status-badge kind="cycle" [status]="c.cycle.status" />
@@ -172,6 +173,14 @@ export class PortalDashboardComponent {
   protected barHeightPct(value: number, all: number[]): number {
     const max = Math.max(1, ...all);
     return Math.max(6, Math.round((value / max) * 100));
+  }
+
+  protected trust(score: number): number {
+    return Math.round(score);
+  }
+
+  protected typeKey(type: string): string {
+    return cycleTypeLabelKey(type);
   }
 
   protected speciesKey(value: string): string {

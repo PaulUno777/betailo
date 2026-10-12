@@ -469,6 +469,15 @@ type fakeReviewRepo struct {
 	votes map[bson.ObjectID][]bson.ObjectID
 }
 
+func (f *fakeReviewRepo) ExistsForReservation(_ context.Context, reservationID bson.ObjectID) (bool, error) {
+	for _, r := range f.byID {
+		if r.ReservationID == reservationID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func newFakeReviewRepo() *fakeReviewRepo {
 	return &fakeReviewRepo{byID: map[bson.ObjectID]*domain.Review{}, votes: map[bson.ObjectID][]bson.ObjectID{}}
 }

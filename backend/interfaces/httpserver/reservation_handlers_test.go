@@ -340,3 +340,16 @@ func TestNavCounts_HTTP_CountWhatWaitsOnEachSide(t *testing.T) {
 		t.Errorf("anonymous status = %d, want 401", rec.Code)
 	}
 }
+
+func TestReservation_HTTP_BadMobileMoneyNumberIsNamed(t *testing.T) {
+	router := newTestRouter()
+	listingID, _ := setupListing(t, router, 10)
+	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
+
+	rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/reservations", createReservationRequest{
+		Quantity: 1, PayNow: true, PaymentMethod: "mtn_momo", PayerPhone: "12",
+	}, buyerToken)
+	if rec.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, rec).Code != "payment.phone_invalid" {
+		t.Fatalf("malformed number: status = %d, body = %s; want 400 payment.phone_invalid", rec.Code, rec.Body.String())
+	}
+}

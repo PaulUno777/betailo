@@ -208,7 +208,7 @@ func validatePayment(method ports.PaymentMethod, rawPhone string) (validPayment,
 	case ports.PaymentMethodMTNMoMo, ports.PaymentMethodOrangeMoney:
 		phone, err := domain.NormalizePhone(rawPhone)
 		if err != nil {
-			return validPayment{}, fmt.Errorf("payment: mobile money number: %w", err)
+			return validPayment{}, domain.Coded("payment.phone_invalid", fmt.Errorf("payment: mobile money number: %w", err))
 		}
 		if !domain.IsCameroonMobile(phone) {
 			return validPayment{}, domain.Coded("payment.phone_invalid", fmt.Errorf("payment: mobile money needs a Cameroonian mobile number: %w", domain.ErrInvalid))

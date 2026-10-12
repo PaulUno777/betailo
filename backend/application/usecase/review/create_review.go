@@ -80,6 +80,11 @@ func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*dom
 	if res.Payment == nil || res.Payment.Status != domain.PaymentReleased {
 		return nil, domain.Coded("review.not_released", fmt.Errorf("review: only reviewable once escrow has released: %w", domain.ErrConflict))
 	}
+	if done, err := uc.Reviews.ExistsForReservation(ctx, res.ID); err != nil {
+		return nil, err
+	} else if done {
+		return nil, domain.Coded("review.already_reviewed", fmt.Errorf("review: this reservation is already reviewed: %w", domain.ErrConflict))
+	}
 
 	l, err := uc.Listings.FindByID(ctx, res.ListingID)
 	if err != nil {

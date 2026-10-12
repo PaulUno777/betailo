@@ -50,18 +50,7 @@ import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.
         [ngModel]="name()"
         (ngModelChange)="name.set($event)"
       />
-      <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" />
-      <bt-text-field
-        [label]="'sellerOnboarding.phoneLabel' | t"
-        [hint]="'sellerOnboarding.phoneHint' | t"
-        type="tel"
-        inputmode="tel"
-        autocomplete="tel-national"
-        prefix="+237"
-        name="phone"
-        [ngModel]="phone()"
-        (ngModelChange)="phone.set($event)"
-      />
+      <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" [(phone)]="phone" />
 
       <fieldset class="flex flex-col gap-3">
         <legend class="mb-3 text-small font-bold text-ink">{{ 'sellerOnboarding.speciesLabel' | t }}</legend>

@@ -198,6 +198,8 @@ export interface ListingSearchParams {
 export interface GeoReference {
   defaultCountry: string;
   countries: { code: string; regions: string[] }[];
+  /** International prefix per country ("GH": "233"). */
+  callingCodes: Record<string, string>;
 }
 
 export interface ReservationPayment {

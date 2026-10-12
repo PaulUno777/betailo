@@ -46,7 +46,7 @@ func (uc *UpdateProfile) Execute(ctx context.Context, in UpdateProfileInput) (*d
 	case utf8.RuneCountInString(name) > domain.MaxDisplayNameLen:
 		return nil, domain.CodedWith("account.display_name_too_long", map[string]any{"max": domain.MaxDisplayNameLen}, fmt.Errorf("account: display name must be at most %d characters: %w", domain.MaxDisplayNameLen, domain.ErrInvalid))
 	case utf8.RuneCountInString(city) > domain.MaxCityLen:
-		return nil, fmt.Errorf("account: city must be at most %d characters: %w", domain.MaxCityLen, domain.ErrInvalid)
+		return nil, domain.CodedWith("account.city_too_long", map[string]any{"max": domain.MaxCityLen}, fmt.Errorf("account: city must be at most %d characters: %w", domain.MaxCityLen, domain.ErrInvalid))
 	}
 	phone := ""
 	if strings.TrimSpace(in.Phone) != "" {

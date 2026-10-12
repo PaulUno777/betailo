@@ -98,3 +98,26 @@ jobs:
 
       - name: Build (production)
         run: pnpm run build --configuration production
+
+  smoke:
+    name: API smoke test (full stack)
+    runs-on: ubuntu-latest
+    # Only worth starting once the unit and integration tests pass.
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      # Builds the API image and starts it with MongoDB and SeaweedFS
+      # (docker-compose.yml), seeds a QA admin, then walks every
+      # profile's flows through the real API (scripts/qa/api_smoke.py).
+      - name: Run the smoke test
+        run: scripts/qa/run_smoke.sh
+
+      - name: Backend logs
+        if: failure()
+        run: docker compose logs backend
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
+

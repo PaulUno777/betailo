@@ -53,11 +53,16 @@ func (uc *UpdateFarm) Execute(ctx context.Context, in UpdateFarmInput) (*domain.
 		return nil, domain.Coded("farm.location_required", fmt.Errorf("farm: location is required: %w", domain.ErrInvalid))
 	}
 
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone)
+	// An update that doesn't name a country keeps the farm's.
+	countryIn := in.Country
+	if countryIn == "" {
+		countryIn = f.Country
+	}
+	country, region, err := normalizePlace(countryIn, in.Region)
 	if err != nil {
 		return nil, err
 	}
-	country, region, err := normalizePlace(in.Country, in.Region)
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, country)
 	if err != nil {
 		return nil, err
 	}

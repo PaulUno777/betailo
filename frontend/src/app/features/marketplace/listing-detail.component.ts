@@ -1,3 +1,4 @@
+import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -108,7 +109,7 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
               <header class="flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
                   <bt-status-badge kind="cycle" [status]="d.cycle.status" />
-                  <span class="rounded-full bg-clay-soft px-2.5 py-1 text-caption text-clay-ink">{{ d.cycle.type }}</span>
+                  <span class="rounded-full bg-clay-soft px-2.5 py-1 text-caption text-clay-ink">{{ typeKey(d.cycle.type) | t }}</span>
                   @if (d.isOwner && d.listing.status !== 'published') {
                     <bt-status-badge kind="listing" [status]="d.listing.status" />
                   }
@@ -257,6 +258,10 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
   `
 })
 export class ListingDetailComponent {
+  protected typeKey(type: string): string {
+    return cycleTypeLabelKey(type);
+  }
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly listingsApi = inject(ListingsApi);

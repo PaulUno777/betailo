@@ -65,3 +65,10 @@ qu'une autre, à tel moment, face à telle contrainte) vont dans une ADR sous
 proposition — un nouveau choix qui en remplace un ancien ajoute une
 nouvelle ADR qui référence celle qu'elle remplace, sans réécrire
 l'historique.
+
+## Test de fumée de l'API
+
+`scripts/qa/run_smoke.sh` démarre la pile (MongoDB, SeaweedFS, API) avec
+Docker Compose, crée un compte admin de test, puis parcourt l'API avec
+chaque profil (visiteur, acheteur, éleveur, admin) : environ 100 vérifications,
+refus et codes d'erreur compris. La CI le lance sur chaque PR (job `smoke`).

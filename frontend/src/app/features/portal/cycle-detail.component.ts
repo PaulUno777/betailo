@@ -1,3 +1,4 @@
+import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -66,7 +67,7 @@ function today(): string {
         <div class="mt-2 flex items-start justify-between gap-3">
           <div class="flex flex-col">
             <h1 class="text-heading-2">{{ speciesKey(c.species) | t }}</h1>
-            <span class="text-small text-ink-muted">{{ c.reference || c.id.slice(-6) }} · {{ c.type }}</span>
+            <span class="text-small text-ink-muted">{{ c.reference || c.id.slice(-6) }} · {{ typeKey(c.type) | t }}</span>
           </div>
           <bt-status-badge kind="cycle" [status]="c.status" />
         </div>
@@ -178,6 +179,10 @@ function today(): string {
   `
 })
 export class CycleDetailComponent {
+  protected typeKey(type: string): string {
+    return cycleTypeLabelKey(type);
+  }
+
   private readonly route = inject(ActivatedRoute);
   private readonly cyclesApi = inject(CyclesApi);
   private readonly toast = inject(ToastService);
