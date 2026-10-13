@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { FcfaCurrencyPipe } from '../../pipes/fcfa-currency.pipe';
 
@@ -32,6 +32,8 @@ export interface PriceRangeValue {
           [step]="step()"
           [value]="low()"
           [attr.aria-label]="'priceRange.min' | t"
+          [attr.aria-valuetext]="low() | fcfa"
+          (input)="dragLow($any($event.target))"
           (change)="setLow($any($event.target).valueAsNumber)"
           class="range-thumb pointer-events-none absolute inset-0 h-6 w-full appearance-none bg-transparent"
         />
@@ -42,6 +44,8 @@ export interface PriceRangeValue {
           [step]="step()"
           [value]="high()"
           [attr.aria-label]="'priceRange.max' | t"
+          [attr.aria-valuetext]="high() | fcfa"
+          (input)="dragHigh($any($event.target))"
           (change)="setHigh($any($event.target).valueAsNumber)"
           class="range-thumb pointer-events-none absolute inset-0 h-6 w-full appearance-none bg-transparent"
         />
@@ -53,6 +57,19 @@ export interface PriceRangeValue {
     </div>
   `,
   styles: `
+    /* The inputs span the whole track: ring the thumb, not the box. */
+    .range-thumb:focus-visible {
+      outline: none;
+      box-shadow: none;
+    }
+    .range-thumb:focus-visible::-webkit-slider-thumb {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 2px;
+    }
+    .range-thumb:focus-visible::-moz-range-thumb {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 2px;
+    }
     .range-thumb::-webkit-slider-thumb {
       pointer-events: auto;
       appearance: none;
@@ -65,8 +82,9 @@ export interface PriceRangeValue {
     }
     .range-thumb::-moz-range-thumb {
       pointer-events: auto;
-      height: 18px;
-      width: 18px;
+      height: 22px;
+      width: 22px;
+      box-sizing: border-box;
       border-radius: 9999px;
       background: var(--color-surface-card);
       border: 2px solid var(--color-forest);
@@ -92,19 +110,37 @@ export class PriceRangeComponent {
   protected readonly ceiling = computed(() =>
     Math.max(Math.ceil(this.bounds().max / this.step()) * this.step(), this.floor() + this.step())
   );
-  protected readonly low = computed(() => this.clamp(this.value().min ?? this.floor()));
-  protected readonly high = computed(() => this.clamp(this.value().max ?? this.ceiling()));
+  /** Where a thumb is mid-drag: the track and the two prices follow it
+   * live, while the search itself waits for the release (`change`). */
+  protected readonly liveLow = signal<number | null>(null);
+  protected readonly liveHigh = signal<number | null>(null);
+  protected readonly low = computed(() => this.liveLow() ?? this.clamp(this.value().min ?? this.floor()));
+  protected readonly high = computed(() => this.liveHigh() ?? this.clamp(this.value().max ?? this.ceiling()));
 
   protected pct(v: number): number {
     return ((v - this.floor()) / (this.ceiling() - this.floor())) * 100;
   }
 
+  /** Written back to the input so a thumb stops at the other one
+   * instead of sliding past it. */
+  protected dragLow(el: HTMLInputElement): void {
+    el.valueAsNumber = Math.min(el.valueAsNumber, this.high());
+    this.liveLow.set(el.valueAsNumber);
+  }
+
+  protected dragHigh(el: HTMLInputElement): void {
+    el.valueAsNumber = Math.max(el.valueAsNumber, this.low());
+    this.liveHigh.set(el.valueAsNumber);
+  }
+
   protected setLow(v: number): void {
+    this.liveLow.set(null);
     const low = Math.min(v, this.high());
     this.valueChange.emit({ min: low <= this.floor() ? null : low, max: this.value().max });
   }
 
   protected setHigh(v: number): void {
+    this.liveHigh.set(null);
     const high = Math.max(v, this.low());
     this.valueChange.emit({ min: this.value().min, max: high >= this.ceiling() ? null : high });
   }

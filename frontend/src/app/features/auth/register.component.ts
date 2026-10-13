@@ -23,6 +23,8 @@ interface RegisterForm {
   acceptTerms: FormControl<boolean>;
 }
 
+const MIN_PASSWORD_LENGTH = 8;
+
 function passwordsMatchValidator(control: AbstractControl): ValidationErrors | null {
   const group = control as FormGroup<RegisterForm>;
   return group.controls.password.value === group.controls.confirmPassword.value ? null : { passwordMismatch: true };
@@ -72,9 +74,29 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
           autocomplete="name"
           formControlName="displayName"
         />
-        <bt-text-field [label]="'auth.registerEmailLabel' | t" type="email" autocomplete="email" formControlName="email" />
+        <bt-text-field
+          [label]="'auth.registerEmailLabel' | t"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          markRequired
+          formControlName="email"
+          [error]="form.controls.email.touched && form.controls.email.invalid ? ('apiErrors.auth.email_invalid' | t) : undefined"
+        />
         <div class="flex flex-col gap-1.5">
-          <bt-text-field [label]="'auth.registerPasswordLabel' | t" type="password" autocomplete="new-password" formControlName="password" />
+          <bt-text-field
+            [label]="'auth.registerPasswordLabel' | t"
+            type="password"
+            autocomplete="new-password"
+            markRequired
+            formControlName="password"
+            [hint]="'apiErrors.auth.password_too_short' | t: { min: minPasswordLength }"
+            [error]="
+              form.controls.password.touched && form.controls.password.invalid
+                ? ('apiErrors.auth.password_too_short' | t: { min: minPasswordLength })
+                : undefined
+            "
+          />
           @if (passwordValue()) {
             <div class="flex items-center gap-2">
               <div class="flex h-1 flex-1 gap-1">
@@ -82,7 +104,7 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
                 <span class="flex-1 rounded-full" [class]="strengthBarClass(1)"></span>
                 <span class="flex-1 rounded-full" [class]="strengthBarClass(2)"></span>
               </div>
-              <span class="text-caption text-ink-muted">{{ strengthLabelKey() | t }}</span>
+              <span class="text-caption text-ink-muted" aria-live="polite">{{ strengthLabelKey() | t }}</span>
             </div>
           }
         </div>
@@ -90,10 +112,11 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
           [label]="'auth.registerConfirmLabel' | t"
           type="password"
           autocomplete="new-password"
+          markRequired
           formControlName="confirmPassword"
           [error]="form.errors?.['passwordMismatch'] && form.controls.confirmPassword.touched ? ('auth.registerPasswordMismatch' | t) : undefined"
         />
-        <label class="flex items-start gap-2 text-small text-ink-muted">
+        <label class="-my-2 flex min-h-11 cursor-pointer items-start gap-2 py-2.5 text-small text-ink-muted">
           <input
             type="checkbox"
             formControlName="acceptTerms"
@@ -106,7 +129,7 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
         </bt-button>
         <p class="text-center text-small text-ink-muted">
           {{ 'auth.registerHasAccount' | t }}
-          <a routerLink="/login" queryParamsHandling="preserve" class="text-forest">{{ 'auth.registerLogin' | t }}</a>
+          <a routerLink="/login" queryParamsHandling="preserve" class="font-semibold text-forest underline underline-offset-2">{{ 'auth.registerLogin' | t }}</a>
         </p>
       </form>
     </bt-auth-layout>
@@ -120,13 +143,14 @@ export class RegisterComponent {
 
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly minPasswordLength = MIN_PASSWORD_LENGTH;
 
   protected readonly form = new FormGroup<RegisterForm>(
     {
       role: new FormControl<Role>('buyer', { nonNullable: true }),
       displayName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(60)] }),
       email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
-      password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(8)] }),
+      password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)] }),
       confirmPassword: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
       acceptTerms: new FormControl(false, { nonNullable: true, validators: [Validators.requiredTrue] })
     },

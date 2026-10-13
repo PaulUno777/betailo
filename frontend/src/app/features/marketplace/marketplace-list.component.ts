@@ -135,12 +135,12 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
         <button
           type="button"
           (click)="filtersOpen.set(true)"
-          [attr.aria-label]="'marketplace.filtersTitle' | t"
+          [attr.aria-label]="('marketplace.filtersTitle' | t) + (activeChips().length ? ' (' + activeChips().length + ')' : '')"
           class="relative flex h-control-xl w-14 shrink-0 items-center justify-center rounded-full bg-ink text-surface"
         >
           <bt-icon name="filter" [size]="22" />
           @if (activeChips().length) {
-            <span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-clay px-1 text-caption text-on-clay">
+            <span aria-hidden="true" class="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-clay px-1 text-caption text-on-clay">
               {{ activeChips().length }}
             </span>
           }
@@ -148,7 +148,7 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
       </div>
 
       <div class="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 lg:hidden" role="group" [attr.aria-label]="'marketplace.speciesLabel' | t">
-        <button type="button" [class]="chipClass(!filters().species.length)" (click)="patch({ species: [] })">{{ 'marketplace.allChip' | t }}</button>
+        <button type="button" [attr.aria-pressed]="!filters().species.length" [class]="chipClass(!filters().species.length)" (click)="patch({ species: [] })">{{ 'marketplace.allChip' | t }}</button>
         @for (opt of speciesOptions(); track opt.value) {
           <button type="button" [attr.aria-pressed]="filters().species.includes(opt.value)" [class]="chipClass(filters().species.includes(opt.value))" (click)="toggle('species', opt.value)">
             {{ opt.label }}
@@ -163,13 +163,13 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
               type="button"
               (click)="patch(chip.remove)"
               [attr.aria-label]="'marketplace.removeFilter' | t: { label: chip.label }"
-              class="inline-flex h-9 items-center gap-1.5 rounded-full bg-ink pl-3.5 pr-2.5 text-small font-semibold text-surface"
+              class="inline-flex h-11 items-center gap-1.5 rounded-full bg-ink pl-3.5 pr-2.5 text-small font-semibold text-surface lg:h-9"
             >
               {{ chip.label }}
               <bt-icon name="x" [size]="14" />
             </button>
           }
-          <button type="button" (click)="resetFilters()" class="h-9 px-2 text-small font-semibold text-forest">{{ 'marketplace.clearAll' | t }}</button>
+          <button type="button" (click)="resetFilters()" class="h-11 px-2 text-small font-semibold text-forest underline-offset-2 hover:underline lg:h-9">{{ 'marketplace.clearAll' | t }}</button>
         </div>
       }
 
@@ -186,13 +186,13 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
           <ng-container *ngTemplateOutlet="filterFields" />
         </aside>
 
-        <section aria-live="polite">
-          <p class="mb-3 text-small text-ink-muted lg:hidden">
+        <section [attr.aria-busy]="result.isLoading()">
+          <p class="mb-3 text-small text-ink-muted lg:sr-only" role="status">
             {{ 'marketplace.resultsSorted' | t: { count: total(), sort: (sortLabelKey() | t) } }}
           </p>
 
           @if (items().length === 0 && result.isLoading()) {
-            <div class="grid gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3" aria-busy="true">
+            <div class="grid gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
               @for (i of skeletons; track i) {
                 <div class="h-[122px] animate-pulse rounded-lg bg-surface-sunken sm:h-[380px]"></div>
               }
@@ -319,9 +319,9 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
           }
         </fieldset>
 
-        <label class="flex min-h-control-lg items-center justify-between gap-3 rounded-md bg-forest-soft p-3.5">
+        <label class="flex min-h-control-lg cursor-pointer items-center justify-between gap-3 rounded-md bg-forest-soft p-3.5">
           <span class="text-small font-semibold text-forest-deep">{{ 'marketplace.verifiedOnlyLabel' | t }}</span>
-          <span class="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full transition" [class]="filters().verifiedOnly ? 'bg-forest' : 'bg-line-strong'">
+          <span class="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus" [class]="filters().verifiedOnly ? 'bg-forest' : 'bg-line-strong'">
             <input
               type="checkbox"
               role="switch"
@@ -571,7 +571,7 @@ export class MarketplaceListComponent {
 
   protected smallChipClass(active: boolean): string {
     return (
-      'inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-small font-semibold transition ' +
+      'inline-flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-small font-semibold transition lg:h-9 ' +
       (active ? 'border-forest bg-forest text-on-forest' : 'border-line-strong bg-surface-card text-ink hover:border-forest')
     );
   }

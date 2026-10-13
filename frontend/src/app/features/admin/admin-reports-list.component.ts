@@ -6,6 +6,7 @@ import { Report } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LocaleService } from '../../core/i18n/locale.service';
+import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
 import { apiResource } from '../../core/http/api-resource';
@@ -22,7 +23,7 @@ const STATUS_TONE: Readonly<Record<ReportStatus, 'amber' | 'sky' | 'forest' | 's
  * resolve actions). */
 @Component({
   selector: 'bt-admin-reports-list',
-  imports: [FormsModule, RouterLink, BadgeComponent, SelectFieldComponent, TranslatePipe],
+  imports: [FormsModule, RouterLink, BadgeComponent, ButtonComponent, SelectFieldComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="p-6 sm:p-8">
@@ -41,6 +42,11 @@ const STATUS_TONE: Readonly<Record<ReportStatus, 'amber' | 'sky' | 'forest' | 's
 
       @if (reports.isLoading()) {
         <p class="mt-6 text-body text-ink-muted">{{ 'adminReports.loading' | t }}</p>
+      } @else if (reports.error()) {
+        <div class="mt-6 flex flex-col items-start gap-3" role="alert">
+          <p class="text-body">{{ 'apiErrors.server' | t }}</p>
+          <bt-button variant="outline" (click)="reports.reload()">{{ 'common.retry' | t }}</bt-button>
+        </div>
       } @else if ((reports.value() ?? []).length === 0) {
         <p class="mt-6 text-body text-ink-muted">{{ 'adminReports.empty' | t }}</p>
       } @else {
@@ -51,7 +57,7 @@ const STATUS_TONE: Readonly<Record<ReportStatus, 'amber' | 'sky' | 'forest' | 's
               class="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface-card p-4 text-ink no-underline hover:border-line-strong"
             >
               <bt-badge tone="stone">{{ 'reportTarget.' + r.targetType | t }}</bt-badge>
-              <span class="min-w-[200px] flex-1 text-body-strong">{{ r.reason }}</span>
+              <span class="min-w-[200px] flex-1 wrap-anywhere text-body-strong">{{ r.reason }}</span>
               <bt-badge [tone]="statusTone(r.status)">{{ 'reportStatus.' + r.status | t }}</bt-badge>
             </a>
           }

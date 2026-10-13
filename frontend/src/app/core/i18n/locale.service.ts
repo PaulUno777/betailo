@@ -1,4 +1,4 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
 import { en } from './translations/en';
 import { fr } from './translations/fr';
 import { TranslationDictionary } from './translations/fr';
@@ -45,6 +45,13 @@ export class LocaleService {
   readonly locale = signal<Locale>(detectInitialLocale());
 
   private readonly dictionary = computed(() => DICTIONARIES[this.locale()]);
+
+  constructor() {
+    // Screen readers pick their voice from <html lang>.
+    effect(() => {
+      document.documentElement.lang = this.locale();
+    });
+  }
 
   setLocale(locale: Locale): void {
     this.locale.set(locale);

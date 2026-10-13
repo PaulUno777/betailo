@@ -76,7 +76,7 @@ type Sheet = { kind: 'pay' | 'dispute' | 'confirm' | 'cancel'; view: Reservation
         </div>
       }
 
-      <div class="mt-5 flex flex-col gap-3" aria-live="polite">
+      <div class="mt-5 flex flex-col gap-3" [attr.aria-busy]="list.isLoading()">
         @if (list.value(); as l) {
           @for (v of l.items; track v.id) {
             <bt-reservation-card
@@ -109,7 +109,7 @@ type Sheet = { kind: 'pay' | 'dispute' | 'confirm' | 'cancel'; view: Reservation
 
     <!-- Pay a reserved-but-unpaid reservation. -->
     <bt-bottom-sheet [open]="sheet()?.kind === 'pay'" [title]="'reservations.paySheetTitle' | t" (closed)="close()">
-      <div class="flex flex-col gap-3" role="radiogroup">
+      <div class="flex flex-col gap-3" role="radiogroup" [attr.aria-label]="'checkout.paymentMethodLabel' | t">
         @for (m of methods; track m) {
           <bt-choice-card name="pay-method" [value]="m" [title]="methodLabels[m] | t" [checked]="payMethod() === m" (selected)="payMethod.set(m)" />
         }

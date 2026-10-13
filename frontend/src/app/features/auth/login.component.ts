@@ -26,9 +26,17 @@ interface LoginForm {
         @if (error(); as message) {
           <bt-notice tone="danger">{{ message | t }}</bt-notice>
         }
-        <bt-text-field [label]="'auth.loginEmailLabel' | t" type="email" autocomplete="email" formControlName="email" />
-        <bt-text-field [label]="'auth.loginPasswordLabel' | t" type="password" autocomplete="current-password" formControlName="password" />
-        <label class="flex items-center gap-2 text-small text-ink-muted">
+        <bt-text-field
+          [label]="'auth.loginEmailLabel' | t"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          markRequired
+          formControlName="email"
+          [error]="form.controls.email.touched && form.controls.email.invalid ? ('apiErrors.auth.email_invalid' | t) : undefined"
+        />
+        <bt-text-field [label]="'auth.loginPasswordLabel' | t" type="password" autocomplete="current-password" markRequired formControlName="password" />
+        <label class="-my-2 flex min-h-11 cursor-pointer items-center gap-2 text-small text-ink-muted">
           <input
             type="checkbox"
             [checked]="remember()"
@@ -42,7 +50,7 @@ interface LoginForm {
         </bt-button>
         <p class="text-center text-small text-ink-muted">
           {{ 'auth.loginNoAccount' | t }}
-          <a routerLink="/register" queryParamsHandling="preserve" class="text-forest">{{ 'auth.loginCreateAccount' | t }}</a>
+          <a routerLink="/register" queryParamsHandling="preserve" class="font-semibold text-forest underline underline-offset-2">{{ 'auth.loginCreateAccount' | t }}</a>
         </p>
       </form>
     </bt-auth-layout>

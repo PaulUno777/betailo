@@ -806,6 +806,7 @@ export const fr = {
     suspendedBadge: 'Suspendu',
     verifyButton: 'Vérifier',
     suspendButton: 'Suspendre',
+    suspendConfirmTitle: 'Suspendre {email} ?',
     actionFailedTitle: "Échec de l'action"
   },
   adminListings: {
@@ -821,6 +822,10 @@ export const fr = {
     empty: 'Aucune transaction sous séquestre.',
     releaseButton: 'Libérer',
     refundButton: 'Rembourser',
+    releaseConfirmTitle: 'Libérer le séquestre ?',
+    releaseConfirmBody: '{amount} seront versés à l’éleveur. Cette action est définitive.',
+    refundConfirmTitle: 'Rembourser l’acheteur ?',
+    refundConfirmBody: '{amount} seront rendus à l’acheteur. Cette action est définitive.',
     actionFailedTitle: "Échec de l'action"
   },
   adminReports: {
@@ -1084,6 +1089,10 @@ export const fr = {
     ponte: 'Ponte',
     reproduction: 'Reproduction',
     elevage: 'Élevage'
+  },
+  rating: {
+    groupLabel: 'Note',
+    outOf: '{value} sur 5'
   },
   priceRange: {
     min: 'Prix minimum',

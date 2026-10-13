@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AdminOverview } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { apiResource } from '../../core/http/api-resource';
 
@@ -9,7 +10,7 @@ import { apiResource } from '../../core/http/api-resource';
  * reservations chart, from `GET /admin/overview`. */
 @Component({
   selector: 'bt-admin-overview',
-  imports: [FcfaCurrencyPipe, TranslatePipe],
+  imports: [ButtonComponent, FcfaCurrencyPipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="p-6 sm:p-8">
@@ -43,11 +44,21 @@ import { apiResource } from '../../core/http/api-resource';
 
         <div class="mt-6 rounded-lg border border-line bg-surface-card p-4 sm:p-6">
           <p class="text-body-strong">{{ 'adminOverview.reservationsChartTitle' | t }}</p>
-          <div class="mt-4 grid items-end gap-0.5" style="height: 100px; grid-template-columns: repeat(30, minmax(0, 1fr))">
+          <div
+            class="mt-4 grid items-end gap-0.5"
+            style="height: 100px; grid-template-columns: repeat(30, minmax(0, 1fr))"
+            role="img"
+            [attr.aria-label]="('adminOverview.reservationsChartTitle' | t) + ' : ' + total(o.reservationsPerDay)"
+          >
             @for (v of o.reservationsPerDay; track $index) {
               <div class="rounded-t-sm bg-ink" [style.height.%]="barHeightPct(v, o.reservationsPerDay)" [attr.title]="v"></div>
             }
           </div>
+        </div>
+      } @else if (overview.error()) {
+        <div class="mt-6 flex flex-col items-start gap-3" role="alert">
+          <p class="text-body">{{ 'apiErrors.server' | t }}</p>
+          <bt-button variant="outline" (click)="overview.reload()">{{ 'common.retry' | t }}</bt-button>
         </div>
       }
     </div>
@@ -57,6 +68,10 @@ export class AdminOverviewComponent {
   private readonly adminApi = inject(AdminApi);
 
   protected readonly overview = apiResource<AdminOverview>(() => this.adminApi.overviewUrl());
+
+  protected total(all: number[]): number {
+    return all.reduce((sum, v) => sum + v, 0);
+  }
 
   protected barHeightPct(value: number, all: number[]): number {
     const max = Math.max(1, ...all);

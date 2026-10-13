@@ -31,7 +31,7 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
       <div class="flex gap-3">
         <div class="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-sunken sm:h-20 sm:w-20">
           @if (view().listing.photo; as photo) {
-            <img [src]="photo" [alt]="view().listing.title" loading="lazy" class="h-full w-full object-cover" />
+            <img [src]="photo" alt="" loading="lazy" class="h-full w-full object-cover" />
           }
         </div>
         <div class="flex min-w-0 flex-1 flex-col">
