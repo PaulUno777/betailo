@@ -35,6 +35,11 @@ export class ApiClient {
     return this.http.get<T>(`${this.baseUrl}${path}`, { params: buildParams(query) });
   }
 
+  /** A file the API builds (a CSV export), as the session's own request. */
+  download(path: string): Observable<Blob> {
+    return this.http.get(this.url(path), { responseType: 'blob' });
+  }
+
   post<T>(path: string, body?: unknown): Observable<T> {
     return this.http.post<T>(`${this.baseUrl}${path}`, body ?? {});
   }

@@ -243,8 +243,14 @@ s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", proof_body(proo
 check("V12d", "Farmer", "Send it again after withdrawing", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:120]}")
 s, b = adm.call("GET", "/admin/farms?queue=resubmitted")
 check("V12b", "Admin", "The resubmitted farm is in its own queue", "200 includes it", s == 200 and any(f.get("id") == farm_id for f in b.get("farms", [])), f"{s} counts={b.get('counts') if isinstance(b, dict) else b}")
-s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "approve"})
+s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "approve", "checks": ["name_matches", "photos_genuine", "not-a-check"]})
 check("V13", "Admin", "Approve the farm", "200 approved", s == 200 and (b or {}).get("status") == "approved", f"{s} {str(b)[:120]}")
+s, b = adm.call("GET", f"/admin/farms/{farm_id}")
+check("V13b", "Admin", "The ticked review points are kept with the decision", "the two known checks, 4 points listed",
+      s == 200 and b.get("checks") == ["name_matches", "photos_genuine"] and len(b.get("reviewChecks", [])) == 4, f"{s} checks={(b or {}).get('checks')}")
+s, b = adm.call("GET", "/admin/farms?queue=done")
+check("V13c", "Admin", "Queue rows carry a thumbnail of the farm", "thumbUrl on the reviewed farm",
+      s == 200 and any(f.get("id") == farm_id and f.get("thumbUrl") for f in b.get("farms", [])), f"{s}")
 s, b = far.call("GET", "/notifications")
 check("V14", "Farmer", "Owner is notified of the decisions", "farm_rejected and farm_approved in the inbox", s == 200 and {"farm_rejected", "farm_approved"} <= {n.get("type") for n in b.get("items", [])}, f"{s} types={[n.get('type') for n in b.get('items', [])]}")
 s, b = far.call("POST", f"/listings/{qlisting}/publish")
@@ -420,6 +426,8 @@ s, b = mod.call("GET", "/admin/farms?queue=todo")
 check("T06", "Staff", "The role applies to the session already open", "200", s == 200, f"{s}")
 s, b = mod.call("GET", "/admin/escrow")
 check("T07", "Staff", "Moderator reading escrow", "403 admin.permission_denied naming finance", s == 403 and (b or {}).get("code") == "admin.permission_denied" and "finance" in (b.get("params") or {}).get("roles", []), f"{s} {b}")
+s, b = mod.call("GET", "/admin/escrow/export.csv")
+check("T07b", "Staff", "Moderator downloading the accounting export", "403 admin.permission_denied", s == 403 and (b or {}).get("code") == "admin.permission_denied", f"{s} {b}")
 s, b = mod.call("POST", "/admin/staff", {"email": victim.email, "role": "support"})
 check("T08", "Staff", "Moderator granting a role", "403", s == 403, f"{s} {b}")
 s, b = mod.call("POST", "/farms", {"name": "Ferme du modérateur", "location": "Douala"})
@@ -431,7 +439,17 @@ check("T11", "Staff", "Change a member's role", "200 staffRole=finance", s == 20
 s, b = mod.call("GET", "/admin/escrow")
 s2, b2 = mod.call("GET", "/admin/reports")
 check("T12", "Staff", "Finance reads escrow, not reports", "200 then 403", s == 200 and s2 == 403, f"{s} {s2}")
+req = urllib.request.Request(BASE + "/admin/escrow/export.csv", headers={"Authorization": "Bearer " + mod.token})
+try:
+    with urllib.request.urlopen(req, timeout=20) as r:
+        csv_status, csv_type, csv_body = r.status, r.headers.get("Content-Type", ""), r.read().decode("utf-8-sig")
+except urllib.error.HTTPError as e:
+    csv_status, csv_type, csv_body = e.code, "", ""
+check("T12b", "Staff", "Finance downloads the accounting export", "200 text/csv with a header row and rows",
+      csv_status == 200 and csv_type.startswith("text/csv") and csv_body.startswith("reservation,buyer,farm,amount_fcfa") and csv_body.count("\n") >= 2, f"{csv_status} {csv_type} lines={csv_body.count(chr(10))}")
 s, b = adm.call("GET", "/admin/staff")
+root_row = next((m for m in b.get("members", []) if m.get("isRoot")), {})
+check("T13b", "Staff", "Team page says when a member last acted", "lastActiveAt on the root", bool(root_row.get("lastActiveAt")), f"{root_row.get('lastActiveAt')}")
 check("T13", "Staff", "Team page: members and the role table", "root + the new member, 4 roles", s == 200 and len(b.get("members", [])) >= 2 and len(b.get("roles", [])) == 4, f"{s} members={len(b.get('members', [])) if isinstance(b, dict) else b}")
 s, b = adm.call("POST", f"/admin/staff/{mod.user.get('id')}/role", {"role": ""})
 check("T14", "Staff", "Revoke a role", "200 no staffRole", s == 200 and not (b or {}).get("staffRole"), f"{s} {str(b)[:100]}")
@@ -510,6 +528,39 @@ check("S04", "Guest", "Oversized pageSize is capped", "200, ≤100 items", s == 
 
 if os.environ.get("QA_RESULTS"):
     json.dump(RESULTS, open(os.environ["QA_RESULTS"], "w"), indent=1, ensure_ascii=False)
+# ---------------- Moderation decisions ----------------
+rep1, _, _ = register("buyer", "Serge Signale")
+s, b = rep1.call("POST", "/reports", {"targetId": qlisting, "targetType": "listing", "reason": "Paiement hors plateforme demandé"})
+mod_report = (b or {}).get("id") if isinstance(b, dict) else None
+s, d = adm.call("GET", f"/admin/reports/{mod_report}")
+row = (d or {}).get("report", {})
+check("M01", "Admin", "A report has a reference and the decisions it can take", "RPT- reference; dismiss, hide_listing, reverify, suspend",
+      s == 200 and str(row.get("reference", "")).startswith("RPT-") and {"dismiss", "hide_listing", "reverify", "suspend"} <= set(d.get("actions", [])), f"{s} ref={row.get('reference')} actions={d.get('actions')}")
+s, b = adm.call("PUT", f"/admin/reports/{mod_report}/note", {"note": "Photos identiques à une autre annonce."})
+check("M02", "Admin", "Keep an internal note on a report", "200 note saved", s == 200 and (b or {}).get("note") == "Photos identiques à une autre annonce.", f"{s} {str(b)[:120]}")
+s, b = adm.call("PUT", f"/admin/reports/{mod_report}/note", {"note": "x" * 1001})
+check("M03", "Admin", "A note longer than the limit", "400 code admin.report_note_too_long", s == 400 and (b or {}).get("code") == "admin.report_note_too_long", f"{s} {b}")
+s, q = adm.call("GET", "/admin/reports")
+rows = [r for r in (q if isinstance(q, list) else []) if r.get("targetId") == qlisting]
+check("M04", "Admin", "The queue has one row per target", "one row for the listing, counting its reports", len(rows) == 1 and rows[0].get("count", 0) >= 2, f"rows={len(rows)} count={rows[0].get('count') if rows else None}")
+s, b = adm.call("POST", f"/admin/reports/{mod_report}/resolve", {"action": "hide_listing"})
+check("M05", "Admin", "Hide the reported listing", "200 handled", s == 200 and (b or {}).get("status") == "handled", f"{s} {str(b)[:120]}")
+s, b = g.call("GET", f"/listings/{qlisting}", token=False)
+check("M06", "Guest", "A hidden listing is off the market", "unpublished or not found", (s == 200 and (b or {}).get("status") == "unpublished") or s == 404, f"{s} {(b or {}).get('status') if isinstance(b, dict) else b}")
+s, d = adm.call("GET", f"/admin/reports/{mod_report}")
+check("M07", "Admin", "A decided report takes no further decision", "no action", s == 200 and d.get("actions") == [], f"{s} actions={d.get('actions')}")
+rep2, _, _ = register("buyer", "Nadège Signale")
+s, b = rep2.call("POST", "/reports", {"targetId": qlisting, "targetType": "listing", "reason": "Identité douteuse"})
+again = (b or {}).get("id") if isinstance(b, dict) else None
+s, b = adm.call("POST", f"/admin/reports/{again}/resolve", {"action": "reverify", "note": "Vérifier la pièce."})
+check("M08", "Admin", "Ask the farm's owner to verify their identity again", "200 handled", s == 200 and (b or {}).get("status") == "handled", f"{s} {str(b)[:120]}")
+s, me = far.call("GET", "/me")
+asked = next((f for f in me.get("farms", []) if f.get("id") == farm_id), {})
+check("M09", "Farmer", "The owner is asked for a new identity document", "rejected, code reverification, id_document to redo",
+      asked.get("status") == "rejected" and (asked.get("review") or {}).get("rejectionCode") == "reverification" and (asked.get("review") or {}).get("toRedo") == ["id_document"], f"status={asked.get('status')} review={asked.get('review')}")
+s, b = rep1.call("PUT", f"/admin/reports/{mod_report}/note", {"note": "x"})
+check("M10", "Buyer", "An ordinary account writing a staff note", "403", s == 403, f"{s}")
+
 failed = [r for r in RESULTS if not r["ok"]]
 print(f"\n{len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
 sys.exit(1 if failed else 0)

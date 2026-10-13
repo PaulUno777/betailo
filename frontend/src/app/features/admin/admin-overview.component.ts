@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { StaffSpaceService } from '../../core/auth/staff-space.service';
 import { apiResource } from '../../core/http/api-resource';
+import { ToastService } from '../../core/notifications/toast.service';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -44,10 +45,10 @@ const CHART_HEIGHT = 180;
             </button>
           }
         </div>
-        @if (staff.can('escrow.read')) {
+        @if (staff.can('exports.accounting')) {
           <button
             type="button"
-            [disabled]="(escrow.value() ?? []).length === 0"
+            [disabled]="exporting()"
             (click)="exportCsv()"
             class="inline-flex h-11 items-center gap-2 rounded-[10px] border border-line bg-surface-card px-4 text-small font-semibold text-ink transition hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -187,7 +188,7 @@ const CHART_HEIGHT = 180;
                       <th class="bo-th" scope="col">{{ 'adminEscrow.colFarm' | t }}</th>
                       <th class="bo-th" scope="col">{{ 'adminEscrow.colAmount' | t }}</th>
                       <th class="bo-th" scope="col">{{ 'adminEscrow.colStatus' | t }}</th>
-                      <th class="bo-th" scope="col">{{ 'adminEscrow.colDate' | t }}</th>
+                      <th class="bo-th" scope="col">{{ 'adminOverview.colUpdated' | t }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -204,7 +205,7 @@ const CHART_HEIGHT = 180;
                             <bt-status-badge kind="reservation" [status]="r.status" />
                           }
                         </td>
-                        <td class="bo-td !text-[13px] text-ink-muted">{{ r.createdAt | localDate: 'dayMonth' }}</td>
+                        <td class="bo-td !text-[13px] whitespace-nowrap text-ink-muted">{{ 'adminOverview.ago' | t: { age: since(r.createdAt) } }}</td>
                       </tr>
                     }
                   </tbody>
@@ -241,21 +242,28 @@ export class AdminOverviewComponent {
   protected readonly overview = apiResource<AdminOverview>(() => this.adminApi.overviewUrl(this.period()));
   protected readonly escrow = apiResource<AdminEscrowItem[]>(() => (this.staff.can('escrow.read') ? this.adminApi.escrowUrl() : undefined));
 
-  /** Saves the escrow transactions the API returned as a CSV file: the
-   * same rows as the escrow page, for a spreadsheet. */
+  private readonly toast = inject(ToastService);
+  protected readonly exporting = signal(false);
+
+  /** The accounting export: the API builds the file, checks who may
+   * have it and writes the download in the journal. */
   protected exportCsv(): void {
-    const rows = this.escrow.value() ?? [];
-    const cell = (value: unknown): string => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    const lines = [
-      ['reservation', 'buyer', 'farm', 'amount_fcfa', 'status', 'created_at'].join(','),
-      ...rows.map((r) => [r.reference, r.buyerName, r.farmName, r.totalAmount, r.payment?.status ?? r.status, r.createdAt].map(cell).join(','))
-    ];
-    const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `betailo-sequestre-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    this.exporting.set(true);
+    this.adminApi.exportEscrow().subscribe({
+      next: (file) => {
+        this.exporting.set(false);
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `betailo-sequestre-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.exporting.set(false);
+        this.toast.show({ tone: 'danger', title: 'adminOverview.exportFailed' });
+      }
+    });
   }
 
   /** The latest few, as the artboard's table does. */

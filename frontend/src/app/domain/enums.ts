@@ -22,12 +22,15 @@ export type Permission =
   | 'reports.resolve'
   | 'escrow.read'
   | 'escrow.settle'
+  | 'exports.accounting'
   | 'staff.manage'
   | 'audit.read';
 
 export type IdDocumentType = 'national_id' | 'passport' | 'driving_licence';
 
-export type RejectionCode = 'id_unreadable' | 'name_mismatch' | 'photos_not_recent' | 'farm_not_found' | 'other';
+/** `reverification` is not picked by a reviewer: it marks an approved
+ * farm whose owner was asked to prove their identity again. */
+export type RejectionCode = 'id_unreadable' | 'name_mismatch' | 'photos_not_recent' | 'farm_not_found' | 'other' | 'reverification';
 
 export type FarmQueue = 'todo' | 'resubmitted' | 'done';
 
@@ -55,7 +58,8 @@ export type ReportLevel = 'high' | 'medium' | 'low';
 
 export type ReportStatus = 'open' | 'under_review' | 'handled' | 'rejected';
 
-export type ResolveAction = 'dismiss' | 'suspend';
+/** A moderation decision; the API lists which ones a report can take. */
+export type ResolveAction = 'dismiss' | 'suspend' | 'hide_listing' | 'reverify';
 
 /** One piece of what an owner sends for a farm's review. */
 export type ProofPart = 'id_document' | 'photos' | 'details';

@@ -43,8 +43,18 @@ export class AdminApi {
     return this.api.url(`/admin/farms/${id}`);
   }
 
-  reviewFarm(id: string, decision: FarmDecision, reason?: string, reasonCode?: RejectionCode): Observable<Farm> {
-    return this.api.post<Farm>(`/admin/farms/${id}/review`, { decision, reason, reasonCode });
+  /** `checks` are the review points ticked; the API keeps them. */
+  reviewFarm(id: string, decision: FarmDecision, reason?: string, reasonCode?: RejectionCode, checks?: readonly string[]): Observable<Farm> {
+    return this.api.post<Farm>(`/admin/farms/${id}/review`, { decision, reason, reasonCode, checks });
+  }
+
+  /** The accounting export: every escrow transaction as CSV. */
+  exportEscrow(): Observable<Blob> {
+    return this.api.download('/admin/escrow/export.csv');
+  }
+
+  saveReportNote(id: string, note: string): Observable<Report> {
+    return this.api.put<Report>(`/admin/reports/${id}/note`, { note });
   }
 
   suspendUser(id: string): Observable<AdminUser> {
@@ -101,7 +111,8 @@ export class AdminApi {
     return this.api.url(`/admin/reports/${id}`);
   }
 
-  resolveReport(id: string, action: ResolveAction): Observable<Report> {
-    return this.api.post<Report>(`/admin/reports/${id}/resolve`, { action });
+  /** The decision closes every report waiting on the same target. */
+  resolveReport(id: string, action: ResolveAction, note?: string): Observable<Report> {
+    return this.api.post<Report>(`/admin/reports/${id}/resolve`, { action, note });
   }
 }

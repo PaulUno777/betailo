@@ -5,6 +5,7 @@ import { StaffSpaceService } from '../../core/auth/staff-space.service';
 import { AppError } from '../../core/http/app-error';
 import { apiResource } from '../../core/http/api-resource';
 import { LocaleService } from '../../core/i18n/locale.service';
+import { elapsed } from './ui/elapsed';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ToastService } from '../../core/notifications/toast.service';
 import { AdminApi } from '../../data-access/admin/admin.api';
@@ -74,7 +75,7 @@ import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
                 <tr>
                   <th class="bo-th" scope="col">{{ 'adminStaff.colMember' | t }}</th>
                   <th class="bo-th" scope="col">{{ 'adminStaff.colRole' | t }}</th>
-                  <th class="bo-th" scope="col">{{ 'adminStaff.colSince' | t }}</th>
+                  <th class="bo-th" scope="col">{{ 'adminStaff.colActivity' | t }}</th>
                   <th class="bo-th" scope="col"><span class="sr-only">{{ 'adminUsers.colActions' | t }}</span></th>
                 </tr>
               </thead>
@@ -105,7 +106,9 @@ import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
                         }
                       </div>
                     </td>
-                    <td class="bo-td whitespace-nowrap text-ink-muted">{{ m.memberSince | localDate: 'dayMonthYear' }}</td>
+                    <td class="bo-td !text-[13px] whitespace-nowrap text-ink-muted">
+                      {{ m.lastActiveAt ? ('adminOverview.ago' | t: { age: since(m.lastActiveAt) }) : ('adminStaff.neverActive' | t) }}
+                    </td>
                     <td class="bo-td">
                       <div class="flex justify-end gap-2">
                         @if (m.id === me()) {
@@ -329,6 +332,10 @@ export class AdminStaffComponent {
   private readonly adminApi = inject(AdminApi);
   private readonly toast = inject(ToastService);
   private readonly locale = inject(LocaleService);
+
+  protected since(iso: string): string {
+    return elapsed(iso, this.locale);
+  }
   protected readonly staff = inject(StaffSpaceService);
 
   protected readonly team = apiResource<StaffOverview>(() => this.adminApi.staffUrl());

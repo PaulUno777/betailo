@@ -24,8 +24,6 @@ import { elapsed, isLate } from './ui/elapsed';
 const QUEUES: readonly FarmQueue[] = ['todo', 'resubmitted', 'done'];
 /** The team's review target, shown above the queue. */
 const TARGET_HOURS = 48;
-const CHECKS = ['identity', 'document', 'photos', 'location'] as const;
-type Check = (typeof CHECKS)[number];
 
 /** `/admin/farms` — farm validation, per `AdminFarms.dc.html`: the
  * queue on the left in three tabs (to do, sent again after a refusal,
@@ -91,7 +89,11 @@ type Check = (typeof CHECKS)[number];
                   class="flex gap-3 rounded-[14px] border-[1.5px] p-3 text-ink transition"
                   [class]="farm.id === id() ? 'border-forest bg-surface-card' : 'border-line hover:border-line-strong'"
                 >
-                  <bt-avatar [name]="farm.name" [size]="56" shape="square" tone="forest" class="shrink-0 !rounded-[10px]" />
+                  @if (farm.thumbUrl) {
+                    <img [src]="farm.thumbUrl" alt="" loading="lazy" class="h-14 w-14 shrink-0 rounded-[10px] object-cover" />
+                  } @else {
+                    <bt-avatar [name]="farm.name" [size]="56" shape="square" tone="forest" class="shrink-0 !rounded-[10px]" />
+                  }
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
                     <span class="flex justify-between gap-2">
                       <b class="wrap-anywhere text-[14.5px]">{{ farm.name }}</b>
@@ -241,7 +243,7 @@ type Check = (typeof CHECKS)[number];
             <fieldset class="bo-card flex flex-col gap-1 px-5 py-[18px]">
               <legend class="float-left mb-1.5 font-display text-[17px] font-bold">{{ 'adminFarms.checksTitle' | t }}</legend>
               <div class="clear-both flex flex-col">
-                @for (c of checks; track c; let last = $last) {
+                @for (c of d.reviewChecks; track c; let last = $last) {
                   <label class="flex min-h-11 cursor-pointer items-center gap-3 text-small" [class.border-b]="!last" [class.border-line]="!last">
                     <input type="checkbox" class="h-[18px] w-[18px] shrink-0 accent-forest" [checked]="checked().has(c)" (change)="toggle(c)" />
                     <span class="flex-1">{{ 'adminFarms.check.' + c | t }}</span>
@@ -250,6 +252,16 @@ type Check = (typeof CHECKS)[number];
               </div>
               <p class="mt-1 text-caption text-ink-muted">{{ 'adminFarms.checksHint' | t }}</p>
             </fieldset>
+          } @else if (d.status !== 'pending' && d.status !== 'draft' && d.reviewerName) {
+            <div class="bo-card flex flex-col gap-1 px-5 py-[18px]">
+              <b class="mb-1.5 font-display text-[17px]">{{ 'adminFarms.checksDone' | t }}</b>
+              @for (c of d.reviewChecks; track c; let last = $last) {
+                <span class="flex min-h-10 items-center gap-3 text-small" [class.border-b]="!last" [class.border-line]="!last" [class.text-ink-muted]="!d.checks.includes(c)">
+                  <bt-icon [name]="d.checks.includes(c) ? 'check' : 'minus'" [size]="16" [class]="d.checks.includes(c) ? 'text-forest' : 'text-ink-muted'" />
+                  <span class="flex-1">{{ 'adminFarms.check.' + c | t }}</span>
+                </span>
+              }
+            </div>
           }
 
           @if (d.status !== 'pending' && d.status !== 'draft') {
@@ -357,7 +369,6 @@ export class AdminFarmsComponent {
   protected readonly staff = inject(StaffSpaceService);
 
   protected readonly queues = QUEUES;
-  protected readonly checks = CHECKS;
   protected readonly targetHours = TARGET_HOURS;
   protected readonly queue = signal<FarmQueue>('todo');
   protected readonly id = toSignal(this.route.paramMap.pipe(map((p) => p.get('id') ?? '')), { initialValue: '' });
@@ -372,7 +383,7 @@ export class AdminFarmsComponent {
   protected readonly reason = signal('');
   protected readonly reasonMissing = signal(false);
   /** The reviewer's own checklist for the farm on screen. */
-  protected readonly checked = signal<ReadonlySet<Check>>(new Set());
+  protected readonly checked = signal<ReadonlySet<string>>(new Set());
 
   constructor() {
     // Another farm on screen: a clean slate for the reviewer.
@@ -404,7 +415,7 @@ export class AdminFarmsComponent {
 
   protected readonly docType = (d: AdminFarmDetail): string => this.locale.t(`idDocumentType.${d.review?.idDocumentType ?? 'national_id'}`);
 
-  protected toggle(check: Check): void {
+  protected toggle(check: string): void {
     const next = new Set(this.checked());
     if (!next.delete(check)) next.add(check);
     this.checked.set(next);
@@ -444,7 +455,7 @@ export class AdminFarmsComponent {
   protected decide(decision: FarmDecision, reason?: string, code?: RejectionCode): void {
     if (this.busy() || !this.id()) return;
     this.busy.set(true);
-    this.adminApi.reviewFarm(this.id(), decision, reason, code).subscribe({
+    this.adminApi.reviewFarm(this.id(), decision, reason, code, [...this.checked()]).subscribe({
       next: () => {
         this.busy.set(false);
         this.asking.set(null);
