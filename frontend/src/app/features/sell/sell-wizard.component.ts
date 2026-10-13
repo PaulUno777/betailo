@@ -441,7 +441,13 @@ export class SellWizardComponent {
         error: (err: AppError) => {
           this.saving.set(false);
           this.publishing.set(false);
-          if (createdId) {
+          if (createdId && err.code === 'farm.not_verified') {
+            // Saved as a draft; it goes live once an admin has verified
+            // the seller. Not a failure, so it isn't shown as one.
+            clearDraft(this.userId);
+            this.toast.show({ tone: 'info', title: 'sell.pendingToast', detail: 'sell.pendingToastDetail' });
+            this.router.navigateByUrl('/portal/listings');
+          } else if (createdId) {
             // The listing exists as a draft: finish it from its page
             // instead of creating a duplicate on retry.
             clearDraft(this.userId);

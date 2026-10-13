@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Role } from '../../domain/enums';
 import { passwordStrength } from '../../domain/rules/password-strength';
 import { AuthApi } from '../../data-access/auth/auth.api';
 import { AuthService } from '../../core/auth/auth.service';
@@ -12,10 +11,8 @@ import { AuthLayoutComponent } from './auth-layout.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { NoticeComponent } from '../../shared/ui/notice/notice.component';
-import { ChoiceCardComponent } from '../../shared/ui/choice-card/choice-card.component';
 
 interface RegisterForm {
-  role: FormControl<Role>;
   displayName: FormControl<string>;
   email: FormControl<string>;
   password: FormControl<string>;
@@ -39,7 +36,6 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
     TextFieldComponent,
     ButtonComponent,
     NoticeComponent,
-    ChoiceCardComponent,
     TranslatePipe
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,24 +46,7 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
         @if (error(); as message) {
           <bt-notice tone="danger">{{ message | t }}</bt-notice>
         }
-        <div role="radiogroup" [attr.aria-label]="'auth.registerRoleLegend' | t" class="flex flex-col gap-3">
-          <bt-choice-card
-            name="role"
-            value="buyer"
-            [title]="'auth.registerRoleBuyerTitle' | t"
-            [description]="'auth.registerRoleBuyerDesc' | t"
-            [checked]="form.controls.role.value === 'buyer'"
-            (selected)="form.controls.role.setValue('buyer')"
-          />
-          <bt-choice-card
-            name="role"
-            value="farmer"
-            [title]="'auth.registerRoleFarmerTitle' | t"
-            [description]="'auth.registerRoleFarmerDesc' | t"
-            [checked]="form.controls.role.value === 'farmer'"
-            (selected)="form.controls.role.setValue('farmer')"
-          />
-        </div>
+        <p class="-mt-3 text-small text-ink-muted">{{ 'auth.registerIntro' | t }}</p>
         <bt-text-field
           [label]="'auth.registerNameLabel' | t"
           [hint]="'auth.registerNameHint' | t"
@@ -147,7 +126,6 @@ export class RegisterComponent {
 
   protected readonly form = new FormGroup<RegisterForm>(
     {
-      role: new FormControl<Role>('buyer', { nonNullable: true }),
       displayName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(60)] }),
       email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
       password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)] }),
@@ -177,16 +155,16 @@ export class RegisterComponent {
     }
     this.submitting.set(true);
     this.error.set(null);
-    const { role, displayName, email, password } = this.form.getRawValue();
-    this.authApi.register({ email, password, role, displayName: displayName.trim() || undefined }).subscribe({
+    const { displayName, email, password } = this.form.getRawValue();
+    // Everyone starts with a personal account; a farm is added later
+    // from "Vendre" (POST /me/become-seller).
+    this.authApi.register({ email, password, role: 'buyer', displayName: displayName.trim() || undefined }).subscribe({
       next: () => {
         this.authApi.login({ email, password, remember: true }).subscribe({
           next: ({ accessToken, user }) => {
             this.authService.setSession(accessToken, user);
-            // Back to what they were doing (Vendre, a checkout…); a new
-            // farmer otherwise goes straight to presenting their farm.
-            const redirectTo = this.route.snapshot.queryParamMap.get('redirectTo');
-            this.router.navigateByUrl(redirectTo ?? (role === 'farmer' ? '/sell' : '/'));
+            // Back to what they were doing (Vendre, a checkout…).
+            this.router.navigateByUrl(this.route.snapshot.queryParamMap.get('redirectTo') ?? '/');
           },
           error: (err: AppError) => {
             this.submitting.set(false);

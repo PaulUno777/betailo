@@ -73,6 +73,7 @@ import { MoreSheetComponent, MoreSheetLink } from './more-sheet.component';
           </div>
         </header>
         <main class="flex-1 bg-surface pb-[calc(var(--height-bottom-nav)+env(safe-area-inset-bottom)+16px)] lg:pb-0">
+          <ng-content select="[shellBanner]" />
           <router-outlet />
         </main>
       </div>

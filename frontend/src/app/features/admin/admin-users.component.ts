@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AdminUser } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { AppError } from '../../core/http/app-error';
@@ -31,20 +31,22 @@ import { apiResource } from '../../core/http/api-resource';
         <p class="mt-6 text-body text-ink-muted">{{ 'adminUsers.empty' | t }}</p>
       } @else {
         <div class="mt-6 flex flex-col gap-2">
-          @for (u of users.value()!; track u.id) {
+          @for (u of sorted(); track u.id) {
             <div class="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface-card p-4">
               <span class="min-w-[200px] flex-1 wrap-anywhere text-body-strong">{{ u.email }}</span>
               <bt-badge tone="stone">{{ 'role.' + u.role | t }}</bt-badge>
               <bt-status-badge kind="trust" [status]="u.trustScore" />
               @if (u.isVerified) {
                 <bt-badge tone="forest-solid">{{ 'adminUsers.verifiedBadge' | t }}</bt-badge>
+              } @else if (awaiting(u)) {
+                <bt-badge tone="amber">{{ 'adminUsers.awaitingBadge' | t }}</bt-badge>
               }
               @if (u.suspended) {
                 <bt-badge tone="alert">{{ 'adminUsers.suspendedBadge' | t }}</bt-badge>
               }
               <div class="flex gap-2">
                 @if (!u.isVerified) {
-                  <bt-button variant="outline" size="sm" [disabled]="acting() === u.id" (click)="verify(u.id)">
+                  <bt-button [variant]="awaiting(u) ? 'solid' : 'outline'" size="sm" [disabled]="acting() === u.id" (click)="verify(u.id)">
                     {{ 'adminUsers.verifyButton' | t }}
                   </bt-button>
                 }
@@ -81,6 +83,16 @@ export class AdminUsersComponent {
 
   protected readonly users = apiResource<AdminUser[]>(() => this.adminApi.usersUrl());
   protected readonly acting = signal<string | null>(null);
+
+  /** A seller can't publish until verified: those waiting come first. */
+  protected readonly sorted = computed(() => {
+    const users = this.users.value() ?? [];
+    return [...users.filter((u) => this.awaiting(u)), ...users.filter((u) => !this.awaiting(u))];
+  });
+
+  protected awaiting(u: AdminUser): boolean {
+    return u.role === 'farmer' && !u.isVerified && !u.suspended;
+  }
   /** Suspending locks someone out: asked for once, in a dialog. */
   protected readonly suspendTarget = signal<AdminUser | null>(null);
 

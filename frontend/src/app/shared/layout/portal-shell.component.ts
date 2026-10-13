@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { LocaleService } from '../../core/i18n/locale.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { NoticeComponent } from '../ui/notice/notice.component';
 import { NavCountsService } from '../../core/navigation/nav-counts.service';
 import { BottomNavCenter, BottomNavItem } from '../ui/bottom-nav/bottom-nav.component';
 import { SidebarNavItem } from '../ui/sidebar-nav/sidebar-nav.component';
@@ -41,7 +44,7 @@ const MORE_LINKS: readonly MoreSheetLink[] = [
  * payments, the farm, and the way back to buying. */
 @Component({
   selector: 'bt-portal-shell',
-  imports: [SidebarShellComponent],
+  imports: [SidebarShellComponent, NoticeComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <bt-sidebar-shell
@@ -54,12 +57,24 @@ const MORE_LINKS: readonly MoreSheetLink[] = [
       [bottomItems]="bottomItems()"
       [center]="center"
       [moreLinks]="moreLinks"
-    />
+    >
+      @if (seller.pendingVerification()) {
+        <div shellBanner class="px-4 pt-4 sm:px-8">
+          <bt-notice tone="warning" icon="clock" [title]="'sellerSpace.pendingTitle' | t">{{ 'sellerSpace.pendingBody' | t }}</bt-notice>
+        </div>
+      }
+    </bt-sidebar-shell>
   `
 })
 export class PortalShellComponent {
   private readonly locale = inject(LocaleService);
   private readonly navCounts = inject(NavCountsService);
+  protected readonly seller = inject(SellerSpaceService);
+
+  constructor() {
+    // Entering the seller space: an admin may have verified them since.
+    this.seller.refresh();
+  }
 
   protected readonly center = CENTER;
   protected readonly moreLinks = MORE_LINKS;

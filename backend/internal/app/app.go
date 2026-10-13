@@ -62,6 +62,7 @@ type Application struct {
 	storageProvider *objectstorage.S3Provider
 	server          *http.Server
 	worker          *worker.Worker
+	trust           ports.TrustRecomputer
 }
 
 // Initialize connects to MongoDB and object storage and wires every
@@ -245,10 +246,10 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateCycleStatus: &cycle.UpdateCycleStatus{Farms: farms, Cycles: cycles, Unpaid: closeUnpaid},
 			DeleteCycle:       &cycle.DeleteCycle{Farms: farms, Cycles: cycles, Listings: listings},
 
-			CreateListing:      &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
+			CreateListing:      &listing.CreateListing{Users: users, Farms: farms, Cycles: cycles, Listings: listings},
 			GetListing:         &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
 			QuickCreateListing: &listing.QuickCreate{Farms: farms, Cycles: cycles, Listings: listings, Sequencer: counters, Tx: txManager, Clock: systemClock},
-			PublishListing:     &listing.Publish{Farms: farms, Cycles: cycles, Listings: listings},
+			PublishListing:     &listing.Publish{Users: users, Farms: farms, Cycles: cycles, Listings: listings},
 			ListFarmListings:   &listing.ListFarmListings{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations},
 			PriceHint:          &listing.PriceHint{Search: listings},
 			UpdateCycle:        &cycle.UpdateCycle{Farms: farms, Cycles: cycles, Editor: cycles},
@@ -326,6 +327,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		storageProvider: storageProvider,
 		server:          server,
 		worker:          bgWorker,
+		trust:           trustRecompute,
 	}
 
 	cleanup := func() {
@@ -354,6 +356,16 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 		return err
 	} else if n > 0 {
 		a.Logger.Info("gave farms a country and region", "count", n)
+	}
+	if sellers, err := mongodb.VerifyExistingSellers(ctx, a.mongoDatabase); err != nil {
+		return err
+	} else if len(sellers) > 0 {
+		for _, id := range sellers {
+			if err := a.trust.Execute(ctx, id); err != nil {
+				a.Logger.Warn("trust score not recomputed after verifying an existing seller", "userId", id.Hex(), "error", err)
+			}
+		}
+		a.Logger.Info("verified sellers who already had published listings", "count", len(sellers))
 	}
 	if n, err := mongodb.MigrateUnpaidToWaitingList(ctx, a.mongoDatabase); err != nil {
 		return err

@@ -34,6 +34,7 @@ export const en: TranslationDictionary = {
     },
     farm: {
       already_seller: 'You are already a seller.',
+      not_verified: 'Your farm is being verified. You can publish your listings as soon as it is approved.',
       admin_cannot_sell: 'An admin account cannot sell.',
       name_location_required: "Enter the farm's name and town.",
       name_required: "Enter the farm's name.",
@@ -125,6 +126,11 @@ export const en: TranslationDictionary = {
     myReservations: 'My purchases',
     myAccount: 'My account',
     sellerSpace: 'Seller mode',
+    spaces: 'Your spaces',
+    personalSpace: 'Personal account',
+    verificationPending: 'Verification in progress',
+    addFarm: 'Add a farm',
+    addFarmHint: 'Sell your animals on Betailo',
     admin: 'Admin',
     signOut: 'Sign out'
   },
@@ -348,13 +354,9 @@ export const en: TranslationDictionary = {
     loginCreateAccount: 'Create an account',
     loginErrorInvalid: 'Incorrect email or password.',
     registerTitle: 'Create an account',
+    registerIntro: 'One account to buy. You can add your farm afterwards to sell.',
     registerNameLabel: 'Your name (optional)',
     registerNameHint: 'Shown on your reviews and reservations.',
-    registerRoleLegend: 'I am a',
-    registerRoleBuyerTitle: 'Buyer',
-    registerRoleBuyerDesc: 'I reserve animals from farmers.',
-    registerRoleFarmerTitle: 'Farmer',
-    registerRoleFarmerDesc: 'I sell my animals.',
     registerEmailLabel: 'Email address',
     registerPasswordLabel: 'Password',
     registerConfirmLabel: 'Confirm password',
@@ -807,6 +809,7 @@ export const en: TranslationDictionary = {
     suspendedBadge: 'Suspended',
     verifyButton: 'Verify',
     suspendButton: 'Suspend',
+    awaitingBadge: 'To verify',
     suspendConfirmTitle: 'Suspend {email}?',
     actionFailedTitle: 'Action failed'
   },
@@ -915,6 +918,8 @@ export const en: TranslationDictionary = {
     publishing: 'Publishing…',
     publishedToast: 'Listing published',
     draftToast: 'Draft saved',
+    pendingToast: 'Listing saved',
+    pendingToastDetail: 'You can publish it as soon as your farm is verified.',
     partialToast: 'Listing saved as a draft, finish it here',
     failedToast: 'The listing could not be created',
     missing: {
@@ -1090,6 +1095,10 @@ export const en: TranslationDictionary = {
     ponte: 'Laying',
     reproduction: 'Breeding',
     elevage: 'Rearing'
+  },
+  sellerSpace: {
+    pendingTitle: 'Verification in progress',
+    pendingBody: 'Prepare your cycles and listings now: you can publish them as soon as our team has verified your farm.'
   },
   rating: {
     groupLabel: 'Rating',

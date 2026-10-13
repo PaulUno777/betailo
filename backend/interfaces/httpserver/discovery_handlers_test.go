@@ -7,7 +7,8 @@ import (
 )
 
 func TestFarmProfile_HTTP_TrustBaselineAndPhonePrivacy(t *testing.T) {
-	router := newTestRouter()
+	router, tf := newTestRouterAndFakes()
+	tf.users.unverifiedSellers = true
 	farmerToken, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 	createRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{
 		Name: "Ferme des Collines", Location: "Dschang", Description: "Élevage familial", ContactPhone: "6 90 12 34 56",

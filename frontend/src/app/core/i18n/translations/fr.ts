@@ -32,6 +32,7 @@ export const fr = {
     },
     farm: {
       already_seller: 'Vous êtes déjà vendeur.',
+      not_verified: 'Votre ferme est en cours de vérification. Vos annonces seront publiables dès qu’elle sera validée.',
       admin_cannot_sell: 'Un compte administrateur ne peut pas vendre.',
       name_location_required: 'Indiquez le nom de la ferme et sa ville.',
       name_required: 'Indiquez le nom de la ferme.',
@@ -123,6 +124,11 @@ export const fr = {
     myReservations: 'Mes achats',
     myAccount: 'Mon compte',
     sellerSpace: 'Mode vendeur',
+    spaces: 'Vos espaces',
+    personalSpace: 'Compte personnel',
+    verificationPending: 'Vérification en cours',
+    addFarm: 'Ajouter une ferme',
+    addFarmHint: 'Vendez vos animaux sur Betailo',
     admin: 'Administration',
     signOut: 'Se déconnecter'
   },
@@ -346,13 +352,9 @@ export const fr = {
     loginCreateAccount: 'Créer un compte',
     loginErrorInvalid: 'E-mail ou mot de passe incorrect.',
     registerTitle: 'Créer un compte',
+    registerIntro: 'Un seul compte pour acheter. Vous pourrez ajouter votre ferme ensuite pour vendre.',
     registerNameLabel: 'Votre nom (facultatif)',
     registerNameHint: 'Affiché sur vos avis et réservations.',
-    registerRoleLegend: 'Je suis',
-    registerRoleBuyerTitle: 'Acheteur',
-    registerRoleBuyerDesc: "Je réserve des animaux auprès d'éleveurs.",
-    registerRoleFarmerTitle: 'Éleveur',
-    registerRoleFarmerDesc: 'Je vends mes animaux.',
     registerEmailLabel: 'Adresse e-mail',
     registerPasswordLabel: 'Mot de passe',
     registerConfirmLabel: 'Confirmer le mot de passe',
@@ -806,6 +808,7 @@ export const fr = {
     suspendedBadge: 'Suspendu',
     verifyButton: 'Vérifier',
     suspendButton: 'Suspendre',
+    awaitingBadge: 'À vérifier',
     suspendConfirmTitle: 'Suspendre {email} ?',
     actionFailedTitle: "Échec de l'action"
   },
@@ -914,6 +917,8 @@ export const fr = {
     publishing: 'Publication…',
     publishedToast: 'Annonce publiée',
     draftToast: 'Brouillon enregistré',
+    pendingToast: 'Annonce enregistrée',
+    pendingToastDetail: 'Elle sera publiable dès que votre ferme sera vérifiée.',
     partialToast: 'Annonce créée en brouillon, terminez-la ici',
     failedToast: "L'annonce n'a pas pu être créée",
     missing: {
@@ -1089,6 +1094,10 @@ export const fr = {
     ponte: 'Ponte',
     reproduction: 'Reproduction',
     elevage: 'Élevage'
+  },
+  sellerSpace: {
+    pendingTitle: 'Vérification en cours',
+    pendingBody: 'Préparez vos cycles et vos annonces dès maintenant : vous pourrez les publier dès que notre équipe aura vérifié votre ferme.'
   },
   rating: {
     groupLabel: 'Note',
