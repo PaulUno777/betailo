@@ -7,6 +7,7 @@ import {
   PaymentMethod,
   PaymentStatus,
   Permission,
+  ProofPart,
   RejectionCode,
   ReportLevel,
   ReportStatus,
@@ -83,8 +84,17 @@ export interface FarmReview {
   /** The kind of refusal staff picked, and the message they wrote. */
   rejectionCode?: RejectionCode;
   rejectionReason?: string;
+  /** A refusal split into what to send again and what was accepted. */
+  toRedo?: ProofPart[];
+  accepted?: ProofPart[];
+  /** The role of the staff member who decided. */
+  reviewerRole?: StaffRole;
+  /** How many farm photos the last submission held. */
+  photoCount: number;
   /** The farm is waiting on its owner to (re)submit proof. */
   canSubmit: boolean;
+  /** It is in the review queue and can be taken back out. */
+  canWithdraw: boolean;
 }
 
 /** `GET /admin/farms`: a farm in the validation queue, with its owner. */
@@ -468,6 +478,8 @@ export interface ForumPost {
 
 export interface CycleSummary {
   cycle: Cycle;
+  /** The farm the cycle runs on, for the combined view. */
+  farmName?: string;
   fillRate: number;
   nextMilestone?: string;
   nextMilestoneDate?: string;
@@ -493,8 +505,18 @@ export interface DashboardReservation extends Reservation {
 export interface SellerDashboard {
   trustScore: number;
   reservationsThisPeriod: number;
+  /** Last month's count, to compare with. */
+  reservationsPreviousPeriod: number;
   escrowHeldTotal: number;
+  /** How many reservations that escrow covers. */
+  heldReservations: number;
   releasedThisPeriod: number;
+  /** Reservations made in the last seven days. */
+  newReservations: number;
+  /** How many farms the figures cover: one, or all on the combined view. */
+  farmCount: number;
+  reviewAverage: number;
+  reviewCount: number;
   weeklyReservationCounts: number[];
   activeCycles: CycleSummary[];
   latestReservations: DashboardReservation[];

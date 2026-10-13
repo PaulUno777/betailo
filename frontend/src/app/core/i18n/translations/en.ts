@@ -177,7 +177,9 @@ export const en: TranslationDictionary = {
     purchases: 'My purchases',
     account: 'Account',
     badge: '{count} waiting on you',
-    badge_one: '{count} waiting on you'
+    badge_one: '{count} waiting on you',
+    market: 'Market',
+    sales: 'Sales'
   },
   dialog: {
     defaultCancel: 'Cancel'
@@ -529,7 +531,15 @@ export const en: TranslationDictionary = {
     cancelledToast: 'Reservation cancelled',
     disputedToast: 'Dispute opened: our team will get back to you',
     reviewedToast: 'Thanks for your review',
-    actionFailed: 'Couldn’t do that'
+    actionFailed: 'Couldn’t do that',
+    asideLabel: 'Your account at a glance',
+    fundsTitle: 'Your protected funds',
+    fundsBody: 'Held in escrow on {count} reservations. Nothing is paid to farmers before you confirm.',
+    fundsBody_one: 'Held in escrow on {count} reservation. Nothing is paid to the farmer before you confirm.',
+    toReviewTitle: 'Reviews to leave',
+    sellTitle: 'Do you raise animals too?',
+    sellBody: 'Create your farm with this same account. Send an identity document and a few photos: our team checks it, then you publish your cycles.',
+    sellCta: 'Create my farm'
   },
   countdown: {
     now: 'imminent',
@@ -749,7 +759,31 @@ export const en: TranslationDictionary = {
     weekLabel: 'W{n}',
     buyerUnnamed: 'Buyer',
     todoEmpty: 'Nothing urgent: your deliveries and health logs are up to date.',
-    searchLabel: 'Search a reservation'
+    searchLabel: 'Search a reservation',
+    allFarms: 'all my farms',
+    kpiReservationsDelta: '{delta} vs {month}',
+    kpiEscrowCount: 'FCFA · {count} reservations',
+    kpiEscrowCount_one: 'FCFA · {count} reservation',
+    kpiRating: '{rating} out of 5 · {count} reviews',
+    newReservations: '{count} new',
+    newReservations_one: '{count} new',
+    bannerLink: 'View my farms',
+    bannerOthers: 'Your other farms keep selling.',
+    banner: {
+      pendingTitle: '{farm} is under review',
+      pendingBody: 'You can publish cycles there once approved, usually within 48 h.',
+      draftTitle: '{farm} has not been sent yet',
+      draftBody: 'Send your identity document and photos to have it checked.',
+      rejectedTitle: '{farm} was refused',
+      rejectedBody: 'The reason says what to fix before sending it again.',
+      suspendedTitle: '{farm} is suspended',
+      suspendedBody: 'Its listings are no longer visible on the market.'
+    },
+    todoAction: {
+      mark_delivered: 'View the orders',
+      health_log: 'Add an entry',
+      awaiting_payment: 'View the orders'
+    }
   },
   portalCycles: {
     title: 'My batches',
@@ -1302,7 +1336,10 @@ export const en: TranslationDictionary = {
     label: 'Your farms',
     current: 'Current farm: {farm}. Switch farm',
     manage: 'Manage my farms',
-    create: 'Create a farm'
+    create: 'Create a farm',
+    all: 'All my farms',
+    allHint: '{count} farms · combined view',
+    limitReached: 'Limit reached'
   },
   farmStatusBanner: {
     draftTitle: '{farm} has not been submitted yet',
@@ -1412,7 +1449,24 @@ export const en: TranslationDictionary = {
     how2Title: 'The team checks',
     how2Body: 'A moderator compares the document, the name and the photos. Usually within 48 h.',
     how3Title: 'You publish',
-    how3Body: 'Approved: the farm publishes. Refused: the reason says what to fix, and you resend.'
+    how3Body: 'Approved: the farm publishes. Refused: the reason says what to fix, and you resend.',
+    byTeam: 'by the {team} team',
+    redo: {
+      id_document: 'Identity document to redo',
+      photos: 'Farm photos to redo',
+      details: 'Farm details to correct'
+    },
+    ok: {
+      id_document: 'Identity document accepted',
+      photos: '{count} farm photos accepted',
+      photos_one: '{count} farm photo accepted',
+      details: 'Farm details accepted'
+    },
+    withdraw: 'Withdraw the request',
+    withdrawTitle: 'Withdraw the request for {farm}?',
+    withdrawBody: 'The farm goes back to draft and keeps what you sent. You can send it again whenever you like.',
+    withdrawnToast: 'Request withdrawn',
+    withdrawFailed: 'The request could not be withdrawn'
   },
   adminFarms: {
     eyebrow: 'Verification',

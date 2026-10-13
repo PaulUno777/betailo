@@ -9,7 +9,9 @@ import { LocaleService } from '../../core/i18n/locale.service';
 import { ToastService } from '../../core/notifications/toast.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
+import { AppError } from '../../core/http/app-error';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { elapsed } from '../admin/ui/elapsed';
@@ -27,7 +29,7 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
  * a short-lived link only its owner gets. */
 @Component({
   selector: 'bt-portal-farms',
-  imports: [RouterLink, ButtonComponent, IconComponent, StatusBadgeComponent, FarmProofFormComponent, SellerOnboardingComponent, LocalDatePipe, TranslatePipe],
+  imports: [RouterLink, ButtonComponent, DialogComponent, IconComponent, StatusBadgeComponent, FarmProofFormComponent, SellerOnboardingComponent, LocalDatePipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-6 p-4 sm:p-8 lg:px-10">
@@ -108,6 +110,9 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
                 }
                 @if (statusDate(farm); as line) {
                   · {{ line.key | t: { date: (line.at | localDate: 'dayMonthTime') } }}
+                  @if (farm.status === 'rejected' && farm.review?.reviewerRole; as role) {
+                    {{ 'portalFarms.byTeam' | t: { team: ('staffRole.' + role | t) } }}
+                  }
                 }
               </span>
 
@@ -175,6 +180,16 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
                       <span class="wrap-anywhere text-small leading-normal text-ink">« {{ message }} »</span>
                     }
                   </div>
+                  <ul class="flex flex-wrap gap-x-[18px] gap-y-1.5 text-[13.5px]">
+                    @for (part of farm.review?.toRedo ?? []; track part) {
+                      <li class="flex items-center gap-1.5 text-alert"><bt-icon name="x" [size]="15" />{{ 'portalFarms.redo.' + part | t }}</li>
+                    }
+                    @for (part of farm.review?.accepted ?? []; track part) {
+                      <li class="flex items-center gap-1.5 text-forest">
+                        <bt-icon name="check" [size]="15" />{{ 'portalFarms.ok.' + part | t: { count: farm.review?.photoCount ?? 0 } }}
+                      </li>
+                    }
+                  </ul>
                 }
                 @case ('suspended') {
                   <div class="flex flex-col gap-1.5 rounded-[14px] bg-alert-soft px-4 py-3.5">
@@ -201,7 +216,11 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
                 @case ('pending') {
                   <bt-button variant="outline" block (click)="open(farm, '/portal/cycles/new')">{{ 'portalFarms.prepareDraft' | t }}</bt-button>
                   <bt-button variant="solid" block disabled [attr.title]="'portalFarms.publishLocked' | t">{{ 'portalFarms.publishCycle' | t }}</bt-button>
-                  <span class="text-center text-[12.5px] text-ink-muted">{{ 'portalFarms.publishLocked' | t }}</span>
+                  @if (farm.review?.canWithdraw) {
+                    <bt-button variant="ghost" block class="[&_button]:text-alert" [disabled]="withdrawing() === farm.id" (click)="withdrawTarget.set(farm)">
+                      {{ 'portalFarms.withdraw' | t }}
+                    </bt-button>
+                  }
                 }
                 @case ('suspended') {
                   <span class="text-center text-[12.5px] text-ink-muted">{{ 'portalFarms.suspendedHelp' | t }}</span>
@@ -230,6 +249,19 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
         }
       }
 
+      <bt-dialog
+        [open]="withdrawTarget() !== null"
+        [title]="'portalFarms.withdrawTitle' | t: { farm: withdrawTarget()?.name ?? '' }"
+        [primaryLabel]="'portalFarms.withdraw' | t"
+        primaryVariant="danger"
+        [secondaryLabel]="'common.cancel' | t"
+        (primaryClick)="withdraw()"
+        (secondaryClick)="withdrawTarget.set(null)"
+        (closed)="withdrawTarget.set(null)"
+      >
+        {{ 'portalFarms.withdrawBody' | t }}
+      </bt-dialog>
+
       <section class="mt-1 grid gap-4 sm:grid-cols-3" [attr.aria-label]="'portalFarms.howLabel' | t">
         @for (step of [1, 2, 3]; track step) {
           <div class="flex items-start gap-3">
@@ -257,6 +289,28 @@ export class PortalFarmsComponent {
   protected readonly adding = signal(false);
   /** The farm whose proof form is open. */
   protected readonly submitting = signal<string | null>(null);
+  /** The pending farm whose request the owner is about to withdraw. */
+  protected readonly withdrawTarget = signal<Farm | null>(null);
+  protected readonly withdrawing = signal<string | null>(null);
+
+  protected withdraw(): void {
+    const farm = this.withdrawTarget();
+    if (!farm) return;
+    this.withdrawTarget.set(null);
+    this.withdrawing.set(farm.id);
+    this.farmsApi.withdrawSubmission(farm.id).subscribe({
+      next: () => {
+        this.withdrawing.set(null);
+        this.seller.refresh();
+        this.cards.reload();
+        this.toast.show({ tone: 'success', title: 'portalFarms.withdrawnToast' });
+      },
+      error: (err: AppError) => {
+        this.withdrawing.set(null);
+        this.toast.show({ tone: 'danger', title: 'portalFarms.withdrawFailed', detail: err.message });
+      }
+    });
+  }
 
   /** One dot per allowed farm, filled for each one owned. */
   protected readonly quotaDots = computed(() => {

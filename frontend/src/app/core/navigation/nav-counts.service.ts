@@ -10,7 +10,7 @@ const POLL_MS = 60_000;
  * at most this often. */
 const MIN_GAP_MS = 15_000;
 
-const ZERO: NavCounts = { buyer: 0, seller: 0 };
+const ZERO: NavCounts = { buyer: 0, seller: 0, cycles: 0 };
 
 /** The badges on "Mes achats" and "Ventes": how many reservations wait
  * on the user, decided server-side. Read on sign-in, after navigating

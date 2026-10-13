@@ -230,8 +230,17 @@ check("V10", "Admin", "Reject with a reason", "200 rejected", s == 200 and (b or
 s, me = far.call("GET", "/me")
 rv = (me.get("farms") or [{}])[0].get("review") or {}
 check("V11", "Farmer", "Owner sees the rejection reason and can resubmit", "code + reason + canSubmit", rv.get("rejectionReason") == "Document illisible" and rv.get("rejectionCode") == "id_unreadable" and rv.get("canSubmit") is True, f"{s} review={rv}")
+check("V11b", "Farmer", "The refusal says what to redo and what was accepted", "toRedo=[id_document], accepted has photos, reviewerRole",
+      rv.get("toRedo") == ["id_document"] and "photos" in (rv.get("accepted") or []) and rv.get("reviewerRole") == "super_admin", f"review={rv}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/withdraw")
+check("V11c", "Farmer", "Withdraw a farm that is not in the queue", "409 code farm.not_pending", s == 409 and (b or {}).get("code") == "farm.not_pending", f"{s} {b}")
+redo = upload_farm_proof(far, farm_id, 2)
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {"idDocumentType": "national_id", "idDocumentKey": redo[0], "idDocumentBackKey": redo[1], "certified": True})
+check("V12", "Farmer", "Resubmit only the refused document, the accepted photos are kept", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:120]}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/withdraw")
+check("V12c", "Farmer", "Withdraw the request", "200 draft, can submit", s == 200 and (b or {}).get("status") == "draft" and (b.get("review") or {}).get("canSubmit") is True, f"{s} {str(b)[:120]}")
 s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", proof_body(proof))
-check("V12", "Farmer", "Resubmit after a rejection", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:120]}")
+check("V12d", "Farmer", "Send it again after withdrawing", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:120]}")
 s, b = adm.call("GET", "/admin/farms?queue=resubmitted")
 check("V12b", "Admin", "The resubmitted farm is in its own queue", "200 includes it", s == 200 and any(f.get("id") == farm_id for f in b.get("farms", [])), f"{s} counts={b.get('counts') if isinstance(b, dict) else b}")
 s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "approve"})
@@ -341,6 +350,15 @@ s, b = far.call("GET", "/farms/mine/cards")
 cards = b if isinstance(b, list) else []
 check("F30", "Farmer", "My farms with their figures", "200, stats on each card",
       s == 200 and len(cards) > 0 and all("activeCycles" in c and "salesCount" in c and "trustScore" in c and "review" in c for c in cards), f"{s} n={len(cards)}")
+s, b = far.call("GET", "/me/seller-dashboard")
+check("F32", "Farmer", "Combined dashboard over every farm", "200 with farmCount and the new figures",
+      s == 200 and isinstance(b, dict) and b.get("farmCount", 0) >= 1 and all(k in b for k in ("reservationsPreviousPeriod", "heldReservations", "newReservations", "reviewCount")), f"{s} farms={(b or {}).get('farmCount')}")
+s, b = far.call("GET", "/me/nav-counts")
+check("F33", "Farmer", "Nav counts carry active cycles", "200 cycles", s == 200 and "cycles" in (b or {}), f"{s} {b}")
+s, b = far.call("GET", f"/farms/{farm_id}/reservations?q=zzz-no-such-reference")
+check("F34", "Farmer", "Order search narrows the tab, counts stay whole", "200, no item", s == 200 and b.get("items") == [] and "counts" in b, f"{s} n={len((b or {}).get('items', []))}")
+s, b = g.call("GET", "/me/seller-dashboard", token=False)
+check("F35", "Guest", "Combined dashboard needs a session", "401", s == 401, s)
 s, b = g.call("GET", "/farms/mine/cards", token=False)
 check("F31", "Guest", "My farms needs a session", "401", s == 401, s)
 if report_id:

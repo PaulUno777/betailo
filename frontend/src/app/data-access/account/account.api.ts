@@ -15,6 +15,8 @@ export interface ProfileInput {
 export interface NavCounts {
   readonly buyer: number;
   readonly seller: number;
+  /** The seller's planned or running cycles. */
+  readonly cycles: number;
 }
 
 export interface ChangePasswordInput {

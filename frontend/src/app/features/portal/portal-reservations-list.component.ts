@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ReservationAction, ReservationGroup, ReservationList, ReservationView } from '../../domain/models';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
@@ -69,7 +69,7 @@ const TABS: readonly { id: ReservationGroup; labelKey: string }[] = [
 
       <div class="mt-5 flex flex-col gap-3">
         @if (list.value(); as l) {
-          @for (v of matching(l.items); track v.id) {
+          @for (v of l.items; track v.id) {
             <bt-reservation-card [view]="v" perspective="farmer" (action)="onAction($event, v)" />
           } @empty {
             <p class="rounded-xl border border-dashed border-line-strong px-6 py-12 text-center text-body text-ink-muted">
@@ -99,19 +99,23 @@ export class PortalReservationsListComponent {
   /** What the seller typed, here or in the dashboard's search. */
   protected readonly query = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('q') ?? '');
 
-  /** Narrows the loaded orders to the ones naming what was typed: a
-   * reference, a cycle or a listing. */
-  protected matching(items: ReservationView[]): ReservationView[] {
-    const q = this.query().trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((v) => [v.reference, v.cycle?.reference, v.listing?.title].some((text) => text?.toLowerCase().includes(q)));
+  /** Sent to the API once typing pauses, so each keystroke isn't a request. */
+  protected readonly search = signal(this.query().trim());
+
+  constructor() {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    effect((onCleanup) => {
+      const q = this.query().trim();
+      timer = setTimeout(() => this.search.set(q), 300);
+      onCleanup(() => clearTimeout(timer));
+    });
   }
 
   private readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly list = apiResource<ReservationList>(() => {
     const farmId = this.myFarm()?.id;
-    return farmId ? this.reservationsApi.byFarmUrl(farmId, this.group()) : undefined;
+    return farmId ? this.reservationsApi.byFarmUrl(farmId, this.group(), this.search()) : undefined;
   });
 
   protected onAction(action: ReservationAction, v: ReservationView): void {

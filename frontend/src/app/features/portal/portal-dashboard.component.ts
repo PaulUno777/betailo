@@ -10,6 +10,7 @@ import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { apiResource } from '../../core/http/api-resource';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
+import { FarmSwitcherComponent } from '../../shared/ui/farm-switcher/farm-switcher.component';
 import { AvatarComponent, AvatarTone } from '../../shared/ui/avatar/avatar.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
@@ -44,7 +45,7 @@ function isoWeek(date: Date): number {
  * An account without a farm gets the farm creation step instead. */
 @Component({
   selector: 'bt-portal-dashboard',
-  imports: [RouterLink, AvatarComponent, StatusBadgeComponent, IconComponent, ButtonComponent, SellerOnboardingComponent, LocalDatePipe, TranslatePipe],
+  imports: [RouterLink, AvatarComponent, FarmSwitcherComponent, StatusBadgeComponent, IconComponent, ButtonComponent, SellerOnboardingComponent, LocalDatePipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!seller.loaded()) {
@@ -54,10 +55,11 @@ function isoWeek(date: Date): number {
         <bt-seller-onboarding (created)="seller.refresh()" />
       </div>
     } @else {
-      <div class="flex flex-col gap-6 p-4 sm:p-8 lg:px-10">
+      <div class="flex flex-col gap-4 p-4 sm:gap-6 sm:p-8 lg:px-10">
+        <bt-farm-switcher light class="block lg:hidden" />
         <header class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
           <div class="flex min-w-0 flex-col gap-1">
-            <span class="text-small text-ink-muted first-letter:uppercase">{{ today() }} · {{ myFarm()!.name }}</span>
+            <span class="text-small text-ink-muted first-letter:uppercase">{{ today() }} · {{ seller.allFarms() ? ('portal.allFarms' | t) : myFarm()!.name }}</span>
             <h1 class="font-display text-[30px] leading-none font-extrabold tracking-[-0.03em] sm:text-[36px]">{{ 'portal.greeting' | t: { name: firstName() } }}</h1>
           </div>
           <div class="flex flex-wrap items-center gap-2.5">
@@ -82,37 +84,73 @@ function isoWeek(date: Date): number {
                 <span class="absolute top-2 right-[9px] h-[9px] w-[9px] rounded-full bg-clay ring-2 ring-surface" aria-hidden="true"></span>
               }
             </a>
-            <bt-button variant="solid" href="/portal/cycles/new">
+            <bt-button class="hidden lg:block" variant="solid" href="/portal/cycles/new">
               <bt-icon name="plus" [size]="16" />
               {{ 'portal.newCycleButton' | t }}
             </bt-button>
           </div>
         </header>
 
+        @if (reviewBanner(); as b) {
+          <a routerLink="/portal/farms" class="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl px-4 py-3.5 text-small transition hover:brightness-95" [class]="b.alert ? 'bg-alert-soft text-ink' : 'bg-amber-soft text-ink'">
+            <bt-icon [name]="b.alert ? 'alert' : 'clock'" [size]="20" class="shrink-0" [class]="b.alert ? 'text-alert' : 'text-amber'" />
+            <span class="min-w-[200px] flex-1">
+              <b>{{ b.titleKey | t: { farm: b.farm } }}.</b>
+              {{ b.bodyKey | t }}
+              @if (b.others) {
+                {{ 'portal.bannerOthers' | t }}
+              }
+            </span>
+            <span class="w-full font-bold whitespace-nowrap sm:w-auto" [class]="b.alert ? 'text-alert' : 'text-amber'">{{ 'portal.bannerLink' | t }} →</span>
+          </a>
+        }
+
         @if (dashboard.value(); as d) {
           <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <div class="flex flex-col gap-2 rounded-[20px] border border-line bg-surface-card p-4 sm:p-5">
               <span class="text-eyebrow text-ink-muted">{{ 'portal.kpiReservations' | t: { month: month() } }}</span>
               <span class="font-display text-[30px] leading-none font-extrabold tracking-[-0.02em] sm:text-[38px]">{{ d.reservationsThisPeriod }}</span>
-              <span class="text-small text-ink-muted">{{ 'portal.kpiReservationsHint' | t }}</span>
+              @if (d.reservationsPreviousPeriod > 0 || d.reservationsThisPeriod > 0) {
+                <span class="text-small font-semibold" [class]="d.reservationsThisPeriod >= d.reservationsPreviousPeriod ? 'text-forest' : 'text-clay-ink'">
+                  {{ 'portal.kpiReservationsDelta' | t: { delta: signed(d.reservationsThisPeriod - d.reservationsPreviousPeriod), month: previousMonth() } }}
+                </span>
+              } @else {
+                <span class="text-small text-ink-muted">{{ 'portal.kpiReservationsHint' | t }}</span>
+              }
             </div>
-            <div class="flex flex-col gap-2 panel-dark rounded-[20px] bg-forest-deep p-4 text-on-forest-deep sm:p-5 xl:order-last">
-              <span class="truncate text-eyebrow text-on-forest-deep/70">{{ 'portal.kpiTrustScore' | t }}</span>
+            <div class="flex flex-col gap-2 rounded-[20px] border border-sky/15 bg-sky-soft p-4 sm:p-5">
+              <span class="text-eyebrow text-sky">{{ 'portal.kpiEscrowHeld' | t }}</span>
+              <span class="font-display text-[22px] leading-none font-extrabold tracking-[-0.02em] text-sky sm:text-[38px]">{{ amount(d.escrowHeldTotal) }}</span>
+              <span class="text-small text-sky">{{ 'portal.kpiEscrowCount' | t: { count: d.heldReservations } }}</span>
+            </div>
+            <div class="flex flex-col gap-2 rounded-[20px] border border-forest/15 bg-forest-soft p-4 sm:p-5">
+              <span class="text-eyebrow text-forest">{{ 'portal.kpiReleased' | t }}</span>
+              <span class="font-display text-[22px] leading-none font-extrabold tracking-[-0.02em] text-on-forest-soft sm:text-[38px]">{{ amount(d.releasedThisPeriod) }}</span>
+              <span class="text-small text-forest">{{ 'portal.kpiReleasedHint' | t }}</span>
+            </div>
+            <div class="flex flex-col gap-2 panel-dark rounded-[20px] bg-forest-deep p-4 text-on-forest-deep sm:p-5">
+              <span class="truncate text-eyebrow text-on-forest-deep/70">
+                {{ 'portal.kpiTrustScore' | t }}
+                @if (!seller.allFarms() && d.farmCount === 1 && seller.farms().length > 1) {
+                  · {{ myFarm()!.name }}
+                }
+              </span>
               <span class="font-display text-[30px] leading-none font-extrabold sm:text-[38px]">
                 {{ trust(d.trustScore) }}<span class="text-[18px] text-on-forest-deep/70">/100</span>
               </span>
-              <a [routerLink]="['/farms', myFarm()!.id, 'reviews']" class="text-small font-semibold text-clay-soft underline-offset-2 hover:underline">{{ 'portal.kpiTrustLink' | t }}</a>
+              <a [routerLink]="seller.allFarms() ? '/portal/farms' : ['/farms', myFarm()!.id, 'reviews']" class="text-small font-semibold text-clay-soft underline-offset-2 hover:underline">
+                @if (d.reviewCount > 0) {
+                  {{ 'portal.kpiRating' | t: { rating: rating(d.reviewAverage), count: d.reviewCount } }}
+                } @else {
+                  {{ 'portal.kpiTrustLink' | t }}
+                }
+              </a>
             </div>
-            <div class="col-span-2 flex flex-col gap-2 rounded-[20px] border border-sky/15 bg-sky-soft p-4 sm:p-5 xl:col-span-1">
-              <span class="text-eyebrow text-sky">{{ 'portal.kpiEscrowHeld' | t }}</span>
-              <span class="font-display text-[30px] leading-none font-extrabold tracking-[-0.02em] text-sky sm:text-[38px]">{{ amount(d.escrowHeldTotal) }}</span>
-              <span class="text-small text-sky">{{ 'portal.kpiEscrowHint' | t }}</span>
-            </div>
-            <div class="col-span-2 flex flex-col gap-2 rounded-[20px] border border-forest/15 bg-forest-soft p-4 sm:p-5 xl:col-span-1">
-              <span class="text-eyebrow text-forest">{{ 'portal.kpiReleased' | t }}</span>
-              <span class="font-display text-[30px] leading-none font-extrabold tracking-[-0.02em] text-on-forest-soft sm:text-[38px]">{{ amount(d.releasedThisPeriod) }}</span>
-              <span class="text-small text-forest">{{ 'portal.kpiReleasedHint' | t }}</span>
-            </div>
+          </div>
+
+          <div class="flex gap-2.5 lg:hidden">
+            <bt-button class="flex-1" variant="solid" block href="/portal/cycles/new">{{ 'portal.newCycleButton' | t }}</bt-button>
+            <bt-button class="flex-1" variant="outline" block href="/portal/farms">{{ 'portalNav.farms' | t }}</bt-button>
           </div>
 
           <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -143,7 +181,12 @@ function isoWeek(date: Date): number {
                       >
                         <span class="flex min-w-0 flex-col gap-0.5">
                           <b class="truncate text-[15px]">{{ speciesKey(c.cycle.species) | t }}</b>
-                          <span class="truncate font-mono text-[11.5px] text-ink-muted">{{ c.cycle.reference || c.cycle.id.slice(-6) }} · {{ typeKey(c.cycle.type) | t }}</span>
+                          <span class="truncate font-mono text-[11.5px] text-ink-muted">
+                            {{ c.cycle.reference || c.cycle.id.slice(-6) }} · {{ typeKey(c.cycle.type) | t }}
+                            @if (d.farmCount > 1 && c.farmName) {
+                              · {{ c.farmName }}
+                            }
+                          </span>
                         </span>
                         <bt-status-badge class="justify-self-end md:justify-self-start" kind="cycle" [status]="c.cycle.status" />
                         <span class="col-span-2 flex flex-col gap-1.5 md:col-span-1">
@@ -193,11 +236,15 @@ function isoWeek(date: Date): number {
               </div>
             </section>
 
-            <div class="flex flex-col gap-5">
+            <div class="order-first flex flex-col gap-5 xl:order-none">
               <section class="flex flex-col gap-3.5 rounded-[20px] border border-line bg-surface-card p-4 sm:p-[22px]">
                 <div class="flex items-center justify-between gap-3">
                   <h2 class="font-display text-[20px] font-bold">{{ 'portal.latestReservationsTitle' | t }}</h2>
-                  <a routerLink="/portal/reservations" class="text-small font-semibold text-forest underline-offset-2 hover:underline">{{ 'portal.seeAll' | t }}</a>
+                  @if (d.newReservations > 0) {
+                    <a routerLink="/portal/reservations" class="inline-flex h-[26px] items-center rounded-full bg-clay-soft px-2.5 text-caption font-semibold text-clay-ink">{{ 'portal.newReservations' | t: { count: d.newReservations } }}</a>
+                  } @else {
+                    <a routerLink="/portal/reservations" class="text-small font-semibold text-forest underline-offset-2 hover:underline">{{ 'portal.seeAll' | t }}</a>
+                  }
                 </div>
                 @if (d.latestReservations.length === 0) {
                   <p class="text-body text-ink-muted">{{ 'portal.noReservations' | t }}</p>
@@ -235,20 +282,25 @@ function isoWeek(date: Date): number {
                   <bt-icon name="bolt" [size]="20" />
                   <h2 class="font-display text-[18px] font-bold">{{ 'portal.todoTitle' | t }}</h2>
                 </div>
-                @if (d.todos.length === 0) {
-                  <p class="text-small leading-relaxed">{{ 'portal.todoEmpty' | t }}</p>
+                @if (d.todos[0]; as first) {
+                  <p class="text-small leading-relaxed">{{ 'portal.todo.' + first.kind | t: { count: first.count ?? 1, ref: first.cycleRef ?? '' } }}</p>
+                  <a [routerLink]="todoRoute(first)" class="inline-flex h-10 items-center self-start rounded-full bg-ink px-5 text-small font-semibold text-surface transition hover:brightness-125">
+                    {{ 'portal.todoAction.' + first.kind | t }}
+                  </a>
+                  @if (d.todos.length > 1) {
+                    <ul class="mt-1 flex flex-col gap-1 border-t border-on-clay/15 pt-2.5">
+                      @for (todo of d.todos.slice(1); track $index) {
+                        <li>
+                          <a [routerLink]="todoRoute(todo)" class="flex min-h-9 items-center gap-2 text-small font-medium text-on-clay underline-offset-2 hover:underline">
+                            <bt-icon [name]="todoIcon(todo)" [size]="16" class="shrink-0" />
+                            <span class="flex-1">{{ 'portal.todo.' + todo.kind | t: { count: todo.count ?? 1, ref: todo.cycleRef ?? '' } }}</span>
+                          </a>
+                        </li>
+                      }
+                    </ul>
+                  }
                 } @else {
-                  <ul class="flex flex-col gap-2">
-                    @for (todo of d.todos; track $index) {
-                      <li>
-                        <a [routerLink]="todoRoute(todo)" class="flex min-h-12 items-center gap-3 rounded-xl bg-ink px-3.5 py-2 text-small font-semibold text-surface transition hover:bg-forest-deep">
-                          <bt-icon [name]="todoIcon(todo)" [size]="18" class="shrink-0 text-clay" />
-                          <span class="flex-1">{{ 'portal.todo.' + todo.kind | t: { count: todo.count ?? 1, ref: todo.cycleRef ?? '' } }}</span>
-                          <bt-icon name="chevron-right" [size]="16" class="shrink-0" />
-                        </a>
-                      </li>
-                    }
-                  </ul>
+                  <p class="text-small leading-relaxed">{{ 'portal.todoEmpty' | t }}</p>
                 }
               </section>
             </div>
@@ -289,8 +341,39 @@ export class PortalDashboardComponent {
 
   protected readonly dashboard = apiResource<SellerDashboard>(() => {
     const farmId = this.myFarm()?.id;
-    return farmId ? this.dashboardApi.sellerDashboardUrl(farmId) : undefined;
+    if (!farmId) return undefined;
+    return this.seller.allFarms() ? this.dashboardApi.combinedSellerDashboardUrl() : this.dashboardApi.sellerDashboardUrl(farmId);
   });
+
+  /** The farm whose review needs the owner's attention: the one being
+   * worked on, or on the combined view the first that cannot sell. */
+  protected readonly reviewBanner = computed(() => {
+    const farms = this.seller.allFarms() ? this.seller.farms() : this.myFarm() ? [this.myFarm()!] : [];
+    const farm = farms.find((f) => f.status !== 'approved');
+    if (!farm) return null;
+    return {
+      farm: farm.name,
+      alert: farm.status === 'rejected' || farm.status === 'suspended',
+      titleKey: `portal.banner.${farm.status}Title`,
+      bodyKey: `portal.banner.${farm.status}Body`,
+      others: this.seller.farms().some((f) => f.id !== farm.id && f.status === 'approved')
+    };
+  });
+
+  protected readonly previousMonth = computed(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - 1);
+    return new Intl.DateTimeFormat(this.intlLocale(), { month: 'short' }).format(d);
+  });
+
+  protected signed(value: number): string {
+    return value > 0 ? `+${value}` : `${value}`;
+  }
+
+  protected rating(value: number): string {
+    return value.toLocaleString(this.intlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
 
   private readonly intlLocale = computed(() => (this.locale.locale() === 'fr' ? 'fr-FR' : 'en-GB'));
 
