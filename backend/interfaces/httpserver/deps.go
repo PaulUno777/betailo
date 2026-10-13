@@ -134,5 +134,6 @@ type Dependencies struct {
 	AdminRefundEscrow    *reservation.AdminRefundEscrow
 	AdminListReports     *admin.ListReports
 	AdminGetReportDetail *admin.GetReportDetail
+	AdminSaveReportNote  *admin.SaveReportNote
 	AdminResolveReport   *admin.ResolveReport
 }

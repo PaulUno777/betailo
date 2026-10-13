@@ -93,7 +93,10 @@ type FarmVerification struct {
 	AutoApproved bool
 	// RejectionCode is the kind of refusal staff picked;
 	// RejectionReason the message they wrote to the owner.
-	RejectionCode   RejectionCode
+	RejectionCode RejectionCode
+	// Checks are the review points the staff member ticked before
+	// deciding (see FarmReviewChecks); kept as a record of the review.
+	Checks          []string
 	RejectionReason string
 }
 
@@ -125,6 +128,9 @@ const (
 	RejectPhotosNotRecent RejectionCode = "photos_not_recent"
 	RejectFarmNotFound    RejectionCode = "farm_not_found"
 	RejectOther           RejectionCode = "other"
+	// RejectReverification is not a refusal of what was sent: staff ask
+	// an approved farm's owner to prove their identity again.
+	RejectReverification RejectionCode = "reverification"
 )
 
 // ProofPart is one piece of what an owner sends for review.
@@ -144,7 +150,7 @@ var ProofParts = []ProofPart{ProofIDDocument, ProofPhotos, ProofDetails}
 // to be fine.
 func (c RejectionCode) ToRedo() []ProofPart {
 	switch c {
-	case RejectIDUnreadable, RejectNameMismatch:
+	case RejectIDUnreadable, RejectNameMismatch, RejectReverification:
 		return []ProofPart{ProofIDDocument}
 	case RejectPhotosNotRecent:
 		return []ProofPart{ProofPhotos}
@@ -176,6 +182,9 @@ var RejectionCodes = []RejectionCode{RejectIDUnreadable, RejectNameMismatch, Rej
 
 // IsValid reports whether c is a known refusal reason.
 func (c RejectionCode) IsValid() bool {
+	if c == RejectReverification {
+		return true
+	}
 	for _, known := range RejectionCodes {
 		if c == known {
 			return true
@@ -202,3 +211,20 @@ func FarmProofPrefix(farmID bson.ObjectID) string {
 
 // MaxFarmDescriptionLen bounds Farm.Description.
 const MaxFarmDescriptionLen = 1000
+
+// FarmReviewChecks are the points a reviewer goes through, in order.
+var FarmReviewChecks = []string{"name_matches", "document_readable", "photos_genuine", "location_consistent"}
+
+// ValidFarmReviewChecks keeps the known checks of in, in display order.
+func ValidFarmReviewChecks(in []string) []string {
+	var out []string
+	for _, known := range FarmReviewChecks {
+		for _, c := range in {
+			if c == known {
+				out = append(out, known)
+				break
+			}
+		}
+	}
+	return out
+}

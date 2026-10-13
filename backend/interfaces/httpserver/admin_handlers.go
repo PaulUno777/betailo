@@ -1,9 +1,13 @@
 package httpserver
 
 import (
+	"encoding/csv"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
@@ -108,6 +112,8 @@ type adminUserResponse struct {
 	Suspended     bool                   `json:"suspended"`
 	TrustScore    float64                `json:"trustScore"`
 	MemberSince   time.Time              `json:"memberSince"`
+	// LastActiveAt is a staff member's latest line in the journal.
+	LastActiveAt *time.Time `json:"lastActiveAt,omitempty"`
 }
 
 func toAdminUserResponse(u *domain.User, farmCount int) adminUserResponse {
@@ -300,6 +306,49 @@ func handleAdminListEscrow(uc *admin.ListEscrowTransactions) http.HandlerFunc {
 	}
 }
 
+// handleAdminExportEscrow is the accounting export: every escrow
+// transaction as CSV. Its own permission, and a line in the journal.
+func handleAdminExportEscrow(uc *admin.ListEscrowTransactions, journal *admin.Journal) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actor, ok := staffActor(w, r)
+		if !ok {
+			return
+		}
+		items, err := uc.Execute(r.Context())
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		journal.Record(r.Context(), actor, admin.Entry{Action: domain.ActionEscrowExport, Detail: strconv.Itoa(len(items))})
+
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="betailo-sequestre.csv"`)
+		_, _ = w.Write([]byte("\uFEFF"))
+		out := csv.NewWriter(w)
+		_ = out.Write([]string{"reservation", "buyer", "farm", "amount_fcfa", "status", "created_at"})
+		for _, item := range items {
+			res := item.Reservation
+			status := string(res.Status)
+			if res.Payment != nil {
+				status = string(res.Payment.Status)
+			}
+			_ = out.Write([]string{
+				res.Reference, csvText(item.BuyerName), csvText(item.FarmName), strconv.FormatFloat(res.TotalAmount, 'f', 0, 64),
+				status, res.CreatedAt.UTC().Format(time.RFC3339),
+			})
+		}
+		out.Flush()
+	}
+}
+
+// csvText keeps a name from being read as a formula by a spreadsheet.
+func csvText(s string) string {
+	if s != "" && strings.ContainsRune("=+-@", rune(s[0])) {
+		return "'" + s
+	}
+	return s
+}
+
 func handleAdminReleaseEscrow(uc *reservation.AdminReleaseEscrow, journal *admin.Journal) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
@@ -349,6 +398,9 @@ func handleAdminRefundEscrow(uc *reservation.AdminRefundEscrow, journal *admin.J
 // adminReportResponse is a report as the moderation queue shows it.
 type adminReportResponse struct {
 	reportResponse
+	// Reference is the code staff quote; Note their internal note.
+	Reference    string `json:"reference,omitempty"`
+	Note         string `json:"note,omitempty"`
 	TargetLabel  string `json:"targetLabel,omitempty"`
 	ReporterName string `json:"reporterName,omitempty"`
 	CreatedAt    string `json:"createdAt,omitempty"`
@@ -358,7 +410,8 @@ type adminReportResponse struct {
 
 func toAdminReportResponse(row admin.ReportRow) adminReportResponse {
 	out := adminReportResponse{
-		reportResponse: toReportResponse(row.Report), TargetLabel: row.TargetLabel, ReporterName: row.ReporterName,
+		reportResponse: toReportResponse(row.Report), Reference: row.Report.Reference, Note: row.Report.Note,
+		TargetLabel: row.TargetLabel, ReporterName: row.ReporterName,
 		Count: row.Count, Level: string(row.Level),
 	}
 	if !row.Report.CreatedAt.IsZero() {
@@ -414,6 +467,30 @@ type reportDetailResponse struct {
 	Signals   []riskSignalResponse   `json:"signals"`
 	Subject   *reportSubjectResponse `json:"subject,omitempty"`
 	Listing   *reportListingResponse `json:"listing,omitempty"`
+	// Actions are the decisions this report can take right now.
+	Actions []string `json:"actions"`
+}
+
+// reportActions lists what can be decided on a report: nothing once it
+// is closed, and only what its target allows.
+func reportActions(d *admin.ReportDetail) []string {
+	actions := []string{}
+	if !d.Report.Status.IsActive() {
+		return actions
+	}
+	actions = append(actions, string(admin.ResolveDismiss))
+	if l := d.Listing; l != nil {
+		if l.Status == domain.ListingPublished {
+			actions = append(actions, string(admin.ResolveHideListing))
+		}
+		if l.FarmApproved {
+			actions = append(actions, string(admin.ResolveReverify))
+		}
+	}
+	if d.Subject != nil && !d.Subject.Suspended {
+		actions = append(actions, string(admin.ResolveSuspend))
+	}
+	return actions
 }
 
 func handleAdminGetReportDetail(uc *admin.GetReportDetail, storage ports.ObjectStorage) http.HandlerFunc {
@@ -439,7 +516,7 @@ func handleAdminGetReportDetail(uc *admin.GetReportDetail, storage ports.ObjectS
 			Report: toAdminReportResponse(admin.ReportRow{
 				Report: detail.Report, TargetLabel: detail.TargetLabel, Count: len(detail.History), Level: detail.Level,
 			}),
-			History: history, RiskScore: detail.RiskScore, Signals: signals,
+			History: history, RiskScore: detail.RiskScore, Signals: signals, Actions: reportActions(detail),
 		}
 		if s := detail.Subject; s != nil {
 			out.Subject = &reportSubjectResponse{
@@ -462,6 +539,36 @@ func handleAdminGetReportDetail(uc *admin.GetReportDetail, storage ports.ObjectS
 
 type resolveReportRequest struct {
 	Action string `json:"action"`
+	// Note is the internal note kept with the decision.
+	Note string `json:"note,omitempty"`
+}
+
+type reportNoteRequest struct {
+	Note string `json:"note"`
+}
+
+func handleAdminSaveReportNote(uc *admin.SaveReportNote, journal *admin.Journal) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actor, ok := staffActor(w, r)
+		if !ok {
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		var req reportNoteRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		rp, err := uc.Execute(r.Context(), id, req.Note)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		journal.Record(r.Context(), actor, admin.Entry{Action: domain.ActionReportNote, TargetType: "report", TargetID: rp.ID, TargetLabel: reportLabel(rp)})
+		writeJSON(w, http.StatusOK, toAdminReportResponse(admin.ReportRow{Report: rp, Count: 1, Level: admin.ReportLevelLow}))
+	}
 }
 
 func handleAdminResolveReport(uc *admin.ResolveReport, journal *admin.Journal) http.HandlerFunc {
@@ -478,22 +585,33 @@ func handleAdminResolveReport(uc *admin.ResolveReport, journal *admin.Journal) h
 		if !readJSON(w, r, &req) {
 			return
 		}
-		rp, err := uc.Execute(r.Context(), admin.ResolveReportInput{Actor: actor, ReportID: id, Action: admin.ResolveAction(req.Action)})
+		rp, err := uc.Execute(r.Context(), admin.ResolveReportInput{Actor: actor, ReportID: id, Action: admin.ResolveAction(req.Action), Note: req.Note})
 		if err != nil {
 			writeError(w, err)
 			return
 		}
 		journal.Record(r.Context(), actor, admin.Entry{
-			Action: domain.ActionReportResolve, TargetType: "report", TargetID: rp.ID, TargetLabel: string(rp.TargetType), Detail: req.Action,
+			Action: domain.ActionReportResolve, TargetType: "report", TargetID: rp.ID, TargetLabel: reportLabel(rp), Detail: req.Action,
 		})
 		writeJSON(w, http.StatusOK, toReportResponse(rp))
 	}
 }
 
+// reportLabel is what the journal calls a report.
+func reportLabel(rp *domain.Report) string {
+	if rp.Reference != "" {
+		return rp.Reference
+	}
+	return string(rp.TargetType)
+}
+
 // adminFarmResponse is a farm in the validation queue, with its owner.
+// ThumbURL is a short-lived link to the first photo of the farm the
+// owner sent: the queue shows it, the identity document never.
 type adminFarmResponse struct {
 	farmResponse
-	Owner *adminUserResponse `json:"owner,omitempty"`
+	Owner    *adminUserResponse `json:"owner,omitempty"`
+	ThumbURL string             `json:"thumbUrl,omitempty"`
 }
 
 func toAdminFarmResponse(item admin.FarmReviewItem) adminFarmResponse {
@@ -518,7 +636,7 @@ type adminFarmCountsResponse struct {
 
 // handleAdminListFarms answers `GET /admin/farms?queue=todo|resubmitted|done`
 // (the validation page's tabs) or `?status=<farm status>`.
-func handleAdminListFarms(uc *admin.ListFarmsForReview, counts *admin.CountFarmQueues) http.HandlerFunc {
+func handleAdminListFarms(uc *admin.ListFarmsForReview, counts *admin.CountFarmQueues, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		items, err := uc.Execute(r.Context(), admin.ListFarmsInput{Queue: admin.FarmQueue(q.Get("queue")), Status: domain.FarmStatus(q.Get("status"))})
@@ -533,7 +651,13 @@ func handleAdminListFarms(uc *admin.ListFarmsForReview, counts *admin.CountFarmQ
 		}
 		out := make([]adminFarmResponse, 0, len(items))
 		for _, item := range items {
-			out = append(out, toAdminFarmResponse(item))
+			row := toAdminFarmResponse(item)
+			if keys := item.Farm.Verification.PhotoKeys; len(keys) > 0 && storage != nil {
+				if url, err := storage.PresignDownload(r.Context(), keys[0]); err == nil {
+					row.ThumbURL = url
+				}
+			}
+			out = append(out, row)
 		}
 		writeJSON(w, http.StatusOK, adminFarmListResponse{Farms: out, Counts: adminFarmCountsResponse{Todo: sizes.Todo, Resubmitted: sizes.Resubmitted}})
 	}
@@ -554,6 +678,10 @@ type adminFarmDetailResponse struct {
 	ReviewerRole      string   `json:"reviewerRole,omitempty"`
 	// RejectionCodes are the refusal reasons staff pick from.
 	RejectionCodes []string `json:"rejectionCodes"`
+	// ReviewChecks are the points a reviewer goes through; Checks the
+	// ones ticked when this farm was last decided on.
+	ReviewChecks []string `json:"reviewChecks"`
+	Checks       []string `json:"checks"`
 }
 
 // handleAdminGetFarm hands out the proof, and writes that it did: who
@@ -591,6 +719,7 @@ func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal) http
 			IDDocumentURL:     d.IDDocumentURL, IDDocumentBackURL: d.IDDocumentBackURL, PhotoURLs: photos,
 			OwnerFarmCount: d.OwnerFarmCount, OwnerFarmLimit: d.OwnerFarmLimit, OwnerPurchases: d.OwnerPurchases, OwnerReports: d.OwnerReports,
 			ReviewerName: d.ReviewerName, ReviewerRole: string(d.ReviewerRole), RejectionCodes: codes,
+			ReviewChecks: domain.FarmReviewChecks, Checks: append([]string{}, d.Farm.Verification.Checks...),
 		})
 	}
 }
@@ -608,6 +737,8 @@ type reviewFarmRequest struct {
 	// ReasonCode is the kind of refusal, Reason the message to the owner.
 	ReasonCode string `json:"reasonCode,omitempty"`
 	Reason     string `json:"reason,omitempty"`
+	// Checks are the review points ticked before deciding.
+	Checks []string `json:"checks,omitempty"`
 }
 
 func handleAdminReviewFarm(uc *farm.ReviewFarm, journal *admin.Journal) http.HandlerFunc {
@@ -626,7 +757,7 @@ func handleAdminReviewFarm(uc *farm.ReviewFarm, journal *admin.Journal) http.Han
 		}
 		f, err := uc.Execute(r.Context(), farm.ReviewFarmInput{
 			FarmID: id, ReviewerID: actor.ID, ReviewerRole: actor.Role, Decision: farm.FarmDecision(req.Decision),
-			ReasonCode: domain.RejectionCode(req.ReasonCode), Reason: req.Reason,
+			ReasonCode: domain.RejectionCode(req.ReasonCode), Reason: req.Reason, Checks: req.Checks,
 		})
 		if err != nil {
 			writeError(w, err)
@@ -658,16 +789,34 @@ type staffResponse struct {
 	Permissions []string            `json:"permissions"`
 }
 
-func handleAdminListStaff(uc *admin.ListStaff) http.HandlerFunc {
+// staffActivityWindow is how far back the journal is read to tell when
+// each staff member last acted.
+const staffActivityWindow = 500
+
+func handleAdminListStaff(uc *admin.ListStaff, audit *admin.ListAudit) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		members, err := uc.Execute(r.Context())
 		if err != nil {
 			writeError(w, err)
 			return
 		}
+		lastActive := map[bson.ObjectID]time.Time{}
+		if audit != nil && audit.Log != nil {
+			if actions, err := audit.Log.List(r.Context(), staffActivityWindow); err == nil {
+				for _, a := range actions {
+					if a.CreatedAt.After(lastActive[a.ActorID]) {
+						lastActive[a.ActorID] = a.CreatedAt
+					}
+				}
+			}
+		}
 		out := staffResponse{Members: make([]adminUserResponse, 0, len(members))}
 		for _, m := range members {
-			out.Members = append(out.Members, toAdminUserResponse(m, 0))
+			row := toAdminUserResponse(m, 0)
+			if at, ok := lastActive[m.ID]; ok {
+				row.LastActiveAt = &at
+			}
+			out.Members = append(out.Members, row)
 		}
 		for _, role := range domain.StaffRoles {
 			perms := []string{}
