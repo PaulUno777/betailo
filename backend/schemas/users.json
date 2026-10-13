@@ -21,6 +21,27 @@
     "city": { "bsonType": "string", "maxLength": 80 },
     "suspended": { "bsonType": "bool" },
     "trustScore": { "bsonType": ["double", "int"] },
-    "createdAt": { "bsonType": "date" }
+    "createdAt": { "bsonType": "date" },
+    "mfa": {
+      "bsonType": "object",
+      "properties": {
+        "totpSecret": { "bsonType": "string" },
+        "totpConfirmedAt": { "bsonType": "date" },
+        "recoveryHashes": { "bsonType": "array", "items": { "bsonType": "string" } },
+        "passkeys": {
+          "bsonType": "array",
+          "items": {
+            "bsonType": "object",
+            "required": ["id", "data"],
+            "properties": {
+              "id": { "bsonType": "binData" },
+              "name": { "bsonType": "string", "maxLength": 60 },
+              "createdAt": { "bsonType": "date" },
+              "data": { "bsonType": "binData" }
+            }
+          }
+        }
+      }
+    }
   }
 }

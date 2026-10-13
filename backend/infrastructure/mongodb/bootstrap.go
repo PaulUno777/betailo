@@ -138,6 +138,11 @@ func ensureIndexes(ctx context.Context, database *mongo.Database) error {
 		{"admin_actions", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "createdAt", Value: -1}}},
 		}},
+		{"auth_tokens", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "kind", Value: 1}, {Key: "tokenHash", Value: 1}}, Options: options.Index().SetUnique(true)},
+			// Mongo removes a token a day after it expired.
+			{Keys: bson.D{{Key: "expiresAt", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(86400)},
+		}},
 		{"favorites", []mongo.IndexModel{
 			// One save per (user, listing); also serves "my favorites"
 			// (userId prefix) and the per-page favorited lookup.

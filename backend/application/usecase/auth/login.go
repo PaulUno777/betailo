@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
-
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"
 )
@@ -29,6 +27,8 @@ type Login struct {
 	Clock         ports.Clock
 	AccessTTL     time.Duration // access token lifetime; defaults to 24h if zero
 	RefreshTTL    time.Duration // refresh token lifetime; defaults to defaultRefreshTTL if zero
+	// AuthTokens holds the pending step of a two-factor sign-in.
+	AuthTokens ports.AuthTokenRepository
 }
 
 // LoginInput is what a caller (the HTTP handler) supplies.
@@ -49,6 +49,15 @@ type LoginOutput struct {
 	RefreshToken     string // the raw secret; the handler puts it in the cookie, never logs it
 	RefreshExpiresAt time.Time
 	User             *domain.User
+	// Persistent is the session's "remember me", for the cookie.
+	Persistent bool
+
+	// MFARequired: the password was right and the account has a second
+	// factor. No session was issued; MFAToken names the pending sign-in
+	// for the second step and MFAMethods says which factors it takes.
+	MFARequired bool
+	MFAToken    string
+	MFAMethods  []string
 }
 
 // Execute verifies the email/password pair and, on success, signs an
@@ -77,47 +86,32 @@ func (uc *Login) Execute(ctx context.Context, in LoginInput) (*LoginOutput, erro
 		return nil, fmt.Errorf("auth: %w", domain.ErrSuspended)
 	}
 
-	accessTTL := uc.AccessTTL
-	if accessTTL <= 0 {
-		accessTTL = 24 * time.Hour
-	}
-	refreshTTL := uc.RefreshTTL
-	if refreshTTL <= 0 {
-		refreshTTL = defaultRefreshTTL
-	}
-	now := uc.Clock.Now()
-
-	token, err := uc.Signer.SignAccessToken(ctx, ports.TokenClaims{
-		UserID:    user.ID,
-		Email:     user.Email,
-		StaffRole: user.StaffRole,
-		ExpiresAt: now.Add(accessTTL),
-	})
-	if err != nil {
-		return nil, err
+	if user.MFA.Enabled() && uc.AuthTokens != nil {
+		raw, err := newRefreshSecret()
+		if err != nil {
+			return nil, err
+		}
+		now := uc.Clock.Now()
+		if err := uc.AuthTokens.Create(ctx, &domain.AuthToken{
+			Kind: domain.AuthTokenMFAChallenge, TokenHash: hashRefreshToken(raw), UserID: user.ID,
+			Persistent: in.Remember, CreatedAt: now, ExpiresAt: now.Add(domain.MFAChallengeTTL),
+		}); err != nil {
+			return nil, err
+		}
+		return &LoginOutput{MFARequired: true, MFAToken: raw, MFAMethods: mfaMethods(user)}, nil
 	}
 
-	rawRefresh, err := newRefreshSecret()
-	if err != nil {
-		return nil, err
-	}
-	refreshExpiresAt := now.Add(refreshTTL)
-	if err := uc.RefreshTokens.Create(ctx, &ports.RefreshToken{
-		ID:         bson.NewObjectID(),
-		UserID:     user.ID,
-		FamilyID:   bson.NewObjectID(),
-		TokenHash:  hashRefreshToken(rawRefresh),
-		IssuedAt:   now,
-		ExpiresAt:  refreshExpiresAt,
-		Persistent: in.Remember,
-	}); err != nil {
-		return nil, err
-	}
+	return uc.sessions().issue(ctx, user, in.Remember, false)
+}
 
-	return &LoginOutput{
-		AccessToken:      token,
-		RefreshToken:     rawRefresh,
-		RefreshExpiresAt: refreshExpiresAt,
-		User:             user,
-	}, nil
+// SessionFor opens a fresh session for an account that just proved who
+// it is another way (it changed its password with the current one).
+// mfa carries over whether the session it replaces had passed a second
+// factor.
+func (uc *Login) SessionFor(ctx context.Context, user *domain.User, remember, mfa bool) (*LoginOutput, error) {
+	return uc.sessions().issue(ctx, user, remember, mfa)
+}
+
+func (uc *Login) sessions() sessionIssuer {
+	return sessionIssuer{RefreshTokens: uc.RefreshTokens, Signer: uc.Signer, Clock: uc.Clock, AccessTTL: uc.AccessTTL, RefreshTTL: uc.RefreshTTL}
 }

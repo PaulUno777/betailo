@@ -63,6 +63,8 @@ services:
         condition: service_healthy
       seaweedfs:
         condition: service_started
+      mailpit:
+        condition: service_started
     environment:
       PORT: 8080
       MONGODB_URI: mongodb://mongo:27017/?replicaSet=rs0
@@ -88,6 +90,19 @@ services:
       # The root account, created at startup. Dev-only values.
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@betailo.test}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Betailo-dev-admin-2026}
+      # Staff need a second factor (authenticator app or passkey) to use
+      # the back office. Off here so a fresh dev database is usable at
+      # once; production leaves it on. See backend/.env.example.
+      STAFF_MFA_REQUIRED: ${STAFF_MFA_REQUIRED:-false}
+      # Where the site's pages are served: links in e-mails point there
+      # and passkeys are bound to its host.
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:4200}
+      # E-mail goes to the local Mailpit inbox (http://localhost:8025).
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-Betailo <no-reply@betailo.test>}
     ports:
       - "8080:8080"
 
@@ -99,6 +114,14 @@ services:
       - backend
     ports:
       - "4200:80"
+
+  # A local inbox: every e-mail the API sends lands here instead of
+  # going out. Web UI on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
 volumes:
   betailo_mongo_data:

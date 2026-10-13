@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -42,8 +43,11 @@ import (
 	"github.com/pauluno777/betailo/backend/infrastructure/jwt"
 	"github.com/pauluno777/betailo/backend/infrastructure/mongodb"
 	"github.com/pauluno777/betailo/backend/infrastructure/objectstorage"
+	"github.com/pauluno777/betailo/backend/infrastructure/passkey"
 	"github.com/pauluno777/betailo/backend/infrastructure/payment"
 	"github.com/pauluno777/betailo/backend/infrastructure/security"
+	"github.com/pauluno777/betailo/backend/infrastructure/smtp"
+	"github.com/pauluno777/betailo/backend/infrastructure/totp"
 	"github.com/pauluno777/betailo/backend/interfaces/httpserver"
 	"github.com/pauluno777/betailo/backend/internal/worker"
 )
@@ -116,10 +120,33 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	}
 	sandboxPayments := payment.Sandbox{}
 
+	authTokens := &mongodb.AuthTokenRepository{Coll: database.Collection("auth_tokens")}
+	siteURL := publicURL()
+	mailer := newMailer(logger)
+	passkeys, err := passkey.New("Betailo", hostOf(siteURL), passkeyOrigins(siteURL))
+	if err != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, func() {}, err
+	}
+	staffMFARequired := os.Getenv("STAFF_MFA_REQUIRED") != "false"
+	if !staffMFARequired {
+		logger.Warn("STAFF_MFA_REQUIRED is off: staff reach the back office without a second factor. Development and automated tests only.")
+	}
+
 	register := &auth.Register{Users: users, Hasher: hasher, Clock: systemClock}
 	login := &auth.Login{
 		Users: users, RefreshTokens: refreshTokens, Hasher: hasher, Signer: signer,
 		Clock: systemClock, AccessTTL: accessTokenTTL(), RefreshTTL: refreshTokenTTL(),
+		AuthTokens: authTokens,
+	}
+	secondFactor := &auth.SecondFactor{
+		Users: users, RefreshTokens: refreshTokens, AuthTokens: authTokens, Hasher: hasher, Signer: signer,
+		TOTP: &totp.Service{Issuer: "Betailo"}, Passkeys: passkeys, Clock: systemClock,
+		AccessTTL: accessTokenTTL(), RefreshTTL: refreshTokenTTL(),
+	}
+	passwordReset := &auth.PasswordReset{
+		Users: users, AuthTokens: authTokens, RefreshTokens: refreshTokens, Hasher: hasher, Mailer: mailer,
+		Clock: systemClock, PublicURL: siteURL, Logger: logger,
 	}
 	refreshToken := &auth.RefreshToken{
 		Users: users, RefreshTokens: refreshTokens, Signer: signer,
@@ -190,6 +217,11 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	}
 	adminListUsers := &admin.ListUsers{Users: users, Farms: farms}
 	accountGate := &auth.AccountGate{Users: users, Clock: systemClock}
+	staffInvitations := &auth.StaffInvitations{
+		Users: users, Farms: farms, AuthTokens: authTokens, RefreshTokens: refreshTokens, Hasher: hasher, Signer: signer,
+		Mailer: mailer, Clock: systemClock, PublicURL: siteURL, AccessTTL: accessTokenTTL(), RefreshTTL: refreshTokenTTL(),
+		Forget: accountGate.Forget,
+	}
 	adminSuspendUser := &admin.SuspendUser{Users: users, Sessions: accountGate}
 	adminJournal := &admin.Journal{
 		Log: &mongodb.AuditRepository{Coll: database.Collection("admin_actions")}, Users: users, Clock: systemClock, Logger: logger,
@@ -224,6 +256,9 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		Notifications: notifications,
 		Clock:         systemClock,
 		Logger:        logger,
+		Users:         users,
+		Mailer:        mailer,
+		PublicURL:     siteURL,
 	}
 
 	port := os.Getenv("PORT")
@@ -233,19 +268,23 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	server := &http.Server{
 		Addr: ":" + port,
 		Handler: httpserver.NewRouter(logger, httpserver.Dependencies{
-			Register:       register,
-			Login:          login,
-			RefreshToken:   refreshToken,
-			Logout:         logout,
-			Signer:         signer,
-			Accounts:       accountGate,
-			StaffRoles:     accountGate,
-			Cookies:        cookieConfig(),
-			GetProfile:     &account.GetProfile{Users: users},
-			UpdateProfile:  &account.UpdateProfile{Users: users},
-			ChangePassword: &auth.ChangePassword{Users: users, Hasher: hasher, RefreshTokens: refreshTokens, Clock: systemClock},
-			SellerAccess:   &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms},
-			RateLimits:     httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
+			Register:         register,
+			Login:            login,
+			RefreshToken:     refreshToken,
+			Logout:           logout,
+			Signer:           signer,
+			Accounts:         accountGate,
+			StaffRoles:       accountGate,
+			Cookies:          cookieConfig(),
+			StaffMFARequired: staffMFARequired,
+			SecondFactor:     secondFactor,
+			StaffInvitations: staffInvitations,
+			PasswordReset:    passwordReset,
+			GetProfile:       &account.GetProfile{Users: users},
+			UpdateProfile:    &account.UpdateProfile{Users: users},
+			ChangePassword:   &auth.ChangePassword{Users: users, Hasher: hasher, RefreshTokens: refreshTokens, Clock: systemClock},
+			SellerAccess:     &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms},
+			RateLimits:       httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
 			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, Trust: trustRecompute, Clock: systemClock, Sequencer: counters},
 			GetFarmProfile: &farm.GetProfile{
@@ -441,6 +480,18 @@ func (a *Application) bootstrapRootAdmin(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("root admin %s: %w", email, err)
 	}
+	if os.Getenv("SUPER_ADMIN_RESET_MFA") == "true" {
+		root, err := a.ensureRootAdmin.Users.FindByEmail(ctx, strings.ToLower(strings.TrimSpace(email)))
+		if err != nil {
+			return fmt.Errorf("root admin %s: reset second factors: %w", email, err)
+		}
+		root.MFA = domain.MFA{}
+		if err := a.ensureRootAdmin.Users.Update(ctx, root); err != nil {
+			return fmt.Errorf("root admin %s: reset second factors: %w", email, err)
+		}
+		a.Logger.Error("SUPER_ADMIN_RESET_MFA is on: the root account's second factors were removed at startup. " +
+			"Sign in, set one up again, then remove the variable and restart")
+	}
 	switch outcome {
 	case auth.RootAdminCreated:
 		a.Logger.Info("created the root admin account", "email", email)
@@ -529,6 +580,53 @@ func newTokenSigner() (ports.TokenSigner, error) {
 // "24h"); auth.Login falls back to its own 24h default when this
 // returns zero, so an unset or unparsable value is not a startup
 // failure.
+// publicURL is where the site's pages are served from: links in e-mails
+// point there, and passkeys are bound to its host. APP_PUBLIC_URL when
+// set, else the one origin the API accepts.
+func publicURL() string {
+	for _, v := range []string{os.Getenv("APP_PUBLIC_URL"), os.Getenv("CORS_ALLOWED_ORIGIN")} {
+		if v = strings.TrimRight(strings.TrimSpace(v), "/"); v != "" {
+			return v
+		}
+	}
+	return "http://localhost:4200"
+}
+
+func hostOf(rawURL string) string {
+	if u, err := url.Parse(rawURL); err == nil && u.Hostname() != "" {
+		return u.Hostname()
+	}
+	return "localhost"
+}
+
+// passkeyOrigins are the origins a browser may present for a passkey.
+func passkeyOrigins(siteURL string) []string {
+	origins := []string{siteURL}
+	if cors := strings.TrimRight(strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGIN")), "/"); cors != "" && cors != siteURL {
+		origins = append(origins, cors)
+	}
+	return origins
+}
+
+// newMailer sends through SMTP when SMTP_HOST is set; otherwise every
+// message is written to the log, and the startup says so.
+func newMailer(logger *slog.Logger) ports.Mailer {
+	host := os.Getenv("SMTP_HOST")
+	if host == "" {
+		logger.Warn("SMTP_HOST is not set: e-mails (invitations, password resets, farm decisions) are written to the log instead of being sent")
+		return &smtp.LogMailer{Logger: logger}
+	}
+	port := os.Getenv("SMTP_PORT")
+	if port == "" {
+		port = "587"
+	}
+	from := os.Getenv("MAIL_FROM")
+	if from == "" {
+		from = "Betailo <no-reply@" + host + ">"
+	}
+	return &smtp.Mailer{Config: smtp.Config{Host: host, Port: port, Username: os.Getenv("SMTP_USERNAME"), Password: os.Getenv("SMTP_PASSWORD"), From: from}}
+}
+
 func accessTokenTTL() time.Duration {
 	raw := os.Getenv("ACCESS_TOKEN_TTL")
 	if raw == "" {

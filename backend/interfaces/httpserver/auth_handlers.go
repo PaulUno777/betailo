@@ -64,6 +64,14 @@ type loginResponse struct {
 	User        userResponse `json:"user"`
 }
 
+// mfaChallengeResponse is the answer to a right password on an account
+// with a second factor: no session yet, and what the second step takes.
+type mfaChallengeResponse struct {
+	MFARequired bool     `json:"mfaRequired"`
+	MFAToken    string   `json:"mfaToken"`
+	Methods     []string `json:"methods"`
+}
+
 func handleLogin(uc *auth.Login, cookies CookieConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req loginRequest
@@ -74,6 +82,11 @@ func handleLogin(uc *auth.Login, cookies CookieConfig) http.HandlerFunc {
 		out, err := uc.Execute(r.Context(), auth.LoginInput{Email: req.Email, Password: req.Password, Remember: req.Remember})
 		if err != nil {
 			writeError(w, err)
+			return
+		}
+
+		if out.MFARequired {
+			writeJSON(w, http.StatusOK, mfaChallengeResponse{MFARequired: true, MFAToken: out.MFAToken, Methods: out.MFAMethods})
 			return
 		}
 

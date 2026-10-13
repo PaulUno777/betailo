@@ -22,6 +22,7 @@ import (
 type claims struct {
 	StaffRole domain.StaffRole `json:"staffRole,omitempty"`
 	Email     string           `json:"email"`
+	MFA       bool             `json:"mfa,omitempty"`
 	jwtlib.RegisteredClaims
 }
 
@@ -40,6 +41,7 @@ func (s *Signer) SignAccessToken(_ context.Context, c ports.TokenClaims) (string
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims{
 		StaffRole: c.StaffRole,
 		Email:     c.Email,
+		MFA:       c.MFA,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			Subject:   c.UserID.Hex(),
 			ExpiresAt: jwtlib.NewNumericDate(c.ExpiresAt),
@@ -76,6 +78,7 @@ func (s *Signer) ParseAccessToken(_ context.Context, token string) (ports.TokenC
 		UserID:    userID,
 		Email:     c.Email,
 		StaffRole: c.StaffRole,
+		MFA:       c.MFA,
 		ExpiresAt: c.ExpiresAt.Time,
 	}, nil
 }

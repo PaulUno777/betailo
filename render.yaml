@@ -63,6 +63,29 @@ services:
         sync: false
       - key: SUPER_ADMIN_PASSWORD
         sync: false
+      # Staff must pass a second factor (authenticator app or passkey)
+      # to use the back office. Each member sets one up at first
+      # sign-in. See backend/.env.example, including how the root
+      # account gets back in if its factor is lost.
+      - key: STAFF_MFA_REQUIRED
+        value: "true"
+      # The site's public address: links in e-mails point there and
+      # passkeys are bound to its host. Set it to the frontend's URL.
+      - key: APP_PUBLIC_URL
+        sync: false
+      # Outgoing e-mail (staff invitations, password resets, farm
+      # decisions). Set these in the Render dashboard from your SMTP
+      # provider. Without SMTP_HOST, messages are only written to the log.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       # Refresh-token session (see docs/adr/0008). TTL and cookie
       # attributes are plain config, not secrets — only SAMESITE is
       # "none" rather than "lax" because the frontend and backend are

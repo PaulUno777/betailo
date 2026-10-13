@@ -54,6 +54,24 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// already expired.
 	mux.Handle("POST /auth/refresh", limit(deps.RateLimits.Refresh, handleRefresh(deps.RefreshToken, deps.Cookies)))
 	mux.HandleFunc("POST /auth/logout", handleLogout(deps.Logout, deps.Cookies))
+	// The second step of a sign-in, invitations and password reset are
+	// guessable secrets: limited like login.
+	mux.Handle("POST /auth/mfa/verify", limit(deps.RateLimits.Login, handleMFAVerify(deps.SecondFactor, deps.Cookies)))
+	mux.Handle("POST /auth/mfa/passkey/options", limit(deps.RateLimits.Login, handleMFAPasskeyOptions(deps.SecondFactor)))
+	mux.Handle("POST /auth/mfa/passkey/verify", limit(deps.RateLimits.Login, handleMFAPasskeyVerify(deps.SecondFactor, deps.Cookies)))
+	mux.Handle("GET /auth/invitations/{token}", limit(deps.RateLimits.Login, handlePreviewInvitation(deps.StaffInvitations)))
+	mux.Handle("POST /auth/invitations/accept", limit(deps.RateLimits.Login, handleAcceptInvitation(deps.StaffInvitations, deps.AdminJournal, deps.Cookies)))
+	mux.Handle("POST /auth/password/forgot", limit(deps.RateLimits.Register, handleForgotPassword(deps.PasswordReset)))
+	mux.Handle("POST /auth/password/reset", limit(deps.RateLimits.Login, handleResetPassword(deps.PasswordReset)))
+	// An account's own second factors.
+	mux.Handle("GET /me/mfa", chain(handleMFAStatus(deps.SecondFactor), auth))
+	mux.Handle("POST /me/mfa/totp/setup", chain(handleTOTPSetup(deps.SecondFactor), auth))
+	mux.Handle("POST /me/mfa/totp/confirm", limit(deps.RateLimits.Login, chain(handleTOTPConfirm(deps.SecondFactor), auth)))
+	mux.Handle("POST /me/mfa/totp/disable", limit(deps.RateLimits.Login, chain(handleTOTPDisable(deps.SecondFactor), auth)))
+	mux.Handle("POST /me/mfa/recovery-codes", limit(deps.RateLimits.Login, chain(handleRecoveryCodes(deps.SecondFactor), auth)))
+	mux.Handle("POST /me/mfa/passkeys/options", chain(handlePasskeyBegin(deps.SecondFactor), auth))
+	mux.Handle("POST /me/mfa/passkeys", chain(handlePasskeyFinish(deps.SecondFactor), auth))
+	mux.Handle("POST /me/mfa/passkeys/remove", limit(deps.RateLimits.Login, chain(handlePasskeyRemove(deps.SecondFactor), auth)))
 	mux.Handle("GET /me", chain(handleGetProfile(deps.GetProfile, deps.SellerAccess), auth))
 	mux.Handle("PATCH /me", chain(handleUpdateProfile(deps.UpdateProfile), auth))
 	// Guessing the current password is rate-limited like login.
@@ -139,7 +157,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// draw its own navigation asks for the overview permission, which
 	// they all hold.
 	can := func(p domain.Permission, h http.Handler) http.Handler {
-		return chain(h, auth, RequirePermission(deps.StaffRoles, p))
+		return chain(h, auth, RequirePermission(deps.StaffRoles, p, deps.StaffMFARequired))
 	}
 	journal := deps.AdminJournal
 	mux.Handle("GET /admin/overview", can(domain.PermOverviewRead, handleAdminOverview(deps.AdminOverview)))
@@ -172,9 +190,12 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// The team itself. Reading who is on it and what each role may do
 	// is open to all staff (it is how a refusal gets explained);
 	// changing it is the super admin's alone.
-	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff, deps.AdminListAudit)))
+	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff, deps.AdminListAudit, deps.StaffInvitations)))
 	mux.Handle("POST /admin/staff", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
 	mux.Handle("POST /admin/staff/{id}/role", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
+	mux.Handle("POST /admin/staff/invitations", can(domain.PermStaffManage, handleInviteStaff(deps.StaffInvitations, journal)))
+	mux.Handle("POST /admin/staff/invitations/{id}/resend", can(domain.PermStaffManage, handleResendInvitation(deps.StaffInvitations, journal)))
+	mux.Handle("DELETE /admin/staff/invitations/{id}", can(domain.PermStaffManage, handleCancelInvitation(deps.StaffInvitations, journal)))
 	mux.Handle("GET /admin/audit", can(domain.PermAuditRead, handleAdminListAudit(deps.AdminListAudit)))
 
 	return withCORS(withLogging(logger, mux))

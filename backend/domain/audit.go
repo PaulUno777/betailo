@@ -47,6 +47,9 @@ const (
 	ActionEscrowExport    = "escrow.export"
 	ActionStaffGrant      = "staff.grant"
 	ActionStaffRevoke     = "staff.revoke"
+	ActionStaffInvite     = "staff.invite"
+	// ActionStaffInviteCancel withdraws a pending invitation.
+	ActionStaffInviteCancel = "staff.invite_cancel"
 )
 
 // MaxAuditDetailLen bounds AdminAction.Detail.

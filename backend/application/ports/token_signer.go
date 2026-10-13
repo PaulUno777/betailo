@@ -16,6 +16,9 @@ type TokenClaims struct {
 	UserID    bson.ObjectID
 	Email     string
 	StaffRole domain.StaffRole
+	// MFA is true when the session behind the token passed a second
+	// factor (or enrolled one). Staff permissions ask for it.
+	MFA       bool
 	ExpiresAt time.Time
 }
 

@@ -28,6 +28,10 @@ type RefreshToken struct {
 	// cookie itself.
 	Persistent bool
 
+	// MFA says the session passed a second factor; it is carried
+	// through every rotation like Persistent.
+	MFA bool
+
 	// RevokedAt/RevokedReason/ReplacedBy are set once, never cleared.
 	// RevokedReason is one of "rotated" (normal use), "logout", or
 	// "reuse_detected" (see RefreshTokenRepository.RevokeFamily) —
@@ -76,5 +80,9 @@ type RefreshTokenRepository interface {
 	RevokeFamily(ctx context.Context, familyID bson.ObjectID, reason string, revokedAt time.Time) error
 	// RevokeAllForUser ends every session the user has (a password
 	// change signs them out everywhere).
+	// SetMFA marks a live token as having passed a second factor: the
+	// session enrolled one after signing in.
+	SetMFA(ctx context.Context, id bson.ObjectID) error
+
 	RevokeAllForUser(ctx context.Context, userID bson.ObjectID, reason string, revokedAt time.Time) error
 }
