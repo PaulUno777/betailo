@@ -9,16 +9,27 @@ import (
 
 type cycleSummaryResponse struct {
 	Cycle             cycleResponse `json:"cycle"`
+	FarmName          string        `json:"farmName,omitempty"`
 	FillRate          float64       `json:"fillRate"`
 	NextMilestone     string        `json:"nextMilestone,omitempty"`
 	NextMilestoneDate time.Time     `json:"nextMilestoneDate,omitzero"`
 }
 
 type sellerDashboardResponse struct {
-	TrustScore              float64                `json:"trustScore"`
-	ReservationsThisPeriod  int                    `json:"reservationsThisPeriod"`
-	EscrowHeldTotal         float64                `json:"escrowHeldTotal"`
-	ReleasedThisPeriod      float64                `json:"releasedThisPeriod"`
+	TrustScore             float64 `json:"trustScore"`
+	ReservationsThisPeriod int     `json:"reservationsThisPeriod"`
+	// ReservationsPreviousPeriod is last month's count, to compare with.
+	ReservationsPreviousPeriod int     `json:"reservationsPreviousPeriod"`
+	EscrowHeldTotal            float64 `json:"escrowHeldTotal"`
+	HeldReservations           int     `json:"heldReservations"`
+	ReleasedThisPeriod         float64 `json:"releasedThisPeriod"`
+	// NewReservations were made in the last seven days.
+	NewReservations int `json:"newReservations"`
+	// FarmCount is how many farms the figures cover: one, or all of
+	// the account's on the combined view.
+	FarmCount               int                    `json:"farmCount"`
+	ReviewAverage           float64                `json:"reviewAverage"`
+	ReviewCount             int                    `json:"reviewCount"`
 	WeeklyReservationCounts [8]int                 `json:"weeklyReservationCounts"`
 	ActiveCycles            []cycleSummaryResponse `json:"activeCycles"`
 	LatestReservations      []dashboardReservation `json:"latestReservations"`
@@ -42,19 +53,26 @@ type todoResponse struct {
 	CycleRef string `json:"cycleRef,omitempty"`
 }
 
-func handleSellerDashboard(uc *dashboard.SellerDashboard) http.HandlerFunc {
+// handleSellerDashboard serves one farm's dashboard, or, when the route
+// has no farm (`GET /me/seller-dashboard`), every farm of the caller
+// summed: the design's "Toutes mes fermes".
+func handleSellerDashboard(uc *dashboard.SellerDashboard, combined bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
 			writeError(w, errUnauthorized)
 			return
 		}
-		farmID, ok := pathObjectID(w, r, "farmId")
-		if !ok {
-			return
+		in := dashboard.SellerDashboardInput{OwnerID: claims.UserID}
+		if !combined {
+			farmID, ok := pathObjectID(w, r, "farmId")
+			if !ok {
+				return
+			}
+			in.FarmID = farmID
 		}
 
-		out, err := uc.Execute(r.Context(), dashboard.SellerDashboardInput{FarmID: farmID, OwnerID: claims.UserID})
+		out, err := uc.Execute(r.Context(), in)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -63,7 +81,7 @@ func handleSellerDashboard(uc *dashboard.SellerDashboard) http.HandlerFunc {
 		cycles := make([]cycleSummaryResponse, 0, len(out.ActiveCycles))
 		for _, c := range out.ActiveCycles {
 			cycles = append(cycles, cycleSummaryResponse{
-				Cycle: toCycleResponse(c.Cycle), FillRate: c.FillRate,
+				Cycle: toCycleResponse(c.Cycle), FarmName: c.FarmName, FillRate: c.FillRate,
 				NextMilestone: c.NextMilestone, NextMilestoneDate: c.NextMilestoneDate,
 			})
 		}
@@ -87,7 +105,9 @@ func handleSellerDashboard(uc *dashboard.SellerDashboard) http.HandlerFunc {
 
 		writeJSON(w, http.StatusOK, sellerDashboardResponse{
 			TrustScore: out.TrustScore, ReservationsThisPeriod: out.ReservationsThisPeriod,
-			EscrowHeldTotal: out.EscrowHeldTotal, ReleasedThisPeriod: out.ReleasedThisPeriod,
+			ReservationsPreviousPeriod: out.ReservationsPreviousPeriod,
+			EscrowHeldTotal:            out.EscrowHeldTotal, HeldReservations: out.HeldReservations, ReleasedThisPeriod: out.ReleasedThisPeriod,
+			NewReservations: out.NewReservations, FarmCount: out.FarmCount, ReviewAverage: out.ReviewAverage, ReviewCount: out.ReviewCount,
 			WeeklyReservationCounts: out.WeeklyReservationCounts, ActiveCycles: cycles, LatestReservations: latest,
 			Todos: todos,
 		})

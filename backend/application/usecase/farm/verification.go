@@ -101,6 +101,24 @@ func (uc *SubmitFarmForReview) Execute(ctx context.Context, in SubmitFarmForRevi
 		return nil, domain.Coded("farm.id_document_type", fmt.Errorf("farm: unknown identity document %q: %w", docType, domain.ErrInvalid))
 	}
 
+	// After a refusal the owner sends again only what was refused: the
+	// parts staff accepted are kept from the last submission.
+	if f.Status == domain.FarmRejected {
+		prev := f.Verification
+		for _, part := range prev.RejectionCode.Accepted() {
+			switch part {
+			case domain.ProofIDDocument:
+				if in.IDDocumentKey == "" && in.IDDocumentBackKey == "" && prev.IDDocumentKey != "" {
+					docType, in.IDDocumentKey, in.IDDocumentBackKey = prev.IDDocumentType, prev.IDDocumentKey, prev.IDDocumentBackKey
+				}
+			case domain.ProofPhotos:
+				if len(in.PhotoKeys) == 0 {
+					in.PhotoKeys = prev.PhotoKeys
+				}
+			}
+		}
+	}
+
 	hasProof := in.IDDocumentKey != "" || in.IDDocumentBackKey != "" || len(in.PhotoKeys) > 0
 	if hasProof || !uc.AutoApprove {
 		if in.IDDocumentKey == "" {
@@ -150,6 +168,31 @@ func (uc *SubmitFarmForReview) Execute(ctx context.Context, in SubmitFarmForRevi
 	return f, nil
 }
 
+// WithdrawFarmSubmission takes a farm back out of the review queue: its
+// owner changed their mind, or wants to send better proof. The farm is
+// a draft again and keeps what was sent.
+type WithdrawFarmSubmission struct {
+	Farms ports.FarmRepository
+}
+
+// Execute returns domain.ErrForbidden for someone else's farm and
+// domain.ErrConflict when the farm isn't waiting for a decision.
+func (uc *WithdrawFarmSubmission) Execute(ctx context.Context, farmID, ownerID bson.ObjectID) (*domain.Farm, error) {
+	f, err := ownedFarm(ctx, uc.Farms, farmID, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	if f.Status != domain.FarmPending {
+		return nil, domain.Coded("farm.not_pending", fmt.Errorf("farm: a %s farm has no request to withdraw: %w", f.Status, domain.ErrConflict))
+	}
+	f.Status = domain.FarmDraft
+	f.Verification.SubmittedAt = nil
+	if err := uc.Farms.Update(ctx, f); err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
 // FarmDecision is what staff decide about a farm.
 type FarmDecision string
 
@@ -173,7 +216,9 @@ type ReviewFarm struct {
 type ReviewFarmInput struct {
 	FarmID     bson.ObjectID
 	ReviewerID bson.ObjectID
-	Decision   FarmDecision
+	// ReviewerRole is recorded with the decision.
+	ReviewerRole domain.StaffRole
+	Decision     FarmDecision
 	// ReasonCode is the kind of refusal, for a rejection (RejectOther
 	// when not given); Reason the message the owner reads.
 	ReasonCode domain.RejectionCode
@@ -233,6 +278,7 @@ func (uc *ReviewFarm) Execute(ctx context.Context, in ReviewFarmInput) (*domain.
 	f.Status = next
 	f.Verification.ReviewedAt = &now
 	f.Verification.ReviewedBy = in.ReviewerID
+	f.Verification.ReviewedByRole = in.ReviewerRole
 	f.Verification.AutoApproved = false
 	f.Verification.RejectionCode = code
 	f.Verification.RejectionReason = reason

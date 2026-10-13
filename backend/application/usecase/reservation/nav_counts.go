@@ -20,11 +20,15 @@ type NavCounts struct {
 	Farms   ports.FarmRepository
 	Buyer   *ListMyReservations
 	ForFarm *ListReservationsByFarm
+	// Cycles, when set, counts the seller's active cycles.
+	Cycles ports.CycleStore
 }
 
 type NavCountsResult struct {
 	Buyer  int
 	Seller int
+	// Cycles is how many of the seller's cycles are planned or running.
+	Cycles int
 }
 
 // buyerDue and sellerDue are the actions that move a reservation
@@ -51,6 +55,18 @@ func (uc *NavCounts) Execute(ctx context.Context, userID bson.ObjectID) (*NavCou
 			return nil, err
 		}
 		out.Seller += countDue(sold.Items, sellerDue)
+		if uc.Cycles == nil {
+			continue
+		}
+		cycles, err := uc.Cycles.ListByFarm(ctx, f.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range cycles {
+			if c.Status == domain.CycleStatusPlanned || c.Status == domain.CycleStatusInProgress {
+				out.Cycles++
+			}
+		}
 	}
 	return out, nil
 }

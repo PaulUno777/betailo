@@ -27,15 +27,21 @@ type SellerDashboard struct {
 	Reservations ports.ReservationRepository
 	Users        ports.UserRepository
 	Clock        ports.Clock
+	// Reviews, when set, adds the rating buyers gave.
+	Reviews ports.ReviewRepository
 }
 
+// SellerDashboardInput picks the farm. A zero FarmID is "Toutes mes
+// fermes": every farm the owner has, summed.
 type SellerDashboardInput struct {
 	FarmID  bson.ObjectID
 	OwnerID bson.ObjectID
 }
 
 type CycleSummary struct {
-	Cycle             *domain.Cycle
+	Cycle *domain.Cycle
+	// FarmName says which farm the cycle runs on, for the combined view.
+	FarmName          string
 	FillRate          float64 // 0-1: (capacity-available)/capacity
 	NextMilestone     string  // "Éclosion", "Début", "Sortie" — the design's own vocabulary, kept generic here
 	NextMilestoneDate time.Time
@@ -45,8 +51,19 @@ type SellerDashboardOutput struct {
 	TrustScore float64
 
 	ReservationsThisPeriod int
-	EscrowHeldTotal        float64
-	ReleasedThisPeriod     float64
+	// ReservationsPreviousPeriod is last month's count, to compare with.
+	ReservationsPreviousPeriod int
+	EscrowHeldTotal            float64
+	// HeldReservations is how many reservations that escrow covers.
+	HeldReservations   int
+	ReleasedThisPeriod float64
+	// NewReservations were made in the last newReservationWindow.
+	NewReservations int
+
+	// FarmCount is how many farms the figures cover.
+	FarmCount     int
+	ReviewAverage float64
+	ReviewCount   int
 
 	// WeeklyReservationCounts covers the last 8 weeks, oldest first —
 	// the design's own bar chart window.
@@ -67,9 +84,14 @@ type SellerDashboardOutput struct {
 
 const latestReservationsLimit = 6
 
-// Execute returns domain.ErrForbidden if the caller doesn't own the
-// farm.
-func (uc *SellerDashboard) Execute(ctx context.Context, in SellerDashboardInput) (*SellerDashboardOutput, error) {
+// newReservationWindow is how recent a reservation is to count as new.
+const newReservationWindow = 7 * 24 * time.Hour
+
+// farmsFor is the farm asked for, or all of the owner's.
+func (uc *SellerDashboard) farmsFor(ctx context.Context, in SellerDashboardInput) ([]*domain.Farm, error) {
+	if in.FarmID.IsZero() {
+		return uc.Farms.ListByOwner(ctx, in.OwnerID)
+	}
 	f, err := uc.Farms.FindByID(ctx, in.FarmID)
 	if err != nil {
 		return nil, err
@@ -77,10 +99,34 @@ func (uc *SellerDashboard) Execute(ctx context.Context, in SellerDashboardInput)
 	if f.OwnerID != in.OwnerID {
 		return nil, fmt.Errorf("dashboard: not the farm owner: %w", domain.ErrForbidden)
 	}
+	return []*domain.Farm{f}, nil
+}
 
-	cycles, err := uc.Cycles.ListByFarm(ctx, in.FarmID)
+// Execute returns domain.ErrForbidden if the caller doesn't own the
+// farm.
+func (uc *SellerDashboard) Execute(ctx context.Context, in SellerDashboardInput) (*SellerDashboardOutput, error) {
+	farms, err := uc.farmsFor(ctx, in)
 	if err != nil {
 		return nil, err
+	}
+
+	var cycles []*domain.Cycle
+	farmNames := map[bson.ObjectID]string{}
+	var ratingSum float64
+	var ratingCount int
+	for _, f := range farms {
+		farmNames[f.ID] = f.Name
+		own, err := uc.Cycles.ListByFarm(ctx, f.ID)
+		if err != nil {
+			return nil, err
+		}
+		cycles = append(cycles, own...)
+		if uc.Reviews != nil {
+			if sum, err := uc.Reviews.Summary(ctx, f.ID); err == nil {
+				ratingSum += sum.Average * float64(sum.Count)
+				ratingCount += sum.Count
+			}
+		}
 	}
 
 	listingIDs := make([]bson.ObjectID, 0, len(cycles))
@@ -103,21 +149,32 @@ func (uc *SellerDashboard) Execute(ctx context.Context, in SellerDashboardInput)
 	}
 
 	now := uc.Clock.Now()
-	out := &SellerDashboardOutput{}
+	out := &SellerDashboardOutput{FarmCount: len(farms), ReviewCount: ratingCount}
+	if ratingCount > 0 {
+		out.ReviewAverage = ratingSum / float64(ratingCount)
+	}
 
 	if u, err := uc.Users.FindByID(ctx, in.OwnerID); err == nil {
 		out.TrustScore = u.TrustScore
 	}
 
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	previousStart := monthStart.AddDate(0, -1, 0)
 	for _, r := range reservations {
-		if !r.CreatedAt.Before(monthStart) {
+		switch {
+		case !r.CreatedAt.Before(monthStart):
 			out.ReservationsThisPeriod++
+		case !r.CreatedAt.Before(previousStart):
+			out.ReservationsPreviousPeriod++
+		}
+		if r.Status != domain.ReservationCancelled && now.Sub(r.CreatedAt) < newReservationWindow {
+			out.NewReservations++
 		}
 		if r.Payment != nil {
 			switch r.Payment.Status {
 			case domain.PaymentHeld:
 				out.EscrowHeldTotal += r.TotalAmount
+				out.HeldReservations++
 			case domain.PaymentReleased:
 				if r.Payment.ReleasedAt != nil && !r.Payment.ReleasedAt.Before(monthStart) {
 					out.ReleasedThisPeriod += r.TotalAmount
@@ -146,7 +203,7 @@ func (uc *SellerDashboard) Execute(ctx context.Context, in SellerDashboardInput)
 		if c.Status != domain.CycleStatusPlanned && c.Status != domain.CycleStatusInProgress {
 			continue
 		}
-		summary := CycleSummary{Cycle: c}
+		summary := CycleSummary{Cycle: c, FarmName: farmNames[c.FarmID]}
 		if c.Capacity > 0 {
 			summary.FillRate = float64(c.Capacity-c.AvailableQuantity) / float64(c.Capacity)
 		}

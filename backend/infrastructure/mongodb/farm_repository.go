@@ -43,6 +43,7 @@ type farmVerificationDoc struct {
 	Submissions       int                   `bson:"submissions,omitempty"`
 	ReviewedAt        *time.Time            `bson:"reviewedAt,omitempty"`
 	ReviewedBy        bson.ObjectID         `bson:"reviewedBy,omitempty"`
+	ReviewedByRole    domain.StaffRole      `bson:"reviewedByRole,omitempty"`
 	AutoApproved      bool                  `bson:"autoApproved,omitempty"`
 	RejectionCode     domain.RejectionCode  `bson:"rejectionCode,omitempty"`
 	RejectionReason   string                `bson:"rejectionReason,omitempty"`
@@ -68,7 +69,7 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 			IDDocumentType: f.Verification.IDDocumentType, IDDocumentKey: f.Verification.IDDocumentKey,
 			IDDocumentBackKey: f.Verification.IDDocumentBackKey, PhotoKeys: f.Verification.PhotoKeys,
 			SubmittedAt: f.Verification.SubmittedAt, Submissions: f.Verification.Submissions,
-			ReviewedAt: f.Verification.ReviewedAt, ReviewedBy: f.Verification.ReviewedBy,
+			ReviewedAt: f.Verification.ReviewedAt, ReviewedBy: f.Verification.ReviewedBy, ReviewedByRole: f.Verification.ReviewedByRole,
 			AutoApproved: f.Verification.AutoApproved, RejectionCode: f.Verification.RejectionCode,
 			RejectionReason: f.Verification.RejectionReason,
 		},
@@ -95,7 +96,7 @@ func (d farmDoc) toDomain() *domain.Farm {
 			IDDocumentType: d.Verification.IDDocumentType, IDDocumentKey: d.Verification.IDDocumentKey,
 			IDDocumentBackKey: d.Verification.IDDocumentBackKey, PhotoKeys: d.Verification.PhotoKeys,
 			SubmittedAt: d.Verification.SubmittedAt, Submissions: d.Verification.Submissions,
-			ReviewedAt: d.Verification.ReviewedAt, ReviewedBy: d.Verification.ReviewedBy,
+			ReviewedAt: d.Verification.ReviewedAt, ReviewedBy: d.Verification.ReviewedBy, ReviewedByRole: d.Verification.ReviewedByRole,
 			AutoApproved: d.Verification.AutoApproved, RejectionCode: d.Verification.RejectionCode,
 			RejectionReason: d.Verification.RejectionReason,
 		},

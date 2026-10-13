@@ -67,6 +67,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("DELETE /farms/{id}", chain(handleDeleteFarm(deps.DeleteFarm), auth))
 	mux.Handle("POST /farms/{id}/verification/presign", signedIn(handlePresignFarmProof(deps.PresignFarmProof)))
 	mux.Handle("POST /farms/{id}/verification/submit", signedIn(handleSubmitFarmForReview(deps.SubmitFarmForReview)))
+	mux.Handle("POST /farms/{id}/verification/withdraw", signedIn(handleWithdrawFarmSubmission(deps.WithdrawFarmSubmission)))
 
 	mux.Handle("POST /cycles", signedIn(handleCreateCycle(deps.CreateCycle)))
 	mux.HandleFunc("GET /cycles/{id}", handleGetCycle(deps.GetCycle))
@@ -130,7 +131,8 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 
 	// Seller (farmer) portal — ownership is checked inside the usecase
 	// itself, the same as every other /farms/{farmId}/... route.
-	mux.Handle("GET /farms/{farmId}/dashboard", chain(handleSellerDashboard(deps.SellerDashboard), auth))
+	mux.Handle("GET /farms/{farmId}/dashboard", chain(handleSellerDashboard(deps.SellerDashboard, false), auth))
+	mux.Handle("GET /me/seller-dashboard", chain(handleSellerDashboard(deps.SellerDashboard, true), auth))
 
 	// Back office — one permission per route (see domain.Permission for
 	// which staff role holds what). A read that every role needs to

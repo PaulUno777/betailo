@@ -51,12 +51,13 @@ type Dependencies struct {
 	RemoveFavorite  *favorite.Remove
 	ListMyFavorites *favorite.ListMine
 
-	CreateFarm     *farm.CreateFarm
-	GetFarmProfile *farm.GetProfile
-	ListMyFarms    *farm.ListMyFarms
-	MyFarmCards    *farm.MyFarmCards
-	UpdateFarm     *farm.UpdateFarm
-	DeleteFarm     *farm.DeleteFarm
+	CreateFarm             *farm.CreateFarm
+	GetFarmProfile         *farm.GetProfile
+	ListMyFarms            *farm.ListMyFarms
+	MyFarmCards            *farm.MyFarmCards
+	WithdrawFarmSubmission *farm.WithdrawFarmSubmission
+	UpdateFarm             *farm.UpdateFarm
+	DeleteFarm             *farm.DeleteFarm
 
 	PresignFarmProof    *farm.PresignFarmProof
 	SubmitFarmForReview *farm.SubmitFarmForReview

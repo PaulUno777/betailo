@@ -328,6 +328,7 @@ func handleListReservationsByFarm(uc *reservation.ListReservationsByFarm, storag
 		}
 		list, err := uc.Execute(r.Context(), reservation.ListReservationsByFarmInput{
 			FarmID: farmID, OwnerID: claims.UserID, Group: domain.ReservationGroup(r.URL.Query().Get("group")),
+			Query: r.URL.Query().Get("q"),
 		})
 		if err != nil {
 			writeError(w, err)
@@ -385,6 +386,8 @@ func handleQuoteReservation(uc *reservation.Quote) http.HandlerFunc {
 type navCountsResponse struct {
 	Buyer  int `json:"buyer"`
 	Seller int `json:"seller"`
+	// Cycles is how many of the seller's cycles are planned or running.
+	Cycles int `json:"cycles"`
 }
 
 func handleNavCounts(uc *reservation.NavCounts) http.HandlerFunc {
@@ -399,6 +402,6 @@ func handleNavCounts(uc *reservation.NavCounts) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, navCountsResponse{Buyer: out.Buyer, Seller: out.Seller})
+		writeJSON(w, http.StatusOK, navCountsResponse{Buyer: out.Buyer, Seller: out.Seller, Cycles: out.Cycles})
 	}
 }

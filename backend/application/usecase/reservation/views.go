@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -256,6 +257,26 @@ type ListReservationsByFarmInput struct {
 	FarmID  bson.ObjectID
 	OwnerID bson.ObjectID
 	Group   domain.ReservationGroup
+	// Query narrows the tab to reservations naming it: a reference, a
+	// cycle reference or a listing title. The tab counts stay whole.
+	Query string
+}
+
+// matchesQuery reports whether a view names q (already lower-cased).
+func matchesQuery(v View, q string) bool {
+	fields := []string{v.Reservation.Reference}
+	if v.Cycle != nil {
+		fields = append(fields, v.Cycle.Reference)
+	}
+	if v.Listing != nil {
+		fields = append(fields, v.Listing.Title)
+	}
+	for _, f := range fields {
+		if strings.Contains(strings.ToLower(f), q) {
+			return true
+		}
+	}
+	return false
 }
 
 func (uc *ListReservationsByFarm) Execute(ctx context.Context, in ListReservationsByFarmInput) (*ViewList, error) {
@@ -290,7 +311,20 @@ func (uc *ListReservationsByFarm) Execute(ctx context.Context, in ListReservatio
 		return nil, err
 	}
 	b := newViewBuilder(viewSources{Listings: uc.Listings, Cycles: uc.Cycles, Farms: uc.Farms, Reports: uc.Reports, Reviews: uc.Reviews})
-	return b.list(ctx, all, in.Group, ViewerFarmer)
+	list, err := b.list(ctx, all, in.Group, ViewerFarmer)
+	if err != nil {
+		return nil, err
+	}
+	if q := strings.ToLower(strings.TrimSpace(in.Query)); q != "" {
+		kept := list.Items[:0]
+		for _, v := range list.Items {
+			if matchesQuery(v, q) {
+				kept = append(kept, v)
+			}
+		}
+		list.Items = kept
+	}
+	return list, nil
 }
 
 func validGroup(g domain.ReservationGroup) error {
