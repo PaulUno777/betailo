@@ -49,6 +49,11 @@ func statusOf(u *domain.User) *MFAStatus {
 	return &MFAStatus{TOTP: u.MFA.HasTOTP(), Passkeys: u.MFA.Passkeys, RecoveryCodes: len(u.MFA.RecoveryHashes)}
 }
 
+// PasskeysAvailable reports whether this deployment can offer passkeys.
+func (uc *SecondFactor) PasskeysAvailable() bool { return uc.Passkeys != nil }
+
+var errNoPasskeys = domain.Coded("auth.passkeys_unavailable", fmt.Errorf("auth: passkeys are not available on this deployment: %w", domain.ErrConflict))
+
 // Status returns the account's second factors.
 func (uc *SecondFactor) Status(ctx context.Context, userID bson.ObjectID) (*MFAStatus, error) {
 	u, err := uc.Users.FindByID(ctx, userID)
@@ -62,6 +67,8 @@ func (uc *SecondFactor) Status(ctx context.Context, userID bson.ObjectID) (*MFAS
 type TOTPSetup struct {
 	Secret string
 	URL    string
+	// QR is URL drawn as a QR code, PNG.
+	QR []byte
 }
 
 // SetupTOTP starts (or restarts) the authenticator-app enrolment. The
@@ -74,7 +81,7 @@ func (uc *SecondFactor) SetupTOTP(ctx context.Context, userID bson.ObjectID) (*T
 	if u.MFA.HasTOTP() {
 		return nil, domain.Coded("auth.mfa_totp_already_set", fmt.Errorf("auth: an authenticator app is already set up: %w", domain.ErrConflict))
 	}
-	secret, url, err := uc.TOTP.Generate(u.Email)
+	secret, url, qr, err := uc.TOTP.Generate(u.Email)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +89,7 @@ func (uc *SecondFactor) SetupTOTP(ctx context.Context, userID bson.ObjectID) (*T
 	if err := uc.Users.Update(ctx, u); err != nil {
 		return nil, err
 	}
-	return &TOTPSetup{Secret: secret, URL: url}, nil
+	return &TOTPSetup{Secret: secret, URL: url, QR: qr}, nil
 }
 
 // Enrolled is the result of adding a factor: fresh recovery codes when
@@ -197,6 +204,9 @@ type PasskeySetup struct {
 
 // BeginPasskey starts registering a passkey for the signed-in account.
 func (uc *SecondFactor) BeginPasskey(ctx context.Context, userID bson.ObjectID) (*PasskeySetup, error) {
+	if uc.Passkeys == nil {
+		return nil, errNoPasskeys
+	}
 	u, err := uc.Users.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -244,6 +254,9 @@ func (uc *SecondFactor) consume(ctx context.Context, t *domain.AuthToken) error 
 
 // FinishPasskey stores the passkey the browser created.
 func (uc *SecondFactor) FinishPasskey(ctx context.Context, userID bson.ObjectID, flowToken, name string, response []byte, rawRefresh string) (*Enrolled, error) {
+	if uc.Passkeys == nil {
+		return nil, errNoPasskeys
+	}
 	t, err := uc.openToken(ctx, domain.AuthTokenPasskeySetup, flowToken)
 	if err != nil {
 		return nil, err
@@ -356,6 +369,9 @@ func (uc *SecondFactor) Verify(ctx context.Context, in VerifyInput) (*LoginOutpu
 // BeginPasskeyLogin returns the options the browser needs to sign the
 // pending sign-in with a passkey.
 func (uc *SecondFactor) BeginPasskeyLogin(ctx context.Context, mfaToken string) ([]byte, error) {
+	if uc.Passkeys == nil {
+		return nil, errNoPasskeys
+	}
 	t, u, err := uc.challengeUser(ctx, mfaToken)
 	if err != nil {
 		return nil, err
@@ -376,6 +392,9 @@ func (uc *SecondFactor) BeginPasskeyLogin(ctx context.Context, mfaToken string) 
 
 // FinishPasskeyLogin finishes the sign-in with the passkey's signature.
 func (uc *SecondFactor) FinishPasskeyLogin(ctx context.Context, mfaToken string, response []byte) (*LoginOutput, error) {
+	if uc.Passkeys == nil {
+		return nil, errNoPasskeys
+	}
 	t, u, err := uc.challengeUser(ctx, mfaToken)
 	if err != nil {
 		return nil, err

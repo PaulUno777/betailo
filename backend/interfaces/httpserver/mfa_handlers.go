@@ -52,14 +52,18 @@ func handleMFAStatus(uc *auth.SecondFactor) http.HandlerFunc {
 			mfaStatusResponse
 			// SessionVerified: this session passed a second factor.
 			SessionVerified bool `json:"sessionVerified"`
-		}{out, claims.MFA})
+			// PasskeysAvailable: this deployment can register passkeys.
+			PasskeysAvailable bool `json:"passkeysAvailable"`
+		}{out, claims.MFA, uc.PasskeysAvailable()})
 	}
 }
 
 type totpSetupResponse struct {
 	Secret string `json:"secret"`
-	// URL is the otpauth:// address an authenticator app reads from a QR code.
+	// URL is the otpauth:// address an authenticator app reads; QR is
+	// that address as a QR code, a PNG data URL ready for an <img>.
 	URL string `json:"url"`
+	QR  string `json:"qr"`
 }
 
 func handleTOTPSetup(uc *auth.SecondFactor) http.HandlerFunc {
@@ -74,7 +78,7 @@ func handleTOTPSetup(uc *auth.SecondFactor) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, totpSetupResponse{Secret: s.Secret, URL: s.URL})
+		writeJSON(w, http.StatusOK, totpSetupResponse{Secret: s.Secret, URL: s.URL, QR: "data:image/png;base64," + base64.StdEncoding.EncodeToString(s.QR)})
 	}
 }
 

@@ -8,9 +8,9 @@ import (
 
 // TOTP is the authenticator-app factor (RFC 6238).
 type TOTP interface {
-	// Generate creates a secret for account and the otpauth:// URL an
-	// authenticator app reads, usually as a QR code.
-	Generate(account string) (secret, url string, err error)
+	// Generate creates a secret for account, the otpauth:// URL an
+	// authenticator app reads, and that URL drawn as a QR code (PNG).
+	Generate(account string) (secret, url string, qrPNG []byte, err error)
 	// Validate reports whether code is right for secret at the given time.
 	Validate(secret, code string, at time.Time) bool
 }

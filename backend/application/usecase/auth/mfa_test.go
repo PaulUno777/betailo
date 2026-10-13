@@ -57,8 +57,8 @@ func (f *fakeAuthTokens) ListOpen(_ context.Context, kind domain.AuthTokenKind, 
 // fakeTOTP accepts exactly one code.
 type fakeTOTP struct{}
 
-func (fakeTOTP) Generate(account string) (string, string, error) {
-	return "SECRET", "otpauth://totp/Betailo:" + account, nil
+func (fakeTOTP) Generate(account string) (string, string, []byte, error) {
+	return "SECRET", "otpauth://totp/Betailo:" + account, []byte("png"), nil
 }
 func (fakeTOTP) Validate(secret, code string, _ time.Time) bool {
 	return secret == "SECRET" && code == "123456"

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { FarmDecision, FarmQueue, OverviewPeriod, RejectionCode, ResolveAction, StaffRole } from '../../domain/enums';
-import { AdminUser, Farm, Reservation, Report } from '../../domain/models';
+import { AdminUser, Farm, Reservation, Report, StaffInvitation } from '../../domain/models';
 import { ApiClient, QueryParams } from '../../core/http/api-client';
 
 @Injectable({ providedIn: 'root' })
@@ -72,6 +72,19 @@ export class AdminApi {
   /** Gives a staff role to an existing account, named by its email. */
   grantStaffRole(email: string, role: StaffRole): Observable<AdminUser> {
     return this.api.post<AdminUser>('/admin/staff', { email, role });
+  }
+
+  /** Invites an address onto the staff; the answer carries the link once. */
+  inviteStaff(email: string, role: StaffRole): Observable<StaffInvitation> {
+    return this.api.post<StaffInvitation>('/admin/staff/invitations', { email, role });
+  }
+
+  resendInvitation(id: string): Observable<StaffInvitation> {
+    return this.api.post<StaffInvitation>(`/admin/staff/invitations/${id}/resend`);
+  }
+
+  cancelInvitation(id: string): Observable<void> {
+    return this.api.delete<void>(`/admin/staff/invitations/${id}`);
   }
 
   /** Changes a member's role; an empty role takes them off the team. */

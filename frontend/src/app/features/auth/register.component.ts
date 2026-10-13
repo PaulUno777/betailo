@@ -3,7 +3,7 @@ import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, Validatio
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { passwordStrength } from '../../domain/rules/password-strength';
-import { AuthApi } from '../../data-access/auth/auth.api';
+import { AuthApi, isMfaChallenge } from '../../data-access/auth/auth.api';
 import { AuthService } from '../../core/auth/auth.service';
 import { AppError } from '../../core/http/app-error';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -161,8 +161,13 @@ export class RegisterComponent {
     this.authApi.register({ email, password, displayName: displayName.trim() || undefined }).subscribe({
       next: () => {
         this.authApi.login({ email, password, remember: true }).subscribe({
-          next: ({ accessToken, user }) => {
-            this.authService.setSession(accessToken, user);
+          next: (result) => {
+            // A brand-new account has no second factor to ask for.
+            if (isMfaChallenge(result)) {
+              this.router.navigateByUrl('/login');
+              return;
+            }
+            this.authService.setSession(result.accessToken, result.user);
             // Back to what they were doing (Vendre, a checkout…).
             this.router.navigateByUrl(this.route.snapshot.queryParamMap.get('redirectTo') ?? '/');
           },

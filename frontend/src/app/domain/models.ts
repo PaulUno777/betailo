@@ -588,6 +588,8 @@ export interface AdminUser {
   memberSince: string;
   /** A staff member's latest line in the journal. */
   lastActiveAt?: string;
+  /** The account has a second factor (team page only). */
+  mfaEnabled?: boolean;
 }
 
 /** `GET /admin/farm-limits`: the platform default (set by the
@@ -600,8 +602,22 @@ export interface FarmLimits {
 
 /** `GET /admin/staff`: the team, and the permission table as the API
  * enforces it. */
+/** A staff invitation still waiting to be accepted. `link` and `mailed`
+ * are only there right after sending: the link is never stored. */
+export interface StaffInvitation {
+  id: string;
+  email: string;
+  role: StaffRole;
+  inviterName?: string;
+  createdAt: string;
+  expiresAt: string;
+  link?: string;
+  mailed?: boolean;
+}
+
 export interface StaffOverview {
   members: AdminUser[];
+  invitations: StaffInvitation[];
   roles: { role: StaffRole; permissions: Permission[] }[];
   permissions: Permission[];
 }

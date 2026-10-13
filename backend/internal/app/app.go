@@ -123,10 +123,14 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	authTokens := &mongodb.AuthTokenRepository{Coll: database.Collection("auth_tokens")}
 	siteURL := publicURL()
 	mailer := newMailer(logger)
-	passkeys, err := passkey.New("Betailo", hostOf(siteURL), passkeyOrigins(siteURL))
-	if err != nil {
-		_ = client.Disconnect(context.Background())
-		return nil, func() {}, err
+	// Passkeys are bound to the site's host name. Where there is none
+	// to bind to (the site is reached by IP address), they are simply
+	// not offered: the authenticator app still is.
+	var passkeys ports.Passkeys
+	if svc, err := passkey.New("Betailo", hostOf(siteURL), passkeyOrigins(siteURL)); err != nil {
+		logger.Warn("passkeys are unavailable: set APP_PUBLIC_URL to the site's address, with a host name", slog.Any("err", err))
+	} else {
+		passkeys = svc
 	}
 	staffMFARequired := os.Getenv("STAFF_MFA_REQUIRED") != "false"
 	if !staffMFARequired {

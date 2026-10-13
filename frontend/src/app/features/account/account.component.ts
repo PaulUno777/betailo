@@ -102,6 +102,11 @@ type Sheet = 'profile' | 'password' | null;
           <span class="flex-1 text-left">{{ 'account.password' | t }}</span>
           <bt-icon name="chevron-right" [size]="18" class="text-ink-muted" />
         </button>
+        <a routerLink="/account/security" [class]="rowClass">
+          <bt-icon name="shield" [size]="22" class="text-ink-muted" />
+          <span class="flex-1 text-left">{{ 'account.security' | t }}</span>
+          <bt-icon name="chevron-right" [size]="18" class="text-ink-muted" />
+        </a>
         <div [class]="rowClass">
           <span class="flex-1">{{ 'moreSheet.language' | t }}</span>
           <bt-locale-toggle />

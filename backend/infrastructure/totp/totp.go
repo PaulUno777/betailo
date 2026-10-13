@@ -2,6 +2,8 @@
 package totp
 
 import (
+	"bytes"
+	"image/png"
 	"time"
 
 	"github.com/pquerna/otp"
@@ -20,13 +22,25 @@ type Service struct {
 var _ ports.TOTP = (*Service)(nil)
 
 // Generate implements ports.TOTP.
-func (s *Service) Generate(account string) (string, string, error) {
+func (s *Service) Generate(account string) (string, string, []byte, error) {
 	key, err := otptotp.Generate(otptotp.GenerateOpts{Issuer: s.Issuer, AccountName: account})
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
-	return key.Secret(), key.URL(), nil
+	img, err := key.Image(qrSize, qrSize)
+	if err != nil {
+		return "", "", nil, err
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return "", "", nil, err
+	}
+	return key.Secret(), key.URL(), buf.Bytes(), nil
 }
+
+// qrSize is the QR code's side in pixels: sharp at twice the size the
+// page shows it.
+const qrSize = 360
 
 // Validate implements ports.TOTP.
 func (s *Service) Validate(secret, code string, at time.Time) bool {
