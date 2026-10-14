@@ -85,6 +85,9 @@ type FarmVerification struct {
 	// ReviewedBy is the staff member who decided; zero when the
 	// platform approved it on its own (AutoApproved).
 	ReviewedBy bson.ObjectID
+	// ReviewedByRole is that staff member's role at the time, which the
+	// owner is told ("refusée par l'équipe Modération").
+	ReviewedByRole StaffRole
 	// AutoApproved marks a farm approved by the FARM_AUTO_APPROVE test
 	// switch rather than by a person, so staff can review it later.
 	AutoApproved bool
@@ -123,6 +126,50 @@ const (
 	RejectFarmNotFound    RejectionCode = "farm_not_found"
 	RejectOther           RejectionCode = "other"
 )
+
+// ProofPart is one piece of what an owner sends for review.
+type ProofPart string
+
+const (
+	ProofIDDocument ProofPart = "id_document"
+	ProofPhotos     ProofPart = "photos"
+	ProofDetails    ProofPart = "details"
+)
+
+// ProofParts lists every part, in the order owners see them.
+var ProofParts = []ProofPart{ProofIDDocument, ProofPhotos, ProofDetails}
+
+// ToRedo is what a refusal asks the owner to send again. A refusal for
+// another reason leaves that to the staff message: nothing is assumed
+// to be fine.
+func (c RejectionCode) ToRedo() []ProofPart {
+	switch c {
+	case RejectIDUnreadable, RejectNameMismatch:
+		return []ProofPart{ProofIDDocument}
+	case RejectPhotosNotRecent:
+		return []ProofPart{ProofPhotos}
+	case RejectFarmNotFound:
+		return []ProofPart{ProofDetails}
+	default:
+		return ProofParts
+	}
+}
+
+// Accepted is the rest: what the owner need not send again.
+func (c RejectionCode) Accepted() []ProofPart {
+	redo := c.ToRedo()
+	var kept []ProofPart
+	for _, part := range ProofParts {
+		found := false
+		for _, r := range redo {
+			found = found || r == part
+		}
+		if !found {
+			kept = append(kept, part)
+		}
+	}
+	return kept
+}
 
 // RejectionCodes lists the refusal reasons in the order staff see them.
 var RejectionCodes = []RejectionCode{RejectIDUnreadable, RejectNameMismatch, RejectPhotosNotRecent, RejectFarmNotFound, RejectOther}

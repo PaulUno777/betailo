@@ -30,6 +30,7 @@
         "submittedAt": { "bsonType": "date" },
         "reviewedAt": { "bsonType": "date" },
         "reviewedBy": { "bsonType": "objectId" },
+        "reviewedByRole": { "enum": ["super_admin", "moderator", "finance", "support"] },
         "autoApproved": { "bsonType": "bool" },
         "rejectionReason": { "bsonType": "string", "maxLength": 500 }
       }

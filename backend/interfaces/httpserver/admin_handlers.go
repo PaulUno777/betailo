@@ -625,7 +625,7 @@ func handleAdminReviewFarm(uc *farm.ReviewFarm, journal *admin.Journal) http.Han
 			return
 		}
 		f, err := uc.Execute(r.Context(), farm.ReviewFarmInput{
-			FarmID: id, ReviewerID: actor.ID, Decision: farm.FarmDecision(req.Decision),
+			FarmID: id, ReviewerID: actor.ID, ReviewerRole: actor.Role, Decision: farm.FarmDecision(req.Decision),
 			ReasonCode: domain.RejectionCode(req.ReasonCode), Reason: req.Reason,
 		})
 		if err != nil {

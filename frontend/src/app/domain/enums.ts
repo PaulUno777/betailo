@@ -56,3 +56,6 @@ export type ReportLevel = 'high' | 'medium' | 'low';
 export type ReportStatus = 'open' | 'under_review' | 'handled' | 'rejected';
 
 export type ResolveAction = 'dismiss' | 'suspend';
+
+/** One piece of what an owner sends for a farm's review. */
+export type ProofPart = 'id_document' | 'photos' | 'details';

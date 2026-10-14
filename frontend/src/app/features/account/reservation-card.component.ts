@@ -29,7 +29,7 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
       [class.ring-forest-soft]="highlighted()"
     >
       <div class="flex gap-3">
-        <div class="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-sunken sm:h-20 sm:w-20">
+        <div class="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-sunken sm:h-20 sm:w-20 lg:h-[88px] lg:w-[88px] lg:rounded-2xl">
           @if (view().listing.photo; as photo) {
             <img [src]="photo" alt="" loading="lazy" class="h-full w-full object-cover" />
           }
@@ -40,9 +40,9 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
               {{ view().reference }}
               <span class="hidden sm:inline"> · {{ 'reservations.reservedOn' | t: { date: (view().createdAt | localDate: 'dayMonth') } }}</span>
             </span>
-            <span class="shrink-0 text-amount text-body-strong">{{ view().totalAmount | fcfa }}</span>
+            <span class="shrink-0 text-amount text-body-strong lg:font-display lg:text-[22px] lg:font-extrabold">{{ view().totalAmount | fcfa }}</span>
           </div>
-          <span class="line-clamp-2 text-body-strong">{{ view().quantity }} × {{ view().listing.title }}</span>
+          <span class="line-clamp-2 text-body-strong lg:font-display lg:text-[20px] lg:leading-snug">{{ view().quantity }} × {{ view().listing.title }}</span>
           @if (perspective() === 'buyer') {
             <span class="truncate text-small text-ink-muted">{{ view().farm.name }} · {{ view().farm.location }}</span>
           } @else {
@@ -53,7 +53,19 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
 
       @if (view().group !== 'cancelled') {
         <div class="flex flex-col gap-2">
-          <div class="grid grid-cols-4 gap-1.5" role="img" [attr.aria-label]="'reservations.progressLabel' | t">
+          <ol class="relative hidden px-5 lg:flex" [attr.aria-label]="'reservations.progressLabel' | t">
+            <span class="absolute top-2 right-[12%] left-[12%] h-0.5 bg-line" aria-hidden="true"></span>
+            @for (step of view().steps; track step.key) {
+              <li class="relative flex flex-1 flex-col items-center gap-1.5 text-center text-caption">
+                <span
+                  class="h-[18px] w-[18px] rounded-full"
+                  [class]="step.state === 'done' ? 'bg-forest' : step.state === 'current' ? 'border-[3px] border-clay bg-surface-card ring-[5px] ring-clay/20' : 'border-2 border-line-strong bg-surface-card'"
+                ></span>
+                <b [class]="step.state === 'upcoming' ? 'text-ink-muted' : step.state === 'current' ? 'text-clay-ink' : 'text-ink'">{{ 'reservations.step.' + step.key | t }}</b>
+              </li>
+            }
+          </ol>
+          <div class="grid grid-cols-4 gap-1.5 lg:hidden" role="img" [attr.aria-label]="'reservations.progressLabel' | t">
             @for (step of view().steps; track step.key) {
               <span
                 class="h-1.5 rounded-full"
@@ -61,7 +73,7 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
               ></span>
             }
           </div>
-          <div class="hidden grid-cols-4 gap-1.5 sm:grid">
+          <div class="hidden grid-cols-4 gap-1.5 sm:grid lg:hidden">
             @for (step of view().steps; track step.key) {
               <!-- The current step is what we're waiting for, not done yet. -->
               <span class="text-caption" [class]="step.state === 'upcoming' ? 'text-ink-muted' : step.state === 'current' ? 'font-semibold text-clay-ink' : 'text-ink'">

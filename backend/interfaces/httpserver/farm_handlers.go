@@ -42,8 +42,18 @@ type farmReviewResponse struct {
 	// message staff wrote.
 	RejectionCode   string `json:"rejectionCode,omitempty"`
 	RejectionReason string `json:"rejectionReason,omitempty"`
+	// ToRedo and Accepted split a refusal into what the owner sends
+	// again and what staff found fine (among id_document, photos,
+	// details); ReviewerRole is the role of who decided.
+	ToRedo       []string `json:"toRedo,omitempty"`
+	Accepted     []string `json:"accepted,omitempty"`
+	ReviewerRole string   `json:"reviewerRole,omitempty"`
+	// PhotoCount is how many farm photos the last submission held.
+	PhotoCount int `json:"photoCount"`
 	// CanSubmit: the farm is waiting on its owner to (re)submit proof.
-	CanSubmit bool `json:"canSubmit"`
+	// CanWithdraw: it is in the queue and can be taken back out.
+	CanSubmit   bool `json:"canSubmit"`
+	CanWithdraw bool `json:"canWithdraw"`
 }
 
 func toFarmResponse(f *domain.Farm) farmResponse {
@@ -61,7 +71,16 @@ func toOwnerFarmResponse(f *domain.Farm) farmResponse {
 		SubmittedAt: v.SubmittedAt, Submissions: v.Submissions, IDDocumentType: string(v.IDDocumentType),
 		ReviewedAt: v.ReviewedAt, AutoApproved: v.AutoApproved,
 		RejectionCode: string(v.RejectionCode), RejectionReason: v.RejectionReason,
-		CanSubmit: f.Status.CanSubmit(),
+		ReviewerRole: string(v.ReviewedByRole), PhotoCount: len(v.PhotoKeys),
+		CanSubmit: f.Status.CanSubmit(), CanWithdraw: f.Status == domain.FarmPending,
+	}
+	if f.Status == domain.FarmRejected {
+		for _, part := range v.RejectionCode.ToRedo() {
+			out.Review.ToRedo = append(out.Review.ToRedo, string(part))
+		}
+		for _, part := range v.RejectionCode.Accepted() {
+			out.Review.Accepted = append(out.Review.Accepted, string(part))
+		}
 	}
 	return out
 }
@@ -285,6 +304,26 @@ type submitFarmRequest struct {
 	// Certified is the owner's declaration that the farm is theirs
 	// and the photos recent.
 	Certified bool `json:"certified"`
+}
+
+func handleWithdrawFarmSubmission(uc *farm.WithdrawFarmSubmission) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		f, err := uc.Execute(r.Context(), id, claims.UserID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(f))
+	}
 }
 
 func handleSubmitFarmForReview(uc *farm.SubmitFarmForReview) http.HandlerFunc {

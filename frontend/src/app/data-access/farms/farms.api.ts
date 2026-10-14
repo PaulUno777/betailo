@@ -60,6 +60,11 @@ export class FarmsApi {
     return this.api.post<PresignedUpload>(`/farms/${id}/verification/presign`);
   }
 
+  /** Takes a farm back out of the review queue. */
+  withdrawSubmission(id: string): Observable<Farm> {
+    return this.api.post<Farm>(`/farms/${id}/verification/withdraw`);
+  }
+
   /** Hands the farm to staff for review. */
   submitForReview(id: string, proof: FarmProof): Observable<Farm> {
     return this.api.post<Farm>(`/farms/${id}/verification/submit`, proof);

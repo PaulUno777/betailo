@@ -175,7 +175,9 @@ export const fr = {
     purchases: 'Mes achats',
     account: 'Compte',
     badge: '{count} en attente de vous',
-    badge_one: '{count} en attente de vous'
+    badge_one: '{count} en attente de vous',
+    market: 'Marché',
+    sales: 'Ventes'
   },
   dialog: {
     defaultCancel: 'Annuler'
@@ -527,7 +529,15 @@ export const fr = {
     cancelledToast: 'Réservation annulée',
     disputedToast: 'Litige ouvert : notre équipe vous recontacte',
     reviewedToast: 'Merci pour votre avis',
-    actionFailed: 'Action impossible'
+    actionFailed: 'Action impossible',
+    asideLabel: 'Votre compte en un coup d’œil',
+    fundsTitle: 'Vos fonds protégés',
+    fundsBody: 'Retenus sous séquestre sur {count} réservations. Rien n’est versé aux éleveurs avant votre confirmation.',
+    fundsBody_one: 'Retenus sous séquestre sur {count} réservation. Rien n’est versé à l’éleveur avant votre confirmation.',
+    toReviewTitle: 'Avis à laisser',
+    sellTitle: 'Vous élevez aussi ?',
+    sellBody: 'Créez votre ferme avec ce même compte. Envoyez une pièce d’identité et quelques photos : notre équipe la vérifie, puis vous publiez vos cycles.',
+    sellCta: 'Créer ma ferme'
   },
   countdown: {
     now: 'imminente',
@@ -748,7 +758,31 @@ export const fr = {
     weekLabel: 'S{n}',
     buyerUnnamed: 'Acheteur',
     todoEmpty: 'Rien d’urgent : vos livraisons et vos relevés sont à jour.',
-    searchLabel: 'Rechercher une réservation'
+    searchLabel: 'Rechercher une réservation',
+    allFarms: 'toutes mes fermes',
+    kpiReservationsDelta: '{delta} vs {month}',
+    kpiEscrowCount: 'FCFA · {count} réservations',
+    kpiEscrowCount_one: 'FCFA · {count} réservation',
+    kpiRating: '{rating} sur 5 · {count} avis',
+    newReservations: '{count} nouvelles',
+    newReservations_one: '{count} nouvelle',
+    bannerLink: 'Voir mes fermes',
+    bannerOthers: 'Vos autres fermes continuent de vendre.',
+    banner: {
+      pendingTitle: '{farm} est en vérification',
+      pendingBody: 'Vous pourrez y publier des cycles dès l’approbation, en général sous 48 h.',
+      draftTitle: '{farm} n’est pas encore envoyée',
+      draftBody: 'Envoyez votre pièce d’identité et des photos pour la faire vérifier.',
+      rejectedTitle: '{farm} a été refusée',
+      rejectedBody: 'Le motif indique quoi corriger avant de la renvoyer.',
+      suspendedTitle: '{farm} est suspendue',
+      suspendedBody: 'Ses annonces ne sont plus visibles sur le marché.'
+    },
+    todoAction: {
+      mark_delivered: 'Voir les commandes',
+      health_log: 'Ajouter un relevé',
+      awaiting_payment: 'Voir les commandes'
+    }
   },
   portalCycles: {
     title: 'Mes lots',
@@ -1301,7 +1335,10 @@ export const fr = {
     label: 'Vos fermes',
     current: 'Ferme en cours : {farm}. Changer de ferme',
     manage: 'Gérer mes fermes',
-    create: 'Créer une ferme'
+    create: 'Créer une ferme',
+    all: 'Toutes mes fermes',
+    allHint: '{count} fermes · vue combinée',
+    limitReached: 'Limite atteinte'
   },
   farmStatusBanner: {
     draftTitle: '{farm} n’est pas encore soumise',
@@ -1411,7 +1448,24 @@ export const fr = {
     how2Title: 'L’équipe vérifie',
     how2Body: 'Un modérateur compare la pièce, le nom et les photos. Sous 48 h en général.',
     how3Title: 'Vous publiez',
-    how3Body: 'Approuvée : la ferme publie. Refusée : le motif dit quoi corriger, vous renvoyez.'
+    how3Body: 'Approuvée : la ferme publie. Refusée : le motif dit quoi corriger, vous renvoyez.',
+    byTeam: 'par l’équipe {team}',
+    redo: {
+      id_document: 'Pièce d’identité à refaire',
+      photos: 'Photos de la ferme à refaire',
+      details: 'Informations de la ferme à corriger'
+    },
+    ok: {
+      id_document: 'Pièce d’identité conforme',
+      photos: '{count} photos de ferme conformes',
+      photos_one: '{count} photo de ferme conforme',
+      details: 'Informations de la ferme conformes'
+    },
+    withdraw: 'Retirer la demande',
+    withdrawTitle: 'Retirer la demande pour {farm} ?',
+    withdrawBody: 'La ferme repasse en brouillon et garde ce que vous avez envoyé. Vous pourrez la renvoyer quand vous voulez.',
+    withdrawnToast: 'Demande retirée',
+    withdrawFailed: 'La demande n’a pas pu être retirée'
   },
   adminFarms: {
     eyebrow: 'Vérification',

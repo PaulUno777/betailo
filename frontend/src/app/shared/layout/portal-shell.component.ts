@@ -40,7 +40,15 @@ const BANNERS: Readonly<Partial<Record<FarmStatus, { tone: NoticeTone; icon: Ico
 
 const CENTER: BottomNavCenter = { labelKey: 'bottomNav.sell', icon: 'plus', route: '/sell' };
 
+/** Pages that say for themselves where the farm's review stands. */
+function ownsBanner(url: string): boolean {
+  const path = url.split(/[?#]/)[0];
+  return path === '/portal' || path.startsWith('/portal/farms');
+}
+
 const MORE_LINKS: readonly MoreSheetLink[] = [
+  { labelKey: 'portalNav.listings', icon: 'grid', route: '/portal/listings' },
+  { labelKey: 'portalNav.sales', icon: 'calendar', route: '/portal/reservations' },
   { labelKey: 'portalNav.cycles', icon: 'cycle', route: '/portal/cycles' },
   { labelKey: 'portalNav.payments', icon: 'wallet', route: '/portal/payments' },
   { labelKey: 'portalNav.farm', icon: 'settings', route: '/portal/farm' },
@@ -106,15 +114,16 @@ export class PortalShellComponent {
   private readonly onFarmsPage = toSignal(
     this.router.events.pipe(
       filter((e) => e instanceof NavigationEnd),
-      map(() => this.router.url.startsWith('/portal/farms'))
+      map(() => ownsBanner(this.router.url))
     ),
-    { initialValue: this.router.url.startsWith('/portal/farms') }
+    { initialValue: ownsBanner(this.router.url) }
   );
 
   protected readonly banner = computed(() => {
     const farm = this.seller.currentFarm();
     const def = farm ? BANNERS[farm.status] : undefined;
-    // "Mes fermes" says the same per farm, with the action beside it.
+    // "Mes fermes" says the same per farm, with the action beside it,
+    // and the dashboard draws its own under its header, as designed.
     if (!farm || !def || this.onFarmsPage()) return null;
     return {
       tone: def.tone,
@@ -137,6 +146,8 @@ export class PortalShellComponent {
       switch (item.route) {
         case '/portal/farms':
           return { ...base, badgeCount: this.seller.farms().length, badgeTone: 'plain' };
+        case '/portal/cycles':
+          return { ...base, badgeCount: this.navCounts.counts().cycles || undefined, badgeTone: 'plain' };
         case '/portal/reservations':
           return { ...base, badgeCount: this.navCounts.counts().seller, badgeTone: 'clay' };
         default:
@@ -145,10 +156,14 @@ export class PortalShellComponent {
     })
   );
 
+  /** The phone tabs as the design draws them for an account with farms:
+   * the site's home and market, the raised "+", then "Ventes" (this
+   * space, badged with what waits on the seller) and "Plus" for the
+   * rest of it and the account. */
   protected readonly bottomItems = computed<readonly BottomNavItem[]>(() => [
-    { kind: 'link', labelKey: 'portalNav.dashboardShort', icon: 'home', route: '/portal', exact: true },
-    { kind: 'link', labelKey: 'portalNav.listingsShort', icon: 'grid', route: '/portal/listings' },
-    { kind: 'link', labelKey: 'portalNav.sales', icon: 'calendar', route: '/portal/reservations', badge: this.navCounts.counts().seller },
+    { kind: 'link', labelKey: 'bottomNav.home', icon: 'home', route: '/', exact: true },
+    { kind: 'link', labelKey: 'bottomNav.market', icon: 'search', route: '/marketplace' },
+    { kind: 'link', labelKey: 'bottomNav.sales', icon: 'leaf', route: '/portal', badge: this.navCounts.counts().seller },
     { kind: 'more', labelKey: 'moreSheet.tab', icon: 'more' }
   ]);
 }

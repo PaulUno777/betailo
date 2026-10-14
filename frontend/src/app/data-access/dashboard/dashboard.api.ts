@@ -8,4 +8,9 @@ export class DashboardApi {
   sellerDashboardUrl(farmId: string): string {
     return this.api.url(`/farms/${farmId}/dashboard`);
   }
+
+  /** Every farm of the caller summed: "Toutes mes fermes". */
+  combinedSellerDashboardUrl(): string {
+    return this.api.url('/me/seller-dashboard');
+  }
 }

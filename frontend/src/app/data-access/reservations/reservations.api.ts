@@ -40,8 +40,9 @@ export class ReservationsApi {
   }
 
   /** A `ReservationList` of the farm's reservations, farmer's view. */
-  byFarmUrl(farmId: string, group?: ReservationGroup): string {
-    return this.api.url(`/farms/${farmId}/reservations`, group ? { group } : undefined);
+  /** `q` narrows the tab to a reference, a cycle or a listing title. */
+  byFarmUrl(farmId: string, group?: ReservationGroup, q?: string): string {
+    return this.api.url(`/farms/${farmId}/reservations`, { ...(group ? { group } : {}), ...(q ? { q } : {}) });
   }
 
   markDelivered(reservationId: string): Observable<Reservation> {

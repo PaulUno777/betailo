@@ -162,7 +162,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	listReservationsByFarm := &reservation.ListReservationsByFarm{
 		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Reviews: reviews,
 	}
-	navCounts := &reservation.NavCounts{Farms: farms, Buyer: listMyReservations, ForFarm: listReservationsByFarm}
+	navCounts := &reservation.NavCounts{Farms: farms, Buyer: listMyReservations, ForFarm: listReservationsByFarm, Cycles: cycles}
 
 	createReview := &review.CreateReview{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reviews: reviews, Trust: trustRecompute,
@@ -180,6 +180,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 
 	sellerDashboard := &dashboard.SellerDashboard{
 		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Users: users, Clock: systemClock,
+		Reviews: reviews,
 	}
 
 	adminOverview := &admin.Overview{
@@ -255,7 +256,8 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UpdateFarm: &farm.UpdateFarm{Farms: farms},
 			DeleteFarm: &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
-			PresignFarmProof: &farm.PresignFarmProof{Farms: farms, Storage: storageProvider},
+			PresignFarmProof:       &farm.PresignFarmProof{Farms: farms, Storage: storageProvider},
+			WithdrawFarmSubmission: &farm.WithdrawFarmSubmission{Farms: farms},
 			SubmitFarmForReview: &farm.SubmitFarmForReview{
 				Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock, AutoApprove: autoApproveFarms,
 			},
