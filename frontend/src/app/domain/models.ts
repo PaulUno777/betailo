@@ -100,6 +100,8 @@ export interface FarmReview {
 /** `GET /admin/farms`: a farm in the validation queue, with its owner. */
 export interface AdminFarm extends Farm {
   owner?: AdminUser;
+  /** Short-lived link to the first photo of the farm the owner sent. */
+  thumbUrl?: string;
 }
 
 /** `GET /admin/farms/{id}`: plus short-lived links to the proof. */
@@ -115,6 +117,10 @@ export interface AdminFarmDetail extends AdminFarm {
   reviewerRole?: StaffRole;
   /** The refusal reasons staff pick from. */
   rejectionCodes: RejectionCode[];
+  /** The points a reviewer goes through, and the ones ticked when the
+   * farm was last decided on. */
+  reviewChecks: string[];
+  checks: string[];
 }
 
 /** `GET /admin/farms?queue=`: one tab of the validation page, plus the
@@ -434,6 +440,9 @@ export interface Report {
   status: ReportStatus;
   /** Staff queue only: what was reported by name, who reported it, how
    * many reports the target drew, and how urgent it looks. */
+  /** The code staff quote ("RPT-0331") and their internal note. */
+  reference?: string;
+  note?: string;
   targetLabel?: string;
   reporterName?: string;
   createdAt?: string;
@@ -452,6 +461,8 @@ export interface ReportDetail {
   history: Report[];
   riskScore: number;
   signals: ReportRiskSignal[];
+  /** The decisions this report can take right now. */
+  actions: ResolveAction[];
   /** The account behind the report, when there is one to act on. */
   subject?: { id: string; name: string; city?: string; createdAt: string; suspended: boolean };
   /** The reported listing, previewed. */
@@ -575,6 +586,8 @@ export interface AdminUser {
   suspended: boolean;
   trustScore: number;
   memberSince: string;
+  /** A staff member's latest line in the journal. */
+  lastActiveAt?: string;
 }
 
 /** `GET /admin/farm-limits`: the platform default (set by the

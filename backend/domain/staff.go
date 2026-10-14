@@ -28,6 +28,8 @@ const (
 	PermEscrowRead Permission = "escrow.read"
 	// PermEscrowSettle releases or refunds a held payment.
 	PermEscrowSettle Permission = "escrow.settle"
+	// PermExportsAccounting downloads the accounting exports.
+	PermExportsAccounting Permission = "exports.accounting"
 	// PermStaffManage grants, changes and revokes staff roles.
 	PermStaffManage Permission = "staff.manage"
 	// PermAuditRead reads the journal of staff actions.
@@ -39,7 +41,7 @@ const (
 var Permissions = []Permission{
 	PermOverviewRead, PermAccountsRead, PermFarmsRead, PermCatalogRead,
 	PermFarmsReview, PermFarmLimitSet, PermReportsRead, PermReportsResolve, PermAccountsSuspend,
-	PermEscrowRead, PermEscrowSettle, PermStaffManage, PermAuditRead,
+	PermEscrowRead, PermEscrowSettle, PermExportsAccounting, PermStaffManage, PermAuditRead,
 }
 
 // StaffRoles lists the roles staff can hold, most powerful first.
@@ -56,7 +58,7 @@ var rolePermissions = map[StaffRole]map[Permission]bool{
 	),
 	StaffFinance: set(
 		PermOverviewRead, PermAccountsRead, PermFarmsRead, PermCatalogRead,
-		PermEscrowRead, PermEscrowSettle,
+		PermEscrowRead, PermEscrowSettle, PermExportsAccounting,
 	),
 	StaffSupport: set(
 		PermOverviewRead, PermAccountsRead, PermFarmsRead, PermCatalogRead,

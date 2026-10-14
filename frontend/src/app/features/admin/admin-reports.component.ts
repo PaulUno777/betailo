@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -46,7 +47,7 @@ const STRONG_SIGNAL = 30;
  * On phones the queue and the detail are two screens. */
 @Component({
   selector: 'bt-admin-reports',
-  imports: [RouterLink, ButtonComponent, DialogComponent, IconComponent, StatusBadgeComponent, FcfaCurrencyPipe, LocalDatePipe, TranslatePipe],
+  imports: [FormsModule, RouterLink, ButtonComponent, DialogComponent, IconComponent, StatusBadgeComponent, FcfaCurrencyPipe, LocalDatePipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="grid min-h-dvh lg:grid-cols-[400px_minmax(0,1fr)]">
@@ -125,6 +126,9 @@ const STRONG_SIGNAL = 30;
                 <span class="inline-flex h-6 items-center rounded-full px-2.5 text-caption font-semibold" [class]="levelChip(d.report.level)">{{ 'adminReports.risk.' + d.report.level | t }}</span>
                 <span class="inline-flex h-6 items-center rounded-full bg-ink px-2.5 text-caption font-semibold text-surface">{{ 'reportStatus.' + d.report.status | t }}</span>
                 <span class="inline-flex h-6 items-center rounded-full border border-line bg-surface-card px-2.5 text-caption font-semibold">{{ 'reportTarget.' + d.report.targetType | t }}</span>
+                @if (d.report.reference) {
+                  <span class="inline-flex h-6 items-center rounded-full border border-line bg-surface-card px-2.5 font-mono text-caption font-medium">{{ d.report.reference }}</span>
+                }
               </div>
               <h2 class="wrap-anywhere font-display text-[26px] leading-tight font-extrabold tracking-[-0.02em] sm:text-[30px]">{{ d.report.targetLabel || ('reportTarget.' + d.report.targetType | t) }}</h2>
               @if (d.subject; as s) {
@@ -197,15 +201,45 @@ const STRONG_SIGNAL = 30;
             }
           </div>
 
+          @if (staff.can('reports.resolve')) {
+            <div class="flex flex-col gap-2">
+              <label for="report-note" class="text-[13px] font-semibold">{{ 'adminReports.noteLabel' | t }}</label>
+              <textarea
+                id="report-note"
+                rows="2"
+                maxlength="1000"
+                [ngModel]="note()"
+                (ngModelChange)="note.set($event)"
+                class="resize-none rounded-xl border border-line-strong bg-surface-card px-3.5 py-3 text-[14.5px] font-medium text-ink"
+              ></textarea>
+              @if (note().trim() !== (d.report.note ?? '')) {
+                <bt-button class="self-start" variant="outline" size="sm" [disabled]="resolving()" (click)="saveNote()">{{ 'adminReports.noteSave' | t }}</bt-button>
+              }
+            </div>
+          } @else if (d.report.note) {
+            <div class="bo-card flex flex-col gap-1.5 p-5">
+              <b class="text-[13px]">{{ 'adminReports.noteLabel' | t }}</b>
+              <p class="wrap-anywhere text-small text-ink-muted">{{ d.report.note }}</p>
+            </div>
+          }
+
           @if (!staff.can('reports.resolve')) {
             <p class="mt-auto border-t border-line pt-4 text-small text-ink-muted">{{ 'adminReports.readOnly' | t }}</p>
-          } @else if (d.report.status === 'open' || d.report.status === 'under_review') {
+          } @else if (d.actions.length > 0) {
+            <!-- The API lists what this report can take; nothing here decides it. -->
             <div class="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
               <bt-button variant="outline" [disabled]="resolving()" (click)="resolve('dismiss')">{{ 'adminReports.resolveDismiss' | t }}</bt-button>
-              <!-- Suspending acts on an account: offered when the API found one behind the report. -->
-              @if (d.subject && !d.subject.suspended) {
-                <bt-button variant="danger" [disabled]="resolving()" (click)="suspendConfirmOpen.set(true)">{{ 'adminReports.resolveSuspend' | t }}</bt-button>
-              }
+              <div class="flex flex-wrap gap-2.5">
+                @if (d.actions.includes('hide_listing')) {
+                  <bt-button variant="outline" [disabled]="resolving()" (click)="resolve('hide_listing')">{{ 'adminReports.resolveHide' | t }}</bt-button>
+                }
+                @if (d.actions.includes('reverify')) {
+                  <bt-button variant="primary" [disabled]="resolving()" (click)="resolve('reverify')">{{ 'adminReports.resolveReverify' | t }}</bt-button>
+                }
+                @if (d.actions.includes('suspend')) {
+                  <bt-button variant="danger" [disabled]="resolving()" (click)="suspendConfirmOpen.set(true)">{{ 'adminReports.resolveSuspend' | t }}</bt-button>
+                }
+              </div>
             </div>
           } @else {
             <p class="mt-auto border-t border-line pt-4 text-small text-ink-muted">{{ 'adminReports.closed' | t }}</p>
@@ -257,6 +291,31 @@ export class AdminReportsComponent {
 
   protected readonly shown = computed(() => this.matching(this.filter()));
 
+  /** The internal note, as typed; it starts from what the API holds. */
+  protected readonly note = signal('');
+
+  constructor() {
+    effect(() => {
+      const saved = this.detail.value()?.report.note ?? '';
+      untracked(() => this.note.set(saved));
+    });
+  }
+
+  protected saveNote(): void {
+    this.resolving.set(true);
+    this.adminApi.saveReportNote(this.id(), this.note().trim()).subscribe({
+      next: () => {
+        this.resolving.set(false);
+        this.detail.reload();
+        this.toast.show({ tone: 'success', title: 'adminReports.noteSaved' });
+      },
+      error: (err: AppError) => {
+        this.resolving.set(false);
+        this.toast.show({ tone: 'danger', title: 'adminReports.resolveFailedTitle', detail: err.message });
+      }
+    });
+  }
+
   protected readonly resolving = signal(false);
   protected readonly suspendConfirmOpen = signal(false);
 
@@ -295,10 +354,11 @@ export class AdminReportsComponent {
 
   protected resolve(action: ResolveAction): void {
     this.resolving.set(true);
-    this.adminApi.resolveReport(this.id(), action).subscribe({
+    this.adminApi.resolveReport(this.id(), action, this.note().trim() || undefined).subscribe({
       next: () => {
         this.resolving.set(false);
         this.reports.reload();
+        this.toast.show({ tone: 'success', title: `adminReports.done.${action}` });
         this.router.navigateByUrl(this.base());
       },
       error: (err: AppError) => {

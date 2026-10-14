@@ -46,6 +46,7 @@ func BackfillReferences(ctx context.Context, database *mongo.Database) error {
 		{"cycles", domain.CycleRefPrefix},
 		{"reservations", domain.ReservationRefPrefix},
 		{"farms", domain.FarmRefPrefix},
+		{"reports", domain.ReportRefPrefix},
 	} {
 		coll := database.Collection(target.collection)
 		cur, err := coll.Find(ctx, bson.M{"reference": bson.M{"$exists": false}},

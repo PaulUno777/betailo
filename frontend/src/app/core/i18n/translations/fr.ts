@@ -915,7 +915,10 @@ export const fr = {
     queueOpen: 'Ouvrir la file',
     escrowTitle: 'Dernières transactions',
     seeAll: 'Tout voir',
-    exportCsv: 'Exporter CSV'
+    exportCsv: 'Exporter CSV',
+    colUpdated: 'Mis à jour',
+    ago: 'il y a {age}',
+    exportFailed: 'L’export n’a pas pu être préparé'
   },
   adminUsers: {
     farmLimitDefault: 'Fermes : par défaut',
@@ -1060,7 +1063,18 @@ export const fr = {
     noSignal: 'Aucun signal de risque sur cette cible.',
     receivedTitle: 'Rapports reçus',
     reporterUnknown: 'Membre',
-    closed: 'Ce signalement est traité.'
+    closed: 'Ce signalement est traité.',
+    noteLabel: 'Note interne (visible par l’équipe)',
+    noteSave: 'Enregistrer la note',
+    noteSaved: 'Note enregistrée',
+    resolveHide: 'Masquer l’annonce',
+    resolveReverify: 'Demander une vérification d’identité',
+    done: {
+      dismiss: 'Signalement classé sans suite',
+      suspend: 'Compte suspendu',
+      hide_listing: 'Annonce masquée',
+      reverify: 'Nouvelle vérification demandée à l’éleveur'
+    }
   },
   adminNav: {
     farms: 'Fermes à valider',
@@ -1544,12 +1558,12 @@ export const fr = {
     noPhotos: 'Aucune photo fournie.',
     checksTitle: 'Points à vérifier',
     check: {
-      identity: 'Le nom sur la pièce correspond au compte',
-      document: 'La pièce est lisible et non expirée',
-      photos: 'Les photos montrent une vraie exploitation',
-      location: 'La localisation est cohérente'
+      name_matches: 'Le nom sur la pièce correspond au compte',
+      document_readable: 'La pièce est lisible et non expirée',
+      photos_genuine: 'Les photos montrent une vraie exploitation',
+      location_consistent: 'La localisation est cohérente'
     },
-    checksHint: 'Aide-mémoire pour vous : ces cases ne sont pas enregistrées.',
+    checksHint: 'Les points cochés sont enregistrés avec votre décision.',
     decided: {
       approved: 'Approuvée par {name} le {date}',
       rejected: 'Refusée par {name} le {date}',
@@ -1563,7 +1577,8 @@ export const fr = {
     cancelReject: 'Annuler le refus',
     cancelSuspend: 'Annuler',
     sendReject: 'Envoyer le refus',
-    sendSuspend: 'Suspendre la ferme'
+    sendSuspend: 'Suspendre la ferme',
+    checksDone: 'Points vérifiés lors de la décision'
   },
   rating: {
     groupLabel: 'Note',
@@ -1640,7 +1655,9 @@ export const fr = {
     exceptionSaved: 'Exception enregistrée',
     exceptionEnded: 'Exception terminée',
     endTitle: 'Mettre fin à l’exception de {name} ?',
-    endBody: 'Le compte revient à la limite par défaut ({default}). Ses fermes existantes sont conservées ; il ne pourra plus en créer au-delà.'
+    endBody: 'Le compte revient à la limite par défaut ({default}). Ses fermes existantes sont conservées ; il ne pourra plus en créer au-delà.',
+    colActivity: 'Dernière activité',
+    neverActive: 'aucune action'
   },
   adminAudit: {
     title: 'Journal',
@@ -1666,10 +1683,12 @@ export const fr = {
     },
     escrow: {
       release: 'Séquestre libéré',
-      refund: 'Séquestre remboursé'
+      refund: 'Séquestre remboursé',
+      export: 'Export comptable téléchargé'
     },
     report: {
-      resolve: 'Signalement traité'
+      resolve: 'Signalement traité',
+      note: 'Note sur un signalement'
     },
     staff: {
       grant: 'Rôle attribué',
@@ -1705,6 +1724,9 @@ export const fr = {
     },
     audit: {
       read: 'Lire le journal'
+    },
+    exports: {
+      accounting: 'Exports comptables'
     }
   },
   rejectionCode: {
@@ -1712,7 +1734,8 @@ export const fr = {
     name_mismatch: 'Nom différent du compte',
     photos_not_recent: 'Photos non récentes ou reprises',
     farm_not_found: 'Ferme introuvable à l’adresse',
-    other: 'Autre motif'
+    other: 'Autre motif',
+    reverification: 'Nouvelle vérification d’identité demandée'
   },
   idDocumentType: {
     national_id: 'Carte nationale d’identité',

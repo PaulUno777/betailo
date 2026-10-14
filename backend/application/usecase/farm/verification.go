@@ -223,6 +223,8 @@ type ReviewFarmInput struct {
 	// when not given); Reason the message the owner reads.
 	ReasonCode domain.RejectionCode
 	Reason     string
+	// Checks are the review points the staff member ticked.
+	Checks []string
 }
 
 // Execute returns domain.ErrInvalid for an unknown decision or a
@@ -282,6 +284,7 @@ func (uc *ReviewFarm) Execute(ctx context.Context, in ReviewFarmInput) (*domain.
 	f.Verification.AutoApproved = false
 	f.Verification.RejectionCode = code
 	f.Verification.RejectionReason = reason
+	f.Verification.Checks = domain.ValidFarmReviewChecks(in.Checks)
 	if err := uc.Farms.Update(ctx, f); err != nil {
 		return nil, err
 	}

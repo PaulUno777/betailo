@@ -47,6 +47,7 @@ type farmVerificationDoc struct {
 	AutoApproved      bool                  `bson:"autoApproved,omitempty"`
 	RejectionCode     domain.RejectionCode  `bson:"rejectionCode,omitempty"`
 	RejectionReason   string                `bson:"rejectionReason,omitempty"`
+	Checks            []string              `bson:"checks,omitempty"`
 }
 
 func fromDomainFarm(f *domain.Farm) farmDoc {
@@ -71,7 +72,7 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 			SubmittedAt: f.Verification.SubmittedAt, Submissions: f.Verification.Submissions,
 			ReviewedAt: f.Verification.ReviewedAt, ReviewedBy: f.Verification.ReviewedBy, ReviewedByRole: f.Verification.ReviewedByRole,
 			AutoApproved: f.Verification.AutoApproved, RejectionCode: f.Verification.RejectionCode,
-			RejectionReason: f.Verification.RejectionReason,
+			RejectionReason: f.Verification.RejectionReason, Checks: f.Verification.Checks,
 		},
 	}
 }
@@ -98,7 +99,7 @@ func (d farmDoc) toDomain() *domain.Farm {
 			SubmittedAt: d.Verification.SubmittedAt, Submissions: d.Verification.Submissions,
 			ReviewedAt: d.Verification.ReviewedAt, ReviewedBy: d.Verification.ReviewedBy, ReviewedByRole: d.Verification.ReviewedByRole,
 			AutoApproved: d.Verification.AutoApproved, RejectionCode: d.Verification.RejectionCode,
-			RejectionReason: d.Verification.RejectionReason,
+			RejectionReason: d.Verification.RejectionReason, Checks: d.Verification.Checks,
 		},
 	}
 }

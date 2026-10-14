@@ -45,7 +45,11 @@ const (
 // target type happens to key its documents with an ObjectId, so the
 // field stays concretely typed rather than falling back to `any`.
 type Report struct {
-	ID         bson.ObjectID
+	ID bson.ObjectID
+	// Reference is the code staff quote ("RPT-0331").
+	Reference string
+	// Note is staff's internal note; reporters and targets never see it.
+	Note       string
 	ReporterID bson.ObjectID
 	TargetID   bson.ObjectID
 	TargetType ReportTargetType
@@ -53,3 +57,9 @@ type Report struct {
 	Status     ReportStatus
 	CreatedAt  time.Time
 }
+
+// MaxReportNoteLen bounds Report.Note.
+const MaxReportNoteLen = 1000
+
+// IsActive reports whether the report still waits for a decision.
+func (s ReportStatus) IsActive() bool { return s == ReportOpen || s == ReportUnderReview }

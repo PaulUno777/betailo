@@ -152,7 +152,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("GET /admin/farm-limits", can(domain.PermAccountsRead, handleAdminListFarmLimits(deps.AdminListFarmLimits)))
 	mux.Handle("POST /admin/farm-limits", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal)))
 
-	mux.Handle("GET /admin/farms", can(domain.PermFarmsRead, handleAdminListFarms(deps.AdminListFarms, deps.AdminFarmQueueCounts)))
+	mux.Handle("GET /admin/farms", can(domain.PermFarmsRead, handleAdminListFarms(deps.AdminListFarms, deps.AdminFarmQueueCounts, deps.Storage)))
 	mux.Handle("GET /admin/farms/{id}", can(domain.PermFarmsRead, handleAdminGetFarm(deps.AdminGetFarm, journal)))
 	mux.Handle("POST /admin/farms/{id}/review", can(domain.PermFarmsReview, handleAdminReviewFarm(deps.ReviewFarm, journal)))
 
@@ -160,17 +160,19 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("GET /admin/listings", can(domain.PermCatalogRead, handleAdminListListings(deps.AdminListListings, deps.Storage)))
 
 	mux.Handle("GET /admin/escrow", can(domain.PermEscrowRead, handleAdminListEscrow(deps.AdminListEscrow)))
+	mux.Handle("GET /admin/escrow/export.csv", can(domain.PermExportsAccounting, handleAdminExportEscrow(deps.AdminListEscrow, journal)))
 	mux.Handle("POST /admin/escrow/{id}/release", can(domain.PermEscrowSettle, handleAdminReleaseEscrow(deps.AdminReleaseEscrow, journal)))
 	mux.Handle("POST /admin/escrow/{id}/refund", can(domain.PermEscrowSettle, handleAdminRefundEscrow(deps.AdminRefundEscrow, journal)))
 
 	mux.Handle("GET /admin/reports", can(domain.PermReportsRead, handleAdminListReports(deps.AdminListReports)))
 	mux.Handle("GET /admin/reports/{id}", can(domain.PermReportsRead, handleAdminGetReportDetail(deps.AdminGetReportDetail, deps.Storage)))
+	mux.Handle("PUT /admin/reports/{id}/note", can(domain.PermReportsResolve, handleAdminSaveReportNote(deps.AdminSaveReportNote, journal)))
 	mux.Handle("POST /admin/reports/{id}/resolve", can(domain.PermReportsResolve, handleAdminResolveReport(deps.AdminResolveReport, journal)))
 
 	// The team itself. Reading who is on it and what each role may do
 	// is open to all staff (it is how a refusal gets explained);
 	// changing it is the super admin's alone.
-	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff)))
+	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff, deps.AdminListAudit)))
 	mux.Handle("POST /admin/staff", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
 	mux.Handle("POST /admin/staff/{id}/role", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
 	mux.Handle("GET /admin/audit", can(domain.PermAuditRead, handleAdminListAudit(deps.AdminListAudit)))

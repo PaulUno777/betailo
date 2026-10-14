@@ -43,6 +43,8 @@ const (
 	ActionEscrowRelease   = "escrow.release"
 	ActionEscrowRefund    = "escrow.refund"
 	ActionReportResolve   = "report.resolve"
+	ActionReportNote      = "report.note"
+	ActionEscrowExport    = "escrow.export"
 	ActionStaffGrant      = "staff.grant"
 	ActionStaffRevoke     = "staff.revoke"
 )

@@ -21,7 +21,7 @@
         "idDocumentKey": { "bsonType": "string" },
         "idDocumentBackKey": { "bsonType": "string" },
         "submissions": { "bsonType": ["int", "long"], "minimum": 0 },
-        "rejectionCode": { "enum": ["id_unreadable", "name_mismatch", "photos_not_recent", "farm_not_found", "other"] },
+        "rejectionCode": { "enum": ["id_unreadable", "name_mismatch", "photos_not_recent", "farm_not_found", "other", "reverification"] },
         "photoKeys": {
           "bsonType": "array",
           "maxItems": 3,
@@ -30,6 +30,7 @@
         "submittedAt": { "bsonType": "date" },
         "reviewedAt": { "bsonType": "date" },
         "reviewedBy": { "bsonType": "objectId" },
+        "checks": { "bsonType": "array", "items": { "bsonType": "string" } },
         "reviewedByRole": { "enum": ["super_admin", "moderator", "finance", "support"] },
         "autoApproved": { "bsonType": "bool" },
         "rejectionReason": { "bsonType": "string", "maxLength": 500 }

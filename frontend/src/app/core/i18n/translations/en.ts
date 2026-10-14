@@ -916,7 +916,10 @@ export const en: TranslationDictionary = {
     queueOpen: 'Open the queue',
     escrowTitle: 'Latest transactions',
     seeAll: 'See all',
-    exportCsv: 'Export CSV'
+    exportCsv: 'Export CSV',
+    colUpdated: 'Updated',
+    ago: '{age} ago',
+    exportFailed: 'The export could not be prepared'
   },
   adminUsers: {
     farmLimitDefault: 'Farms: default',
@@ -1061,7 +1064,18 @@ export const en: TranslationDictionary = {
     noSignal: 'No risk signal on this target.',
     receivedTitle: 'Reports received',
     reporterUnknown: 'Member',
-    closed: 'This report is closed.'
+    closed: 'This report is closed.',
+    noteLabel: 'Internal note (visible to staff)',
+    noteSave: 'Save the note',
+    noteSaved: 'Note saved',
+    resolveHide: 'Hide the listing',
+    resolveReverify: 'Ask for an identity check',
+    done: {
+      dismiss: 'Report dismissed',
+      suspend: 'Account suspended',
+      hide_listing: 'Listing hidden',
+      reverify: 'The farmer was asked to verify again'
+    }
   },
   adminNav: {
     farms: 'Farms to review',
@@ -1545,12 +1559,12 @@ export const en: TranslationDictionary = {
     noPhotos: 'No photo provided.',
     checksTitle: 'Points to check',
     check: {
-      identity: 'The name on the document matches the account',
-      document: 'The document is readable and not expired',
-      photos: 'The photos show a real farm',
-      location: 'The location makes sense'
+      name_matches: 'The name on the document matches the account',
+      document_readable: 'The document is readable and not expired',
+      photos_genuine: 'The photos show a real farm',
+      location_consistent: 'The location is consistent'
     },
-    checksHint: 'A reminder for you: these boxes are not saved.',
+    checksHint: 'The points you tick are kept with your decision.',
     decided: {
       approved: 'Approved by {name} on {date}',
       rejected: 'Refused by {name} on {date}',
@@ -1564,7 +1578,8 @@ export const en: TranslationDictionary = {
     cancelReject: 'Cancel the refusal',
     cancelSuspend: 'Cancel',
     sendReject: 'Send the refusal',
-    sendSuspend: 'Suspend the farm'
+    sendSuspend: 'Suspend the farm',
+    checksDone: 'Points checked at the decision'
   },
   rating: {
     groupLabel: 'Rating',
@@ -1641,7 +1656,9 @@ export const en: TranslationDictionary = {
     exceptionSaved: 'Exception saved',
     exceptionEnded: 'Exception ended',
     endTitle: 'End {name}’s exception?',
-    endBody: 'The account goes back to the default limit ({default}). Its existing farms are kept; it can’t open more beyond that.'
+    endBody: 'The account goes back to the default limit ({default}). Its existing farms are kept; it can’t open more beyond that.',
+    colActivity: 'Last activity',
+    neverActive: 'no action yet'
   },
   adminAudit: {
     title: 'Journal',
@@ -1667,10 +1684,12 @@ export const en: TranslationDictionary = {
     },
     escrow: {
       release: 'Escrow released',
-      refund: 'Escrow refunded'
+      refund: 'Escrow refunded',
+      export: 'Accounting export downloaded'
     },
     report: {
-      resolve: 'Report handled'
+      resolve: 'Report handled',
+      note: 'Note on a report'
     },
     staff: {
       grant: 'Role given',
@@ -1706,6 +1725,9 @@ export const en: TranslationDictionary = {
     },
     audit: {
       read: 'Read the journal'
+    },
+    exports: {
+      accounting: 'Accounting exports'
     }
   },
   rejectionCode: {
@@ -1713,7 +1735,8 @@ export const en: TranslationDictionary = {
     name_mismatch: 'Name differs from the account',
     photos_not_recent: 'Photos not recent or reused',
     farm_not_found: 'Farm not found at the address',
-    other: 'Other reason'
+    other: 'Other reason',
+    reverification: 'A new identity check was requested'
   },
   idDocumentType: {
     national_id: 'National identity card',

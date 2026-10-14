@@ -3,11 +3,15 @@ package admin
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -55,6 +59,7 @@ type reportNames struct {
 	Users        ports.UserRepository
 	Listings     ports.ListingStore
 	Reservations ports.ReservationRepository
+	Forum        ports.ForumRepository
 }
 
 func (n reportNames) user(ctx context.Context, id bson.ObjectID) string {
@@ -87,43 +92,87 @@ func (n reportNames) target(ctx context.Context, rp *domain.Report) string {
 				return r.Reference
 			}
 		}
+	case domain.ReportTargetForumPost:
+		if n.Forum != nil {
+			if p, err := n.Forum.FindByID(ctx, rp.TargetID); err == nil {
+				return p.Title
+			}
+		}
 	}
 	return ""
 }
 
-// ListReports backs the admin console's "Signalements" queue.
+// ListReports backs the admin console's "Signalements" queue: one row
+// per target, however many reports it drew. The row is the latest
+// report still waiting (or the latest of all once every one is closed)
+// and its status is the target's: under review as soon as one report
+// is, open while any waits, else how the last one ended.
 type ListReports struct {
 	Reports      ports.ReportRepository
 	Users        ports.UserRepository
 	Listings     ports.ListingStore
 	Reservations ports.ReservationRepository
+	Forum        ports.ForumRepository
 }
 
 func (uc *ListReports) Execute(ctx context.Context, status domain.ReportStatus) ([]ReportRow, error) {
-	reports, err := uc.Reports.List(ctx, status)
+	reports, err := uc.Reports.List(ctx, "")
 	if err != nil {
 		return nil, err
 	}
-	names := reportNames{Users: uc.Users, Listings: uc.Listings, Reservations: uc.Reservations}
-	counts := map[bson.ObjectID]int{}
-	labels := map[bson.ObjectID]string{}
-	rows := make([]ReportRow, 0, len(reports))
+	names := reportNames{Users: uc.Users, Listings: uc.Listings, Reservations: uc.Reservations, Forum: uc.Forum}
+
+	byTarget := map[bson.ObjectID][]*domain.Report{}
+	var order []bson.ObjectID
 	for _, rp := range reports {
-		if _, seen := counts[rp.TargetID]; !seen {
-			all, err := uc.Reports.ListByTarget(ctx, rp.TargetID)
-			if err != nil {
-				return nil, err
-			}
-			counts[rp.TargetID] = len(all)
-			labels[rp.TargetID] = names.target(ctx, rp)
+		if _, seen := byTarget[rp.TargetID]; !seen {
+			order = append(order, rp.TargetID)
 		}
-		count := counts[rp.TargetID]
+		byTarget[rp.TargetID] = append(byTarget[rp.TargetID], rp)
+	}
+
+	rows := make([]ReportRow, 0, len(order))
+	for _, target := range order {
+		head, targetStatus := headOf(byTarget[target])
+		if status != "" && targetStatus != status {
+			continue
+		}
+		shown := *head
+		shown.Status = targetStatus
+		count := len(byTarget[target])
 		rows = append(rows, ReportRow{
-			Report: rp, TargetLabel: labels[rp.TargetID], ReporterName: names.user(ctx, rp.ReporterID),
-			Count: count, Level: reportLevel(rp, count),
+			Report: &shown, TargetLabel: names.target(ctx, head), ReporterName: names.user(ctx, head.ReporterID),
+			Count: count, Level: reportLevel(&shown, count),
 		})
 	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Report.CreatedAt.After(rows[j].Report.CreatedAt) })
 	return rows, nil
+}
+
+// headOf picks the report that stands for a target and the status the
+// target shows in the queue.
+func headOf(reports []*domain.Report) (*domain.Report, domain.ReportStatus) {
+	var latest, latestActive *domain.Report
+	underReview := false
+	for _, rp := range reports {
+		if latest == nil || rp.CreatedAt.After(latest.CreatedAt) {
+			latest = rp
+		}
+		if rp.Status.IsActive() {
+			underReview = underReview || rp.Status == domain.ReportUnderReview
+			if latestActive == nil || rp.CreatedAt.After(latestActive.CreatedAt) {
+				latestActive = rp
+			}
+		}
+	}
+	switch {
+	case latestActive == nil:
+		return latest, latest.Status
+	case underReview:
+		return latestActive, domain.ReportUnderReview
+	default:
+		return latestActive, domain.ReportOpen
+	}
 }
 
 // RiskSignal is one line of the admin detail view's "Signaux combinés"
@@ -171,6 +220,8 @@ type ReportListing struct {
 	Status    domain.ListingStatus
 	PhotoKey  string
 	FarmName  string
+	// FarmApproved: the farm behind it can be asked to verify again.
+	FarmApproved bool
 }
 
 // accountAgeThreshold/priceDeviationThreshold mirror the architecture
@@ -195,8 +246,10 @@ type GetReportDetail struct {
 	Farms    ports.FarmRepository
 	Search   ports.ListingSearchRepository
 	Clock    ports.Clock
-	// Reservations names a reported reservation by its reference.
+	// Reservations names a reported reservation by its reference, Forum
+	// a reported post by its title.
 	Reservations ports.ReservationRepository
+	Forum        ports.ForumRepository
 }
 
 func (uc *GetReportDetail) Execute(ctx context.Context, reportID bson.ObjectID) (*ReportDetail, error) {
@@ -209,7 +262,19 @@ func (uc *GetReportDetail) Execute(ctx context.Context, reportID bson.ObjectID) 
 		return nil, err
 	}
 
-	names := reportNames{Users: uc.Users, Listings: uc.Listings, Reservations: uc.Reservations}
+	names := reportNames{Users: uc.Users, Listings: uc.Listings, Reservations: uc.Reservations, Forum: uc.Forum}
+	// The detail speaks for the target, like the queue: its status is
+	// the target's, and a note written on any of its reports shows.
+	if _, targetStatus := headOf(history); len(history) > 0 {
+		shown := *rp
+		shown.Status = targetStatus
+		for _, h := range history {
+			if shown.Note == "" && h.Note != "" {
+				shown.Note = h.Note
+			}
+		}
+		rp = &shown
+	}
 	rows := make([]ReportRow, 0, len(history))
 	for _, h := range history {
 		rows = append(rows, ReportRow{Report: h, ReporterName: names.user(ctx, h.ReporterID), Count: len(history), Level: reportLevel(h, len(history))})
@@ -272,6 +337,7 @@ func (uc *GetReportDetail) scoreListing(ctx context.Context, detail *ReportDetai
 	if c, err := uc.Cycles.FindByID(ctx, *l.CycleID); err == nil {
 		if f, err := uc.Farms.FindByID(ctx, c.FarmID); err == nil {
 			preview.FarmName = f.Name
+			preview.FarmApproved = f.Status == domain.FarmApproved
 			if owner, err := uc.Users.FindByID(ctx, f.OwnerID); err == nil {
 				detail.Subject = subjectOf(owner)
 				age := now.Sub(owner.CreatedAt)
@@ -322,36 +388,77 @@ func (uc *GetReportDetail) scoreListing(ctx context.Context, detail *ReportDetai
 	}
 }
 
-// ResolveAction is what staff decide about a report. (Identity checks
-// are no longer an action here: a farm's own review covers them, see
-// application/usecase/farm.ReviewFarm.)
+// ResolveAction is what staff decide about a report.
 type ResolveAction string
 
 const (
 	ResolveDismiss ResolveAction = "dismiss"
 	ResolveSuspend ResolveAction = "suspend"
+	// ResolveHideListing takes the reported listing off the market.
+	ResolveHideListing ResolveAction = "hide_listing"
+	// ResolveReverify asks the owner of the reported listing's farm to
+	// prove their identity again: the farm leaves the market until then.
+	ResolveReverify ResolveAction = "reverify"
 )
 
-// ResolveReport applies a moderation decision. Suspending acts on an
-// account: the reported profile, or the owner of the reported listing's
-// farm. Any other report can only be dismissed.
+// ResolveReport applies a moderation decision to a target: every report
+// still waiting on it closes with the decision. Suspending acts on an
+// account (the reported profile, or the owner of the reported listing's
+// farm); hiding and re-verifying act on a listing report.
 type ResolveReport struct {
 	Reports ports.ReportRepository
 	Users   ports.UserRepository
 	Trust   ports.TrustRecomputer
 	// Listings, Cycles and Farms lead from a reported listing to the
-	// account that owns it. Without them only a profile report suspends.
+	// farm and account that own it. Without them only a profile report
+	// suspends.
 	Listings ports.ListingStore
 	Cycles   ports.CycleStore
 	Farms    ports.FarmRepository
 	// Sessions, when set, ends a suspended user's open sessions at once.
 	Sessions SessionForgetter
+	// Notifications and Clock tell an owner asked to verify again.
+	Notifications ports.NotificationRepository
+	Clock         ports.Clock
 }
 
 type ResolveReportInput struct {
 	Actor    Actor
 	ReportID bson.ObjectID
 	Action   ResolveAction
+	// Note is staff's internal note, kept with the decision.
+	Note string
+}
+
+func checkNote(note string) (string, error) {
+	note = strings.TrimSpace(note)
+	if utf8.RuneCountInString(note) > domain.MaxReportNoteLen {
+		return "", domain.Coded("admin.report_note_too_long", fmt.Errorf("admin: a note is at most %d characters: %w", domain.MaxReportNoteLen, domain.ErrInvalid))
+	}
+	return note, nil
+}
+
+// farmBehind is the farm a listing report is about.
+func (uc *ResolveReport) farmBehind(ctx context.Context, rp *domain.Report) (*domain.Listing, *domain.Farm, error) {
+	if rp.TargetType != domain.ReportTargetListing || uc.Listings == nil || uc.Cycles == nil || uc.Farms == nil {
+		return nil, nil, domain.Coded("admin.report_needs_listing", fmt.Errorf("admin: this decision needs a listing report: %w", domain.ErrInvalid))
+	}
+	l, err := uc.Listings.FindByID(ctx, rp.TargetID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if l.CycleID == nil {
+		return l, nil, nil
+	}
+	c, err := uc.Cycles.FindByID(ctx, *l.CycleID)
+	if err != nil {
+		return nil, nil, err
+	}
+	f, err := uc.Farms.FindByID(ctx, c.FarmID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return l, f, nil
 }
 
 // accountBehind is the account a suspension would hit.
@@ -384,16 +491,21 @@ func (uc *ResolveReport) accountBehind(ctx context.Context, rp *domain.Report) (
 }
 
 // Execute returns domain.ErrInvalid for an unrecognized action, or for
-// suspend on a report with no account behind it.
+// a decision the report's target can't take.
 func (uc *ResolveReport) Execute(ctx context.Context, in ResolveReportInput) (*domain.Report, error) {
 	rp, err := uc.Reports.FindByID(ctx, in.ReportID)
 	if err != nil {
 		return nil, err
 	}
+	note, err := checkNote(in.Note)
+	if err != nil {
+		return nil, err
+	}
 
+	outcome := domain.ReportHandled
 	switch in.Action {
 	case ResolveDismiss:
-		rp.Status = domain.ReportRejected
+		outcome = domain.ReportRejected
 	case ResolveSuspend:
 		accountID, err := uc.accountBehind(ctx, rp)
 		if err != nil {
@@ -410,11 +522,78 @@ func (uc *ResolveReport) Execute(ctx context.Context, in ResolveReportInput) (*d
 			return nil, err
 		}
 		_ = uc.Trust.Execute(ctx, u.ID)
-		rp.Status = domain.ReportHandled
+	case ResolveHideListing:
+		l, _, err := uc.farmBehind(ctx, rp)
+		if err != nil {
+			return nil, err
+		}
+		l.Status, l.Flagged = domain.ListingUnpublished, true
+		if err := uc.Listings.Update(ctx, l); err != nil {
+			return nil, err
+		}
+	case ResolveReverify:
+		_, f, err := uc.farmBehind(ctx, rp)
+		if err != nil {
+			return nil, err
+		}
+		if f == nil || f.Status != domain.FarmApproved {
+			return nil, domain.Coded("admin.report_farm_not_approved", fmt.Errorf("admin: only an approved farm can be asked to verify again: %w", domain.ErrConflict))
+		}
+		now := uc.Clock.Now()
+		f.Status = domain.FarmRejected
+		f.Verification.ReviewedAt, f.Verification.ReviewedBy, f.Verification.ReviewedByRole = &now, in.Actor.ID, in.Actor.Role
+		f.Verification.AutoApproved, f.Verification.RejectionCode = false, domain.RejectReverification
+		f.Verification.RejectionReason = "Une nouvelle vérification de votre identité est demandée. Envoyez de nouveau votre pièce d'identité."
+		if err := uc.Farms.Update(ctx, f); err != nil {
+			return nil, err
+		}
+		_ = uc.Trust.Execute(ctx, f.OwnerID)
+		notify.Send(ctx, uc.Notifications, now, notify.Notice{
+			UserID: f.OwnerID, Type: domain.NotifFarmRejected, Params: map[string]string{"farm": f.Name}, Link: domain.LinkSellerFarms,
+			Fallback: fmt.Sprintf("Une nouvelle vérification est demandée pour votre ferme %s.", f.Name),
+		})
 	default:
 		return nil, fmt.Errorf("admin: unrecognized resolve action %q: %w", in.Action, domain.ErrInvalid)
 	}
 
+	// The decision is about the target: every report waiting on it closes.
+	siblings, err := uc.Reports.ListByTarget(ctx, rp.TargetID)
+	if err != nil {
+		return nil, err
+	}
+	for _, other := range siblings {
+		if other.ID == rp.ID || !other.Status.IsActive() {
+			continue
+		}
+		other.Status = outcome
+		if err := uc.Reports.Update(ctx, other); err != nil {
+			return nil, err
+		}
+	}
+	rp.Status = outcome
+	if note != "" {
+		rp.Note = note
+	}
+	if err := uc.Reports.Update(ctx, rp); err != nil {
+		return nil, err
+	}
+	return rp, nil
+}
+
+// SaveReportNote keeps staff's internal note on a report, with or
+// without a decision.
+type SaveReportNote struct {
+	Reports ports.ReportRepository
+}
+
+func (uc *SaveReportNote) Execute(ctx context.Context, reportID bson.ObjectID, note string) (*domain.Report, error) {
+	rp, err := uc.Reports.FindByID(ctx, reportID)
+	if err != nil {
+		return nil, err
+	}
+	if rp.Note, err = checkNote(note); err != nil {
+		return nil, err
+	}
 	if err := uc.Reports.Update(ctx, rp); err != nil {
 		return nil, err
 	}

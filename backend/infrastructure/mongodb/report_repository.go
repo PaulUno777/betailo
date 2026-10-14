@@ -15,6 +15,8 @@ import (
 // reportDoc mirrors domain.Report for BSON persistence.
 type reportDoc struct {
 	ID         bson.ObjectID           `bson:"_id,omitempty"`
+	Reference  string                  `bson:"reference,omitempty"`
+	Note       string                  `bson:"note,omitempty"`
 	ReporterID bson.ObjectID           `bson:"reporterId"`
 	TargetID   bson.ObjectID           `bson:"targetId"`
 	TargetType domain.ReportTargetType `bson:"targetType"`
@@ -25,14 +27,14 @@ type reportDoc struct {
 
 func fromDomainReport(r *domain.Report) reportDoc {
 	return reportDoc{
-		ID: r.ID, ReporterID: r.ReporterID, TargetID: r.TargetID,
+		ID: r.ID, Reference: r.Reference, Note: r.Note, ReporterID: r.ReporterID, TargetID: r.TargetID,
 		TargetType: r.TargetType, Reason: r.Reason, Status: r.Status, CreatedAt: r.CreatedAt,
 	}
 }
 
 func (d reportDoc) toDomain() *domain.Report {
 	return &domain.Report{
-		ID: d.ID, ReporterID: d.ReporterID, TargetID: d.TargetID,
+		ID: d.ID, Reference: d.Reference, Note: d.Note, ReporterID: d.ReporterID, TargetID: d.TargetID,
 		TargetType: d.TargetType, Reason: d.Reason, Status: d.Status, CreatedAt: d.CreatedAt,
 	}
 }
@@ -41,6 +43,8 @@ func (d reportDoc) toDomain() *domain.Report {
 // "reports" collection.
 type ReportRepository struct {
 	Coll *mongo.Collection
+	// Sequencer, when set, numbers each new report ("RPT-0331").
+	Sequencer ports.Sequencer
 }
 
 var _ ports.ReportRepository = (*ReportRepository)(nil)
@@ -49,6 +53,13 @@ var _ ports.ReportRepository = (*ReportRepository)(nil)
 func (r *ReportRepository) Insert(ctx context.Context, rp *domain.Report) error {
 	if rp.ID.IsZero() {
 		rp.ID = bson.NewObjectID()
+	}
+	if rp.Reference == "" && r.Sequencer != nil {
+		n, err := r.Sequencer.Next(ctx, domain.ReportRefPrefix)
+		if err != nil {
+			return err
+		}
+		rp.Reference = domain.FormatReference(domain.ReportRefPrefix, n)
 	}
 	_, err := r.Coll.InsertOne(ctx, fromDomainReport(rp))
 	return err

@@ -8,6 +8,8 @@
     },
     "targetType": { "enum": ["listing", "profile", "forum_post", "reservation"] },
     "reason": { "bsonType": "string" },
+    "reference": { "bsonType": "string" },
+    "note": { "bsonType": "string", "maxLength": 1000 },
     "status": { "enum": ["open", "under_review", "handled", "rejected"] },
     "createdAt": { "bsonType": "date" }
   }

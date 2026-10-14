@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"fmt"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"time"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
@@ -185,12 +186,19 @@ type openReportCounts struct{ reports, disputes int }
 // listing, a profile, a forum post) and disputes (about a reservation).
 func countOpenReports(ctx context.Context, reports ports.ReportRepository) (openReportCounts, error) {
 	var out openReportCounts
+	// Counted per target, like the queue: three reports on one listing
+	// are one thing to decide.
+	seen := map[bson.ObjectID]bool{}
 	for _, status := range []domain.ReportStatus{domain.ReportOpen, domain.ReportUnderReview} {
 		list, err := reports.List(ctx, status)
 		if err != nil {
 			return out, err
 		}
 		for _, rp := range list {
+			if seen[rp.TargetID] {
+				continue
+			}
+			seen[rp.TargetID] = true
 			if rp.TargetType == domain.ReportTargetReservation {
 				out.disputes++
 			} else {

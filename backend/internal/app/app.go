@@ -104,6 +104,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	notifications := &mongodb.NotificationRepository{Coll: database.Collection("notifications")}
 	favorites := &mongodb.FavoriteRepository{Coll: database.Collection("favorites")}
 	counters := &mongodb.CounterRepository{Coll: database.Collection("counters")}
+	reports.Sequencer = counters
 	txManager := &mongodb.TxManager{Client: client}
 	hasher := security.BcryptHasher{}
 	systemClock := clock.System{}
@@ -203,13 +204,14 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	adminRefundEscrow := &reservation.AdminRefundEscrow{
 		Reservations: reservations, Payments: sandboxPayments, Clock: systemClock, Parties: parties, Notifications: notifications,
 	}
-	adminListReports := &admin.ListReports{Reports: reports, Users: users, Listings: listings, Reservations: reservations}
+	adminListReports := &admin.ListReports{Reports: reports, Users: users, Listings: listings, Reservations: reservations, Forum: forumPosts}
 	adminGetReportDetail := &admin.GetReportDetail{
 		Reports: reports, Users: users, Listings: listings, Cycles: cycles, Farms: farms, Search: listings, Clock: systemClock,
-		Reservations: reservations,
+		Reservations: reservations, Forum: forumPosts,
 	}
 	adminResolveReport := &admin.ResolveReport{
 		Reports: reports, Users: users, Trust: trustRecompute, Sessions: accountGate, Listings: listings, Cycles: cycles, Farms: farms,
+		Notifications: notifications, Clock: systemClock,
 	}
 
 	bgWorker := &worker.Worker{
@@ -348,6 +350,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			AdminRefundEscrow:    adminRefundEscrow,
 			AdminListReports:     adminListReports,
 			AdminGetReportDetail: adminGetReportDetail,
+			AdminSaveReportNote:  &admin.SaveReportNote{Reports: reports},
 			AdminResolveReport:   adminResolveReport,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
