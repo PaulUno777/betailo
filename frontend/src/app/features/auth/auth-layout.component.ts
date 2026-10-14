@@ -31,7 +31,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       </div>
       <div class="flex flex-col justify-center px-5 pb-[calc(var(--height-bottom-nav)+3rem)] pt-12 sm:px-18 lg:pb-12">
         <div class="mx-auto w-full max-w-sm">
-          <bt-segmented-control class="mb-8">
+          <bt-segmented-control class="mb-8 block">
             <a
               routerLink="/login"
               queryParamsHandling="preserve"

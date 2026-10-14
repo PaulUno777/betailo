@@ -1,11 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Observable, map, switchMap } from 'rxjs';
 import { Farm } from '../../domain/models';
 import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_VALUES, SpeciesValue } from '../../domain/reference/species';
-import { AccountApi } from '../../data-access/account/account.api';
 import { FarmInput, FarmsApi } from '../../data-access/farms/farms.api';
-import { AuthService } from '../../core/auth/auth.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { AppError } from '../../core/http/app-error';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
@@ -13,23 +11,42 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { NoticeComponent } from '../../shared/ui/notice/notice.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.component';
+import { FarmProofFormComponent } from './farm-proof-form.component';
 
-/** The one step between "I want to sell" and the sell wizard: present
- * your farm. A buyer becomes a seller (the API creates the farm and
- * switches the role together, then the session is refreshed so the new
- * role is in the token); a farmer account without a farm just creates
- * one. Emits the farm once it exists. */
+/** Opening a farm, in two steps: present it, then submit the proof
+ * staff validate it from (an identity document and photos of the farm).
+ * Any account can do this, up to its farm limit. The second step can be
+ * left for later: the farm then stays a draft whose cycles and listings
+ * can be prepared but not published. Emits the farm once the owner is
+ * done with both steps. */
 @Component({
   selector: 'bt-seller-onboarding',
-  imports: [FormsModule, ButtonComponent, IconComponent, NoticeComponent, TextFieldComponent, PlaceFieldsComponent, TranslatePipe],
+  imports: [FormsModule, ButtonComponent, IconComponent, NoticeComponent, TextFieldComponent, PlaceFieldsComponent, FarmProofFormComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <ol class="mb-5 grid grid-cols-2 gap-2" [attr.aria-label]="'sellerOnboarding.stepsLabel' | t">
+      @for (s of steps; track s.key; let i = $index) {
+        <li class="flex flex-col gap-1.5" [attr.aria-current]="(farm() ? 1 : 0) === i ? 'step' : null">
+          <span class="h-1.5 rounded-full" [class]="i <= (farm() ? 1 : 0) ? 'bg-forest' : 'bg-line'"></span>
+          <span class="text-caption" [class]="(farm() ? 1 : 0) === i ? 'text-ink' : 'text-ink-muted'">{{ i + 1 }}. {{ s.key | t }}</span>
+        </li>
+      }
+    </ol>
+    @if (farm(); as created) {
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <h2 class="text-heading-3">{{ 'farmProof.title' | t: { farm: created.name } }}</h2>
+          <p class="text-body text-ink-muted">{{ 'farmProof.intro' | t }}</p>
+        </div>
+        <bt-farm-proof-form [farm]="created" [skippable]="true" (submitted)="finish($event)" (skipped)="finish(created)" />
+      </div>
+    } @else {
     <form class="flex flex-col gap-6" (submit)="$event.preventDefault(); submit()">
       <div class="flex flex-col items-start gap-3 rounded-xl bg-forest-deep p-5 text-on-forest-deep">
         <span class="flex h-12 w-12 items-center justify-center rounded-full bg-on-forest-deep/10">
           <bt-icon name="leaf" [size]="24" class="text-clay" />
         </span>
-        <h2 class="text-heading-3">{{ (isBuyer() ? 'sellerOnboarding.titleBuyer' : 'sellerOnboarding.titleFarmer') | t }}</h2>
+        <h2 class="text-heading-3">{{ (seller.hasFarm() ? 'sellerOnboarding.titleAnother' : 'sellerOnboarding.titleBuyer') | t }}</h2>
         <p class="text-body text-on-forest-deep/80">{{ 'sellerOnboarding.intro' | t }}</p>
         <ul class="flex flex-col gap-1.5 text-small text-on-forest-deep/85">
           @for (k of perks; track k) {
@@ -74,12 +91,16 @@ import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.
         {{ (saving() ? 'sellerOnboarding.saving' : 'sellerOnboarding.submit') | t }}
       </bt-button>
     </form>
+    }
   `
 })
 export class SellerOnboardingComponent {
-  private readonly auth = inject(AuthService);
-  private readonly accountApi = inject(AccountApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly farmsApi = inject(FarmsApi);
+
+  protected readonly steps = [{ key: 'sellerOnboarding.stepFarm' }, { key: 'sellerOnboarding.stepProof' }];
+  /** Set once step 1 created the farm: step 2 works on it. */
+  protected readonly farm = signal<Farm | null>(null);
 
   readonly created = output<Farm>();
 
@@ -88,7 +109,6 @@ export class SellerOnboardingComponent {
   protected readonly dots = SPECIES_DOT;
   protected readonly perks = ['sellerOnboarding.perk1', 'sellerOnboarding.perk2', 'sellerOnboarding.perk3'];
 
-  protected readonly isBuyer = computed(() => this.auth.role() !== 'farmer');
   protected readonly name = signal('');
   protected readonly location = signal('');
   protected readonly country = signal('');
@@ -116,20 +136,24 @@ export class SellerOnboardingComponent {
       species: this.species(),
       contactPhone: this.phone().trim() || undefined
     };
-    // A buyer's new role only reaches the API's checks once a new token
-    // carries it, so the session is reloaded before going on.
-    const request: Observable<Farm> = this.isBuyer()
-      ? this.accountApi.becomeSeller(input).pipe(switchMap((farm) => this.auth.reloadSession().pipe(map(() => farm))))
-      : this.farmsApi.create(input);
-    request.subscribe({
+    this.farmsApi.create(input).subscribe({
       next: (farm) => {
         this.saving.set(false);
-        this.created.emit(farm);
+        this.farm.set(farm);
+        // The portal and the menus now have a farm to show.
+        this.seller.select(farm.id);
+        this.seller.refresh();
       },
       error: (err: AppError) => {
         this.saving.set(false);
         this.error.set(err.message);
       }
     });
+  }
+
+  /** Step 2 is over, submitted or left for later. */
+  protected finish(farm: Farm): void {
+    this.seller.refresh();
+    this.created.emit(farm);
   }
 }

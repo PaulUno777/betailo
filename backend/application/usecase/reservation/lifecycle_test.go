@@ -154,7 +154,7 @@ func newFixture(now time.Time) *fixture {
 		farmOwnerID:  ownerID,
 		listings:     &fakeListingStore{byID: map[bson.ObjectID]*domain.Listing{listingID: {ID: listingID, CycleID: &cycleID}}},
 		cycles:       &fakeCycleStore{byID: map[bson.ObjectID]*domain.Cycle{cycleID: {ID: cycleID, FarmID: farmID}}},
-		farms:        &fakeFarms{byID: map[bson.ObjectID]*domain.Farm{farmID: {ID: farmID, OwnerID: ownerID}}},
+		farms:        &fakeFarms{byID: map[bson.ObjectID]*domain.Farm{farmID: {ID: farmID, OwnerID: ownerID, Status: domain.FarmApproved}}},
 		reservations: newFakeReservations(),
 		reports:      newFakeReports(),
 		trust:        &fakeTrust{},
@@ -431,4 +431,8 @@ func TestCancelReservation_OnlyTheBuyersUnpaidReservation(t *testing.T) {
 	if _, err := uc.Execute(context.Background(), CancelReservationInput{ReservationID: paid.ID, BuyerID: buyerID}); !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("paid: error = %v, want ErrConflict (escrow goes through a dispute)", err)
 	}
+}
+
+func (f *fakeFarms) ListByStatus(context.Context, domain.FarmStatus) ([]*domain.Farm, error) {
+	return nil, nil
 }

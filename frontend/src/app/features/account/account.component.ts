@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { Profile } from '../../domain/models';
 import { AccountApi } from '../../data-access/account/account.api';
 import { AuthService } from '../../core/auth/auth.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -55,9 +56,6 @@ type Sheet = 'profile' | 'password' | null;
           @if (profile.value(); as p) {
             <span class="text-small text-ink-muted">
               {{ 'account.memberSince' | t: { date: (p.memberSince | localDate: 'monthYear') } }}
-              @if (p.verified) {
-                · <span class="font-semibold text-forest">{{ 'account.verified' | t }}</span>
-              }
             </span>
           }
         </div>
@@ -174,6 +172,7 @@ export class AccountComponent {
   private readonly accountApi = inject(AccountApi);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly seller = inject(SellerSpaceService);
 
   protected readonly profile = apiResource<Profile>(() => this.accountApi.profileUrl());
 
@@ -183,17 +182,17 @@ export class AccountComponent {
     return p?.displayName || u?.displayName || p?.email || u?.email || '';
   });
 
-  /** One card, three cases: a farmer switches to their seller space, an
-   * admin goes to administration, anyone else is invited to sell. */
+  /** One card, three cases: someone with a farm switches to their
+   * seller space, staff go to the back office, anyone else is invited
+   * to open a farm. */
   protected readonly modeCard = computed(() => {
-    switch (this.auth.role()) {
-      case 'farmer':
-        return { route: '/portal', icon: 'leaf' as IconName, titleKey: 'account.mode.sellerTitle', bodyKey: 'account.mode.sellerBody' };
-      case 'admin':
-        return { route: '/admin', icon: 'shield' as IconName, titleKey: 'account.mode.adminTitle', bodyKey: 'account.mode.adminBody' };
-      default:
-        return { route: '/sell', icon: 'leaf' as IconName, titleKey: 'account.mode.becomeTitle', bodyKey: 'account.mode.becomeBody' };
+    if (this.auth.isStaff()) {
+      return { route: '/admin', icon: 'shield' as IconName, titleKey: 'account.mode.adminTitle', bodyKey: 'account.mode.adminBody' };
     }
+    if (this.seller.hasFarm()) {
+      return { route: '/portal', icon: 'leaf' as IconName, titleKey: 'account.mode.sellerTitle', bodyKey: 'account.mode.sellerBody' };
+    }
+    return { route: '/sell', icon: 'leaf' as IconName, titleKey: 'account.mode.becomeTitle', bodyKey: 'account.mode.becomeBody' };
   });
 
   protected readonly links = computed<readonly AccountLink[]>(() => {
@@ -202,8 +201,8 @@ export class AccountComponent {
       { route: '/account/favorites', labelKey: 'nav.favorites', icon: 'heart' },
       { route: '/notifications', labelKey: 'nav.notifications', icon: 'bell' }
     ];
-    if (this.auth.role() === 'farmer') {
-      base.push({ route: '/portal/farm', labelKey: 'account.myFarm', icon: 'home' });
+    if (this.seller.hasFarm()) {
+      base.push({ route: '/portal/farms', labelKey: 'account.myFarms', icon: 'home' });
     }
     return base;
   });

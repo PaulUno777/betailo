@@ -157,8 +157,8 @@ export class RegisterComponent {
     this.error.set(null);
     const { displayName, email, password } = this.form.getRawValue();
     // Everyone starts with a personal account; a farm is added later
-    // from "Vendre" (POST /me/become-seller).
-    this.authApi.register({ email, password, role: 'buyer', displayName: displayName.trim() || undefined }).subscribe({
+    // from "Vendre".
+    this.authApi.register({ email, password, displayName: displayName.trim() || undefined }).subscribe({
       next: () => {
         this.authApi.login({ email, password, remember: true }).subscribe({
           next: ({ accessToken, user }) => {

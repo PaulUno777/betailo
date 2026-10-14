@@ -4,13 +4,13 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map, switchMap } from 'rxjs';
-import { Farm, FarmListing } from '../../domain/models';
+import { FarmListing } from '../../domain/models';
 import { speciesLabelKey } from '../../domain/reference/species';
-import { FarmsApi } from '../../data-access/farms/farms.api';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { ListingPhotosService } from '../../data-access/listings/listing-photos.service';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { apiResource } from '../../core/http/api-resource';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
@@ -132,15 +132,14 @@ interface EditForm {
 export class ListingEditComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly listingsApi = inject(ListingsApi);
   private readonly listingPhotos = inject(ListingPhotosService);
   private readonly toast = inject(ToastService);
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((p) => p.get('id') ?? '')), { initialValue: '' });
-  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   protected readonly rows = apiResource<FarmListing[]>(() => {
-    const farm = this.farms.value()?.[0];
+    const farm = this.seller.currentFarm() ?? undefined;
     return farm ? this.listingsApi.farmListingsUrl(farm.id) : undefined;
   });
   protected readonly row = computed(() => this.rows.value()?.find((r) => r.listing.id === this.id()));

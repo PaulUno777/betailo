@@ -8,6 +8,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -24,24 +25,29 @@ func (uc *ListUsers) Execute(ctx context.Context) ([]*domain.User, error) {
 	return uc.Users.List(ctx)
 }
 
-// VerifyUser marks a user's identity verified — "Demander une
-// vérification d'identité" resolved positively — and recomputes their
-// trust score, since IsVerified directly feeds it.
-type VerifyUser struct {
+// MaxFarmLimit caps what staff can grant one account.
+const MaxFarmLimit = 50
+
+// SetFarmLimit lets staff raise (or reset) how many farms one account
+// may own. 0 puts the account back on the platform default
+// (MAX_FARMS_PER_ACCOUNT). Lowering it below what the account already
+// owns removes nothing: it only stops new farms.
+type SetFarmLimit struct {
 	Users ports.UserRepository
-	Trust ports.TrustRecomputer
 }
 
-func (uc *VerifyUser) Execute(ctx context.Context, userID bson.ObjectID) (*domain.User, error) {
+func (uc *SetFarmLimit) Execute(ctx context.Context, userID bson.ObjectID, limit int) (*domain.User, error) {
+	if limit < 0 || limit > MaxFarmLimit {
+		return nil, domain.CodedWith("admin.farm_limit_range", map[string]any{"max": MaxFarmLimit}, fmt.Errorf("admin: farm limit must be between 0 and %d: %w", MaxFarmLimit, domain.ErrInvalid))
+	}
 	u, err := uc.Users.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	u.IsVerified = true
+	u.FarmLimit = limit
 	if err := uc.Users.Update(ctx, u); err != nil {
 		return nil, err
 	}
-	_ = uc.Trust.Execute(ctx, userID)
 	return u, nil
 }
 

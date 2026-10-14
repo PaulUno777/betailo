@@ -4,8 +4,6 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	"github.com/pauluno777/betailo/backend/domain"
 )
 
 func TestLogout_Execute_RevokesFamily(t *testing.T) {
@@ -13,7 +11,7 @@ func TestLogout_Execute_RevokesFamily(t *testing.T) {
 	refreshTokens := newFakeRefreshTokens()
 	signer := &fakeSigner{}
 	loginAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", domain.RoleBuyer, false)
+	_, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", false)
 
 	logoutUC := &Logout{RefreshTokens: refreshTokens, Clock: fakeClock{now: loginAt.Add(time.Minute)}}
 	if err := logoutUC.Execute(context.Background(), LogoutInput{RawToken: rawRefresh}); err != nil {
@@ -51,7 +49,7 @@ func TestLogout_Execute_IdempotentOnAlreadyRevoked(t *testing.T) {
 	refreshTokens := newFakeRefreshTokens()
 	signer := &fakeSigner{}
 	loginAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", domain.RoleBuyer, false)
+	_, rawRefresh := loginFor(t, users, refreshTokens, signer, loginAt, "buyer@example.com", false)
 
 	logoutUC := &Logout{RefreshTokens: refreshTokens, Clock: fakeClock{now: loginAt.Add(time.Minute)}}
 	if err := logoutUC.Execute(context.Background(), LogoutInput{RawToken: rawRefresh}); err != nil {

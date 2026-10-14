@@ -9,6 +9,12 @@ API="${QA_API:-http://localhost:8080}"
 ADMIN_EMAIL="${QA_ADMIN_EMAIL:-qa-admin@betailo.test}"
 ADMIN_PASSWORD="${QA_ADMIN_PASSWORD:-Qa-admin-smoke-2026}"
 
+# Nobody registers into the staff: the API creates this super admin at
+# startup from its configuration.
+export SUPER_ADMIN_EMAIL="$ADMIN_EMAIL" SUPER_ADMIN_PASSWORD="$ADMIN_PASSWORD"
+# The limits the smoke test checks against, whatever the shell has set.
+export MAX_FARMS_PER_ACCOUNT=1 FARM_AUTO_APPROVE=false
+
 docker compose up -d --build mongo seaweedfs backend
 
 echo "waiting for the API…"
@@ -17,12 +23,6 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 curl -sf "$API/health" >/dev/null || { docker compose logs backend; exit 1; }
-
-# The API never lets anyone register as admin: register, then promote.
-curl -s -o /dev/null -X POST "$API/auth/register" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\",\"role\":\"buyer\",\"displayName\":\"QA admin\"}"
-docker compose exec -T mongo mongosh --quiet betailo \
-  --eval "db.users.updateOne({email: '$ADMIN_EMAIL'}, {\$set: {role: 'admin', suspended: false}})" >/dev/null
 
 QA_API="$API" QA_ADMIN_EMAIL="$ADMIN_EMAIL" QA_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
   python3 scripts/qa/api_smoke.py

@@ -11,11 +11,11 @@ import (
 
 // TokenClaims is what a verified access token carries — trusted
 // directly by the auth middleware and by usecases behind it, with no
-// database round trip needed to re-derive the user's role.
+// database round trip needed to re-derive whether they are staff.
 type TokenClaims struct {
 	UserID    bson.ObjectID
 	Email     string
-	Role      domain.Role
+	StaffRole domain.StaffRole
 	ExpiresAt time.Time
 }
 

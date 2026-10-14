@@ -17,7 +17,6 @@ func TestRegister_Execute_Success(t *testing.T) {
 	out, err := uc.Execute(context.Background(), RegisterInput{
 		Email:    " Farmer@Example.com ",
 		Password: "correct-horse",
-		Role:     domain.RoleFarmer,
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
@@ -29,8 +28,8 @@ func TestRegister_Execute_Success(t *testing.T) {
 	if out.User.PasswordHash == "correct-horse" {
 		t.Error("PasswordHash stores the plaintext password, want a hash")
 	}
-	if out.User.Role != domain.RoleFarmer {
-		t.Errorf("Role = %v, want %v", out.User.Role, domain.RoleFarmer)
+	if out.User.StaffRole.IsStaff() {
+		t.Errorf("StaffRole = %q, want none: nobody registers into the staff", out.User.StaffRole)
 	}
 	if !out.User.CreatedAt.Equal(now) {
 		t.Errorf("CreatedAt = %v, want %v", out.User.CreatedAt, now)
@@ -44,7 +43,7 @@ func TestRegister_Execute_DuplicateEmail(t *testing.T) {
 	users := newFakeUsers()
 	uc := &Register{Users: users, Hasher: fakeHasher{}, Clock: fakeClock{now: time.Now()}}
 	ctx := context.Background()
-	in := RegisterInput{Email: "buyer@example.com", Password: "correct-horse", Role: domain.RoleBuyer}
+	in := RegisterInput{Email: "buyer@example.com", Password: "correct-horse"}
 
 	if _, err := uc.Execute(ctx, in); err != nil {
 		t.Fatalf("first Execute() error = %v, want nil", err)
@@ -60,11 +59,9 @@ func TestRegister_Execute_Validation(t *testing.T) {
 		name string
 		in   RegisterInput
 	}{
-		{"empty email", RegisterInput{Email: "", Password: "correct-horse", Role: domain.RoleFarmer}},
-		{"email without @", RegisterInput{Email: "not-an-email", Password: "correct-horse", Role: domain.RoleFarmer}},
-		{"password too short", RegisterInput{Email: "a@example.com", Password: "short", Role: domain.RoleFarmer}},
-		{"admin role rejected", RegisterInput{Email: "a@example.com", Password: "correct-horse", Role: domain.RoleAdmin}},
-		{"unknown role rejected", RegisterInput{Email: "a@example.com", Password: "correct-horse", Role: domain.Role("superuser")}},
+		{"empty email", RegisterInput{Email: "", Password: "correct-horse"}},
+		{"email without @", RegisterInput{Email: "not-an-email", Password: "correct-horse"}},
+		{"password too short", RegisterInput{Email: "a@example.com", Password: "short"}},
 	}
 
 	for _, tt := range tests {
@@ -85,7 +82,7 @@ func TestRegister_Execute_RepositoryErrorPropagates(t *testing.T) {
 	uc := &Register{Users: users, Hasher: fakeHasher{}, Clock: fakeClock{now: time.Now()}}
 
 	_, err := uc.Execute(context.Background(), RegisterInput{
-		Email: "a@example.com", Password: "correct-horse", Role: domain.RoleFarmer,
+		Email: "a@example.com", Password: "correct-horse",
 	})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Execute() error = %v, want %v", err, wantErr)

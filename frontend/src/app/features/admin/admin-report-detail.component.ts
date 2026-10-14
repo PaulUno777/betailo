@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
+import { ResolveAction } from '../../domain/enums';
 import { ReportDetail } from '../../domain/models';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { AppError } from '../../core/http/app-error';
@@ -63,7 +64,6 @@ import { apiResource } from '../../core/http/api-resource';
 
         <div class="mt-6 flex flex-wrap gap-3">
           <bt-button variant="outline" [disabled]="resolving()" (click)="resolve('dismiss')">{{ 'adminReports.resolveDismiss' | t }}</bt-button>
-          <bt-button variant="outline" [disabled]="resolving()" (click)="resolve('verify_identity')">{{ 'adminReports.resolveVerify' | t }}</bt-button>
           <bt-button variant="danger" [disabled]="resolving()" (click)="suspendConfirmOpen.set(true)">{{ 'adminReports.resolveSuspend' | t }}</bt-button>
         </div>
       } @else if (detail.isLoading()) {
@@ -101,7 +101,7 @@ export class AdminReportDetailComponent {
   protected readonly resolving = signal(false);
   protected readonly suspendConfirmOpen = signal(false);
 
-  protected resolve(action: 'dismiss' | 'verify_identity' | 'suspend'): void {
+  protected resolve(action: ResolveAction): void {
     this.resolving.set(true);
     this.adminApi.resolveReport(this.id(), action).subscribe({
       next: () => this.router.navigateByUrl('/admin/reports'),

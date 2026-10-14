@@ -43,17 +43,11 @@ import (
 
 type fakeUserRepo struct {
 	byEmail map[string]*domain.User
-	// unverifiedSellers leaves new farmers unverified, as in production.
-	// Off by default: most tests are about what a seller does once an
-	// admin has verified them.
-	unverifiedSellers bool
 }
 
-func (f *fakeUserRepo) verifySeller(u *domain.User) {
-	if u.Role == domain.RoleFarmer && !f.unverifiedSellers {
-		u.IsVerified = true
-	}
-}
+// testMaxFarms is generous so tests about selling can open the farms
+// they need; the limit itself has its own test.
+const testMaxFarms = 20
 
 func newFakeUserRepo() *fakeUserRepo {
 	return &fakeUserRepo{byEmail: map[string]*domain.User{}}
@@ -66,7 +60,6 @@ func (f *fakeUserRepo) Create(_ context.Context, u *domain.User) error {
 	if u.ID.IsZero() {
 		u.ID = bson.NewObjectID()
 	}
-	f.verifySeller(u)
 	f.byEmail[u.Email] = u
 	return nil
 }
@@ -89,7 +82,6 @@ func (f *fakeUserRepo) FindByID(_ context.Context, id bson.ObjectID) (*domain.Us
 }
 
 func (f *fakeUserRepo) Update(_ context.Context, u *domain.User) error {
-	f.verifySeller(u)
 	f.byEmail[u.Email] = u
 	return nil
 }
@@ -173,6 +165,11 @@ func (f *fakeRefreshTokenRepo) RevokeAllForUser(_ context.Context, userID bson.O
 // itself refuses the admin role, on purpose — see
 // TestRegister_HTTP_RejectsAdminRole).
 type testFakes struct {
+	// createFarm and submitFarm are exposed so a test can turn the
+	// production settings on: tf.createFarm.MaxFarms = 1,
+	// tf.submitFarm.AutoApprove = true.
+	createFarm    *farm.CreateFarm
+	submitFarm    *farm.SubmitFarmForReview
 	users         *fakeUserRepo
 	refreshTokens *fakeRefreshTokenRepo
 	farms         *fakeFarmRepo
@@ -209,7 +206,7 @@ func (tf *testFakes) promoteToAdmin(userID string) {
 	id, _ := bson.ObjectIDFromHex(userID)
 	for _, u := range tf.users.byEmail {
 		if u.ID == id {
-			u.Role = domain.RoleAdmin
+			u.StaffRole = domain.StaffSuperAdmin
 		}
 	}
 }
@@ -246,6 +243,8 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 
 	parties := reservation.Parties{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms}
 	accountGate := &auth.AccountGate{Users: tf.users, Clock: tf.clock}
+	tf.createFarm = &farm.CreateFarm{Users: tf.users, Farms: tf.farms, MaxFarms: testMaxFarms, Trust: trustRecompute, Clock: tf.clock}
+	tf.submitFarm = &farm.SubmitFarmForReview{Farms: tf.farms, Trust: trustRecompute, Notifications: tf.notifications, Clock: tf.clock}
 
 	deps := Dependencies{
 		Register: &auth.Register{Users: tf.users, Hasher: hasher, Clock: tf.clock},
@@ -264,15 +263,19 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		GetProfile:     &account.GetProfile{Users: tf.users},
 		UpdateProfile:  &account.UpdateProfile{Users: tf.users},
 		ChangePassword: &auth.ChangePassword{Users: tf.users, Hasher: hasher, RefreshTokens: tf.refreshTokens, Clock: tf.clock},
-		BecomeSeller:   &farm.BecomeSeller{Users: tf.users, Farms: tf.farms, Trust: trustRecompute, Tx: fakeTxManager{}, Clock: tf.clock},
+		SellerAccess:   &farm.SellerAccess{Users: tf.users, Farms: tf.farms, MaxFarms: testMaxFarms},
 
-		CreateFarm: &farm.CreateFarm{Farms: tf.farms, Trust: trustRecompute, Clock: tf.clock},
+		CreateFarm: tf.createFarm,
 		GetFarmProfile: &farm.GetProfile{
 			Farms: tf.farms, Users: tf.users, Reviews: tf.reviews, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations,
 		},
 		ListMyFarms: &farm.ListMyFarms{Farms: tf.farms},
 		UpdateFarm:  &farm.UpdateFarm{Farms: tf.farms},
 		DeleteFarm:  &farm.DeleteFarm{Farms: tf.farms, Cycles: tf.cycles},
+
+		PresignFarmProof:    &farm.PresignFarmProof{Farms: tf.farms, Storage: tf.storage},
+		SubmitFarmForReview: tf.submitFarm,
+		ReviewFarm:          &farm.ReviewFarm{Farms: tf.farms, Trust: trustRecompute, Notifications: tf.notifications, Clock: tf.clock},
 
 		CreateCycle: &cycle.CreateCycle{Farms: tf.farms, Cycles: tf.cycles, Sequencer: tf.sequencer},
 		GetCycle:    &cycle.GetCycle{Cycles: tf.cycles, Clock: tf.clock},
@@ -286,10 +289,10 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 		}},
 		DeleteCycle: &cycle.DeleteCycle{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 
-		CreateListing:      &listing.CreateListing{Users: tf.users, Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		CreateListing:      &listing.CreateListing{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		GetListing:         &listing.GetListing{Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms},
 		QuickCreateListing: &listing.QuickCreate{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Sequencer: tf.sequencer, Tx: fakeTxManager{}, Clock: tf.clock},
-		PublishListing:     &listing.Publish{Users: tf.users, Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
+		PublishListing:     &listing.Publish{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings},
 		ListFarmListings:   &listing.ListFarmListings{Farms: tf.farms, Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations},
 		PriceHint:          &listing.PriceHint{Search: search},
 		UpdateCycle:        &cycle.UpdateCycle{Farms: tf.farms, Cycles: tf.cycles, Editor: tf.cycles},
@@ -372,7 +375,9 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 
 		AdminOverview:     &admin.Overview{Cycles: tf.cycles, Listings: tf.listings, Reservations: tf.reservations, Reports: tf.reports, Clock: tf.clock},
 		AdminListUsers:    &admin.ListUsers{Users: tf.users},
-		AdminVerifyUser:   &admin.VerifyUser{Users: tf.users, Trust: trustRecompute},
+		AdminSetFarmLimit: &admin.SetFarmLimit{Users: tf.users},
+		AdminListFarms:    &admin.ListFarmsForReview{Farms: tf.farms, Users: tf.users},
+		AdminGetFarm:      &admin.GetFarmForReview{Farms: tf.farms, Users: tf.users, Storage: tf.storage},
 		AdminSuspendUser:  &admin.SuspendUser{Users: tf.users, Sessions: accountGate},
 		AdminListCycles:   &admin.ListAllCycles{Cycles: tf.cycles},
 		AdminListListings: &admin.ListAllListings{Cycles: tf.cycles, Listings: tf.listings},

@@ -6,14 +6,18 @@ import (
 	"testing"
 )
 
-// registerAndLogin registers a new user with role and returns their
+// registerAndLogin registers a new user and returns their
 // access token and user ID — a shared setup step for every test in
 // this package that needs an authenticated caller.
-func registerAndLogin(t *testing.T, router http.Handler, email, role string) (token, userID string) {
+//
+// The last argument only says what the account is for in the test
+// ("buyer", "farmer"): every account is the same kind, and one that
+// sells is simply one that then opens a farm.
+func registerAndLogin(t *testing.T, router http.Handler, email, _ string) (token, userID string) {
 	t.Helper()
 
 	regRec := doJSON(t, router, http.MethodPost, "/auth/register", registerRequest{
-		Email: email, Password: "correct-horse-battery", Role: role,
+		Email: email, Password: "correct-horse-battery",
 	}, "")
 	if regRec.Code != http.StatusCreated {
 		t.Fatalf("register(%s) status = %d, want %d; body = %s", email, regRec.Code, http.StatusCreated, regRec.Body.String())

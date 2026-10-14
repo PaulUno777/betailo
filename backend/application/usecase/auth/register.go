@@ -16,15 +16,10 @@ import (
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
-// selfRegisterableRoles is deliberately not domain.RoleAdmin — nobody
-// becomes an admin by hitting a public registration endpoint.
-var selfRegisterableRoles = map[domain.Role]bool{
-	domain.RoleFarmer: true,
-	domain.RoleBuyer:  true,
-}
-
 // Register is the usecase: validate input, ensure the email isn't
-// already taken, hash the password, and persist the new user.
+// already taken, hash the password, and persist the new user. Every
+// account starts the same: personal, not staff, no farm. Nobody joins
+// the staff by hitting a public registration endpoint.
 type Register struct {
 	Users  ports.UserRepository
 	Hasher ports.PasswordHasher
@@ -35,7 +30,6 @@ type Register struct {
 type RegisterInput struct {
 	Email    string
 	Password string
-	Role     domain.Role
 	// DisplayName is optional at sign-up (and editable later).
 	DisplayName string
 }
@@ -63,9 +57,6 @@ func (uc *Register) Execute(ctx context.Context, in RegisterInput) (*RegisterOut
 	if len(in.Password) < minPasswordLength {
 		return nil, domain.CodedWith("auth.password_too_short", map[string]any{"min": minPasswordLength}, fmt.Errorf("auth: password must be at least %d characters: %w", minPasswordLength, domain.ErrInvalid))
 	}
-	if !selfRegisterableRoles[in.Role] {
-		return nil, fmt.Errorf("auth: role must be %q or %q: %w", domain.RoleFarmer, domain.RoleBuyer, domain.ErrInvalid)
-	}
 
 	hash, err := uc.Hasher.Hash(in.Password)
 	if err != nil {
@@ -80,7 +71,6 @@ func (uc *Register) Execute(ctx context.Context, in RegisterInput) (*RegisterOut
 	user := &domain.User{
 		Email:        email,
 		PasswordHash: hash,
-		Role:         in.Role,
 		DisplayName:  displayName,
 		CreatedAt:    uc.Clock.Now(),
 	}

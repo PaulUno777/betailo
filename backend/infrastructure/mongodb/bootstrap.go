@@ -96,6 +96,8 @@ func ensureIndexes(ctx context.Context, database *mongo.Database) error {
 		}},
 		{"farms", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "ownerId", Value: 1}}},
+			// The back office's review queue.
+			{Keys: bson.D{{Key: "status", Value: 1}, {Key: "verification.submittedAt", Value: 1}}},
 		}},
 		{"cycles", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "farmId", Value: 1}}},

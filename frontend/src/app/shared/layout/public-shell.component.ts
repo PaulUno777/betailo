@@ -3,6 +3,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { BottomNavCenter, BottomNavComponent, BottomNavItem } from '../ui/bottom-nav/bottom-nav.component';
@@ -76,8 +77,8 @@ const CATEGORY_CHIPS = SPECIES_VALUES.map((value) => ({ value, labelKey: SPECIES
           <div class="ml-auto flex items-center gap-1 lg:gap-3">
             <bt-button class="hidden lg:inline-flex" variant="primary" size="sm" [href]="sellRoute">
               <bt-icon name="plus" [size]="16" />
-              <!-- A farmer already has the switch's "Vendre" beside it. -->
-              {{ (auth.role() === 'farmer' ? 'nav.newListing' : 'nav.sell') | t }}
+              <!-- A seller already has the switch's "Vendre" beside it. -->
+              {{ (seller.hasFarm() ? 'nav.newListing' : 'nav.sell') | t }}
             </bt-button>
             @if (auth.isAuthenticated()) {
               <bt-mode-switch class="hidden lg:block" mode="buy" />
@@ -124,13 +125,15 @@ const CATEGORY_CHIPS = SPECIES_VALUES.map((value) => ({ value, labelKey: SPECIES
 })
 export class PublicShellComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly seller = inject(SellerSpaceService);
   protected readonly theme = inject(ThemeService);
   private readonly navCounts = inject(NavCountsService);
   private readonly router = inject(Router);
 
   protected readonly categories = CATEGORY_CHIPS;
-  /** Everyone starts selling at /sell: farmers get the wizard, anyone
-   * else presents their farm first (or signs in, via its guard). */
+  /** Everyone starts selling at /sell: an account with a farm gets the
+   * wizard, anyone else opens their farm first (or signs in, via its
+   * guard). */
   protected readonly sellRoute = '/sell';
   protected readonly center: BottomNavCenter = { labelKey: 'bottomNav.sell', icon: 'plus', route: '/sell' };
 

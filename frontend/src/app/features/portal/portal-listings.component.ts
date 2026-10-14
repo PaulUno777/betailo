@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
-import { Farm, FarmListing } from '../../domain/models';
+import { FarmListing } from '../../domain/models';
 import { speciesLabelKey } from '../../domain/reference/species';
-import { FarmsApi } from '../../data-access/farms/farms.api';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { apiResource } from '../../core/http/api-resource';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
@@ -90,13 +90,12 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
   `
 })
 export class PortalListingsComponent {
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly listingsApi = inject(ListingsApi);
   private readonly toast = inject(ToastService);
 
-  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
   protected readonly rows = apiResource<FarmListing[]>(() => {
-    const farm = this.farms.value()?.[0];
+    const farm = this.seller.currentFarm() ?? undefined;
     return farm ? this.listingsApi.farmListingsUrl(farm.id) : undefined;
   });
   protected readonly list = computed(() => this.rows.value() ?? []);
@@ -126,8 +125,8 @@ export class PortalListingsComponent {
       },
       error: (err: AppError) => {
         this.acting.set(null);
-        if (err.code === 'farm.not_verified') {
-          this.toast.show({ tone: 'info', title: 'sellerSpace.pendingTitle', detail: err.message });
+        if (err.code === 'farm.not_approved') {
+          this.toast.show({ tone: 'info', title: 'portalListings.notApprovedTitle', detail: err.message });
         } else {
           this.toast.show({ tone: 'danger', title: 'portalListings.actionFailed', detail: err.message });
         }

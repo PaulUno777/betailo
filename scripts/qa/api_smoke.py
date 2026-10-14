@@ -1,7 +1,9 @@
 """End-to-end API smoke test over every profile (guest, buyer, farmer, admin).
 
 Walks the real API through each profile's flows — browsing and search,
-signup and becoming a seller, the sell wizard with a photo upload,
+signup, opening a farm and getting it approved by staff (proof upload,
+rejection and resubmission, the per-account farm limit), the sell wizard
+with a photo upload,
 Mobile Money checkout, the waiting list, delivery and escrow, reviews,
 disputes, moderation and suspension — including the refusals (IDOR
 attempts, invalid input, forbidden roles) and the error codes clients
@@ -9,14 +11,16 @@ translate. Each check prints PASS/FAIL; the exit code is the number of
 failures (capped at 1), so CI fails on any.
 
 Creates fresh accounts on every run, so it's repeatable against any
-database. Needs an admin account (the API never lets one self-register):
+database. Needs a super admin account (nobody registers into the staff;
+the API creates it at startup from SUPER_ADMIN_EMAIL/PASSWORD), and
+expects MAX_FARMS_PER_ACCOUNT=1 and FARM_AUTO_APPROVE=false:
 
     QA_API=http://localhost:8080          (default)
     QA_ADMIN_EMAIL=... QA_ADMIN_PASSWORD=...
     QA_RESULTS=path/to/results.json       (optional)
 
-Run it with scripts/qa/run_smoke.sh, which starts the stack and seeds
-the admin.
+Run it with scripts/qa/run_smoke.sh, which starts the stack with those
+settings.
 """
 import json, os, sys, time, uuid, urllib.request, urllib.error, http.cookiejar, datetime
 
@@ -63,12 +67,47 @@ def check(cid, profile, flow, expect, ok, actual):
     print(("PASS " if ok else "FAIL ") + cid, flow, "->", str(actual)[:160])
 
 
+# 1x1 JPEG: every upload in this run (listing photos, farm proof).
+JPEG = bytes.fromhex("ffd8ffe000104a46494600010100000100010000ffdb004300080606070605080707070909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c2837292c30313434341f27393d38323c2e333432ffc0000b080001000101011100ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffda0008010100003f00fbfcffd9")
+
+
+def put_file(url):
+    req = urllib.request.Request(url, data=JPEG, method="PUT")
+    req.add_header("Content-Type", "image/jpeg")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
+    except Exception as e:
+        return repr(e)
+
+
+def upload_farm_proof(owner, farm_id, n=2):
+    """Uploads n proof files for a farm and returns their storage keys."""
+    keys = []
+    for _ in range(n):
+        s, b = owner.call("POST", f"/farms/{farm_id}/verification/presign")
+        put_file(b["uploadUrl"])
+        keys.append(b["key"])
+    return keys
+
+
+def open_approved_farm(owner, staff, farm):
+    """Opens a farm and takes it through review: proof, then approval."""
+    s, f = owner.call("POST", "/farms", farm)
+    keys = upload_farm_proof(owner, f["id"])
+    owner.call("POST", f"/farms/{f['id']}/verification/submit", {"idDocumentKey": keys[0], "photoKeys": keys[1:]})
+    staff.call("POST", f"/admin/farms/{f['id']}/review", {"decision": "approve"})
+    return f
+
+
 def register(role, name=None):
     time.sleep(REGISTER_PAUSE)
     c = Client()
     email = f"qa-{role}-{uuid.uuid4().hex[:8]}@betailo.test"
     pw = "Qa-" + uuid.uuid4().hex[:12]
-    s, b = c.call("POST", "/auth/register", {"email": email, "password": pw, "role": role, "displayName": name or ""}, token=False)
+    s, b = c.call("POST", "/auth/register", {"email": email, "password": pw, "displayName": name or ""}, token=False)
     s2, b2 = c.call("POST", "/auth/login", {"email": email, "password": pw, "remember": True}, token=False)
     c.token = (b2 or {}).get("accessToken")
     c.email, c.pw, c.user = email, pw, (b2 or {}).get("user", {})
@@ -104,23 +143,29 @@ check("G05", "Guest", "Read forum", "200", s == 200, s)
 for path in ["/me", "/reservations/mine", "/me/nav-counts", "/notifications", "/me/favorites"]:
     s, _ = g.call("GET", path)
     check("G06" + path, "Guest", f"Protected {path} refused", "401", s == 401, s)
-s, b = g.call("POST", "/auth/register", {"email": "not-an-email", "password": "short", "role": "buyer"}, token=False)
+s, b = g.call("POST", "/auth/register", {"email": "not-an-email", "password": "short"}, token=False)
 check("G07", "Guest", "Register with invalid email/short password", "400 with message", s == 400, f"{s} {b}")
-s, b = g.call("POST", "/auth/register", {"email": f"qa-esc-{uuid.uuid4().hex[:6]}@betailo.test", "password": "Qa-longpassword1", "role": "admin"}, token=False)
-check("G08", "Guest", "Self-register as admin (privilege escalation)", "refused (4xx)", s >= 400, f"{s} {b}")
+s, b = g.call("POST", "/auth/register", {"email": f"qa-esc-{uuid.uuid4().hex[:6]}@betailo.test", "password": "Qa-longpassword1", "role": "admin", "staffRole": "super_admin"}, token=False)
+esc = Client()
+esc.token = (g.call("POST", "/auth/login", {"email": (b or {}).get("email", ""), "password": "Qa-longpassword1"}, token=False)[1] or {}).get("accessToken")
+s2, _ = esc.call("GET", "/admin/users")
+check("G08", "Guest", "Self-register asking for a staff role (privilege escalation)", "account created without it, back office refused (403)", s == 201 and not (b or {}).get("staffRole") and s2 == 403, f"register={s} staffRole={(b or {}).get('staffRole')} admin={s2}")
 s, b = g.call("POST", "/auth/login", {"email": "nobody-" + uuid.uuid4().hex[:6] + "@betailo.test", "password": "wrong-password"}, token=False)
 check("G09", "Guest", "Login with wrong password", "401, generic message", s == 401, f"{s} {b}")
 
 # ---------------- Farmer: onboarding + listing ----------------
-far, s, b = register("buyer", "Awa Fermière")
-check("F01", "Farmer", "Register as buyer then become seller", "201 register", s == 201, s)
-s, b = far.call("POST", "/me/become-seller", {"farm": {"name": "Ferme QA", "location": "Bafoussam", "species": ["jeunes-poulets"], "contactPhone": "677001122"}})
-check("F02", "Farmer", "POST /me/become-seller", "201 farm", s in (200, 201) and isinstance(b, dict) and b.get("id"), f"{s} {str(b)[:120]}")
-farm_id = (b or {}).get("id") if isinstance(b, dict) else None
-s, b = far.call("POST", "/auth/refresh", token=False)
-far.token = (b or {}).get("accessToken", far.token)
+adm, s = login(CREDS["ADMIN"], CREDS["PW"])
+far, s, b = register("seller", "Awa Fermière")
+check("F01", "Farmer", "Register a personal account", "201, not staff", s == 201 and not (b or {}).get("staffRole"), f"{s} {str(b)[:100]}")
 s, me = far.call("GET", "/me")
-check("F03", "Farmer", "Role is farmer after session refresh", "role=farmer", isinstance(me, dict) and me.get("role") == "farmer", f"{s} role={me.get('role') if isinstance(me, dict) else me}")
+check("F01b", "Farmer", "GET /me before any farm", "no farm, canAddFarm, farmLimit=1", s == 200 and me.get("farms") == [] and me.get("canAddFarm") is True and me.get("farmLimit") == 1, f"{s} farms={me.get('farms')} canAdd={me.get('canAddFarm')} limit={me.get('farmLimit')}")
+s, b = far.call("POST", "/farms", {"name": "Ferme QA", "location": "Bafoussam", "species": ["jeunes-poulets"], "contactPhone": "677001122"})
+check("F02", "Farmer", "Open a farm (POST /farms)", "201, status draft, owner can submit", s == 201 and isinstance(b, dict) and b.get("status") == "draft" and (b.get("review") or {}).get("canSubmit") is True, f"{s} {str(b)[:160]}")
+farm_id = (b or {}).get("id") if isinstance(b, dict) else None
+s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Douala"})
+check("F02b", "Farmer", "Second farm at the default limit", "409 code farm.limit_reached", s == 409 and (b or {}).get("code") == "farm.limit_reached", f"{s} {b}")
+s, me = far.call("GET", "/me")
+check("F03", "Farmer", "GET /me lists the farm", "1 farm (draft), canAddFarm=false", s == 200 and len(me.get("farms", [])) == 1 and me["farms"][0].get("status") == "draft" and me.get("canAddFarm") is False, f"{s} farms={[f.get('status') for f in me.get('farms', [])]} canAdd={me.get('canAddFarm')}")
 s, b = far.call("GET", f"/listings/price-hint?species=jeunes-poulets&region=Bafoussam")
 check("F04", "Farmer", "Price hint", "200 or 204", s in (200, 204), f"{s} {b}")
 s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-poulets", "breed": "Brahma", "ageWeeks": 6, "quantity": 50, "unitPrice": 3000, "title": "QA Jeunes poulets", "deliveryAvailable": True})
@@ -137,7 +182,7 @@ key = (b or {}).get("key") if isinstance(b, dict) else None
 upload = (b or {}).get("uploadUrl") if isinstance(b, dict) else None
 if upload:
     # 1x1 JPEG
-    jpeg = bytes.fromhex("ffd8ffe000104a46494600010100000100010000ffdb004300080606070605080707070909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c2837292c30313434341f27393d38323c2e333432ffc0000b080001000101011100ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffda0008010100003f00fbfcffd9")
+    jpeg = JPEG
     req = urllib.request.Request(upload, data=jpeg, method="PUT")
     req.add_header("Content-Type", "image/jpeg")
     try:
@@ -151,10 +196,35 @@ if upload:
     s, b = far.call("PUT", f"/listings/{qlisting}/photos", {"keys": [key]})
     check("F10", "Farmer", "Attach photo keys to listing", "200", s == 200, f"{s} {str(b)[:100]}")
 s, b = far.call("POST", f"/listings/{qlisting}/publish")
-check("F10b", "Farmer", "Publish before an admin verified the seller", "403 code farm.not_verified", s == 403 and (b or {}).get("code") == "farm.not_verified", f"{s} {b}")
-adm, s = login(CREDS["ADMIN"], CREDS["PW"])
-s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/verify")
-check("F10c", "Admin", "Verify the seller so they can publish", "200", s == 200, f"{s} {str(b)[:100]}")
+check("V01", "Farmer", "Publish from a farm staff haven't approved", "403 code farm.not_approved", s == 403 and (b or {}).get("code") == "farm.not_approved", f"{s} {b}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {})
+check("V02", "Farmer", "Submit the farm without proof", "400 code farm.id_document_required", s == 400 and (b or {}).get("code") == "farm.id_document_required", f"{s} {b}")
+proof = upload_farm_proof(far, farm_id)
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {"idDocumentKey": key, "photoKeys": proof[1:]})
+check("V03", "Farmer", "Submit proof with a key from another upload (a listing photo)", "400", s == 400, f"{s} {b}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {"idDocumentKey": proof[0], "photoKeys": proof[1:]})
+check("V04", "Farmer", "Submit the farm for review (ID document + farm photo)", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:140]}")
+s, b = far.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "approve"})
+check("V05", "Farmer", "Owner approving their own farm (staff route)", "403", s == 403, f"{s} {b}")
+s, b = adm.call("GET", "/admin/farms?status=pending")
+check("V06", "Admin", "Validation queue lists the pending farm with its owner", "200 includes it", s == 200 and any(f.get("id") == farm_id and f.get("owner") for f in b), f"{s} n={len(b) if isinstance(b, list) else b}")
+s, b = adm.call("GET", f"/admin/farms/{farm_id}")
+check("V07", "Admin", "Farm detail carries signed links to the proof", "200 idDocumentUrl + 1 photo", s == 200 and (b or {}).get("idDocumentUrl") and len(b.get("photoUrls", [])) == 1, f"{s} {str(b)[:120]}")
+s, b = g.call("GET", f"/farms/{farm_id}")
+check("V08", "Guest", "Public farm profile doesn't expose the review", "200 without review/proof", s == 200 and "review" not in b and "farm-verifications" not in json.dumps(b), f"{s} keys={sorted(b.keys()) if isinstance(b, dict) else b}")
+s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "reject"})
+check("V09", "Admin", "Reject without a reason", "400 code farm.reason_required", s == 400 and (b or {}).get("code") == "farm.reason_required", f"{s} {b}")
+s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "reject", "reason": "Document illisible"})
+check("V10", "Admin", "Reject with a reason", "200 rejected", s == 200 and (b or {}).get("status") == "rejected", f"{s} {str(b)[:140]}")
+s, me = far.call("GET", "/me")
+rv = (me.get("farms") or [{}])[0].get("review") or {}
+check("V11", "Farmer", "Owner sees the rejection reason and can resubmit", "reason + canSubmit", rv.get("rejectionReason") == "Document illisible" and rv.get("canSubmit") is True, f"{s} review={rv}")
+s, b = far.call("POST", f"/farms/{farm_id}/verification/submit", {"idDocumentKey": proof[0], "photoKeys": proof[1:]})
+check("V12", "Farmer", "Resubmit after a rejection", "200 pending", s == 200 and (b or {}).get("status") == "pending", f"{s} {str(b)[:120]}")
+s, b = adm.call("POST", f"/admin/farms/{farm_id}/review", {"decision": "approve"})
+check("V13", "Admin", "Approve the farm", "200 approved", s == 200 and (b or {}).get("status") == "approved", f"{s} {str(b)[:120]}")
+s, b = far.call("GET", "/notifications")
+check("V14", "Farmer", "Owner is notified of the decisions", "farm_rejected and farm_approved in the inbox", s == 200 and {"farm_rejected", "farm_approved"} <= {n.get("type") for n in b.get("items", [])}, f"{s} types={[n.get('type') for n in b.get('items', [])]}")
 s, b = far.call("POST", f"/listings/{qlisting}/publish")
 check("F11", "Farmer", "Publish listing with a photo", "200 published", s == 200 and isinstance(b, dict) and b.get("status") == "published", f"{s} {(b or {}).get('status') if isinstance(b, dict) else b}")
 s, b = far.call("GET", f"/farms/{farm_id}/listings")
@@ -250,8 +320,8 @@ check("B26", "Buyer", "Open a dispute on a paid order", "2xx", 200 <= s < 300, f
 
 # ---------------- Admin ----------------
 adm, s = login(CREDS["ADMIN"], CREDS["PW"])
-check("A01", "Admin", "Admin login", "200 role=admin", s == 200 and adm.user.get("role") == "admin", f"{s} role={adm.user.get('role')}")
-for path in ["/admin/overview", "/admin/users", "/admin/listings", "/admin/escrow", "/admin/reports", "/admin/cycles"]:
+check("A01", "Admin", "Super admin login", "200 staffRole=super_admin", s == 200 and adm.user.get("staffRole") == "super_admin", f"{s} staffRole={adm.user.get('staffRole')}")
+for path in ["/admin/overview", "/admin/users", "/admin/listings", "/admin/escrow", "/admin/reports", "/admin/cycles", "/admin/farms"]:
     s, b = adm.call("GET", path)
     check("A02" + path, "Admin", f"GET {path}", "200", s == 200, s)
 if report_id:
@@ -259,8 +329,14 @@ if report_id:
     check("A03", "Admin", "Report detail with risk signals", "200 riskScore", s == 200 and "riskScore" in json.dumps(b), f"{s}")
     s, b = adm.call("POST", f"/admin/reports/{report_id}/resolve", {"action": "dismiss"})
     check("A04", "Admin", "Resolve report (dismiss)", "200", s == 200, f"{s} {str(b)[:100]}")
-s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/verify")
-check("A05", "Admin", "Verify a farmer", "200", s == 200, f"{s} {str(b)[:100]}")
+s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit": 2})
+check("A05", "Admin", "Raise one account's farm limit", "200 farmLimit=2", s == 200 and (b or {}).get("farmLimit") == 2, f"{s} {str(b)[:100]}")
+s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Douala"})
+check("A05b", "Farmer", "Second farm once staff raised the limit", "201 draft", s == 201 and (b or {}).get("status") == "draft", f"{s} {str(b)[:100]}")
+s, b = far.call("POST", "/farms", {"name": "Troisième ferme", "location": "Douala"})
+check("A05c", "Farmer", "Third farm beyond the raised limit", "409 code farm.limit_reached", s == 409 and (b or {}).get("code") == "farm.limit_reached", f"{s} {b}")
+s, b = adm.call("POST", "/farms", {"name": "Ferme du staff", "location": "Douala"})
+check("A05d", "Admin", "Staff account opening a farm", "403 code farm.staff_cannot_sell", s == 403 and (b or {}).get("code") == "farm.staff_cannot_sell", f"{s} {b}")
 s, b = adm.call("GET", "/admin/escrow")
 held = [e for e in (b.get("items", b) if isinstance(b, dict) else b or []) if isinstance(e, dict) and r_paid2 and r_paid2 in json.dumps(e)]
 s, b = adm.call("POST", f"/admin/escrow/{r_paid2}/refund")
@@ -296,15 +372,13 @@ s, b = g.call("GET", "/listings?country=CM&region=Ouest")
 check("R06", "Guest", "Region filter (farm in Bafoussam is Ouest)", "includes the QA listing", s == 200 and all(i.get("farmRegion") == "Ouest" for i in b.get("items", [])) and any(i["listing"]["id"] == qlisting for i in b.get("items", [])), f"{s} total={b.get('total')}")
 
 # Waiting list: a full lot, an unpaid buyer, a paying buyer takes the places.
-wl_farmer, _, _ = register("buyer", "Waitlist Farmer")
-s, wf = wl_farmer.call("POST", "/me/become-seller", {"farm": {"name": "Ferme WL", "location": "Dschang", "region": "Ouest"}})
-wl_farmer.token = (wl_farmer.call("POST", "/auth/refresh", token=False)[1] or {}).get("accessToken", wl_farmer.token)
+wl_farmer, _, _ = register("seller", "Waitlist Farmer")
+wf = open_approved_farm(wl_farmer, adm, {"name": "Ferme WL", "location": "Dschang", "region": "Ouest"})
 s, ql = wl_farmer.call("POST", f"/farms/{wf['id']}/quick-listings", {"species": "poussins", "quantity": 10, "unitPrice": 700, "title": "Lot liste d'attente", "deliveryAvailable": False})
 wl_listing, wl_cycle = ql["listing"]["id"], ql["cycle"]["id"]
 s, up = wl_farmer.call("POST", f"/listings/{wl_listing}/photos/presign")
 req = urllib.request.Request(up["uploadUrl"], data=jpeg, method="PUT"); req.add_header("Content-Type", "image/jpeg"); urllib.request.urlopen(req, timeout=20)
 wl_farmer.call("PUT", f"/listings/{wl_listing}/photos", {"keys": [up["key"]]})
-adm.call("POST", f"/admin/users/{wl_farmer.user.get('id')}/verify")
 wl_farmer.call("POST", f"/listings/{wl_listing}/publish")
 waiter, _, _ = register("buyer", "Waiting Buyer")
 payer, _, _ = register("buyer", "Paying Buyer")

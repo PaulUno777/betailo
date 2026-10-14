@@ -22,17 +22,17 @@ const duplicateKeyCode = 11000
 // carries no bson tags (see domain/user.go); mapping happens only here,
 // at the infrastructure boundary.
 type userDoc struct {
-	ID           bson.ObjectID `bson:"_id,omitempty"`
-	Email        string        `bson:"email"`
-	PasswordHash string        `bson:"passwordHash"`
-	Role         domain.Role   `bson:"role"`
-	DisplayName  string        `bson:"displayName,omitempty"`
-	Phone        string        `bson:"phone,omitempty"`
-	City         string        `bson:"city,omitempty"`
-	IsVerified   bool          `bson:"isVerified"`
-	Suspended    bool          `bson:"suspended,omitempty"`
-	TrustScore   float64       `bson:"trustScore"`
-	CreatedAt    time.Time     `bson:"createdAt"`
+	ID           bson.ObjectID    `bson:"_id,omitempty"`
+	Email        string           `bson:"email"`
+	PasswordHash string           `bson:"passwordHash"`
+	StaffRole    domain.StaffRole `bson:"staffRole,omitempty"`
+	FarmLimit    int              `bson:"farmLimit,omitempty"`
+	DisplayName  string           `bson:"displayName,omitempty"`
+	Phone        string           `bson:"phone,omitempty"`
+	City         string           `bson:"city,omitempty"`
+	Suspended    bool             `bson:"suspended,omitempty"`
+	TrustScore   float64          `bson:"trustScore"`
+	CreatedAt    time.Time        `bson:"createdAt"`
 }
 
 func fromDomainUser(u *domain.User) userDoc {
@@ -40,11 +40,11 @@ func fromDomainUser(u *domain.User) userDoc {
 		ID:           u.ID,
 		Email:        u.Email,
 		PasswordHash: u.PasswordHash,
-		Role:         u.Role,
+		StaffRole:    u.StaffRole,
+		FarmLimit:    u.FarmLimit,
 		DisplayName:  u.DisplayName,
 		Phone:        u.Phone,
 		City:         u.City,
-		IsVerified:   u.IsVerified,
 		Suspended:    u.Suspended,
 		TrustScore:   u.TrustScore,
 		CreatedAt:    u.CreatedAt,
@@ -56,11 +56,11 @@ func (d userDoc) toDomain() *domain.User {
 		ID:           d.ID,
 		Email:        d.Email,
 		PasswordHash: d.PasswordHash,
-		Role:         d.Role,
+		StaffRole:    d.StaffRole,
+		FarmLimit:    d.FarmLimit,
 		DisplayName:  d.DisplayName,
 		Phone:        d.Phone,
 		City:         d.City,
-		IsVerified:   d.IsVerified,
 		Suspended:    d.Suspended,
 		TrustScore:   d.TrustScore,
 		CreatedAt:    d.CreatedAt,

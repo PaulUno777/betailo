@@ -40,9 +40,13 @@ type searchRow struct {
 		Location string        `bson:"location"`
 		Country  string        `bson:"country"`
 		Region   string        `bson:"region"`
+		// Verification.AutoApproved: let through by the test switch,
+		// not reviewed by staff.
+		Verification struct {
+			AutoApproved bool `bson:"autoApproved"`
+		} `bson:"verification"`
 	} `bson:"farm"`
 	Owner struct {
-		IsVerified bool    `bson:"isVerified"`
 		TrustScore float64 `bson:"trustScore"`
 	} `bson:"owner"`
 	ReviewCount   int     `bson:"reviewCount"`
@@ -67,6 +71,9 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 		{{Key: "$unwind", Value: "$cycle"}},
 		{{Key: "$lookup", Value: bson.M{"from": "farms", "localField": "cycle.farmId", "foreignField": "_id", "as": "farm"}}},
 		{{Key: "$unwind", Value: "$farm"}},
+		// Only an approved farm sells: suspending one takes its
+		// listings off the marketplace without touching them.
+		{{Key: "$match", Value: bson.M{"farm.status": domain.FarmApproved}}},
 		{{Key: "$lookup", Value: bson.M{"from": "users", "localField": "farm.ownerId", "foreignField": "_id", "as": "owner"}}},
 		{{Key: "$unwind", Value: bson.M{"path": "$owner", "preserveNullAndEmptyArrays": true}}},
 	}
@@ -239,7 +246,7 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 			FarmLocation:   row.Farm.Location,
 			FarmCountry:    row.Farm.Country,
 			FarmRegion:     row.Farm.Region,
-			FarmVerified:   row.Owner.IsVerified,
+			FarmVerified:   !row.Farm.Verification.AutoApproved,
 			FarmTrustScore: row.Owner.TrustScore,
 			ReviewAverage:  row.ReviewAverage,
 			ReviewCount:    row.ReviewCount,
@@ -308,7 +315,7 @@ func commonConditions(c ports.ListingSearchCriteria) bson.A {
 		}})
 	}
 	if c.VerifiedOnly {
-		conds = append(conds, bson.M{"owner.isVerified": true})
+		conds = append(conds, bson.M{"farm.verification.autoApproved": bson.M{"$ne": true}})
 	}
 	if !c.AvailableTo.IsZero() {
 		conds = append(conds, bson.M{"cycle.startsAt": bson.M{"$lte": c.AvailableTo}})

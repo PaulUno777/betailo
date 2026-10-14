@@ -7,6 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"
@@ -27,6 +28,19 @@ type farmDoc struct {
 
 	Description  string `bson:"description,omitempty"`
 	ContactPhone string `bson:"contactPhone,omitempty"`
+
+	Status       domain.FarmStatus   `bson:"status"`
+	Verification farmVerificationDoc `bson:"verification,omitempty"`
+}
+
+type farmVerificationDoc struct {
+	IDDocumentKey   string        `bson:"idDocumentKey,omitempty"`
+	PhotoKeys       []string      `bson:"photoKeys,omitempty"`
+	SubmittedAt     *time.Time    `bson:"submittedAt,omitempty"`
+	ReviewedAt      *time.Time    `bson:"reviewedAt,omitempty"`
+	ReviewedBy      bson.ObjectID `bson:"reviewedBy,omitempty"`
+	AutoApproved    bool          `bson:"autoApproved,omitempty"`
+	RejectionReason string        `bson:"rejectionReason,omitempty"`
 }
 
 func fromDomainFarm(f *domain.Farm) farmDoc {
@@ -42,6 +56,13 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 
 		Description:  f.Description,
 		ContactPhone: f.ContactPhone,
+
+		Status: f.Status,
+		Verification: farmVerificationDoc{
+			IDDocumentKey: f.Verification.IDDocumentKey, PhotoKeys: f.Verification.PhotoKeys,
+			SubmittedAt: f.Verification.SubmittedAt, ReviewedAt: f.Verification.ReviewedAt, ReviewedBy: f.Verification.ReviewedBy,
+			AutoApproved: f.Verification.AutoApproved, RejectionReason: f.Verification.RejectionReason,
+		},
 	}
 }
 
@@ -58,6 +79,13 @@ func (d farmDoc) toDomain() *domain.Farm {
 
 		Description:  d.Description,
 		ContactPhone: d.ContactPhone,
+
+		Status: d.Status,
+		Verification: domain.FarmVerification{
+			IDDocumentKey: d.Verification.IDDocumentKey, PhotoKeys: d.Verification.PhotoKeys,
+			SubmittedAt: d.Verification.SubmittedAt, ReviewedAt: d.Verification.ReviewedAt, ReviewedBy: d.Verification.ReviewedBy,
+			AutoApproved: d.Verification.AutoApproved, RejectionReason: d.Verification.RejectionReason,
+		},
 	}
 }
 
@@ -108,6 +136,27 @@ func (r *FarmRepository) ListByOwner(ctx context.Context, ownerID bson.ObjectID)
 		out = append(out, doc.toDomain())
 	}
 	return out, cur.Err()
+}
+
+// ListByStatus implements ports.FarmRepository.
+func (r *FarmRepository) ListByStatus(ctx context.Context, status domain.FarmStatus) ([]*domain.Farm, error) {
+	filter := bson.M{}
+	if status != "" {
+		filter["status"] = status
+	}
+	cur, err := r.Coll.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "verification.submittedAt", Value: 1}, {Key: "createdAt", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
+	var docs []farmDoc
+	if err := cur.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	out := make([]*domain.Farm, 0, len(docs))
+	for _, d := range docs {
+		out = append(out, d.toDomain())
+	}
+	return out, nil
 }
 
 // Update implements ports.FarmRepository.

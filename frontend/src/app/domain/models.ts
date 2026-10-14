@@ -1,5 +1,6 @@
 import {
   CycleStatus,
+  FarmStatus,
   ListingStatus,
   PaymentMethod,
   PaymentStatus,
@@ -7,7 +8,7 @@ import {
   ReportTargetType,
   ReservationStatus,
   ResolveAction,
-  Role
+  StaffRole
 } from './enums';
 
 /* Interfaces mirror the backend's JSON responses field-for-field
@@ -19,17 +20,26 @@ import {
 export interface User {
   id: string;
   email: string;
-  role: Role;
+  /** Absent for everyone but the platform's team. */
+  staffRole?: StaffRole;
   displayName?: string;
 }
 
-/** `GET /me`: the signed-in user's own account. */
+/** The signed-in user's own profile (`PATCH /me`). */
 export interface Profile extends User {
   phone?: string;
   city?: string;
-  verified: boolean;
   trustScore: number;
   memberSince: string;
+}
+
+/** `GET /me`: the profile plus what the account can do as a seller,
+ * decided by the API: the farms it owns with their review state, how
+ * many it may own, and whether it may open another. */
+export interface Account extends Profile {
+  farms: Farm[];
+  farmLimit: number;
+  canAddFarm: boolean;
 }
 
 export interface Farm {
@@ -44,6 +54,31 @@ export interface Farm {
   description?: string;
   /** E.164. Only present for the owner and signed-in viewers. */
   contactPhone?: string;
+  status: FarmStatus;
+  /** The review, as its owner and staff see it. Never on a public profile. */
+  review?: FarmReview;
+}
+
+export interface FarmReview {
+  submittedAt?: string;
+  reviewedAt?: string;
+  /** Let through by the platform's test switch, not by a person. */
+  autoApproved?: boolean;
+  rejectionReason?: string;
+  /** The farm is waiting on its owner to (re)submit proof. */
+  canSubmit: boolean;
+}
+
+/** `GET /admin/farms`: a farm in the validation queue, with its owner. */
+export interface AdminFarm extends Farm {
+  owner?: AdminUser;
+}
+
+/** `GET /admin/farms/{id}`: plus short-lived links to the proof. */
+export interface AdminFarmDetail extends AdminFarm {
+  idDocumentUrl?: string;
+  photoUrls: string[];
+  ownerFarmCount: number;
 }
 
 /** `GET /farms/{id}`: a farm plus its server-computed trust signals. */
@@ -415,9 +450,10 @@ export interface AdminOverview {
 export interface AdminUser {
   id: string;
   email: string;
-  role: Role;
+  staffRole?: StaffRole;
   displayName?: string;
-  isVerified: boolean;
+  /** What staff set for this account; 0 = the platform default. */
+  farmLimit: number;
   suspended: boolean;
   trustScore: number;
 }

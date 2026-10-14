@@ -6,8 +6,8 @@ import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_VALUES, SpeciesValue, isSpecie
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { apiResource } from '../../core/http/api-resource';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
@@ -63,7 +63,7 @@ import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.
           <p class="mt-1 text-small text-ink-muted">{{ 'farmSettings.deleteBody' | t }}</p>
           <bt-button class="mt-3 inline-block" variant="danger" (click)="confirmDelete.set(true)">{{ 'farmSettings.delete' | t }}</bt-button>
         </section>
-      } @else if (farms.isLoading()) {
+      } @else if (!seller.loaded()) {
         <div class="mt-6 h-64 animate-pulse rounded-lg bg-surface-sunken" aria-busy="true"></div>
       }
     </div>
@@ -85,6 +85,7 @@ import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.
 })
 export class FarmSettingsComponent {
   private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
@@ -92,8 +93,7 @@ export class FarmSettingsComponent {
   protected readonly speciesLabels = SPECIES_LABEL_KEYS;
   protected readonly dots = SPECIES_DOT;
 
-  protected readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
-  protected readonly farm = computed(() => this.farms.value()?.[0]);
+  protected readonly farm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly name = signal('');
   protected readonly location = signal('');
@@ -144,7 +144,7 @@ export class FarmSettingsComponent {
         next: () => {
           this.saving.set(false);
           this.toast.show({ tone: 'success', title: 'farmSettings.savedToast' });
-          this.farms.reload();
+          this.seller.refresh();
         },
         error: (err: AppError) => {
           this.saving.set(false);

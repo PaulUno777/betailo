@@ -1,15 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Farm } from '../../domain/models';
-import { FarmsApi } from '../../data-access/farms/farms.api';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
-import { apiResource } from '../../core/http/api-resource';
 
 /** `/portal/cycles/new` — per `CycleForm.dc.html`, simplified to the
  * fields `POST /cycles` actually accepts (species, type, capacity,
@@ -66,13 +64,12 @@ import { apiResource } from '../../core/http/api-resource';
   `
 })
 export class CycleFormComponent {
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly cyclesApi = inject(CyclesApi);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
-  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
-  private readonly myFarm = computed(() => this.farms.value()?.[0]);
+  private readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly species = signal('');
   protected readonly type = signal('');

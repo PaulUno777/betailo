@@ -117,12 +117,15 @@ func (uc *GetReportDetail) scoreListing(ctx context.Context, detail *ReportDetai
 					})
 					detail.RiskScore += riskWeightAccountAge
 				}
-				if !owner.IsVerified {
-					detail.Signals = append(detail.Signals, RiskSignal{
-						Name: "Identité non vérifiée", Detail: "aucune vérification", Weight: riskWeightUnverified,
-					})
-					detail.RiskScore += riskWeightUnverified
-				}
+			}
+			// A listing can only be live from an approved farm, so this
+			// fires for one whose farm was since rejected or suspended,
+			// or approved by the test switch without a person looking.
+			if !f.Status.CanSell() || f.Verification.AutoApproved {
+				detail.Signals = append(detail.Signals, RiskSignal{
+					Name: "Ferme non vérifiée", Detail: "aucune validation par l'équipe", Weight: riskWeightUnverified,
+				})
+				detail.RiskScore += riskWeightUnverified
 			}
 		}
 	}
@@ -155,19 +158,19 @@ func (uc *GetReportDetail) scoreListing(ctx context.Context, detail *ReportDetai
 	}
 }
 
-// ResolveAction is one of the three buttons the design's report detail
-// view offers.
+// ResolveAction is what staff decide about a report. (Identity checks
+// are no longer an action here: a farm's own review covers them, see
+// application/usecase/farm.ReviewFarm.)
 type ResolveAction string
 
 const (
-	ResolveDismiss        ResolveAction = "dismiss"
-	ResolveVerifyIdentity ResolveAction = "verify_identity"
-	ResolveSuspend        ResolveAction = "suspend"
+	ResolveDismiss ResolveAction = "dismiss"
+	ResolveSuspend ResolveAction = "suspend"
 )
 
 // ResolveReport applies an admin's moderation decision — only
-// meaningful for a profile-targeted report, since verifying or
-// suspending only makes sense against a user account.
+// meaningful for a profile-targeted report, since suspending only
+// makes sense against a user account.
 type ResolveReport struct {
 	Reports ports.ReportRepository
 	Users   ports.UserRepository
@@ -182,7 +185,7 @@ type ResolveReportInput struct {
 }
 
 // Execute returns domain.ErrInvalid for an unrecognized action, or for
-// verify_identity/suspend against anything but a profile report.
+// suspend against anything but a profile report.
 func (uc *ResolveReport) Execute(ctx context.Context, in ResolveReportInput) (*domain.Report, error) {
 	rp, err := uc.Reports.FindByID(ctx, in.ReportID)
 	if err != nil {
@@ -192,7 +195,7 @@ func (uc *ResolveReport) Execute(ctx context.Context, in ResolveReportInput) (*d
 	switch in.Action {
 	case ResolveDismiss:
 		rp.Status = domain.ReportRejected
-	case ResolveVerifyIdentity, ResolveSuspend:
+	case ResolveSuspend:
 		if rp.TargetType != domain.ReportTargetProfile {
 			return nil, fmt.Errorf("admin: %s only applies to a profile report: %w", in.Action, domain.ErrInvalid)
 		}
@@ -200,11 +203,7 @@ func (uc *ResolveReport) Execute(ctx context.Context, in ResolveReportInput) (*d
 		if err != nil {
 			return nil, err
 		}
-		if in.Action == ResolveVerifyIdentity {
-			u.IsVerified = true
-		} else {
-			u.Suspended = true
-		}
+		u.Suspended = true
 		if err := uc.Users.Update(ctx, u); err != nil {
 			return nil, err
 		}

@@ -14,23 +14,33 @@ import (
 type profileResponse struct {
 	ID          string    `json:"id"`
 	Email       string    `json:"email"`
-	Role        string    `json:"role"`
+	StaffRole   string    `json:"staffRole,omitempty"`
 	DisplayName string    `json:"displayName,omitempty"`
 	Phone       string    `json:"phone,omitempty"`
 	City        string    `json:"city,omitempty"`
-	Verified    bool      `json:"verified"`
 	TrustScore  float64   `json:"trustScore"`
 	MemberSince time.Time `json:"memberSince"`
 }
 
 func toProfileResponse(u *domain.User) profileResponse {
 	return profileResponse{
-		ID: u.ID.Hex(), Email: u.Email, Role: string(u.Role), DisplayName: u.DisplayName, Phone: u.Phone, City: u.City,
-		Verified: u.IsVerified, TrustScore: u.TrustScore, MemberSince: u.CreatedAt,
+		ID: u.ID.Hex(), Email: u.Email, StaffRole: string(u.StaffRole), DisplayName: u.DisplayName, Phone: u.Phone, City: u.City,
+		TrustScore: u.TrustScore, MemberSince: u.CreatedAt,
 	}
 }
 
-func handleGetProfile(uc *account.GetProfile) http.HandlerFunc {
+// meResponse is `GET /me`: the profile plus what the account can do,
+// decided here so the client only draws it. Farms is every farm the
+// account owns with its review status; CanAddFarm says whether it may
+// open another (its limit, and staff accounts never sell).
+type meResponse struct {
+	profileResponse
+	Farms      []farmResponse `json:"farms"`
+	FarmLimit  int            `json:"farmLimit"`
+	CanAddFarm bool           `json:"canAddFarm"`
+}
+
+func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -42,7 +52,16 @@ func handleGetProfile(uc *account.GetProfile) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, toProfileResponse(u))
+		seller, err := access.Execute(r.Context(), claims.UserID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		farms := make([]farmResponse, 0, len(seller.Farms))
+		for _, f := range seller.Farms {
+			farms = append(farms, toOwnerFarmResponse(f))
+		}
+		writeJSON(w, http.StatusOK, meResponse{profileResponse: toProfileResponse(u), Farms: farms, FarmLimit: seller.FarmLimit, CanAddFarm: seller.CanAdd})
 	}
 }
 
@@ -106,32 +125,5 @@ func handleChangePassword(uc *auth.ChangePassword, login *auth.Login, cookies Co
 		}
 		setRefreshCookie(w, out.RefreshToken, out.RefreshExpiresAt, req.Remember, cookies)
 		writeJSON(w, http.StatusOK, loginResponse{AccessToken: out.AccessToken, User: toUserResponse(out.User)})
-	}
-}
-
-type becomeSellerRequest struct {
-	Farm farmRequest `json:"farm"`
-}
-
-func handleBecomeSeller(uc *farm.BecomeSeller) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims, ok := ClaimsFromContext(r.Context())
-		if !ok {
-			writeError(w, errUnauthorized)
-			return
-		}
-		var req becomeSellerRequest
-		if !readJSON(w, r, &req) {
-			return
-		}
-		f, err := uc.Execute(r.Context(), farm.BecomeSellerInput{
-			UserID: claims.UserID, FarmName: req.Farm.Name, Location: req.Farm.Location, Country: req.Farm.Country, Region: req.Farm.Region, Species: req.Farm.Species,
-			Description: req.Farm.Description, ContactPhone: req.Farm.ContactPhone,
-		})
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusCreated, toFarmResponse(f))
 	}
 }

@@ -70,6 +70,11 @@ func (uc *GetDetail) Execute(ctx context.Context, listingID, viewerID bson.Objec
 	if err := visibleTo(l, isOwner); err != nil {
 		return nil, err
 	}
+	// Off the marketplace along with its farm (suspended, or no longer
+	// approved); its owner still sees it.
+	if !isOwner && !f.Status.CanSell() {
+		return nil, fmt.Errorf("listing: its farm isn't selling: %w", domain.ErrNotFound)
+	}
 
 	profile, err := farmstats.BuildProfile(ctx, farmstats.ProfileSources{
 		Sources: farmstats.Sources{Cycles: uc.Cycles, Listings: uc.Listings, Reservations: uc.Reservations},

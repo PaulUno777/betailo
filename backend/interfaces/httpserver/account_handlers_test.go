@@ -49,31 +49,3 @@ func TestAccount_HTTP_ChangePasswordEndsOtherSessionsButKeepsThisOne(t *testing.
 		t.Errorf("old password still works: status = %d", old.Code)
 	}
 }
-
-func TestAccount_HTTP_BuyerBecomesSeller(t *testing.T) {
-	router := newTestRouter()
-	email := uniqueEmail("buyer")
-	token, _ := registerAndLogin(t, router, email, "buyer")
-
-	// A buyer can't create a farm directly...
-	if rec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "X", Location: "Y"}, token); rec.Code != http.StatusForbidden {
-		t.Fatalf("buyer POST /farms status = %d, want 403", rec.Code)
-	}
-	// ...but can become a seller, which creates the farm and switches the role.
-	rec := doJSON(t, router, http.MethodPost, "/me/become-seller", becomeSellerRequest{Farm: farmRequest{Name: "Ferme Etoga", Location: "Douala", ContactPhone: "690123456"}}, token)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("become seller status = %d; body = %s", rec.Code, rec.Body.String())
-	}
-	if again := doJSON(t, router, http.MethodPost, "/me/become-seller", becomeSellerRequest{Farm: farmRequest{Name: "Bis", Location: "Douala"}}, token); again.Code != http.StatusConflict {
-		t.Errorf("second become-seller status = %d, want 409", again.Code)
-	}
-
-	// A fresh sign-in carries the farmer role.
-	login := decodeJSON[loginResponse](t, doJSON(t, router, http.MethodPost, "/auth/login", loginRequest{Email: email, Password: "correct-horse-battery"}, ""))
-	if login.User.Role != "farmer" {
-		t.Fatalf("role after becoming a seller = %q, want farmer", login.User.Role)
-	}
-	if farms := decodeJSON[[]farmResponse](t, doJSON(t, router, http.MethodGet, "/farms/mine", nil, login.AccessToken)); len(farms) != 1 || farms[0].Name != "Ferme Etoga" {
-		t.Errorf("farms/mine = %+v, want the new farm", farms)
-	}
-}

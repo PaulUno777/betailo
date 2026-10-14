@@ -10,6 +10,9 @@ export const fr = {
     loading: 'Chargement…'
   },
   apiErrors: {
+    admin: {
+      farm_limit_range: 'Le nombre de fermes doit être compris entre 0 et {max}.'
+    },
     network: 'Pas de connexion. Vérifiez votre réseau et réessayez.',
     server: 'Un problème est survenu de notre côté. Réessayez dans un instant.',
     validation: 'Certaines informations ne sont pas valides. Vérifiez et réessayez.',
@@ -31,9 +34,14 @@ export const fr = {
       display_name_too_long: 'Le nom ne peut pas dépasser {max} caractères.'
     },
     farm: {
-      already_seller: 'Vous êtes déjà vendeur.',
-      not_verified: 'Votre ferme est en cours de vérification. Vos annonces seront publiables dès qu’elle sera validée.',
-      admin_cannot_sell: 'Un compte administrateur ne peut pas vendre.',
+      not_approved: 'Cette ferme n’est pas encore validée. Vos annonces seront publiables dès que notre équipe l’aura approuvée.',
+      limit_reached: 'Vous avez atteint le nombre de fermes autorisé pour votre compte ({max}).',
+      staff_cannot_sell: 'Un compte de l’équipe Betailo ne peut pas vendre.',
+      not_submittable: 'Cette ferme ne peut pas être soumise pour le moment.',
+      id_document_required: 'Ajoutez une photo de votre pièce d’identité.',
+      proof_photo_count: 'Ajoutez entre {min} et {max} photos de votre ferme.',
+      reason_required: 'Indiquez le motif.',
+      decision_not_applicable: 'Cette décision ne s’applique pas à l’état actuel de la ferme.',
       name_location_required: 'Indiquez le nom de la ferme et sa ville.',
       name_required: 'Indiquez le nom de la ferme.',
       location_required: 'Indiquez la ville de la ferme.',
@@ -107,6 +115,7 @@ export const fr = {
     chevres: 'Chèvres'
   },
   nav: {
+    farmLimitReached: 'Limite de fermes atteinte ({count}).',
     newListing: 'Nouvelle annonce',
     sell: 'Vendre',
     categories: 'Catégories',
@@ -126,7 +135,6 @@ export const fr = {
     sellerSpace: 'Mode vendeur',
     spaces: 'Vos espaces',
     personalSpace: 'Compte personnel',
-    verificationPending: 'Vérification en cours',
     addFarm: 'Ajouter une ferme',
     addFarmHint: 'Vendez vos animaux sur Betailo',
     admin: 'Administration',
@@ -564,6 +572,11 @@ export const fr = {
     maxHint: 'Maximum {count} places disponibles'
   },
   status: {
+    farmDraft: 'Brouillon',
+    farmPending: 'En vérification',
+    farmApproved: 'Approuvée',
+    farmRejected: 'Refusée',
+    farmSuspended: 'Suspendue',
     cyclePlanned: 'Planifié',
     cycleInProgress: 'En cours',
     cycleDone: 'Terminé',
@@ -775,6 +788,7 @@ export const fr = {
     empty: 'Aucun paiement pour le moment.'
   },
   portalNav: {
+    farms: 'Mes fermes',
     listingsShort: 'Annonces',
     space: 'Vendeur',
     dashboardShort: 'Accueil',
@@ -797,6 +811,16 @@ export const fr = {
     reservationsChartTitle: 'Réservations · 30 derniers jours'
   },
   adminUsers: {
+    farmLimitDefault: 'Fermes : par défaut',
+    farmLimitValue: 'Fermes : {count} max.',
+    farmLimitTitle: 'Fermes autorisées pour {email}',
+    farmLimitBody: 'Combien de fermes ce compte peut posséder. 0 remet la limite par défaut de la plateforme.',
+    farmLimitZero: 'Limite par défaut de la plateforme.',
+    farmLimitChosen: '{count} fermes au maximum.',
+    farmLimitChosen_one: '{count} ferme au maximum.',
+    farmLimitSave: 'Enregistrer',
+    farmLimitSaved: 'Limite mise à jour',
+    suspendedToast: 'Compte suspendu',
     title: 'Utilisateurs',
     loading: 'Chargement…',
     empty: 'Aucun utilisateur.',
@@ -804,11 +828,8 @@ export const fr = {
     roleCol: 'Rôle',
     statusCol: 'Statut',
     trustCol: 'Confiance',
-    verifiedBadge: 'Vérifié',
     suspendedBadge: 'Suspendu',
-    verifyButton: 'Vérifier',
     suspendButton: 'Suspendre',
-    awaitingBadge: 'À vérifier',
     suspendConfirmTitle: 'Suspendre {email} ?',
     actionFailedTitle: "Échec de l'action"
   },
@@ -842,13 +863,13 @@ export const fr = {
     signalsTitle: 'Signaux',
     historyTitle: 'Historique',
     resolveDismiss: 'Ignorer',
-    resolveVerify: "Vérifier l'identité",
     resolveSuspend: 'Suspendre',
     resolveFailedTitle: "Échec de la résolution",
     suspendConfirmBody: 'Le compte visé sera suspendu immédiatement.',
     notFound: 'Signalement introuvable.'
   },
   adminNav: {
+    farms: 'Fermes à valider',
     space: 'Admin',
     viewSite: 'Voir le site',
     overviewShort: 'Vue',
@@ -929,8 +950,11 @@ export const fr = {
     }
   },
   sellerOnboarding: {
+    titleAnother: 'Ajoutez une ferme',
+    stepsLabel: 'Étapes',
+    stepFarm: 'Votre ferme',
+    stepProof: 'Justificatifs',
     titleBuyer: 'Devenez vendeur',
-    titleFarmer: 'Présentez votre ferme',
     intro: 'Quelques informations sur votre ferme, et vous pourrez publier vos animaux.',
     perk1: 'Publication gratuite',
     perk2: 'Paiement protégé par séquestre',
@@ -966,6 +990,7 @@ export const fr = {
     chevre: 'chèvre'
   },
   portalListings: {
+    notApprovedTitle: 'Publication en attente',
     title: 'Mes annonces',
     new: 'Vendre',
     empty: "Vous n'avez pas encore d'annonce.",
@@ -1029,8 +1054,7 @@ export const fr = {
   },
   account: {
     memberSince: 'Membre depuis {date}',
-    verified: 'Vérifié',
-    myFarm: 'Ma ferme',
+    myFarms: 'Mes fermes',
     settingsTitle: 'Réglages',
     profile: 'Mes informations',
     profileEmpty: 'Nom, téléphone, ville',
@@ -1095,9 +1119,110 @@ export const fr = {
     reproduction: 'Reproduction',
     elevage: 'Élevage'
   },
-  sellerSpace: {
-    pendingTitle: 'Vérification en cours',
-    pendingBody: 'Préparez vos cycles et vos annonces dès maintenant : vous pourrez les publier dès que notre équipe aura vérifié votre ferme.'
+  staffRole: {
+    super_admin: 'Super-admin'
+  },
+  farmSwitcher: {
+    label: 'Vos fermes',
+    current: 'Ferme en cours : {farm}. Changer de ferme',
+    manage: 'Gérer mes fermes'
+  },
+  farmStatusBanner: {
+    draftTitle: '{farm} n’est pas encore soumise',
+    draftBody: 'Envoyez vos justificatifs pour que notre équipe la valide. En attendant, vos annonces restent en brouillon.',
+    draftAction: 'Soumettre la ferme',
+    pendingTitle: '{farm} est en cours de validation',
+    pendingBody: 'Préparez vos cycles et vos annonces dès maintenant : vous pourrez les publier dès que la ferme sera validée.',
+    pendingAction: 'Voir le suivi',
+    rejectedTitle: 'La validation de {farm} a été refusée',
+    rejectedBody: 'Consultez le motif, corrigez et soumettez-la de nouveau.',
+    rejectedAction: 'Soumettre de nouveau',
+    suspendedTitle: '{farm} est suspendue',
+    suspendedBody: 'Ses annonces ne sont plus visibles sur le marché.',
+    suspendedAction: 'Voir le détail'
+  },
+  farmProof: {
+    title: 'Faites valider {farm}',
+    intro: 'Notre équipe vérifie chaque ferme avant qu’elle puisse vendre. Cela prend en général moins de 48 h.',
+    privacy: 'Ces documents servent uniquement à la validation. Ils ne sont jamais affichés aux acheteurs.',
+    rejectedTitle: 'Motif du refus',
+    idLabel: 'Pièce d’identité',
+    idHint: 'Une photo nette de votre carte d’identité, passeport ou permis.',
+    idAdd: 'Ajouter la pièce d’identité',
+    removeId: 'Retirer la pièce d’identité',
+    photosLabel: 'Photos de la ferme',
+    photosHint: 'De 1 à {max} photos : bâtiments, enclos, animaux sur place.',
+    photoAdd: 'Ajouter',
+    removePhoto: 'Retirer la photo {n}',
+    submit: 'Soumettre pour validation',
+    submitting: 'Envoi…',
+    later: 'Plus tard'
+  },
+  portalFarms: {
+    title: 'Mes fermes',
+    count: '{count} sur {max} fermes',
+    count_one: '{count} sur {max} ferme',
+    add: 'Ajouter une ferme',
+    current: 'Ferme en cours',
+    manage: 'Gérer cette ferme',
+    edit: 'Modifier la fiche',
+    draftTitle: 'Justificatifs à envoyer',
+    draftBody: 'Cette ferme ne peut pas encore publier. Envoyez votre pièce d’identité et des photos de la ferme.',
+    pendingTitle: 'En cours de validation',
+    pendingBody: 'Soumise le {date}. Vous recevrez une notification dès la décision.',
+    rejectedTitle: 'Validation refusée',
+    rejectedBody: 'Le motif est indiqué ci-dessous. Corrigez puis soumettez de nouveau.',
+    suspendedTitle: 'Ferme suspendue',
+    suspendedBody: 'Ses annonces ne sont plus visibles. Contactez le support Betailo.',
+    autoApproved: 'Validée automatiquement (plateforme de test). Notre équipe pourra la revoir.',
+    submit: 'Soumettre pour validation',
+    resubmit: 'Soumettre de nouveau',
+    submittedToast: 'Ferme soumise',
+    submittedToastDetail: 'Notre équipe l’examine. Vous serez notifié de la décision.',
+    approvedToast: 'Ferme validée',
+    limitReached: 'Vous avez atteint le nombre de fermes autorisé pour votre compte ({count}). Contactez le support Betailo pour en ajouter.'
+  },
+  adminFarms: {
+    eyebrow: 'Confiance',
+    title: 'Fermes',
+    queueLabel: 'File de validation',
+    filterLabel: 'Filtrer par statut',
+    empty: 'Aucune ferme dans cet état.',
+    pick: 'Choisissez une ferme dans la file pour l’examiner.',
+    backToQueue: 'Retour à la file',
+    ownedBy: 'Créée par',
+    autoApproved: 'Validée sans revue',
+    proofTitle: 'Justificatifs',
+    noProof: 'Aucun justificatif fourni.',
+    idDocument: 'Pièce d’identité',
+    idDocumentAlt: 'Pièce d’identité fournie pour {farm}',
+    farmPhoto: 'Photo {n}',
+    farmPhotoAlt: 'Photo {n} de {farm}',
+    place: 'Lieu',
+    phone: 'Téléphone',
+    submitted: 'Soumise le',
+    notSubmitted: 'Pas encore soumise',
+    ownerFarms: 'Fermes du compte',
+    ownerTrust: 'Score de confiance',
+    description: 'Présentation',
+    lastReason: 'Dernier motif communiqué',
+    approve: 'Valider la ferme',
+    confirm: 'Confirmer la validation',
+    reinstate: 'Lever la suspension',
+    reject: 'Refuser',
+    suspend: 'Suspendre la ferme',
+    rejectTitle: 'Refuser cette ferme',
+    rejectBody: 'Le propriétaire lira ce motif et pourra soumettre de nouveau.',
+    suspendTitle: 'Suspendre cette ferme',
+    suspendBody: 'Ses annonces seront retirées du marché immédiatement. Le propriétaire lira ce motif.',
+    reasonLabel: 'Motif',
+    loadError: 'Cette ferme est introuvable.',
+    failed: 'Décision non enregistrée',
+    done: {
+      approve: 'Ferme validée',
+      reject: 'Ferme refusée',
+      suspend: 'Ferme suspendue'
+    }
   },
   rating: {
     groupLabel: 'Note',

@@ -34,7 +34,7 @@ type Dependencies struct {
 	GetProfile     *account.GetProfile
 	UpdateProfile  *account.UpdateProfile
 	ChangePassword *auth.ChangePassword
-	BecomeSeller   *farm.BecomeSeller
+	SellerAccess   *farm.SellerAccess
 	// RateLimits applies to the credential endpoints; the zero value
 	// disables limiting.
 	RateLimits RateLimitConfig
@@ -53,6 +53,10 @@ type Dependencies struct {
 	ListMyFarms    *farm.ListMyFarms
 	UpdateFarm     *farm.UpdateFarm
 	DeleteFarm     *farm.DeleteFarm
+
+	PresignFarmProof    *farm.PresignFarmProof
+	SubmitFarmForReview *farm.SubmitFarmForReview
+	ReviewFarm          *farm.ReviewFarm
 
 	CreateCycle       *cycle.CreateCycle
 	GetCycle          *cycle.GetCycle
@@ -105,7 +109,9 @@ type Dependencies struct {
 
 	AdminOverview        *admin.Overview
 	AdminListUsers       *admin.ListUsers
-	AdminVerifyUser      *admin.VerifyUser
+	AdminSetFarmLimit    *admin.SetFarmLimit
+	AdminListFarms       *admin.ListFarmsForReview
+	AdminGetFarm         *admin.GetFarmForReview
 	AdminSuspendUser     *admin.SuspendUser
 	AdminListCycles      *admin.ListAllCycles
 	AdminListListings    *admin.ListAllListings

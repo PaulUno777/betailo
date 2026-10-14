@@ -4,7 +4,7 @@ import { User } from '../../domain/models';
 import { AuthApi, LoginResult, RefreshResult } from '../../data-access/auth/auth.api';
 import { AuthService } from './auth.service';
 
-const user: User = { id: 'u1', email: 'buyer@betailo.test', role: 'buyer' };
+const user: User = { id: 'u1', email: 'buyer@betailo.test' };
 
 /** A minimal AuthApi double — AuthService never needs register()/me(),
  * and refresh()/logout() are each scripted per test rather than making
@@ -42,7 +42,7 @@ describe('AuthService', () => {
     const auth = TestBed.inject(AuthService);
     expect(auth.isAuthenticated()).toBeFalse();
     expect(auth.user()).toBeNull();
-    expect(auth.role()).toBeNull();
+    expect(auth.isStaff()).toBeFalse();
     expect(auth.token()).toBeNull();
   });
 
@@ -52,7 +52,9 @@ describe('AuthService', () => {
 
     expect(auth.isAuthenticated()).toBeTrue();
     expect(auth.token()).toBe('token-123');
-    expect(auth.role()).toBe('buyer');
+    // A personal account: no staff role, so no back office.
+    expect(auth.staffRole()).toBeNull();
+    expect(auth.isStaff()).toBeFalse();
     expect(JSON.parse(localStorage.getItem('betailo.user')!)).toEqual(user);
     // The actual security property this phase exists for: the access
     // token is never written to any browser storage an XSS payload

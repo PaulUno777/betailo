@@ -4,12 +4,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { forkJoin, map, switchMap } from 'rxjs';
 import { PhotoUploadService } from '../../core/http/photo-upload.service';
-import { Cycle, Farm } from '../../domain/models';
-import { FarmsApi } from '../../data-access/farms/farms.api';
+import { Cycle } from '../../domain/models';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
@@ -83,7 +83,7 @@ export class ListingFormComponent {
   private readonly photos = inject(PhotoUploadService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly cyclesApi = inject(CyclesApi);
   private readonly listingsApi = inject(ListingsApi);
   private readonly toast = inject(ToastService);
@@ -92,8 +92,7 @@ export class ListingFormComponent {
     initialValue: ''
   });
 
-  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
-  private readonly myFarm = computed(() => this.farms.value()?.[0]);
+  private readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly cycles = apiResource<Cycle[]>(() => {
     const farmId = this.myFarm()?.id;

@@ -255,6 +255,11 @@ func checkReservable(ctx context.Context, listings ports.ListingStore, cycles po
 	if err != nil {
 		return nil, err
 	}
+	// A farm staff suspended (or never approved) isn't selling, even
+	// if a listing of its is still marked published.
+	if !farm.Status.CanSell() {
+		return nil, fmt.Errorf("reservation: listing is not available: %w", domain.ErrNotFound)
+	}
 	// A farmer reserving their own animals would mint released "sales"
 	// that feed their trust score.
 	if farm.OwnerID == buyerID {

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
 import { guestGuard } from './core/auth/guest.guard';
-import { roleGuard } from './core/auth/role.guard';
+import { sellerGuard, staffGuard } from './core/auth/space.guards';
 
 export const routes: Routes = [
   {
@@ -87,7 +87,7 @@ export const routes: Routes = [
   {
     path: 'portal',
     loadComponent: () => import('./shared/layout/portal-shell.component').then((m) => m.PortalShellComponent),
-    canActivate: [authGuard, roleGuard('farmer')],
+    canActivate: [authGuard, sellerGuard],
     children: [
       {
         path: '',
@@ -122,6 +122,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/portal/farm-settings.component').then((m) => m.FarmSettingsComponent)
       },
       {
+        path: 'farms',
+        loadComponent: () => import('./features/portal/portal-farms.component').then((m) => m.PortalFarmsComponent)
+      },
+      {
         path: 'reservations',
         loadComponent: () =>
           import('./features/portal/portal-reservations-list.component').then((m) => m.PortalReservationsListComponent)
@@ -135,11 +139,19 @@ export const routes: Routes = [
   {
     path: 'admin',
     loadComponent: () => import('./shared/layout/admin-shell.component').then((m) => m.AdminShellComponent),
-    canActivate: [authGuard, roleGuard('admin')],
+    canActivate: [authGuard, staffGuard],
     children: [
       {
         path: '',
         loadComponent: () => import('./features/admin/admin-overview.component').then((m) => m.AdminOverviewComponent)
+      },
+      {
+        path: 'farms',
+        loadComponent: () => import('./features/admin/admin-farms.component').then((m) => m.AdminFarmsComponent)
+      },
+      {
+        path: 'farms/:id',
+        loadComponent: () => import('./features/admin/admin-farms.component').then((m) => m.AdminFarmsComponent)
       },
       {
         path: 'users',

@@ -1,13 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Role } from '../../domain/enums';
 import { User } from '../../domain/models';
 import { ApiClient } from '../../core/http/api-client';
 
 export interface RegisterInput {
   readonly email: string;
   readonly password: string;
-  readonly role: Role;
   readonly displayName?: string;
 }
 

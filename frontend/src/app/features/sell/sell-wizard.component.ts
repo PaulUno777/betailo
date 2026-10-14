@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, injec
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Observable, of, switchMap } from 'rxjs';
-import { Farm, Listing, PriceHint } from '../../domain/models';
+import { Listing, PriceHint } from '../../domain/models';
 import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_UNIT_KEYS, SPECIES_VALUES, SpeciesValue } from '../../domain/reference/species';
-import { FarmsApi } from '../../data-access/farms/farms.api';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { ListingPhotosService } from '../../data-access/listings/listing-photos.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
 import { LocaleService } from '../../core/i18n/locale.service';
@@ -81,7 +81,7 @@ type Section = 0 | 1 | 2 | 3;
         </div>
       </header>
 
-      @if (auth.role() === 'admin') {
+      @if (auth.isStaff()) {
         <bt-notice class="mt-6 block" tone="info">{{ 'sell.adminCannotSell' | t }}</bt-notice>
       } @else if (needsOnboarding()) {
         <div class="mt-6">
@@ -277,7 +277,7 @@ type Section = 0 | 1 | 2 | 3;
 export class SellWizardComponent {
   protected readonly auth = inject(AuthService);
   protected readonly router = inject(Router);
-  private readonly farmsApi = inject(FarmsApi);
+  private readonly seller = inject(SellerSpaceService);
   private readonly listingsApi = inject(ListingsApi);
   private readonly listingPhotos = inject(ListingPhotosService);
   private readonly toast = inject(ToastService);
@@ -293,11 +293,13 @@ export class SellWizardComponent {
 
   private readonly sectionEls = viewChildren<ElementRef<HTMLElement>>('section');
 
-  protected readonly farms = apiResource<Farm[]>(() => (this.auth.role() === 'farmer' ? this.farmsApi.mineUrl() : undefined));
-  protected readonly farm = computed(() => this.farms.value()?.[0]);
-  protected readonly needsOnboarding = computed(
-    () => this.auth.role() === 'buyer' || (this.auth.role() === 'farmer' && this.farms.hasValue() && !this.farm())
-  );
+  /** The listing goes to the farm the seller is working on. */
+  protected readonly farm = computed(() => this.seller.currentFarm());
+  /** No farm yet: open one first (and submit it for validation). Once
+   * started it stays up until its last step is done, even though the
+   * farm exists from its first step on. */
+  private readonly onboarding = signal(false);
+  protected readonly needsOnboarding = computed(() => this.onboarding() || (this.seller.loaded() && !this.seller.hasFarm()));
 
   private readonly userId = this.auth.user()?.id ?? 'anon';
   protected readonly draft = signal<SellDraft>(loadDraft(this.userId) ?? EMPTY_DRAFT);
@@ -353,6 +355,9 @@ export class SellWizardComponent {
   protected readonly publishLabel = computed(() => (this.publishing() ? 'sell.publishing' : 'sell.publish'));
 
   constructor() {
+    effect(() => {
+      if (this.seller.loaded() && !this.seller.hasFarm()) this.onboarding.set(true);
+    });
     // Remember the form on this device as it's filled in.
     let first = true;
     effect(() => {
@@ -388,12 +393,13 @@ export class SellWizardComponent {
   }
 
   protected onFarmCreated(): void {
-    this.farms.reload();
+    this.onboarding.set(false);
+    this.seller.refresh();
     this.toast.show({ tone: 'success', title: 'sellerOnboarding.done' });
   }
 
   protected leave(): void {
-    this.router.navigateByUrl(this.auth.role() === 'farmer' ? '/portal' : '/');
+    this.router.navigateByUrl(this.seller.hasFarm() ? '/portal' : '/');
   }
 
   /** Brouillon needs what the API needs to create the listing (species,
@@ -441,9 +447,9 @@ export class SellWizardComponent {
         error: (err: AppError) => {
           this.saving.set(false);
           this.publishing.set(false);
-          if (createdId && err.code === 'farm.not_verified') {
-            // Saved as a draft; it goes live once an admin has verified
-            // the seller. Not a failure, so it isn't shown as one.
+          if (createdId && err.code === 'farm.not_approved') {
+            // Saved as a draft; it goes live once staff approved the
+            // farm. Not a failure, so it isn't shown as one.
             clearDraft(this.userId);
             this.toast.show({ tone: 'info', title: 'sell.pendingToast', detail: 'sell.pendingToastDetail' });
             this.router.navigateByUrl('/portal/listings');

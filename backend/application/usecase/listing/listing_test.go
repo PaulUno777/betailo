@@ -5,28 +5,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"
 )
-
-// fakeUsers answers FindByID for the seller-verification check; a
-// user it doesn't know is an unverified one.
-type fakeUsers struct {
-	ports.UserRepository
-	verified map[bson.ObjectID]bool
-}
-
-func verifiedSellers(ids ...bson.ObjectID) *fakeUsers {
-	f := &fakeUsers{verified: map[bson.ObjectID]bool{}}
-	for _, id := range ids {
-		f.verified[id] = true
-	}
-	return f
-}
-
-func (f *fakeUsers) FindByID(_ context.Context, id bson.ObjectID) (*domain.User, error) {
-	return &domain.User{ID: id, Role: domain.RoleFarmer, IsVerified: f.verified[id]}, nil
-}
 
 // fakeFarms, fakeCycles and fakeListings are in-memory doubles for the
 // ports these usecases depend on.
@@ -142,4 +122,8 @@ func (f *fakeListings) Update(_ context.Context, l *domain.Listing) error {
 	}
 	f.byID[l.ID] = l
 	return nil
+}
+
+func (f *fakeFarms) ListByStatus(context.Context, domain.FarmStatus) ([]*domain.Farm, error) {
+	return nil, nil
 }

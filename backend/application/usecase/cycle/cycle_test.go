@@ -172,3 +172,7 @@ func (f *fakeSequencer) Next(context.Context, string) (int64, error) {
 	f.n++
 	return f.n, nil
 }
+
+func (f *fakeFarms) ListByStatus(context.Context, domain.FarmStatus) ([]*domain.Farm, error) {
+	return nil, nil
+}

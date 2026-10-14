@@ -1,8 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Farm, Profile } from '../../domain/models';
+import { Account, Profile } from '../../domain/models';
 import { ApiClient } from '../../core/http/api-client';
-import { FarmInput } from '../farms/farms.api';
 import { LoginResult } from '../auth/auth.api';
 
 export interface ProfileInput {
@@ -24,8 +23,7 @@ export interface ChangePasswordInput {
   readonly remember: boolean;
 }
 
-/** The signed-in user's own account: profile, password, and the switch
- * from buyer to seller. */
+/** The signed-in user's own account: profile and password. */
 @Injectable({ providedIn: 'root' })
 export class AccountApi {
   private readonly api = inject(ApiClient);
@@ -34,8 +32,8 @@ export class AccountApi {
     return this.api.url('/me');
   }
 
-  profile(): Observable<Profile> {
-    return this.api.get<Profile>('/me');
+  profile(): Observable<Account> {
+    return this.api.get<Account>('/me');
   }
 
   navCounts(): Observable<NavCounts> {
@@ -50,11 +48,5 @@ export class AccountApi {
    * with the new password, so the result is a fresh session. */
   changePassword(input: ChangePasswordInput): Observable<LoginResult> {
     return this.api.post<LoginResult>('/me/password', input);
-  }
-
-  /** Creates the farm and makes the account a farmer, in one step. The
-   * current access token still says "buyer": refresh the session next. */
-  becomeSeller(farm: FarmInput): Observable<Farm> {
-    return this.api.post<Farm>('/me/become-seller', { farm });
   }
 }

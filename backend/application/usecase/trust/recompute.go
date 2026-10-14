@@ -9,12 +9,14 @@ package trust
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/farmstats"
+	"github.com/pauluno777/betailo/backend/domain"
 )
 
 // Score weights. Chosen to keep the formula legible and explainable in
@@ -56,8 +58,14 @@ func (uc *Recompute) Execute(ctx context.Context, userID bson.ObjectID) error {
 		return err
 	}
 
+	farms, err := uc.Farms.ListByOwner(ctx, userID)
+	if err != nil {
+		return err
+	}
 	score := baseScore
-	if u.IsVerified {
+	// The identity bonus now comes with a farm staff reviewed: that
+	// review is where the owner's identity document is checked.
+	if slices.ContainsFunc(farms, func(f *domain.Farm) bool { return f.Status.CanSell() && !f.Verification.AutoApproved }) {
 		score += verifiedIdentityBonus
 	}
 

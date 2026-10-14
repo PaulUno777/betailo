@@ -1,17 +1,16 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, Router, RouterStateSnapshot, UrlTree, provideRouter } from '@angular/router';
-import { Role } from '../../domain/enums';
 import { AuthService } from './auth.service';
 import { guestGuard } from './guest.guard';
 
 describe('guestGuard', () => {
   const authenticated = signal(false);
-  const role = signal<Role | null>(null);
+  const staff = signal(false);
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: AuthService, useValue: { isAuthenticated: authenticated, role } }]
+      providers: [provideRouter([]), { provide: AuthService, useValue: { isAuthenticated: authenticated, isStaff: staff } }]
     });
   });
 
@@ -23,18 +22,17 @@ describe('guestGuard', () => {
 
   it('lets an anonymous visitor through', () => {
     authenticated.set(false);
-    role.set(null);
+    staff.set(false);
     expect(run()).toBeTrue();
   });
 
-  for (const [r, home] of [
-    ['buyer', '/marketplace'],
-    ['farmer', '/portal'],
-    ['admin', '/admin']
+  for (const [who, isStaff, home] of [
+    ['personal account', false, '/marketplace'],
+    ['staff member', true, '/admin']
   ] as const) {
-    it(`sends a signed-in ${r} to ${home}`, () => {
+    it(`sends a signed-in ${who} to ${home}`, () => {
       authenticated.set(true);
-      role.set(r);
+      staff.set(isStaff);
       const result = run();
       expect(result instanceof UrlTree).toBeTrue();
       expect(TestBed.inject(Router).serializeUrl(result as UrlTree)).toBe(home);

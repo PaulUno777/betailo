@@ -20,6 +20,10 @@ type FarmRepository interface {
 
 	ListByOwner(ctx context.Context, ownerID bson.ObjectID) ([]*domain.Farm, error)
 
+	// ListByStatus feeds the back office's review queue, oldest
+	// submission first; an empty status lists every farm.
+	ListByStatus(ctx context.Context, status domain.FarmStatus) ([]*domain.Farm, error)
+
 	Update(ctx context.Context, f *domain.Farm) error
 
 	// Delete removes the farm unconditionally — the "no existing

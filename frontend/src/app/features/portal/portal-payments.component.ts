@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { Farm, ReservationList } from '../../domain/models';
-import { FarmsApi } from '../../data-access/farms/farms.api';
+import { ReservationList } from '../../domain/models';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
+import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
@@ -55,11 +55,10 @@ import { apiResource } from '../../core/http/api-resource';
   `
 })
 export class PortalPaymentsComponent {
-  private readonly farmsApi = inject(FarmsApi);
+  protected readonly seller = inject(SellerSpaceService);
   private readonly reservationsApi = inject(ReservationsApi);
 
-  private readonly farms = apiResource<Farm[]>(() => this.farmsApi.mineUrl());
-  private readonly myFarm = computed(() => this.farms.value()?.[0]);
+  private readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
   protected readonly reservations = apiResource<ReservationList>(() => {
     const farmId = this.myFarm()?.id;

@@ -114,11 +114,11 @@ func (e *env) seed(t *testing.T, capacity int) (farmer *domain.User, cycle *doma
 	ctx := context.Background()
 	now := time.Now().UTC()
 
-	farmer = &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", Role: domain.RoleFarmer, DisplayName: "Ferme", CreatedAt: now}
+	farmer = &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", DisplayName: "Ferme", CreatedAt: now}
 	if err := e.users.Create(ctx, farmer); err != nil {
 		t.Fatalf("create farmer: %v", err)
 	}
-	farm := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer.ID, Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poule"}, CreatedAt: now}
+	farm := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer.ID, Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poule"}, CreatedAt: now, Status: domain.FarmApproved}
 	if err := e.farms.Create(ctx, farm); err != nil {
 		t.Fatalf("create farm: %v", err)
 	}
@@ -138,7 +138,7 @@ func (e *env) seed(t *testing.T, capacity int) (farmer *domain.User, cycle *doma
 
 func (e *env) buyer(t *testing.T) *domain.User {
 	t.Helper()
-	u := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", Role: domain.RoleBuyer, DisplayName: "Acheteur", CreatedAt: time.Now().UTC()}
+	u := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", DisplayName: "Acheteur", CreatedAt: time.Now().UTC()}
 	if err := e.users.Create(context.Background(), u); err != nil {
 		t.Fatalf("create buyer: %v", err)
 	}
@@ -707,9 +707,9 @@ func TestListingSearch_PublishedPricesBySpeciesAndRegion(t *testing.T) {
 	ctx := context.Background()
 	_, _, l := e.seed(t, 10) // poule, Dschang, 2500
 	_ = l
-	farmer2 := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", Role: domain.RoleFarmer, CreatedAt: time.Now()}
+	farmer2 := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", CreatedAt: time.Now()}
 	_ = e.users.Create(ctx, farmer2)
-	f2 := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer2.ID, Name: "B", Location: "Douala", CreatedAt: time.Now()}
+	f2 := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer2.ID, Name: "B", Location: "Douala", CreatedAt: time.Now(), Status: domain.FarmApproved}
 	_ = e.farms.Create(ctx, f2)
 	c2 := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f2.ID, Species: "poule", Type: "couvee", Status: domain.CycleStatusInProgress, Capacity: 5, AvailableQuantity: 5, StartsAt: time.Now()}
 	_ = e.cycles.Create(ctx, c2)
@@ -771,12 +771,12 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
 
-	owner := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", Role: domain.RoleFarmer, CreatedAt: now}
+	owner := &domain.User{ID: bson.NewObjectID(), Email: bson.NewObjectID().Hex() + "@example.test", PasswordHash: "x", CreatedAt: now}
 	if err := e.users.Create(ctx, owner); err != nil {
 		t.Fatal(err)
 	}
 	farm := func(town, region string) *domain.Farm {
-		f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner.ID, Name: "Ferme " + town, Location: town, Country: "CM", Region: region, CreatedAt: now}
+		f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner.ID, Name: "Ferme " + town, Location: town, Country: "CM", Region: region, CreatedAt: now, Status: domain.FarmApproved}
 		if err := e.farms.Create(ctx, f); err != nil {
 			t.Fatal(err)
 		}
@@ -854,39 +854,63 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 	}
 }
 
-// Sellers whose listings were live before publishing required a
-// verified seller are verified once at startup; anyone who comes later
-// is left for an admin.
-func TestVerifyExistingSellers_RunsOnceForSellersWithLiveListings(t *testing.T) {
+// The marketplace only shows listings of approved farms: a pending or
+// suspended farm's published listing stays off it, and comes back when
+// staff approve the farm. The review queue lists farms by status.
+func TestListingSearch_OnlyApprovedFarmsAndTheReviewQueue(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
+	_, cycle, listing := e.seed(t, 10)
 
-	seller, _, _ := e.seed(t, 10) // has a published listing
-	newcomer := e.buyer(t)
+	onMarket := func() bool {
+		res, err := e.listings.Search(ctx, ports.ListingSearchCriteria{PageSize: 50})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, item := range res.Items {
+			if item.Listing.ID == listing.ID {
+				return true
+			}
+		}
+		return false
+	}
+	if !onMarket() {
+		t.Fatal("an approved farm's published listing should be on the marketplace")
+	}
 
-	verified, err := mongodb.VerifyExistingSellers(ctx, e.db)
+	farm, err := e.farms.FindByID(ctx, cycle.FarmID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(verified) != 1 || verified[0] != seller.ID {
-		t.Fatalf("verified = %v, want only the seller %v", verified, seller.ID)
-	}
-	if got, _ := e.users.FindByID(ctx, seller.ID); !got.IsVerified {
-		t.Error("the seller with a live listing should be verified")
-	}
-	if got, _ := e.users.FindByID(ctx, newcomer.ID); got.IsVerified {
-		t.Error("an account without a live listing must stay unverified")
+	for _, status := range []domain.FarmStatus{domain.FarmPending, domain.FarmSuspended, domain.FarmRejected, domain.FarmDraft} {
+		farm.Status = status
+		if err := e.farms.Update(ctx, farm); err != nil {
+			t.Fatal(err)
+		}
+		if onMarket() {
+			t.Errorf("a %s farm's listing is on the marketplace", status)
+		}
 	}
 
-	later, _, _ := e.seed(t, 10)
-	again, err := mongodb.VerifyExistingSellers(ctx, e.db)
+	farm.Status = domain.FarmPending
+	submitted := time.Now().UTC().Truncate(time.Millisecond)
+	farm.Verification = domain.FarmVerification{IDDocumentKey: "farm-verifications/x/id.jpg", PhotoKeys: []string{"farm-verifications/x/a.jpg"}, SubmittedAt: &submitted}
+	if err := e.farms.Update(ctx, farm); err != nil {
+		t.Fatal(err)
+	}
+	queue, err := e.farms.ListByStatus(ctx, domain.FarmPending)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(again) != 0 {
-		t.Fatalf("second run verified %v, want nobody", again)
+	if len(queue) != 1 || queue[0].ID != farm.ID || queue[0].Verification.IDDocumentKey == "" || len(queue[0].Verification.PhotoKeys) != 1 || queue[0].Verification.SubmittedAt == nil {
+		t.Fatalf("pending queue = %+v, want the submitted farm with its proof round-tripped", queue)
 	}
-	if got, _ := e.users.FindByID(ctx, later.ID); got.IsVerified {
-		t.Error("a later startup must not verify anyone")
+
+	farm.Status = domain.FarmApproved
+	if err := e.farms.Update(ctx, farm); err != nil {
+		t.Fatal(err)
+	}
+	if !onMarket() {
+		t.Error("the listing should be back once the farm is approved")
 	}
 }

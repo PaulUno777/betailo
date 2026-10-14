@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, map, of, shareReplay, switchMap } from 'rxjs';
 import { AuthApi } from '../../data-access/auth/auth.api';
 import { AccountApi } from '../../data-access/account/account.api';
-import { Role } from '../../domain/enums';
+import { StaffRole } from '../../domain/enums';
 import { User } from '../../domain/models';
 
 const USER_STORAGE_KEY = 'betailo.user';
@@ -65,7 +65,10 @@ export class AuthService {
 
   readonly user = this.userSignal.asReadonly();
   readonly token = this.tokenSignal.asReadonly();
-  readonly role = computed<Role | null>(() => this.userSignal()?.role ?? null);
+  /** Set only for the platform's team. There is no buyer/seller role:
+   * selling depends on owning a farm (see SellerSpaceService). */
+  readonly staffRole = computed<StaffRole | null>(() => this.userSignal()?.staffRole ?? null);
+  readonly isStaff = computed(() => this.staffRole() !== null);
   readonly isAuthenticated = computed(() => this.tokenSignal() !== null);
 
   /** Called after a successful login/register-then-login. The server
@@ -135,7 +138,7 @@ export class AuthService {
       switchMap((token) => (token ? this.accountApi.profile() : of(null))),
       map((p) => {
         if (!p) return null;
-        const user: User = { id: p.id, email: p.email, role: p.role, displayName: p.displayName };
+        const user: User = { id: p.id, email: p.email, staffRole: p.staffRole, displayName: p.displayName };
         this.userSignal.set(user);
         persistUser(user);
         return user;

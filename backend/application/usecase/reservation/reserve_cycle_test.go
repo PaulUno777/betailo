@@ -59,7 +59,7 @@ func (f *fakeListings) Update(context.Context, *domain.Listing) error { return n
 // farmer behind it.
 var (
 	testFarmOwner = bson.NewObjectID()
-	testFarm      = &domain.Farm{ID: bson.NewObjectID(), OwnerID: testFarmOwner}
+	testFarm      = &domain.Farm{ID: bson.NewObjectID(), OwnerID: testFarmOwner, Status: domain.FarmApproved}
 )
 
 // fakeSeq counts like the counters collection.
