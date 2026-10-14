@@ -1,0 +1,15 @@
+# Netlify: set the site's Base directory to "frontend" and add the
+# API_BASE_URL environment variable (the Render address). See README,
+# "Déploiement".
+[build]
+  command = "pnpm exec ng build --define \"BETAILO_API_URL='$API_BASE_URL'\""
+  publish = "dist/frontend/browser"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Every route is served by the Angular app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -295,6 +295,10 @@ Vérifier : `https://<service>.onrender.com/health` répond `200`.
 Sans `API_BASE_URL`, le site appelle `http://localhost:8080` (le
 comportement en développement).
 
+Sur [Netlify](https://www.netlify.com) à la place : **Add new site →
+Import an existing project**, **Base directory** `frontend`, et la même
+variable `API_BASE_URL`. Le reste vient de `frontend/netlify.toml`.
+
 Les déploiements de prévisualisation de Vercel ont chacun leur adresse :
 l'API n'accepte que celle de `CORS_ALLOWED_ORIGIN`, donc seul le domaine
 de production fonctionne.
