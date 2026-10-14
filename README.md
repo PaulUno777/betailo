@@ -230,30 +230,104 @@ valider une pull request backend, et inversement.
 
 ## Déploiement
 
-Le backend se déploie sur [Render](https://render.com) via le blueprint
-`render.yaml` à la racine : dans le dashboard Render, **New +** →
-**Blueprint**, puis pointer sur ce dépôt. Render lit `render.yaml`,
-construit l'image avec `backend/Dockerfile` (build multi-étage, voir ce
-fichier) et crée un service web Docker.
+Le backend tourne sur [Render](https://render.com), le frontend sur
+[Vercel](https://vercel.com). Les deux se construisent depuis ce dépôt ;
+MongoDB ([Atlas](https://www.mongodb.com/atlas), tier gratuit M0) et le
+stockage des photos ([Cloudflare R2](https://developers.cloudflare.com/r2/))
+sont des services externes.
 
-Secrets à renseigner à la main dans le dashboard après création (marqués
-`sync: false` dans `render.yaml`, jamais committés) :
+Les deux adresses dépendent l'une de l'autre : créer d'abord le service
+Render pour connaître son adresse, puis le projet Vercel, puis revenir
+sur Render renseigner l'adresse Vercel.
 
-- `MONGODB_URI` — une connexion [MongoDB Atlas](https://www.mongodb.com/atlas)
-  (le tier gratuit M0 est un replica set, ce que
-  `application/usecase/reservation` exige pour ses transactions
-  multi-documents).
-- `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`,
-  `STORAGE_SECRET_KEY` — un bucket [Cloudflare R2](https://developers.cloudflare.com/r2/).
-- `CORS_ALLOWED_ORIGIN` — l'origine réelle du frontend déployé (voir
-  `interfaces/httpserver/middleware_cors.go` ; sans cette variable,
-  seul `http://localhost:4200` est autorisé).
+### 1. Backend sur Render
 
-`JWT_SECRET` est généré automatiquement par Render (`generateValue:
-true`) — ne jamais réutiliser la valeur de dev de `docker-compose.yml`.
-`PORT` n'a rien à configurer : Render l'injecte lui-même, et
-`internal/app` le lit déjà (voir `backend/.env.example` pour la liste
-complète des variables et leur usage en local).
+Dans le dashboard Render : **New +** → **Blueprint**, choisir ce dépôt
+et la branche à déployer. Render lit `render.yaml` et construit l'image
+avec `backend/Dockerfile`.
+
+`render.yaml` demande le plan `starter` (payant). Pour un essai gratuit,
+remplacer par `plan: free` : le service s'endort après 15 minutes sans
+trafic (premier appel suivant lent) et les ports SMTP 25, 465 et 587
+sont bloqués en sortie, d'où `SMTP_PORT=2525` par défaut.
+
+Variables à renseigner à la main dans le dashboard (marquées
+`sync: false`, jamais committées) :
+
+| Variable | Valeur |
+|---|---|
+| `MONGODB_URI` | Chaîne de connexion Atlas (`mongodb+srv://…`). Autoriser `0.0.0.0/0` dans *Network Access* d'Atlas : les IP de sortie de Render ne sont pas fixes. |
+| `STORAGE_ENDPOINT` | `https://<account-id>.r2.cloudflarestorage.com` |
+| `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | Bucket R2 et son jeton d'API S3. |
+| `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | Le compte racine, créé au premier démarrage (mot de passe de 8 caractères ou plus). |
+| `CORS_ALLOWED_ORIGIN` | L'adresse Vercel, sans barre finale : `https://betailo.vercel.app`. |
+| `APP_PUBLIC_URL` | La même adresse Vercel : les liens des e-mails y pointent et les passkeys sont liées à son hôte. |
+| `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD` | Le compte SMTP (voir « E-mail » plus bas). |
+| `MAIL_FROM` | `Betailo <adresse-vérifiée@exemple.com>` : une adresse validée chez le fournisseur SMTP. |
+
+Le reste a une valeur dans `render.yaml` : `JWT_SECRET` est généré par
+Render, `PORT` est injecté par Render, `COOKIE_SAMESITE=none` et
+`COOKIE_SECURE=true` conviennent tant que le frontend et l'API sont sur
+deux domaines. `backend/.env.example` décrit chaque variable.
+
+Le bucket R2 doit accepter les envois du navigateur : dans ses réglages
+CORS, autoriser l'origine Vercel pour `GET` et `PUT`.
+
+`STAFF_MFA_REQUIRED=true` : à la première connexion, le compte racine
+est envoyé sur la page « Sécurité » pour ajouter une application
+d'authentification. Pour un essai rapide sans double authentification,
+passer la variable à `false`. Téléphone perdu : `SUPER_ADMIN_RESET_MFA=true`,
+redémarrer, se reconnecter, puis retirer la variable.
+
+Vérifier : `https://<service>.onrender.com/health` répond `200`.
+
+### 2. Frontend sur Vercel
+
+**Add New… → Project**, importer ce dépôt, puis :
+
+- **Root Directory** : `frontend`. Le reste (commande de build, dossier
+  de sortie, renvoi de toutes les routes vers `index.html`) vient de
+  `frontend/vercel.json`.
+- **Environment Variables** : `API_BASE_URL` = l'adresse Render, sans
+  barre finale (`https://betailo-backend.onrender.com`). Elle est lue
+  au build : après un changement, relancer un déploiement.
+
+Sans `API_BASE_URL`, le site appelle `http://localhost:8080` (le
+comportement en développement).
+
+Sur [Netlify](https://www.netlify.com) à la place : **Add new site →
+Import an existing project**, **Base directory** `frontend`, et la même
+variable `API_BASE_URL`. Le reste vient de `frontend/netlify.toml`.
+
+Les déploiements de prévisualisation de Vercel ont chacun leur adresse :
+l'API n'accepte que celle de `CORS_ALLOWED_ORIGIN`, donc seul le domaine
+de production fonctionne.
+
+### 3. E-mail
+
+Les invitations de l'équipe, la réinitialisation du mot de passe et les
+décisions sur une ferme partent par SMTP. Sans `SMTP_HOST`, rien n'est
+envoyé : chaque message est écrit dans les logs Render, lien compris,
+ce qui suffit pour un premier essai.
+
+Avec [Brevo](https://www.brevo.com) (gratuit, 300 e-mails par jour) :
+
+| Variable | Valeur |
+|---|---|
+| `SMTP_HOST` | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | `2525` |
+| `SMTP_USERNAME` | L'identifiant SMTP affiché dans Brevo, *SMTP & API* (pas l'e-mail du compte). |
+| `SMTP_PASSWORD` | Une clé SMTP créée sur la même page (pas une clé d'API). |
+| `MAIL_FROM` | Un expéditeur validé dans Brevo, *Senders & IP*. |
+
+### Limite connue
+
+Le frontend (`vercel.app`) et l'API (`onrender.com`) sont deux sites
+distincts : le cookie de session est donc un cookie tiers. Safari, et
+tous les navigateurs sur iPhone, le bloquent : la connexion fonctionne
+mais ne survit pas à un rechargement de page. Chrome et Firefox sur
+ordinateur et Android ne sont pas touchés par défaut. La correction est
+de servir l'API sous le même domaine que le site (voir ADR-0008).
 
 ## État du projet / roadmap
 

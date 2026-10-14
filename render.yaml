@@ -3,11 +3,9 @@
 # in the Render dashboard ("New +" -> "Blueprint"); Render reads this
 # file and creates the service below.
 #
-# Only the backend is defined here (the ask this file answers). The
-# frontend stays a separate concern — see frontend/Dockerfile and the
-# "Architecture de déploiement" section of
-# docs/Betailo — Concepts & Architecture.md for how it's meant to be
-# served (nginx, proxying /api to this service).
+# Only the backend is defined here. The frontend is deployed on Vercel
+# from frontend/ (see frontend/vercel.json and the "Déploiement"
+# section of the README).
 #
 # MongoDB and object storage are NOT Render resources: Render has no
 # managed MongoDB or S3-compatible storage offering, so both point at
@@ -76,10 +74,12 @@ services:
       # Outgoing e-mail (staff invitations, password resets, farm
       # decisions). Set these in the Render dashboard from your SMTP
       # provider. Without SMTP_HOST, messages are only written to the log.
+      # Port 2525 because Render's free instances block 25, 465 and 587;
+      # it works on paid instances too (Brevo, Mailtrap, SMTP2GO offer it).
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
-        value: "587"
+        value: "2525"
       - key: SMTP_USERNAME
         sync: false
       - key: SMTP_PASSWORD
@@ -101,9 +101,7 @@ services:
       # can key on the real client IP.
       - key: TRUST_PROXY_HEADERS
         value: "true"
-      # The deployed frontend's real origin — set this once that's
-      # known; it defaults to http://localhost:4200 otherwise, which is
-      # wrong for anything but local dev (see
-      # interfaces/httpserver/middleware_cors.go).
+      # The deployed frontend's origin (the Vercel address, no trailing
+      # slash). Unset, only http://localhost:4200 may call the API.
       - key: CORS_ALLOWED_ORIGIN
         sync: false
