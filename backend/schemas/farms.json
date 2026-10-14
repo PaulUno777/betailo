@@ -2,6 +2,7 @@
   "bsonType": "object",
   "required": ["ownerId", "name", "location", "createdAt", "status"],
   "properties": {
+    "reference": { "bsonType": "string" },
     "ownerId": { "bsonType": "objectId" },
     "name": { "bsonType": "string" },
     "location": { "bsonType": "string" },
@@ -16,7 +17,11 @@
     "verification": {
       "bsonType": "object",
       "properties": {
+        "idDocumentType": { "enum": ["national_id", "passport", "driving_licence"] },
         "idDocumentKey": { "bsonType": "string" },
+        "idDocumentBackKey": { "bsonType": "string" },
+        "submissions": { "bsonType": ["int", "long"], "minimum": 0 },
+        "rejectionCode": { "enum": ["id_unreadable", "name_mismatch", "photos_not_recent", "farm_not_found", "other"] },
         "photoKeys": {
           "bsonType": "array",
           "maxItems": 3,

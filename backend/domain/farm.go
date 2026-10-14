@@ -9,10 +9,13 @@ import (
 // Farm manages a farmer's operation: location, species raised. No
 // repository lives for it yet — see domain/user.go's comment.
 type Farm struct {
-	ID       bson.ObjectID
-	OwnerID  bson.ObjectID
-	Name     string
-	Location string // the town, as the farmer writes it
+	ID bson.ObjectID
+	// Reference is the human code staff and owners quote ("FRM-0212"),
+	// assigned from a counter at creation.
+	Reference string
+	OwnerID   bson.ObjectID
+	Name      string
+	Location  string // the town, as the farmer writes it
 	// Country is an ISO 3166-1 alpha-2 code (DefaultCountry when not
 	// given) and Region its first-level division: one of KnownRegions
 	// for countries that have a list, free text elsewhere. Together they
@@ -64,11 +67,19 @@ func (s FarmStatus) CanSubmit() bool { return s == FarmDraft || s == FarmRejecte
 // FarmVerification is the proof behind a farm's review. The document
 // and photos are private: only the owner and staff get to see them.
 type FarmVerification struct {
-	// IDDocumentKey is the storage key of the owner's identity document.
-	IDDocumentKey string
+	// IDDocumentType says which document the owner sent.
+	IDDocumentType IDDocumentType
+	// IDDocumentKey is the storage key of the document's front;
+	// IDDocumentBackKey its back, for documents that have one (see
+	// IDDocumentType.HasBack).
+	IDDocumentKey     string
+	IDDocumentBackKey string
 	// PhotoKeys are storage keys of photos of the farm itself.
 	PhotoKeys   []string
 	SubmittedAt *time.Time
+	// Submissions counts how many times the farm was sent for review:
+	// above 1, staff are looking at a farm they already refused once.
+	Submissions int
 
 	ReviewedAt *time.Time
 	// ReviewedBy is the staff member who decided; zero when the
@@ -76,8 +87,54 @@ type FarmVerification struct {
 	ReviewedBy bson.ObjectID
 	// AutoApproved marks a farm approved by the FARM_AUTO_APPROVE test
 	// switch rather than by a person, so staff can review it later.
-	AutoApproved    bool
+	AutoApproved bool
+	// RejectionCode is the kind of refusal staff picked;
+	// RejectionReason the message they wrote to the owner.
+	RejectionCode   RejectionCode
 	RejectionReason string
+}
+
+// IDDocumentType is a kind of identity document the platform accepts.
+type IDDocumentType string
+
+const (
+	IDNationalCard   IDDocumentType = "national_id"
+	IDPassport       IDDocumentType = "passport"
+	IDDrivingLicence IDDocumentType = "driving_licence"
+)
+
+// IsValid reports whether t is an accepted document.
+func (t IDDocumentType) IsValid() bool {
+	return t == IDNationalCard || t == IDPassport || t == IDDrivingLicence
+}
+
+// HasBack reports whether the document has a second side to send: a
+// passport's identity page stands alone, a card has two faces.
+func (t IDDocumentType) HasBack() bool { return t == IDNationalCard || t == IDDrivingLicence }
+
+// RejectionCode is why staff refused a farm, picked from a short list
+// so refusals read the same from one reviewer to the next.
+type RejectionCode string
+
+const (
+	RejectIDUnreadable    RejectionCode = "id_unreadable"
+	RejectNameMismatch    RejectionCode = "name_mismatch"
+	RejectPhotosNotRecent RejectionCode = "photos_not_recent"
+	RejectFarmNotFound    RejectionCode = "farm_not_found"
+	RejectOther           RejectionCode = "other"
+)
+
+// RejectionCodes lists the refusal reasons in the order staff see them.
+var RejectionCodes = []RejectionCode{RejectIDUnreadable, RejectNameMismatch, RejectPhotosNotRecent, RejectFarmNotFound, RejectOther}
+
+// IsValid reports whether c is a known refusal reason.
+func (c RejectionCode) IsValid() bool {
+	for _, known := range RejectionCodes {
+		if c == known {
+			return true
+		}
+	}
+	return false
 }
 
 // Farm verification limits.

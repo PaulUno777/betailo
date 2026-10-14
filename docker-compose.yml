@@ -85,7 +85,7 @@ services:
       MAX_FARMS_PER_ACCOUNT: ${MAX_FARMS_PER_ACCOUNT:-1}
       # Test switch: farms are approved on submission, without staff.
       FARM_AUTO_APPROVE: ${FARM_AUTO_APPROVE:-false}
-      # The first super admin, created at startup. Dev-only values.
+      # The root account, created at startup. Dev-only values.
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@betailo.test}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Betailo-dev-admin-2026}
     ports:

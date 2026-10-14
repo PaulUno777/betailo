@@ -82,7 +82,10 @@ func TestAdmin_HTTP_UsersFarmLimitAndSuspend(t *testing.T) {
 		t.Error("expected at least the admin and the farmer in the user list")
 	}
 
-	limitRec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: 4}, root)
+	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: 4}, root); rec.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, rec).Code != "admin.farm_limit_reason_required" {
+		t.Fatalf("farm-limit without a reason = %d %s, want 400 admin.farm_limit_reason_required", rec.Code, rec.Body.String())
+	}
+	limitRec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: 4, Reason: "Coopérative de 4 sites"}, root)
 	if limitRec.Code != http.StatusOK {
 		t.Fatalf("farm-limit status = %d, want %d; body = %s", limitRec.Code, http.StatusOK, limitRec.Body.String())
 	}
@@ -92,7 +95,7 @@ func TestAdmin_HTTP_UsersFarmLimitAndSuspend(t *testing.T) {
 	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: -1}, root); rec.Code != http.StatusBadRequest {
 		t.Errorf("negative farm-limit status = %d, want 400", rec.Code)
 	}
-	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: 2}, targetToken); rec.Code != http.StatusForbidden {
+	if rec := doJSON(t, router, http.MethodPost, "/admin/users/"+targetID+"/farm-limit", farmLimitRequest{Limit: 2, Reason: "x"}, targetToken); rec.Code != http.StatusForbidden {
 		t.Errorf("non-staff farm-limit status = %d, want 403", rec.Code)
 	}
 

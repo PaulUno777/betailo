@@ -29,7 +29,10 @@ type Dependencies struct {
 	Signer       ports.TokenSigner
 	// Accounts ends the sessions of suspended accounts (nil: no check).
 	Accounts AccountChecker
-	Cookies  CookieConfig
+	// StaffRoles gives the back office each account's current role
+	// (nil: the role in the token).
+	StaffRoles StaffRoleSource
+	Cookies    CookieConfig
 
 	GetProfile     *account.GetProfile
 	UpdateProfile  *account.UpdateProfile
@@ -51,6 +54,7 @@ type Dependencies struct {
 	CreateFarm     *farm.CreateFarm
 	GetFarmProfile *farm.GetProfile
 	ListMyFarms    *farm.ListMyFarms
+	MyFarmCards    *farm.MyFarmCards
 	UpdateFarm     *farm.UpdateFarm
 	DeleteFarm     *farm.DeleteFarm
 
@@ -108,11 +112,20 @@ type Dependencies struct {
 	SellerDashboard *dashboard.SellerDashboard
 
 	AdminOverview        *admin.Overview
+	AdminNavCounts       *admin.CountNav
 	AdminListUsers       *admin.ListUsers
 	AdminSetFarmLimit    *admin.SetFarmLimit
+	AdminListFarmLimits  *admin.ListFarmLimits
 	AdminListFarms       *admin.ListFarmsForReview
+	AdminFarmQueueCounts *admin.CountFarmQueues
 	AdminGetFarm         *admin.GetFarmForReview
 	AdminSuspendUser     *admin.SuspendUser
+	AdminReactivateUser  *admin.ReactivateUser
+	AdminListStaff       *admin.ListStaff
+	AdminSetStaffRole    *admin.SetStaffRole
+	AdminListAudit       *admin.ListAudit
+	// AdminJournal records every staff action; nil records nothing.
+	AdminJournal         *admin.Journal
 	AdminListCycles      *admin.ListAllCycles
 	AdminListListings    *admin.ListAllListings
 	AdminListEscrow      *admin.ListEscrowTransactions

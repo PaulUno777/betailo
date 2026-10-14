@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { FarmDecision, FarmStatus, ResolveAction } from '../../domain/enums';
+import { FarmDecision, FarmQueue, OverviewPeriod, RejectionCode, ResolveAction, StaffRole } from '../../domain/enums';
 import { AdminUser, Farm, Reservation, Report } from '../../domain/models';
 import { ApiClient, QueryParams } from '../../core/http/api-client';
 
@@ -8,34 +8,69 @@ import { ApiClient, QueryParams } from '../../core/http/api-client';
 export class AdminApi {
   private readonly api = inject(ApiClient);
 
-  overviewUrl(): string {
-    return this.api.url('/admin/overview');
+  overviewUrl(period: OverviewPeriod): string {
+    return this.api.url('/admin/overview', { period } as QueryParams);
+  }
+
+  navCountsUrl(): string {
+    return this.api.url('/admin/nav-counts');
   }
 
   usersUrl(): string {
     return this.api.url('/admin/users');
   }
 
-  /** How many farms this account may own; 0 puts it back on the
-   * platform default. */
-  setFarmLimit(id: string, limit: number): Observable<AdminUser> {
-    return this.api.post<AdminUser>(`/admin/users/${id}/farm-limit`, { limit });
+  /** An exception to the platform's farms-per-account, for one account.
+   * 0 ends it; above 0 the API asks for a reason. */
+  setFarmLimit(id: string, limit: number, reason: string): Observable<AdminUser> {
+    return this.api.post<AdminUser>(`/admin/users/${id}/farm-limit`, { limit, reason });
   }
 
-  farmsUrl(status?: FarmStatus): string {
-    return this.api.url('/admin/farms', { status } as QueryParams);
+  /** The same, naming the account by its email. */
+  setFarmLimitByEmail(email: string, limit: number, reason: string): Observable<AdminUser> {
+    return this.api.post<AdminUser>('/admin/farm-limits', { email, limit, reason });
+  }
+
+  farmLimitsUrl(): string {
+    return this.api.url('/admin/farm-limits');
+  }
+
+  farmsUrl(queue: FarmQueue): string {
+    return this.api.url('/admin/farms', { queue } as QueryParams);
   }
 
   farmDetailUrl(id: string): string {
     return this.api.url(`/admin/farms/${id}`);
   }
 
-  reviewFarm(id: string, decision: FarmDecision, reason?: string): Observable<Farm> {
-    return this.api.post<Farm>(`/admin/farms/${id}/review`, { decision, reason });
+  reviewFarm(id: string, decision: FarmDecision, reason?: string, reasonCode?: RejectionCode): Observable<Farm> {
+    return this.api.post<Farm>(`/admin/farms/${id}/review`, { decision, reason, reasonCode });
   }
 
   suspendUser(id: string): Observable<AdminUser> {
     return this.api.post<AdminUser>(`/admin/users/${id}/suspend`);
+  }
+
+  reactivateUser(id: string): Observable<AdminUser> {
+    return this.api.post<AdminUser>(`/admin/users/${id}/reactivate`);
+  }
+
+  staffUrl(): string {
+    return this.api.url('/admin/staff');
+  }
+
+  /** Gives a staff role to an existing account, named by its email. */
+  grantStaffRole(email: string, role: StaffRole): Observable<AdminUser> {
+    return this.api.post<AdminUser>('/admin/staff', { email, role });
+  }
+
+  /** Changes a member's role; an empty role takes them off the team. */
+  setStaffRole(id: string, role: StaffRole | ''): Observable<AdminUser> {
+    return this.api.post<AdminUser>(`/admin/staff/${id}/role`, { role });
+  }
+
+  auditUrl(): string {
+    return this.api.url('/admin/audit');
   }
 
   cyclesUrl(): string {

@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"github.com/pauluno777/betailo/backend/application/ports"
 	"net/http"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 // farmResponse is what a farm looks like over the wire to its owner
 // (create, update, "my farms"), contact phone included.
 type farmResponse struct {
-	ID           string   `json:"id"`
+	ID string `json:"id"`
+	// Reference is the code staff and owners quote ("FRM-0212").
+	Reference    string   `json:"reference,omitempty"`
 	OwnerID      string   `json:"ownerId"`
 	Name         string   `json:"name"`
 	Location     string   `json:"location"`
@@ -29,17 +32,23 @@ type farmResponse struct {
 }
 
 type farmReviewResponse struct {
-	SubmittedAt     *time.Time `json:"submittedAt,omitempty"`
-	ReviewedAt      *time.Time `json:"reviewedAt,omitempty"`
-	AutoApproved    bool       `json:"autoApproved,omitempty"`
-	RejectionReason string     `json:"rejectionReason,omitempty"`
+	SubmittedAt *time.Time `json:"submittedAt,omitempty"`
+	// Submissions is how many times the farm was sent for review.
+	Submissions    int        `json:"submissions"`
+	IDDocumentType string     `json:"idDocumentType,omitempty"`
+	ReviewedAt     *time.Time `json:"reviewedAt,omitempty"`
+	AutoApproved   bool       `json:"autoApproved,omitempty"`
+	// RejectionCode is the kind of refusal, RejectionReason the
+	// message staff wrote.
+	RejectionCode   string `json:"rejectionCode,omitempty"`
+	RejectionReason string `json:"rejectionReason,omitempty"`
 	// CanSubmit: the farm is waiting on its owner to (re)submit proof.
 	CanSubmit bool `json:"canSubmit"`
 }
 
 func toFarmResponse(f *domain.Farm) farmResponse {
 	return farmResponse{
-		ID: f.ID.Hex(), OwnerID: f.OwnerID.Hex(), Name: f.Name, Location: f.Location, Country: f.Country, Region: f.Region, Species: f.Species,
+		ID: f.ID.Hex(), Reference: f.Reference, OwnerID: f.OwnerID.Hex(), Name: f.Name, Location: f.Location, Country: f.Country, Region: f.Region, Species: f.Species,
 		Description: f.Description, ContactPhone: f.ContactPhone, Status: string(f.Status),
 	}
 }
@@ -49,7 +58,9 @@ func toOwnerFarmResponse(f *domain.Farm) farmResponse {
 	out := toFarmResponse(f)
 	v := f.Verification
 	out.Review = &farmReviewResponse{
-		SubmittedAt: v.SubmittedAt, ReviewedAt: v.ReviewedAt, AutoApproved: v.AutoApproved, RejectionReason: v.RejectionReason,
+		SubmittedAt: v.SubmittedAt, Submissions: v.Submissions, IDDocumentType: string(v.IDDocumentType),
+		ReviewedAt: v.ReviewedAt, AutoApproved: v.AutoApproved,
+		RejectionCode: string(v.RejectionCode), RejectionReason: v.RejectionReason,
 		CanSubmit: f.Status.CanSubmit(),
 	}
 	return out
@@ -153,6 +164,47 @@ func handleListMyFarms(uc *farm.ListMyFarms) http.HandlerFunc {
 	}
 }
 
+// farmCardResponse is one farm on its owner's "Mes fermes" page.
+type farmCardResponse struct {
+	farmResponse
+	// CoverURL is a short-lived link to the farm's first proof photo.
+	CoverURL      string  `json:"coverUrl,omitempty"`
+	ActiveCycles  int     `json:"activeCycles"`
+	SalesCount    int     `json:"salesCount"`
+	TrustScore    float64 `json:"trustScore"`
+	ReviewAverage float64 `json:"reviewAverage"`
+	ReviewCount   int     `json:"reviewCount"`
+}
+
+func handleListMyFarmCards(uc *farm.MyFarmCards, storage ports.ObjectStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		cards, err := uc.Execute(r.Context(), claims.UserID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		out := make([]farmCardResponse, 0, len(cards))
+		for _, c := range cards {
+			row := farmCardResponse{
+				farmResponse: toOwnerFarmResponse(c.Farm), ActiveCycles: c.ActiveCycles, SalesCount: c.SalesCount,
+				TrustScore: c.TrustScore, ReviewAverage: c.ReviewAverage, ReviewCount: c.ReviewCount,
+			}
+			if c.CoverKey != "" && storage != nil {
+				if url, err := storage.PresignDownload(r.Context(), c.CoverKey); err == nil {
+					row.CoverURL = url
+				}
+			}
+			out = append(out, row)
+		}
+		writeJSON(w, http.StatusOK, out)
+	}
+}
+
 func handleUpdateFarm(uc *farm.UpdateFarm) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
@@ -226,8 +278,13 @@ func handlePresignFarmProof(uc *farm.PresignFarmProof) http.HandlerFunc {
 }
 
 type submitFarmRequest struct {
-	IDDocumentKey string   `json:"idDocumentKey"`
-	PhotoKeys     []string `json:"photoKeys"`
+	IDDocumentType    string   `json:"idDocumentType"`
+	IDDocumentKey     string   `json:"idDocumentKey"`
+	IDDocumentBackKey string   `json:"idDocumentBackKey"`
+	PhotoKeys         []string `json:"photoKeys"`
+	// Certified is the owner's declaration that the farm is theirs
+	// and the photos recent.
+	Certified bool `json:"certified"`
 }
 
 func handleSubmitFarmForReview(uc *farm.SubmitFarmForReview) http.HandlerFunc {
@@ -245,7 +302,10 @@ func handleSubmitFarmForReview(uc *farm.SubmitFarmForReview) http.HandlerFunc {
 		if !readJSON(w, r, &req) {
 			return
 		}
-		f, err := uc.Execute(r.Context(), farm.SubmitFarmForReviewInput{FarmID: id, OwnerID: claims.UserID, IDDocumentKey: req.IDDocumentKey, PhotoKeys: req.PhotoKeys})
+		f, err := uc.Execute(r.Context(), farm.SubmitFarmForReviewInput{
+			FarmID: id, OwnerID: claims.UserID, IDDocumentType: domain.IDDocumentType(req.IDDocumentType),
+			IDDocumentKey: req.IDDocumentKey, IDDocumentBackKey: req.IDDocumentBackKey, PhotoKeys: req.PhotoKeys, Certified: req.Certified,
+		})
 		if err != nil {
 			writeError(w, err)
 			return

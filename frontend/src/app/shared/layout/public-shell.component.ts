@@ -182,7 +182,7 @@ export class PublicShellComponent {
   protected chipClass(active: boolean): string {
     return (
       'inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-semibold transition ' +
-      (active ? 'bg-forest-soft text-forest-deep' : 'text-ink hover:bg-surface-sunken')
+      (active ? 'bg-forest-soft text-on-forest-soft' : 'text-ink hover:bg-surface-sunken')
     );
   }
 }

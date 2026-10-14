@@ -14,6 +14,9 @@ type StaffRole string
 const (
 	StaffNone       StaffRole = ""
 	StaffSuperAdmin StaffRole = "super_admin"
+	StaffModerator  StaffRole = "moderator"
+	StaffFinance    StaffRole = "finance"
+	StaffSupport    StaffRole = "support"
 )
 
 // IsStaff reports whether the role opens the back office at all.
@@ -31,9 +34,18 @@ type User struct {
 	// StaffRole is StaffNone for everyone but the platform's team.
 	// Staff accounts don't sell: they can't own a farm.
 	StaffRole StaffRole
+	// Root marks the platform's first account, created at startup from
+	// the deployment's configuration (see auth.EnsureRootAdmin). It is
+	// always a super admin, and nobody can change its role or suspend
+	// it through the API: there is always a way back into the back
+	// office.
+	Root bool
 	// FarmLimit is how many farms this account may own when staff
 	// raised it for them; 0 means the platform default applies.
 	FarmLimit int
+	// FarmLimitNote says who granted FarmLimit and why; nil while the
+	// platform default applies.
+	FarmLimitNote *FarmLimitNote
 
 	// DisplayName is the one public-facing identity field this MVP
 	// collects — forum posts, reviews and reservation lists need
@@ -59,3 +71,14 @@ const (
 	MaxDisplayNameLen = 60
 	MaxCityLen        = 80
 )
+
+// FarmLimitNote is the trace of a per-account farm limit: an exception
+// to the platform default is always explained and attributed.
+type FarmLimitNote struct {
+	Reason string
+	SetBy  bson.ObjectID
+	SetAt  time.Time
+}
+
+// MaxFarmLimitReasonLen bounds FarmLimitNote.Reason.
+const MaxFarmLimitReasonLen = 300

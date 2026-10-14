@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
 import { guestGuard } from './core/auth/guest.guard';
-import { sellerGuard, staffGuard } from './core/auth/space.guards';
+import { permissionGuard, sellerGuard, staffGuard } from './core/auth/space.guards';
 
 export const routes: Routes = [
   {
@@ -137,6 +137,9 @@ export const routes: Routes = [
     ]
   },
   {
+    // The back office. `staffGuard` keeps everyone else off it; each
+    // page then asks for the permission its API calls need, so a role
+    // lands on the overview rather than on a page of refusals.
     path: 'admin',
     loadComponent: () => import('./shared/layout/admin-shell.component').then((m) => m.AdminShellComponent),
     canActivate: [authGuard, staffGuard],
@@ -147,36 +150,65 @@ export const routes: Routes = [
       },
       {
         path: 'farms',
-        loadComponent: () => import('./features/admin/admin-farms.component').then((m) => m.AdminFarmsComponent)
+        loadComponent: () => import('./features/admin/admin-farms.component').then((m) => m.AdminFarmsComponent),
+        canActivate: [permissionGuard('farms.read')]
       },
       {
         path: 'farms/:id',
-        loadComponent: () => import('./features/admin/admin-farms.component').then((m) => m.AdminFarmsComponent)
+        loadComponent: () => import('./features/admin/admin-farms.component').then((m) => m.AdminFarmsComponent),
+        canActivate: [permissionGuard('farms.read')]
       },
       {
         path: 'users',
-        loadComponent: () => import('./features/admin/admin-users.component').then((m) => m.AdminUsersComponent)
+        loadComponent: () => import('./features/admin/admin-users.component').then((m) => m.AdminUsersComponent),
+        canActivate: [permissionGuard('accounts.read')]
       },
       {
         path: 'listings',
-        loadComponent: () => import('./features/admin/admin-listings.component').then((m) => m.AdminListingsComponent)
+        loadComponent: () => import('./features/admin/admin-listings.component').then((m) => m.AdminListingsComponent),
+        canActivate: [permissionGuard('catalog.read')]
       },
       {
         path: 'escrow',
-        loadComponent: () => import('./features/admin/admin-escrow.component').then((m) => m.AdminEscrowComponent)
+        loadComponent: () => import('./features/admin/admin-escrow.component').then((m) => m.AdminEscrowComponent),
+        canActivate: [permissionGuard('escrow.read')]
       },
       {
         path: 'reports',
-        loadComponent: () => import('./features/admin/admin-reports-list.component').then((m) => m.AdminReportsListComponent)
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
+        canActivate: [permissionGuard('reports.read')]
       },
       {
         path: 'reports/:id',
-        loadComponent: () => import('./features/admin/admin-report-detail.component').then((m) => m.AdminReportDetailComponent)
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
+        canActivate: [permissionGuard('reports.read')]
+      },
+      {
+        path: 'disputes',
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
+        canActivate: [permissionGuard('reports.read')],
+        data: { disputes: true }
+      },
+      {
+        path: 'disputes/:id',
+        loadComponent: () => import('./features/admin/admin-reports.component').then((m) => m.AdminReportsComponent),
+        canActivate: [permissionGuard('reports.read')],
+        data: { disputes: true }
+      },
+      {
+        path: 'staff',
+        loadComponent: () => import('./features/admin/admin-staff.component').then((m) => m.AdminStaffComponent),
+        canActivate: [permissionGuard('staff.manage')]
       },
       {
         path: 'settings',
-        loadComponent: () => import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent),
-        data: { titleKey: 'adminNav.settings' }
+        loadComponent: () => import('./features/admin/admin-settings.component').then((m) => m.AdminSettingsComponent),
+        canActivate: [permissionGuard('staff.manage')]
+      },
+      {
+        path: 'audit',
+        loadComponent: () => import('./features/admin/admin-audit.component').then((m) => m.AdminAuditComponent),
+        canActivate: [permissionGuard('audit.read')]
       }
     ]
   },

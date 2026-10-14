@@ -320,7 +320,7 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
         </fieldset>
 
         <label class="flex min-h-control-lg cursor-pointer items-center justify-between gap-3 rounded-md bg-forest-soft p-3.5">
-          <span class="text-small font-semibold text-forest-deep">{{ 'marketplace.verifiedOnlyLabel' | t }}</span>
+          <span class="text-small font-semibold text-on-forest-soft">{{ 'marketplace.verifiedOnlyLabel' | t }}</span>
           <span class="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus" [class]="filters().verifiedOnly ? 'bg-forest' : 'bg-line-strong'">
             <input
               type="checkbox"

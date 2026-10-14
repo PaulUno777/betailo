@@ -54,6 +54,11 @@ type SellerDashboardOutput struct {
 
 	ActiveCycles       []CycleSummary
 	LatestReservations []*domain.Reservation
+	// LatestBuyers names the buyer of each of LatestReservations, and
+	// LatestCycles gives the cycle it was made on, both keyed by the
+	// reservation's ID: who reserved what.
+	LatestBuyers map[bson.ObjectID]string
+	LatestCycles map[bson.ObjectID]*domain.Cycle
 
 	// Todos is "À faire aujourd'hui": what needs the farmer now, decided
 	// here so the portal only lists it.
@@ -126,6 +131,15 @@ func (uc *SellerDashboard) Execute(ctx context.Context, in SellerDashboardInput)
 	}
 
 	out.LatestReservations = latestN(reservations, latestReservationsLimit)
+	out.LatestBuyers, out.LatestCycles = map[bson.ObjectID]string{}, map[bson.ObjectID]*domain.Cycle{}
+	for _, r := range out.LatestReservations {
+		if buyer, err := uc.Users.FindByID(ctx, r.BuyerID); err == nil {
+			out.LatestBuyers[r.ID] = buyer.DisplayName
+		}
+		if c := cycleByListing[r.ListingID]; c != nil {
+			out.LatestCycles[r.ID] = c
+		}
+	}
 	out.Todos = todosFor(cycles, reservations, cycleByListing, uc.Clock.Now())
 
 	for _, c := range cycles {

@@ -67,10 +67,17 @@ type SubmitFarmForReview struct {
 }
 
 type SubmitFarmForReviewInput struct {
-	FarmID        bson.ObjectID
-	OwnerID       bson.ObjectID
-	IDDocumentKey string
-	PhotoKeys     []string
+	FarmID  bson.ObjectID
+	OwnerID bson.ObjectID
+	// IDDocumentType defaults to the national identity card.
+	IDDocumentType domain.IDDocumentType
+	IDDocumentKey  string
+	// IDDocumentBackKey is required for a document with two sides.
+	IDDocumentBackKey string
+	PhotoKeys         []string
+	// Certified is the owner's declaration that they run this farm and
+	// the photos are recent; nothing is submitted without it.
+	Certified bool
 }
 
 // Execute returns domain.ErrForbidden for someone else's farm,
@@ -86,22 +93,47 @@ func (uc *SubmitFarmForReview) Execute(ctx context.Context, in SubmitFarmForRevi
 		return nil, domain.Coded("farm.not_submittable", fmt.Errorf("farm: a %s farm can't be submitted for review: %w", f.Status, domain.ErrConflict))
 	}
 
-	hasProof := in.IDDocumentKey != "" || len(in.PhotoKeys) > 0
+	docType := in.IDDocumentType
+	if docType == "" {
+		docType = domain.IDNationalCard
+	}
+	if !docType.IsValid() {
+		return nil, domain.Coded("farm.id_document_type", fmt.Errorf("farm: unknown identity document %q: %w", docType, domain.ErrInvalid))
+	}
+
+	hasProof := in.IDDocumentKey != "" || in.IDDocumentBackKey != "" || len(in.PhotoKeys) > 0
 	if hasProof || !uc.AutoApprove {
 		if in.IDDocumentKey == "" {
 			return nil, domain.Coded("farm.id_document_required", fmt.Errorf("farm: an identity document is required: %w", domain.ErrInvalid))
+		}
+		if docType.HasBack() && in.IDDocumentBackKey == "" {
+			return nil, domain.Coded("farm.id_document_back_required", fmt.Errorf("farm: the back of the identity document is required: %w", domain.ErrInvalid))
+		}
+		if !in.Certified {
+			return nil, domain.Coded("farm.certification_required", fmt.Errorf("farm: the owner must certify the submission: %w", domain.ErrInvalid))
 		}
 		if len(in.PhotoKeys) < domain.MinFarmProofPhotos || len(in.PhotoKeys) > domain.MaxFarmProofPhotos {
 			return nil, domain.CodedWith("farm.proof_photo_count", map[string]any{"min": domain.MinFarmProofPhotos, "max": domain.MaxFarmProofPhotos},
 				fmt.Errorf("farm: proof photos must number between %d and %d: %w", domain.MinFarmProofPhotos, domain.MaxFarmProofPhotos, domain.ErrInvalid))
 		}
-		if err := domain.CheckOwnedKeys(domain.FarmProofPrefix(f.ID), append([]string{in.IDDocumentKey}, in.PhotoKeys...)); err != nil {
+		keys := append([]string{in.IDDocumentKey}, in.PhotoKeys...)
+		if in.IDDocumentBackKey != "" {
+			keys = append(keys, in.IDDocumentBackKey)
+		}
+		if err := domain.CheckOwnedKeys(domain.FarmProofPrefix(f.ID), keys); err != nil {
 			return nil, err
 		}
 	}
+	backKey := in.IDDocumentBackKey
+	if !docType.HasBack() {
+		backKey = ""
+	}
 
 	now := uc.Clock.Now()
-	f.Verification = domain.FarmVerification{IDDocumentKey: in.IDDocumentKey, PhotoKeys: in.PhotoKeys, SubmittedAt: &now}
+	f.Verification = domain.FarmVerification{
+		IDDocumentType: docType, IDDocumentKey: in.IDDocumentKey, IDDocumentBackKey: backKey, PhotoKeys: in.PhotoKeys,
+		SubmittedAt: &now, Submissions: f.Verification.Submissions + 1,
+	}
 	f.Status = domain.FarmPending
 	if uc.AutoApprove {
 		f.Status = domain.FarmApproved
@@ -142,6 +174,9 @@ type ReviewFarmInput struct {
 	FarmID     bson.ObjectID
 	ReviewerID bson.ObjectID
 	Decision   FarmDecision
+	// ReasonCode is the kind of refusal, for a rejection (RejectOther
+	// when not given); Reason the message the owner reads.
+	ReasonCode domain.RejectionCode
 	Reason     string
 }
 
@@ -173,6 +208,16 @@ func (uc *ReviewFarm) Execute(ctx context.Context, in ReviewFarmInput) (*domain.
 	default:
 		return nil, fmt.Errorf("farm: unknown decision %q: %w", in.Decision, domain.ErrInvalid)
 	}
+	code := domain.RejectionCode("")
+	if in.Decision == FarmDecisionReject {
+		code = in.ReasonCode
+		if code == "" {
+			code = domain.RejectOther
+		}
+		if !code.IsValid() {
+			return nil, domain.Coded("farm.rejection_code", fmt.Errorf("farm: unknown refusal reason %q: %w", code, domain.ErrInvalid))
+		}
+	}
 	if next != domain.FarmApproved && reason == "" {
 		return nil, domain.Coded("farm.reason_required", fmt.Errorf("farm: a reason is required to %s a farm: %w", in.Decision, domain.ErrInvalid))
 	}
@@ -189,6 +234,7 @@ func (uc *ReviewFarm) Execute(ctx context.Context, in ReviewFarmInput) (*domain.
 	f.Verification.ReviewedAt = &now
 	f.Verification.ReviewedBy = in.ReviewerID
 	f.Verification.AutoApproved = false
+	f.Verification.RejectionCode = code
 	f.Verification.RejectionReason = reason
 	if err := uc.Farms.Update(ctx, f); err != nil {
 		return nil, err

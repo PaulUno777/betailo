@@ -9,7 +9,7 @@ API="${QA_API:-http://localhost:8080}"
 ADMIN_EMAIL="${QA_ADMIN_EMAIL:-qa-admin@betailo.test}"
 ADMIN_PASSWORD="${QA_ADMIN_PASSWORD:-Qa-admin-smoke-2026}"
 
-# Nobody registers into the staff: the API creates this super admin at
+# Nobody registers into the staff: the API creates this root account at
 # startup from its configuration.
 export SUPER_ADMIN_EMAIL="$ADMIN_EMAIL" SUPER_ADMIN_PASSWORD="$ADMIN_PASSWORD"
 # The limits the smoke test checks against, whatever the shell has set.

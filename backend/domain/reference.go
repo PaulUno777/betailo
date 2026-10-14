@@ -6,6 +6,7 @@ import "fmt"
 const (
 	ReservationRefPrefix = "RSV"
 	CycleRefPrefix       = "CYC"
+	FarmRefPrefix        = "FRM"
 )
 
 // FormatReference renders counter value n under prefix: "RSV-0042".

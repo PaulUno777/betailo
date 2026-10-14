@@ -900,3 +900,31 @@ func (f *fakeCycleStore) UpdateDetails(_ context.Context, id bson.ObjectID, d po
 	f.byID[id] = &updated
 	return nil
 }
+
+// fakeAuditLog keeps the journal in memory, newest last.
+type fakeAuditLog struct {
+	actions []*domain.AdminAction
+}
+
+func (f *fakeAuditLog) Record(_ context.Context, a *domain.AdminAction) error {
+	f.actions = append(f.actions, a)
+	return nil
+}
+
+func (f *fakeAuditLog) List(_ context.Context, limit int) ([]*domain.AdminAction, error) {
+	out := make([]*domain.AdminAction, 0, len(f.actions))
+	for i := len(f.actions) - 1; i >= 0 && len(out) < limit; i-- {
+		out = append(out, f.actions[i])
+	}
+	return out, nil
+}
+
+// has reports whether an action with this code was journaled.
+func (f *fakeAuditLog) has(action string) bool {
+	for _, a := range f.actions {
+		if a.Action == action {
+			return true
+		}
+	}
+	return false
+}

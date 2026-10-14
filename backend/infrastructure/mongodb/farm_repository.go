@@ -18,6 +18,7 @@ import (
 // at the infrastructure boundary.
 type farmDoc struct {
 	ID        bson.ObjectID `bson:"_id,omitempty"`
+	Reference string        `bson:"reference,omitempty"`
 	OwnerID   bson.ObjectID `bson:"ownerId"`
 	Name      string        `bson:"name"`
 	Location  string        `bson:"location"`
@@ -34,18 +35,23 @@ type farmDoc struct {
 }
 
 type farmVerificationDoc struct {
-	IDDocumentKey   string        `bson:"idDocumentKey,omitempty"`
-	PhotoKeys       []string      `bson:"photoKeys,omitempty"`
-	SubmittedAt     *time.Time    `bson:"submittedAt,omitempty"`
-	ReviewedAt      *time.Time    `bson:"reviewedAt,omitempty"`
-	ReviewedBy      bson.ObjectID `bson:"reviewedBy,omitempty"`
-	AutoApproved    bool          `bson:"autoApproved,omitempty"`
-	RejectionReason string        `bson:"rejectionReason,omitempty"`
+	IDDocumentType    domain.IDDocumentType `bson:"idDocumentType,omitempty"`
+	IDDocumentKey     string                `bson:"idDocumentKey,omitempty"`
+	IDDocumentBackKey string                `bson:"idDocumentBackKey,omitempty"`
+	PhotoKeys         []string              `bson:"photoKeys,omitempty"`
+	SubmittedAt       *time.Time            `bson:"submittedAt,omitempty"`
+	Submissions       int                   `bson:"submissions,omitempty"`
+	ReviewedAt        *time.Time            `bson:"reviewedAt,omitempty"`
+	ReviewedBy        bson.ObjectID         `bson:"reviewedBy,omitempty"`
+	AutoApproved      bool                  `bson:"autoApproved,omitempty"`
+	RejectionCode     domain.RejectionCode  `bson:"rejectionCode,omitempty"`
+	RejectionReason   string                `bson:"rejectionReason,omitempty"`
 }
 
 func fromDomainFarm(f *domain.Farm) farmDoc {
 	return farmDoc{
 		ID:        f.ID,
+		Reference: f.Reference,
 		OwnerID:   f.OwnerID,
 		Name:      f.Name,
 		Location:  f.Location,
@@ -59,9 +65,12 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 
 		Status: f.Status,
 		Verification: farmVerificationDoc{
-			IDDocumentKey: f.Verification.IDDocumentKey, PhotoKeys: f.Verification.PhotoKeys,
-			SubmittedAt: f.Verification.SubmittedAt, ReviewedAt: f.Verification.ReviewedAt, ReviewedBy: f.Verification.ReviewedBy,
-			AutoApproved: f.Verification.AutoApproved, RejectionReason: f.Verification.RejectionReason,
+			IDDocumentType: f.Verification.IDDocumentType, IDDocumentKey: f.Verification.IDDocumentKey,
+			IDDocumentBackKey: f.Verification.IDDocumentBackKey, PhotoKeys: f.Verification.PhotoKeys,
+			SubmittedAt: f.Verification.SubmittedAt, Submissions: f.Verification.Submissions,
+			ReviewedAt: f.Verification.ReviewedAt, ReviewedBy: f.Verification.ReviewedBy,
+			AutoApproved: f.Verification.AutoApproved, RejectionCode: f.Verification.RejectionCode,
+			RejectionReason: f.Verification.RejectionReason,
 		},
 	}
 }
@@ -69,6 +78,7 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 func (d farmDoc) toDomain() *domain.Farm {
 	return &domain.Farm{
 		ID:        d.ID,
+		Reference: d.Reference,
 		OwnerID:   d.OwnerID,
 		Name:      d.Name,
 		Location:  d.Location,
@@ -82,9 +92,12 @@ func (d farmDoc) toDomain() *domain.Farm {
 
 		Status: d.Status,
 		Verification: domain.FarmVerification{
-			IDDocumentKey: d.Verification.IDDocumentKey, PhotoKeys: d.Verification.PhotoKeys,
-			SubmittedAt: d.Verification.SubmittedAt, ReviewedAt: d.Verification.ReviewedAt, ReviewedBy: d.Verification.ReviewedBy,
-			AutoApproved: d.Verification.AutoApproved, RejectionReason: d.Verification.RejectionReason,
+			IDDocumentType: d.Verification.IDDocumentType, IDDocumentKey: d.Verification.IDDocumentKey,
+			IDDocumentBackKey: d.Verification.IDDocumentBackKey, PhotoKeys: d.Verification.PhotoKeys,
+			SubmittedAt: d.Verification.SubmittedAt, Submissions: d.Verification.Submissions,
+			ReviewedAt: d.Verification.ReviewedAt, ReviewedBy: d.Verification.ReviewedBy,
+			AutoApproved: d.Verification.AutoApproved, RejectionCode: d.Verification.RejectionCode,
+			RejectionReason: d.Verification.RejectionReason,
 		},
 	}
 }

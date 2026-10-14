@@ -14,6 +14,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/pauluno777/betailo/backend/domain"
 )
 
 // chain applies middlewares to h in the order given — chain(h, A, B)
@@ -60,6 +62,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /farms", signedIn(handleCreateFarm(deps.CreateFarm)))
 	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms), auth))
+	mux.Handle("GET /farms/mine/cards", chain(handleListMyFarmCards(deps.MyFarmCards, deps.Storage), auth))
 	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm), auth))
 	mux.Handle("DELETE /farms/{id}", chain(handleDeleteFarm(deps.DeleteFarm), auth))
 	mux.Handle("POST /farms/{id}/verification/presign", signedIn(handlePresignFarmProof(deps.PresignFarmProof)))
@@ -129,25 +132,46 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// itself, the same as every other /farms/{farmId}/... route.
 	mux.Handle("GET /farms/{farmId}/dashboard", chain(handleSellerDashboard(deps.SellerDashboard), auth))
 
-	// Back office — every route here is gated on being staff; each usecase reads/writes platform-wide, with no
-	// further ownership check of its own (see application/usecase/admin's
-	// package doc).
-	adminOnly := func(h http.Handler) http.Handler { return chain(h, auth, RequireStaff()) }
-	mux.Handle("GET /admin/overview", adminOnly(handleAdminOverview(deps.AdminOverview)))
-	mux.Handle("GET /admin/users", adminOnly(handleAdminListUsers(deps.AdminListUsers)))
-	mux.Handle("POST /admin/users/{id}/farm-limit", adminOnly(handleAdminSetFarmLimit(deps.AdminSetFarmLimit)))
-	mux.Handle("GET /admin/farms", adminOnly(handleAdminListFarms(deps.AdminListFarms)))
-	mux.Handle("GET /admin/farms/{id}", adminOnly(handleAdminGetFarm(deps.AdminGetFarm)))
-	mux.Handle("POST /admin/farms/{id}/review", adminOnly(handleAdminReviewFarm(deps.ReviewFarm)))
-	mux.Handle("POST /admin/users/{id}/suspend", adminOnly(handleAdminSuspendUser(deps.AdminSuspendUser)))
-	mux.Handle("GET /admin/cycles", adminOnly(handleAdminListCycles(deps.AdminListCycles)))
-	mux.Handle("GET /admin/listings", adminOnly(handleAdminListListings(deps.AdminListListings, deps.Storage)))
-	mux.Handle("GET /admin/escrow", adminOnly(handleAdminListEscrow(deps.AdminListEscrow)))
-	mux.Handle("POST /admin/escrow/{id}/release", adminOnly(handleAdminReleaseEscrow(deps.AdminReleaseEscrow)))
-	mux.Handle("POST /admin/escrow/{id}/refund", adminOnly(handleAdminRefundEscrow(deps.AdminRefundEscrow)))
-	mux.Handle("GET /admin/reports", adminOnly(handleAdminListReports(deps.AdminListReports)))
-	mux.Handle("GET /admin/reports/{id}", adminOnly(handleAdminGetReportDetail(deps.AdminGetReportDetail)))
-	mux.Handle("POST /admin/reports/{id}/resolve", adminOnly(handleAdminResolveReport(deps.AdminResolveReport)))
+	// Back office — one permission per route (see domain.Permission for
+	// which staff role holds what). A read that every role needs to
+	// draw its own navigation asks for the overview permission, which
+	// they all hold.
+	can := func(p domain.Permission, h http.Handler) http.Handler {
+		return chain(h, auth, RequirePermission(deps.StaffRoles, p))
+	}
+	journal := deps.AdminJournal
+	mux.Handle("GET /admin/overview", can(domain.PermOverviewRead, handleAdminOverview(deps.AdminOverview)))
+	mux.Handle("GET /admin/nav-counts", can(domain.PermOverviewRead, handleAdminNavCounts(deps.AdminNavCounts)))
+
+	mux.Handle("GET /admin/users", can(domain.PermAccountsRead, handleAdminListUsers(deps.AdminListUsers)))
+	mux.Handle("POST /admin/users/{id}/suspend", can(domain.PermAccountsSuspend, handleAdminSuspendUser(deps.AdminSuspendUser, journal)))
+	mux.Handle("POST /admin/users/{id}/reactivate", can(domain.PermAccountsSuspend, handleAdminReactivateUser(deps.AdminReactivateUser, journal)))
+	mux.Handle("POST /admin/users/{id}/farm-limit", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal)))
+	mux.Handle("GET /admin/farm-limits", can(domain.PermAccountsRead, handleAdminListFarmLimits(deps.AdminListFarmLimits)))
+	mux.Handle("POST /admin/farm-limits", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal)))
+
+	mux.Handle("GET /admin/farms", can(domain.PermFarmsRead, handleAdminListFarms(deps.AdminListFarms, deps.AdminFarmQueueCounts)))
+	mux.Handle("GET /admin/farms/{id}", can(domain.PermFarmsRead, handleAdminGetFarm(deps.AdminGetFarm, journal)))
+	mux.Handle("POST /admin/farms/{id}/review", can(domain.PermFarmsReview, handleAdminReviewFarm(deps.ReviewFarm, journal)))
+
+	mux.Handle("GET /admin/cycles", can(domain.PermCatalogRead, handleAdminListCycles(deps.AdminListCycles)))
+	mux.Handle("GET /admin/listings", can(domain.PermCatalogRead, handleAdminListListings(deps.AdminListListings, deps.Storage)))
+
+	mux.Handle("GET /admin/escrow", can(domain.PermEscrowRead, handleAdminListEscrow(deps.AdminListEscrow)))
+	mux.Handle("POST /admin/escrow/{id}/release", can(domain.PermEscrowSettle, handleAdminReleaseEscrow(deps.AdminReleaseEscrow, journal)))
+	mux.Handle("POST /admin/escrow/{id}/refund", can(domain.PermEscrowSettle, handleAdminRefundEscrow(deps.AdminRefundEscrow, journal)))
+
+	mux.Handle("GET /admin/reports", can(domain.PermReportsRead, handleAdminListReports(deps.AdminListReports)))
+	mux.Handle("GET /admin/reports/{id}", can(domain.PermReportsRead, handleAdminGetReportDetail(deps.AdminGetReportDetail, deps.Storage)))
+	mux.Handle("POST /admin/reports/{id}/resolve", can(domain.PermReportsResolve, handleAdminResolveReport(deps.AdminResolveReport, journal)))
+
+	// The team itself. Reading who is on it and what each role may do
+	// is open to all staff (it is how a refusal gets explained);
+	// changing it is the super admin's alone.
+	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff)))
+	mux.Handle("POST /admin/staff", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
+	mux.Handle("POST /admin/staff/{id}/role", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
+	mux.Handle("GET /admin/audit", can(domain.PermAuditRead, handleAdminListAudit(deps.AdminListAudit)))
 
 	return withCORS(withLogging(logger, mux))
 }

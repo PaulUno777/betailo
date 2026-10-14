@@ -132,6 +132,12 @@ func ensureIndexes(ctx context.Context, database *mongo.Database) error {
 		{"cycles", []mongo.IndexModel{
 			{Keys: bson.D{{Key: "reference", Value: 1}}, Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"reference": bson.M{"$type": "string"}})},
 		}},
+		{"farms", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "reference", Value: 1}}, Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"reference": bson.M{"$type": "string"}})},
+		}},
+		{"admin_actions", []mongo.IndexModel{
+			{Keys: bson.D{{Key: "createdAt", Value: -1}}},
+		}},
 		{"favorites", []mongo.IndexModel{
 			// One save per (user, listing); also serves "my favorites"
 			// (userId prefix) and the per-page favorited lookup.

@@ -1,11 +1,12 @@
 import { ChangeDetectorRef, Pipe, PipeTransform, effect, inject } from '@angular/core';
 import { LocaleService } from '../../core/i18n/locale.service';
 
-export type LocalDateFormat = 'dayMonth' | 'dayMonthYear' | 'monthYear' | 'year';
+export type LocalDateFormat = 'dayMonth' | 'dayMonthYear' | 'dayMonthTime' | 'monthYear' | 'year';
 
 const OPTIONS: Readonly<Record<LocalDateFormat, Intl.DateTimeFormatOptions>> = {
   dayMonth: { day: 'numeric', month: 'short' }, // "23 sept."
   dayMonthYear: { day: 'numeric', month: 'short', year: 'numeric' }, // "23 sept. 2026"
+  dayMonthTime: { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }, // "10 oct. à 16:42"
   monthYear: { month: 'long', year: 'numeric' }, // "juillet 2026"
   year: { year: 'numeric' } // "2024"
 };

@@ -22,48 +22,68 @@ const duplicateKeyCode = 11000
 // carries no bson tags (see domain/user.go); mapping happens only here,
 // at the infrastructure boundary.
 type userDoc struct {
-	ID           bson.ObjectID    `bson:"_id,omitempty"`
-	Email        string           `bson:"email"`
-	PasswordHash string           `bson:"passwordHash"`
-	StaffRole    domain.StaffRole `bson:"staffRole,omitempty"`
-	FarmLimit    int              `bson:"farmLimit,omitempty"`
-	DisplayName  string           `bson:"displayName,omitempty"`
-	Phone        string           `bson:"phone,omitempty"`
-	City         string           `bson:"city,omitempty"`
-	Suspended    bool             `bson:"suspended,omitempty"`
-	TrustScore   float64          `bson:"trustScore"`
-	CreatedAt    time.Time        `bson:"createdAt"`
+	ID            bson.ObjectID     `bson:"_id,omitempty"`
+	Email         string            `bson:"email"`
+	PasswordHash  string            `bson:"passwordHash"`
+	StaffRole     domain.StaffRole  `bson:"staffRole,omitempty"`
+	Root          bool              `bson:"root,omitempty"`
+	FarmLimit     int               `bson:"farmLimit,omitempty"`
+	FarmLimitNote *farmLimitNoteDoc `bson:"farmLimitNote,omitempty"`
+	DisplayName   string            `bson:"displayName,omitempty"`
+	Phone         string            `bson:"phone,omitempty"`
+	City          string            `bson:"city,omitempty"`
+	Suspended     bool              `bson:"suspended,omitempty"`
+	TrustScore    float64           `bson:"trustScore"`
+	CreatedAt     time.Time         `bson:"createdAt"`
+}
+
+type farmLimitNoteDoc struct {
+	Reason string        `bson:"reason"`
+	SetBy  bson.ObjectID `bson:"setBy"`
+	SetAt  time.Time     `bson:"setAt"`
 }
 
 func fromDomainUser(u *domain.User) userDoc {
+	var note *farmLimitNoteDoc
+	if n := u.FarmLimitNote; n != nil {
+		note = &farmLimitNoteDoc{Reason: n.Reason, SetBy: n.SetBy, SetAt: n.SetAt}
+	}
 	return userDoc{
-		ID:           u.ID,
-		Email:        u.Email,
-		PasswordHash: u.PasswordHash,
-		StaffRole:    u.StaffRole,
-		FarmLimit:    u.FarmLimit,
-		DisplayName:  u.DisplayName,
-		Phone:        u.Phone,
-		City:         u.City,
-		Suspended:    u.Suspended,
-		TrustScore:   u.TrustScore,
-		CreatedAt:    u.CreatedAt,
+		Root:          u.Root,
+		FarmLimitNote: note,
+		ID:            u.ID,
+		Email:         u.Email,
+		PasswordHash:  u.PasswordHash,
+		StaffRole:     u.StaffRole,
+		FarmLimit:     u.FarmLimit,
+		DisplayName:   u.DisplayName,
+		Phone:         u.Phone,
+		City:          u.City,
+		Suspended:     u.Suspended,
+		TrustScore:    u.TrustScore,
+		CreatedAt:     u.CreatedAt,
 	}
 }
 
 func (d userDoc) toDomain() *domain.User {
+	var note *domain.FarmLimitNote
+	if n := d.FarmLimitNote; n != nil {
+		note = &domain.FarmLimitNote{Reason: n.Reason, SetBy: n.SetBy, SetAt: n.SetAt}
+	}
 	return &domain.User{
-		ID:           d.ID,
-		Email:        d.Email,
-		PasswordHash: d.PasswordHash,
-		StaffRole:    d.StaffRole,
-		FarmLimit:    d.FarmLimit,
-		DisplayName:  d.DisplayName,
-		Phone:        d.Phone,
-		City:         d.City,
-		Suspended:    d.Suspended,
-		TrustScore:   d.TrustScore,
-		CreatedAt:    d.CreatedAt,
+		Root:          d.Root,
+		FarmLimitNote: note,
+		ID:            d.ID,
+		Email:         d.Email,
+		PasswordHash:  d.PasswordHash,
+		StaffRole:     d.StaffRole,
+		FarmLimit:     d.FarmLimit,
+		DisplayName:   d.DisplayName,
+		Phone:         d.Phone,
+		City:          d.City,
+		Suspended:     d.Suspended,
+		TrustScore:    d.TrustScore,
+		CreatedAt:     d.CreatedAt,
 	}
 }
 

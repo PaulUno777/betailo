@@ -32,6 +32,9 @@ type CreateFarm struct {
 	// review or report.
 	Trust ports.TrustRecomputer
 	Clock ports.Clock
+	// Sequencer numbers the farm ("FRM-0212"); nil leaves it without a
+	// reference.
+	Sequencer ports.Sequencer
 }
 
 // CreateFarmInput is what a caller (the HTTP handler) supplies. OwnerID
@@ -101,6 +104,14 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 
 		Description:  description,
 		ContactPhone: phone,
+	}
+
+	if uc.Sequencer != nil {
+		seq, err := uc.Sequencer.Next(ctx, domain.FarmRefPrefix)
+		if err != nil {
+			return nil, err
+		}
+		f.Reference = domain.FormatReference(domain.FarmRefPrefix, seq)
 	}
 
 	if err := uc.Farms.Create(ctx, f); err != nil {

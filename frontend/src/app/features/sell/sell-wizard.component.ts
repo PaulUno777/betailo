@@ -126,7 +126,7 @@ type Section = 0 | 1 | 2 | 3;
                   [attr.aria-checked]="draft().species === s"
                   (click)="patch({ species: s })"
                   class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 p-2 text-center text-small font-semibold transition active:scale-[0.98]"
-                  [class]="draft().species === s ? 'border-forest bg-forest-soft text-forest-deep' : 'border-line bg-surface-card text-ink'"
+                  [class]="draft().species === s ? 'border-forest bg-forest-soft text-on-forest-soft' : 'border-line bg-surface-card text-ink'"
                 >
                   <span class="h-3 w-3 rounded-full" [class]="dots[s]"></span>
                   {{ speciesLabels[s] | t }}
@@ -168,7 +168,7 @@ type Section = 0 | 1 | 2 | 3;
               (ngModelChange)="setPrice($event)"
             />
             @if (hint(); as h) {
-              <div class="flex gap-3 rounded-lg bg-forest-soft p-3.5 text-small text-forest-deep" aria-live="polite">
+              <div class="flex gap-3 rounded-lg bg-forest-soft p-3.5 text-small text-on-forest-soft" aria-live="polite">
                 <bt-icon name="chart" [size]="18" class="mt-0.5 shrink-0 text-forest" />
                 <span>
                   {{ (h.regional ? 'sell.hintNational' : 'sell.hintRegional') | t: { region: farm()!.location, low: (h.low | fcfa), high: (h.high | fcfa) } }}

@@ -32,7 +32,11 @@ type AccountGate struct {
 }
 
 type gateEntry struct {
-	err     error
+	err error
+	// role is the account's staff role as stored, not as its token
+	// claims: a role granted or revoked since the token was signed
+	// applies on the next request.
+	role    domain.StaffRole
 	checked time.Time
 }
 
@@ -40,6 +44,29 @@ type gateEntry struct {
 // a suspended one and domain.ErrUnauthorized for one that no longer
 // exists. A lookup failure is returned as is and never cached.
 func (g *AccountGate) CheckActive(ctx context.Context, userID bson.ObjectID) error {
+	e, err := g.lookup(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return e.err
+}
+
+// StaffRole returns the account's current staff role, StaffNone for an
+// account that isn't staff or may no longer act. It shares CheckActive's
+// cache, so the permission check behind the auth middleware costs no
+// second read.
+func (g *AccountGate) StaffRole(ctx context.Context, userID bson.ObjectID) (domain.StaffRole, error) {
+	e, err := g.lookup(ctx, userID)
+	if err != nil {
+		return domain.StaffNone, err
+	}
+	if e.err != nil {
+		return domain.StaffNone, nil
+	}
+	return e.role, nil
+}
+
+func (g *AccountGate) lookup(ctx context.Context, userID bson.ObjectID) (gateEntry, error) {
 	ttl := g.TTL
 	if ttl <= 0 {
 		ttl = AccountGateTTL
@@ -49,19 +76,21 @@ func (g *AccountGate) CheckActive(ctx context.Context, userID bson.ObjectID) err
 	g.mu.Lock()
 	if e, ok := g.cache[userID]; ok && now.Sub(e.checked) < ttl {
 		g.mu.Unlock()
-		return e.err
+		return e, nil
 	}
 	g.mu.Unlock()
 
 	u, err := g.Users.FindByID(ctx, userID)
-	var verdict error
+	entry := gateEntry{checked: now}
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
-		verdict = fmt.Errorf("auth: account no longer exists: %w", domain.ErrUnauthorized)
+		entry.err = fmt.Errorf("auth: account no longer exists: %w", domain.ErrUnauthorized)
 	case err != nil:
-		return err
+		return gateEntry{}, err
 	case u.Suspended:
-		verdict = fmt.Errorf("auth: %w", domain.ErrSuspended)
+		entry.err = fmt.Errorf("auth: %w", domain.ErrSuspended)
+	default:
+		entry.role = u.StaffRole
 	}
 
 	g.mu.Lock()
@@ -77,13 +106,13 @@ func (g *AccountGate) CheckActive(ctx context.Context, userID bson.ObjectID) err
 			}
 		}
 	}
-	g.cache[userID] = gateEntry{err: verdict, checked: now}
+	g.cache[userID] = entry
 	g.mu.Unlock()
-	return verdict
+	return entry, nil
 }
 
-// Forget drops what the gate knows about userID, so a suspension made
-// in this process applies on the very next request.
+// Forget drops what the gate knows about userID, so a suspension or a
+// role change made in this process applies on the very next request.
 func (g *AccountGate) Forget(userID bson.ObjectID) {
 	g.mu.Lock()
 	delete(g.cache, userID)

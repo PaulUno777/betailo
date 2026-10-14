@@ -1,9 +1,14 @@
 import {
   CycleStatus,
   FarmStatus,
+  IdDocumentType,
   ListingStatus,
+  OverviewPeriod,
   PaymentMethod,
   PaymentStatus,
+  Permission,
+  RejectionCode,
+  ReportLevel,
   ReportStatus,
   ReportTargetType,
   ReservationStatus,
@@ -40,10 +45,18 @@ export interface Account extends Profile {
   farms: Farm[];
   farmLimit: number;
   canAddFarm: boolean;
+  /** Set when staff gave this account its own farm limit. */
+  farmLimitRaisedAt?: string;
+  /** What the account's staff role allows; empty for everyone else. */
+  permissions: Permission[];
+  /** The platform's root account. */
+  isRoot?: boolean;
 }
 
 export interface Farm {
   id: string;
+  /** The code staff and owners quote ("FRM-0212"). */
+  reference?: string;
   ownerId: string;
   name: string;
   location: string;
@@ -61,9 +74,14 @@ export interface Farm {
 
 export interface FarmReview {
   submittedAt?: string;
+  /** How many times the farm was sent for review. */
+  submissions: number;
+  idDocumentType?: IdDocumentType;
   reviewedAt?: string;
   /** Let through by the platform's test switch, not by a person. */
   autoApproved?: boolean;
+  /** The kind of refusal staff picked, and the message they wrote. */
+  rejectionCode?: RejectionCode;
   rejectionReason?: string;
   /** The farm is waiting on its owner to (re)submit proof. */
   canSubmit: boolean;
@@ -77,11 +95,38 @@ export interface AdminFarm extends Farm {
 /** `GET /admin/farms/{id}`: plus short-lived links to the proof. */
 export interface AdminFarmDetail extends AdminFarm {
   idDocumentUrl?: string;
+  idDocumentBackUrl?: string;
   photoUrls: string[];
   ownerFarmCount: number;
+  ownerFarmLimit: number;
+  ownerPurchases: number;
+  ownerReports: number;
+  reviewerName?: string;
+  reviewerRole?: StaffRole;
+  /** The refusal reasons staff pick from. */
+  rejectionCodes: RejectionCode[];
+}
+
+/** `GET /admin/farms?queue=`: one tab of the validation page, plus the
+ * sizes of the tabs still to work through. */
+export interface AdminFarmList {
+  farms: AdminFarm[];
+  counts: { todo: number; resubmitted: number };
 }
 
 /** `GET /farms/{id}`: a farm plus its server-computed trust signals. */
+/** One farm on its owner's "Mes fermes" page: the farm with a photo of
+ * it and the figures that say how it is doing. */
+export interface FarmCard extends Farm {
+  /** Short-lived link to the first photo sent with the farm's proof. */
+  coverUrl?: string;
+  activeCycles: number;
+  salesCount: number;
+  trustScore: number;
+  reviewAverage: number;
+  reviewCount: number;
+}
+
 export interface FarmProfile extends Farm {
   trustScore: number;
   verified: boolean;
@@ -377,6 +422,13 @@ export interface Report {
   targetType: ReportTargetType;
   reason: string;
   status: ReportStatus;
+  /** Staff queue only: what was reported by name, who reported it, how
+   * many reports the target drew, and how urgent it looks. */
+  targetLabel?: string;
+  reporterName?: string;
+  createdAt?: string;
+  count: number;
+  level: ReportLevel;
 }
 
 export interface ReportRiskSignal {
@@ -390,6 +442,10 @@ export interface ReportDetail {
   history: Report[];
   riskScore: number;
   signals: ReportRiskSignal[];
+  /** The account behind the report, when there is one to act on. */
+  subject?: { id: string; name: string; city?: string; createdAt: string; suspended: boolean };
+  /** The reported listing, previewed. */
+  listing?: { id: string; title: string; unitPrice: number; unit?: string; status: ListingStatus; photoUrl?: string; farmName?: string };
 }
 
 export interface ForumReply {
@@ -427,6 +483,13 @@ export interface DashboardTodo {
   cycleRef?: string;
 }
 
+/** A reservation on the seller's dashboard, with who made it. */
+export interface DashboardReservation extends Reservation {
+  buyerName?: string;
+  cycleRef?: string;
+  species?: string;
+}
+
 export interface SellerDashboard {
   trustScore: number;
   reservationsThisPeriod: number;
@@ -434,28 +497,97 @@ export interface SellerDashboard {
   releasedThisPeriod: number;
   weeklyReservationCounts: number[];
   activeCycles: CycleSummary[];
-  latestReservations: Reservation[];
+  latestReservations: DashboardReservation[];
   todos: DashboardTodo[];
 }
 
+/** One bar of the overview chart: a day, or a month on the 12-month view. */
+export interface OverviewBucket {
+  start: string;
+  paid: number;
+  waiting: number;
+}
+
 export interface AdminOverview {
+  period: OverviewPeriod;
   volumeReserved: number;
+  volumePrevious: number;
   escrowHeld: number;
+  heldReservations: number;
   activeCyclesPlanned: number;
   activeCyclesInProgress: number;
   openReports: number;
-  reservationsPerDay: number[];
+  openDisputes: number;
+  pendingFarms: number;
+  oldestPendingSince?: string;
+  series: OverviewBucket[];
+  /** The deployment's switches, read-only. */
+  autoApproveFarms: boolean;
+  maxFarmsPerAccount: number;
+}
+
+/** `GET /admin/nav-counts`: work waiting for staff. */
+export interface AdminNavCounts {
+  pendingFarms: number;
+  openReports: number;
+  openDisputes: number;
+}
+
+export interface FarmLimitNote {
+  reason: string;
+  setAt: string;
+  setByName?: string;
+  setByRole?: StaffRole;
 }
 
 export interface AdminUser {
   id: string;
   email: string;
   staffRole?: StaffRole;
+  isRoot?: boolean;
   displayName?: string;
   /** What staff set for this account; 0 = the platform default. */
   farmLimit: number;
+  farmLimitNote?: FarmLimitNote;
+  farmCount: number;
   suspended: boolean;
   trustScore: number;
+  memberSince: string;
+}
+
+/** `GET /admin/farm-limits`: the platform default (set by the
+ * deployment) and every account staff made an exception for. */
+export interface FarmLimits {
+  default: number;
+  max: number;
+  exceptions: AdminUser[];
+}
+
+/** `GET /admin/staff`: the team, and the permission table as the API
+ * enforces it. */
+export interface StaffOverview {
+  members: AdminUser[];
+  roles: { role: StaffRole; permissions: Permission[] }[];
+  permissions: Permission[];
+}
+
+/** One line of the back office's journal. */
+export interface AdminAction {
+  id: string;
+  actorName?: string;
+  actorRole?: StaffRole;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  targetLabel?: string;
+  detail?: string;
+  createdAt: string;
+}
+
+/** A reservation in the "Séquestre" table, with both parties named. */
+export interface AdminEscrowItem extends Reservation {
+  buyerName?: string;
+  farmName?: string;
 }
 
 export interface ReservationRequest {

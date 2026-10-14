@@ -58,12 +58,12 @@ type Application struct {
 	Register     *auth.Register
 	Login        *auth.Login
 
-	mongoClient      *mongo.Client
-	mongoDatabase    *mongo.Database
-	storageProvider  *objectstorage.S3Provider
-	server           *http.Server
-	worker           *worker.Worker
-	ensureSuperAdmin *auth.EnsureSuperAdmin
+	mongoClient     *mongo.Client
+	mongoDatabase   *mongo.Database
+	storageProvider *objectstorage.S3Provider
+	server          *http.Server
+	worker          *worker.Worker
+	ensureRootAdmin *auth.EnsureRootAdmin
 }
 
 // Initialize connects to MongoDB and object storage and wires every
@@ -182,13 +182,19 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 		Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations, Users: users, Clock: systemClock,
 	}
 
-	adminOverview := &admin.Overview{Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Clock: systemClock}
-	adminListUsers := &admin.ListUsers{Users: users}
+	adminOverview := &admin.Overview{
+		Cycles: cycles, Listings: listings, Reservations: reservations, Reports: reports, Farms: farms, Clock: systemClock,
+		AutoApproveFarms: autoApproveFarms, MaxFarms: maxFarms,
+	}
+	adminListUsers := &admin.ListUsers{Users: users, Farms: farms}
 	accountGate := &auth.AccountGate{Users: users, Clock: systemClock}
 	adminSuspendUser := &admin.SuspendUser{Users: users, Sessions: accountGate}
+	adminJournal := &admin.Journal{
+		Log: &mongodb.AuditRepository{Coll: database.Collection("admin_actions")}, Users: users, Clock: systemClock, Logger: logger,
+	}
 	adminListCycles := &admin.ListAllCycles{Cycles: cycles}
 	adminListListings := &admin.ListAllListings{Cycles: cycles, Listings: listings}
-	adminListEscrow := &admin.ListEscrowTransactions{Cycles: cycles, Listings: listings, Reservations: reservations}
+	adminListEscrow := &admin.ListEscrowTransactions{Cycles: cycles, Listings: listings, Reservations: reservations, Farms: farms, Users: users}
 	adminReleaseEscrow := &reservation.AdminReleaseEscrow{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Trust: trustRecompute, Clock: systemClock,
 		Notifications: notifications,
@@ -196,11 +202,14 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	adminRefundEscrow := &reservation.AdminRefundEscrow{
 		Reservations: reservations, Payments: sandboxPayments, Clock: systemClock, Parties: parties, Notifications: notifications,
 	}
-	adminListReports := &admin.ListReports{Reports: reports}
+	adminListReports := &admin.ListReports{Reports: reports, Users: users, Listings: listings, Reservations: reservations}
 	adminGetReportDetail := &admin.GetReportDetail{
 		Reports: reports, Users: users, Listings: listings, Cycles: cycles, Farms: farms, Search: listings, Clock: systemClock,
+		Reservations: reservations,
 	}
-	adminResolveReport := &admin.ResolveReport{Reports: reports, Users: users, Trust: trustRecompute, Sessions: accountGate}
+	adminResolveReport := &admin.ResolveReport{
+		Reports: reports, Users: users, Trust: trustRecompute, Sessions: accountGate, Listings: listings, Cycles: cycles, Farms: farms,
+	}
 
 	bgWorker := &worker.Worker{
 		Cycles:      cycles,
@@ -227,6 +236,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			Logout:         logout,
 			Signer:         signer,
 			Accounts:       accountGate,
+			StaffRoles:     accountGate,
 			Cookies:        cookieConfig(),
 			GetProfile:     &account.GetProfile{Users: users},
 			UpdateProfile:  &account.UpdateProfile{Users: users},
@@ -234,13 +244,16 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			SellerAccess:   &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms},
 			RateLimits:     httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
-			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, Trust: trustRecompute, Clock: systemClock},
+			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, Trust: trustRecompute, Clock: systemClock, Sequencer: counters},
 			GetFarmProfile: &farm.GetProfile{
 				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
 			},
 			ListMyFarms: &farm.ListMyFarms{Farms: farms},
-			UpdateFarm:  &farm.UpdateFarm{Farms: farms},
-			DeleteFarm:  &farm.DeleteFarm{Farms: farms, Cycles: cycles},
+			MyFarmCards: &farm.MyFarmCards{
+				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
+			},
+			UpdateFarm: &farm.UpdateFarm{Farms: farms},
+			DeleteFarm: &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
 			PresignFarmProof: &farm.PresignFarmProof{Farms: farms, Storage: storageProvider},
 			SubmitFarmForReview: &farm.SubmitFarmForReview{
@@ -312,10 +325,20 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 
 			AdminOverview:        adminOverview,
 			AdminListUsers:       adminListUsers,
-			AdminSetFarmLimit:    &admin.SetFarmLimit{Users: users},
+			AdminNavCounts:       &admin.CountNav{Farms: farms, Reports: reports},
+			AdminSetFarmLimit:    &admin.SetFarmLimit{Users: users, Farms: farms, Clock: systemClock},
+			AdminListFarmLimits:  &admin.ListFarmLimits{Users: users, Farms: farms, Default: maxFarms},
 			AdminListFarms:       &admin.ListFarmsForReview{Farms: farms, Users: users},
-			AdminGetFarm:         &admin.GetFarmForReview{Farms: farms, Users: users, Storage: storageProvider},
+			AdminFarmQueueCounts: &admin.CountFarmQueues{Farms: farms},
+			AdminGetFarm: &admin.GetFarmForReview{
+				Farms: farms, Users: users, Reservations: reservations, Reports: reports, Storage: storageProvider, MaxFarms: maxFarms,
+			},
 			AdminSuspendUser:     adminSuspendUser,
+			AdminReactivateUser:  &admin.ReactivateUser{Users: users, Sessions: accountGate},
+			AdminListStaff:       &admin.ListStaff{Users: users},
+			AdminSetStaffRole:    &admin.SetStaffRole{Users: users, Farms: farms, Sessions: accountGate},
+			AdminListAudit:       &admin.ListAudit{Log: adminJournal.Log},
+			AdminJournal:         adminJournal,
 			AdminListCycles:      adminListCycles,
 			AdminListListings:    adminListListings,
 			AdminListEscrow:      adminListEscrow,
@@ -332,16 +355,16 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	}
 
 	application := &Application{
-		Logger:           logger,
-		ReserveCycle:     reserveCycle,
-		Register:         register,
-		Login:            login,
-		mongoClient:      client,
-		mongoDatabase:    database,
-		storageProvider:  storageProvider,
-		server:           server,
-		worker:           bgWorker,
-		ensureSuperAdmin: &auth.EnsureSuperAdmin{Users: users, Hasher: hasher, Clock: systemClock},
+		Logger:          logger,
+		ReserveCycle:    reserveCycle,
+		Register:        register,
+		Login:           login,
+		mongoClient:     client,
+		mongoDatabase:   database,
+		storageProvider: storageProvider,
+		server:          server,
+		worker:          bgWorker,
+		ensureRootAdmin: &auth.EnsureRootAdmin{Users: users, Hasher: hasher, Clock: systemClock},
 	}
 
 	cleanup := func() {
@@ -371,14 +394,8 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 	} else if n > 0 {
 		a.Logger.Info("gave farms a country and region", "count", n)
 	}
-	if email := os.Getenv("SUPER_ADMIN_EMAIL"); email != "" {
-		created, err := a.ensureSuperAdmin.Execute(ctx, email, os.Getenv("SUPER_ADMIN_PASSWORD"))
-		if err != nil {
-			return fmt.Errorf("super admin %s: %w", email, err)
-		}
-		if created {
-			a.Logger.Info("created the super admin account", "email", email)
-		}
+	if err := a.bootstrapRootAdmin(ctx); err != nil {
+		return err
 	}
 	if n, err := mongodb.MigrateUnpaidToWaitingList(ctx, a.mongoDatabase); err != nil {
 		return err
@@ -392,6 +409,39 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 	}
 	a.Logger.Info("object storage provider ready")
 
+	return nil
+}
+
+// bootstrapRootAdmin is the platform's day zero: the root account
+// comes from SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD, because nobody
+// can register into the staff and only a super admin grants a role. A
+// configured account that can't be set up stops the startup: running
+// without the way into the back office the operator asked for is worse
+// than not running. With nothing configured the API still starts, and
+// says so loudly if nobody at all can run the back office.
+func (a *Application) bootstrapRootAdmin(ctx context.Context) error {
+	email := os.Getenv("SUPER_ADMIN_EMAIL")
+	if email == "" {
+		ok, err := a.ensureRootAdmin.HasSuperAdmin(ctx)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			a.Logger.Error("no super admin: nobody can open the back office, approve a farm or settle a payment. " +
+				"Set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD, then restart")
+		}
+		return nil
+	}
+	outcome, err := a.ensureRootAdmin.Execute(ctx, email, os.Getenv("SUPER_ADMIN_PASSWORD"))
+	if err != nil {
+		return fmt.Errorf("root admin %s: %w", email, err)
+	}
+	switch outcome {
+	case auth.RootAdminCreated:
+		a.Logger.Info("created the root admin account", "email", email)
+	case auth.RootAdminPromoted:
+		a.Logger.Info("made an existing account the root admin; it keeps its own password", "email", email)
+	}
 	return nil
 }
 
