@@ -10,7 +10,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ToastService } from '../../core/notifications/toast.service';
 import { AdminApi } from '../../data-access/admin/admin.api';
 import { Permission, StaffRole } from '../../domain/enums';
-import { AdminUser, FarmLimits, StaffOverview } from '../../domain/models';
+import { AdminUser, FarmLimits, StaffInvitation, StaffOverview } from '../../domain/models';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { AvatarComponent } from '../../shared/ui/avatar/avatar.component';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
@@ -70,12 +70,13 @@ import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
             <span class="text-[12.5px] text-ink-muted">{{ 'adminStaff.membersHint' | t }}</span>
           </div>
           <div class="overflow-x-auto">
-            <table class="bo-table min-w-[640px]">
+            <table class="bo-table min-w-[820px]">
               <thead>
                 <tr>
                   <th class="bo-th" scope="col">{{ 'adminStaff.colMember' | t }}</th>
                   <th class="bo-th" scope="col">{{ 'adminStaff.colRole' | t }}</th>
                   <th class="bo-th" scope="col">{{ 'adminStaff.colActivity' | t }}</th>
+                  <th class="bo-th" scope="col">{{ 'adminStaff.colMfa' | t }}</th>
                   <th class="bo-th" scope="col"><span class="sr-only">{{ 'adminUsers.colActions' | t }}</span></th>
                 </tr>
               </thead>
@@ -110,6 +111,11 @@ import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
                       {{ m.lastActiveAt ? ('adminOverview.ago' | t: { age: since(m.lastActiveAt) }) : ('adminStaff.neverActive' | t) }}
                     </td>
                     <td class="bo-td">
+                      <span class="inline-flex h-6 items-center rounded-full px-2.5 text-caption font-semibold" [class]="m.mfaEnabled ? 'bg-forest-soft text-forest' : 'bg-amber-soft text-amber'">
+                        {{ (m.mfaEnabled ? 'adminStaff.mfaOn' : 'adminStaff.mfaPending') | t }}
+                      </span>
+                    </td>
+                    <td class="bo-td">
                       <div class="flex justify-end gap-2">
                         @if (m.id === me()) {
                           <span class="text-[13px] text-ink-muted">{{ 'adminStaff.you' | t }}</span>
@@ -120,6 +126,34 @@ import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
                           <bt-button variant="ghost" size="sm" [disabled]="busy()" (click)="revokeTarget.set(m)">{{ 'adminStaff.revoke' | t }}</bt-button>
                         }
                       </div>
+                    </td>
+                  </tr>
+                }
+                @for (inv of t.invitations; track inv.id) {
+                  <tr>
+                    <td class="bo-td">
+                      <div class="flex items-center gap-3">
+                        <bt-avatar [name]="inv.email" [size]="34" tone="amber" class="shrink-0" />
+                        <div class="flex min-w-0 flex-col">
+                          <b class="wrap-anywhere">{{ inv.email }}</b>
+                          @if (inv.inviterName) {
+                            <span class="text-caption text-ink-muted">{{ 'adminStaff.invitedBy' | t: { name: inv.inviterName } }}</span>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td class="bo-td"><bt-staff-role-badge [role]="inv.role" /></td>
+                    <td class="bo-td !text-[13px] whitespace-nowrap text-ink-muted">{{ 'adminStaff.invitationSent' | t }}</td>
+                    <td class="bo-td">
+                      <span class="inline-flex h-6 items-center rounded-full bg-amber-soft px-2.5 text-caption font-semibold text-amber">{{ 'adminStaff.mfaPending' | t }}</span>
+                    </td>
+                    <td class="bo-td">
+                      @if (canManage()) {
+                        <div class="flex justify-end gap-2">
+                          <bt-button variant="outline" size="sm" [disabled]="busy()" (click)="resend(inv)">{{ 'adminStaff.invitationResend' | t }}</bt-button>
+                          <bt-button variant="ghost" size="sm" [disabled]="busy()" (click)="cancel(inv)">{{ 'common.cancel' | t }}</bt-button>
+                        </div>
+                      }
                     </td>
                   </tr>
                 }
@@ -264,6 +298,23 @@ import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
     </bt-dialog>
 
     <bt-dialog
+      [open]="!!sentInvitation()"
+      [title]="'adminStaff.invitationSentTitle' | t: { email: sentInvitation()?.email ?? '' }"
+      [primaryLabel]="'adminStaff.invitationCopy' | t"
+      primaryVariant="solid"
+      [secondaryLabel]="'common.close' | t"
+      (primaryClick)="copyLink()"
+      (secondaryClick)="sentInvitation.set(null)"
+      (closed)="sentInvitation.set(null)"
+    >
+      <div class="flex flex-col gap-3">
+        <p>{{ (sentInvitation()?.mailed ? 'adminStaff.invitationMailed' : 'adminStaff.invitationNotMailed') | t }}</p>
+        <span class="rounded-md bg-surface-sunken px-3 py-2 font-mono text-caption wrap-anywhere select-all">{{ sentInvitation()?.link }}</span>
+        <p class="text-small text-ink-muted">{{ 'adminStaff.invitationLinkOnce' | t }}</p>
+      </div>
+    </bt-dialog>
+
+    <bt-dialog
       [open]="!!revokeTarget()"
       tone="alert"
       [title]="'adminStaff.revokeTitle' | t: { name: revokeTarget()?.displayName || revokeTarget()?.email || '' }"
@@ -384,12 +435,47 @@ export class AdminStaffComponent {
         return;
       }
       this.roleDialog.set(null);
-      this.run(this.adminApi.grantStaffRole(this.email().trim(), this.role()), 'adminStaff.granted', () => this.team.reload());
+      this.invite(this.adminApi.inviteStaff(this.email().trim(), this.role()));
     } else if (mode === 'change') {
       const target = this.changeTarget();
       this.roleDialog.set(null);
       if (target) this.run(this.adminApi.setStaffRole(target.id, this.role()), 'adminStaff.changed', () => this.team.reload());
     }
+  }
+
+  /** The invitation just sent or renewed, with its link, shown once. */
+  protected readonly sentInvitation = signal<StaffInvitation | null>(null);
+
+  private invite(request: Observable<StaffInvitation>): void {
+    this.busy.set(true);
+    request.subscribe({
+      next: (sent) => {
+        this.busy.set(false);
+        this.team.reload();
+        this.sentInvitation.set(sent);
+      },
+      error: (err: AppError) => {
+        this.busy.set(false);
+        this.toast.show({ tone: 'danger', title: 'adminStaff.invitationFailed', detail: err.message });
+      }
+    });
+  }
+
+  protected resend(invitation: StaffInvitation): void {
+    this.invite(this.adminApi.resendInvitation(invitation.id));
+  }
+
+  protected cancel(invitation: StaffInvitation): void {
+    this.run(this.adminApi.cancelInvitation(invitation.id), 'adminStaff.invitationCancelled', () => this.team.reload());
+  }
+
+  protected copyLink(): void {
+    const link = this.sentInvitation()?.link;
+    if (!link) return;
+    navigator.clipboard?.writeText(link).then(
+      () => this.toast.show({ tone: 'success', title: 'adminStaff.invitationCopied' }),
+      () => undefined
+    );
   }
 
   protected confirmRevoke(): void {

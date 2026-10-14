@@ -1,0 +1,17 @@
+{
+  "bsonType": "object",
+  "required": ["kind", "tokenHash", "createdAt", "expiresAt"],
+  "properties": {
+    "kind": { "enum": ["invitation", "password_reset", "mfa_challenge", "passkey_setup"] },
+    "tokenHash": { "bsonType": "string" },
+    "userId": { "bsonType": "objectId" },
+    "email": { "bsonType": "string" },
+    "role": { "enum": ["super_admin", "moderator", "finance", "support"] },
+    "createdBy": { "bsonType": "objectId" },
+    "persistent": { "bsonType": "bool" },
+    "data": { "bsonType": "binData" },
+    "createdAt": { "bsonType": "date" },
+    "expiresAt": { "bsonType": "date" },
+    "usedAt": { "bsonType": "date" }
+  }
+}

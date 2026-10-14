@@ -24,7 +24,12 @@ export const fr = {
       staff_needs_super_admin: 'Seul un super admin agit sur un compte de l’équipe.',
       staff_role_unknown: 'Ce rôle n’existe pas.',
       last_super_admin: 'Il doit rester au moins un super admin.',
-      staff_owns_farm: 'Ce compte possède une ferme : il ne peut pas rejoindre l’équipe.'
+      staff_owns_farm: 'Ce compte possède une ferme : il ne peut pas rejoindre l’équipe.',
+      mfa_required: 'Le back-office demande une double authentification.',
+      staff_already_member: 'Cette personne fait déjà partie de l’équipe.',
+      report_note_too_long: 'La note est trop longue (1000 caractères maximum).',
+      report_needs_listing: 'Cette décision ne s’applique qu’au signalement d’une annonce.',
+      report_farm_not_approved: 'Seule une ferme approuvée peut être renvoyée en vérification.'
     },
     network: 'Pas de connexion. Vérifiez votre réseau et réessayez.',
     server: 'Un problème est survenu de notre côté. Réessayez dans un instant.',
@@ -40,7 +45,18 @@ export const fr = {
       email_invalid: 'Entrez une adresse e-mail valide.',
       password_too_short: 'Le mot de passe doit contenir au moins {min} caractères.',
       password_unchanged: "Le nouveau mot de passe doit être différent de l'actuel.",
-      current_password_wrong: 'Le mot de passe actuel est incorrect.'
+      current_password_wrong: 'Le mot de passe actuel est incorrect.',
+      mfa_code_invalid: 'Code incorrect.',
+      mfa_challenge_expired: 'Cette étape a expiré. Recommencez la connexion.',
+      mfa_totp_already_set: 'Une application est déjà configurée.',
+      mfa_totp_not_pending: 'Aucune configuration en cours. Recommencez.',
+      mfa_not_enabled: 'Aucune double authentification n’est configurée.',
+      mfa_no_passkey: 'Ce compte n’a pas de clé d’accès.',
+      passkey_limit: 'Vous avez atteint le nombre de clés d’accès autorisé ({max}).',
+      passkey_rejected: 'La clé d’accès a été refusée. Réessayez.',
+      invitation_invalid: 'Cette invitation n’est plus valable.',
+      reset_link_invalid: 'Ce lien n’est plus valable. Demandez-en un nouveau.',
+      passkeys_unavailable: 'Les clés d’accès ne sont pas disponibles sur cette installation.'
     },
     account: {
       display_name_required: 'Indiquez votre nom.',
@@ -62,7 +78,8 @@ export const fr = {
       id_document_back_required: 'Ajoutez le verso de votre pièce d’identité.',
       certification_required: 'Cochez la déclaration avant d’envoyer.',
       id_document_type: 'Ce type de pièce n’est pas accepté.',
-      rejection_code: 'Ce motif de refus n’existe pas.'
+      rejection_code: 'Ce motif de refus n’existe pas.',
+      not_pending: 'Cette ferme n’a pas de demande en cours.'
     },
     cycle: {
       invalid_transition: "Ce changement d'étape n'est pas possible.",
@@ -399,7 +416,19 @@ export const fr = {
     passwordStrengthLabel: 'Robustesse du mot de passe',
     passwordStrengthWeak: 'Faible',
     passwordStrengthMedium: 'Correct',
-    passwordStrengthStrong: 'Robuste'
+    passwordStrengthStrong: 'Robuste',
+    forgotLink: 'Mot de passe oublié ?',
+    mfaTitle: 'Vérification en deux étapes',
+    mfaIntro: 'Saisissez le code à 6 chiffres de votre application d’authentification.',
+    mfaRecoveryIntro: 'Saisissez l’un de vos codes de secours. Chaque code ne sert qu’une fois.',
+    mfaCodeLabel: 'Code de vérification',
+    mfaRecoveryLabel: 'Code de secours',
+    mfaSubmit: 'Vérifier',
+    mfaPasskey: 'Utiliser une clé d’accès',
+    mfaUseRecovery: 'Utiliser un code de secours',
+    mfaUseApp: 'Utiliser l’application',
+    mfaBack: 'Changer de compte',
+    mfaPasskeyCancelled: 'La clé d’accès n’a pas été présentée. Réessayez.'
   },
   checkout: {
     paymentFailedDetail: 'Votre réservation est enregistrée sans paiement : réessayez depuis Mes achats.',
@@ -1297,7 +1326,8 @@ export const fr = {
       adminBody: 'Modération, séquestre, utilisateurs',
       becomeTitle: 'Vendre mes animaux',
       becomeBody: 'Gratuit, en quelques minutes'
-    }
+    },
+    security: 'Sécurité et double authentification'
   },
   modeSwitch: {
     label: 'Acheter ou vendre',
@@ -1602,9 +1632,9 @@ export const fr = {
   adminStaff: {
     title: 'Équipe & rôles',
     subtitle: 'Qui fait partie de l’équipe, ce que chaque rôle peut faire, et la limite de fermes par compte.',
-    addMember: 'Ajouter un membre',
+    addMember: 'Inviter un membre',
     membersTitle: 'Membres · {count}',
-    membersHint: 'Un seul rôle par membre',
+    membersHint: 'Un seul rôle par membre · double authentification obligatoire',
     colMember: 'Membre',
     colRole: 'Rôle',
     colSince: 'Compte créé le',
@@ -1628,9 +1658,9 @@ export const fr = {
     exceptionBy: 'par {name}, le {date}',
     exceptionUsage: '{owned} / {limit} fermes',
     endException: 'Mettre fin',
-    grantTitle: 'Ajouter un membre',
-    grantBody: 'La personne doit déjà avoir un compte Betailo. Indiquez son e-mail et le rôle à lui donner. Un compte qui possède une ferme ne peut pas rejoindre l’équipe.',
-    grantConfirm: 'Donner le rôle',
+    grantTitle: 'Inviter un membre',
+    grantBody: 'La personne reçoit un lien par e-mail pour créer son compte ou rattacher le rôle à celui qu’elle a déjà. Le lien est valable 7 jours.',
+    grantConfirm: 'Envoyer l’invitation',
     changeTitle: 'Changer le rôle de {name}',
     changeConfirm: 'Enregistrer',
     emailLabel: 'E-mail du compte',
@@ -1657,7 +1687,21 @@ export const fr = {
     endTitle: 'Mettre fin à l’exception de {name} ?',
     endBody: 'Le compte revient à la limite par défaut ({default}). Ses fermes existantes sont conservées ; il ne pourra plus en créer au-delà.',
     colActivity: 'Dernière activité',
-    neverActive: 'aucune action'
+    neverActive: 'aucune action',
+    colMfa: 'Double auth.',
+    mfaOn: 'Activée',
+    mfaPending: 'En attente',
+    invitedBy: 'invité par {name}',
+    invitationSent: 'invitation envoyée',
+    invitationResend: 'Renvoyer l’invitation',
+    invitationCancelled: 'Invitation annulée',
+    invitationFailed: 'L’invitation n’a pas pu être envoyée',
+    invitationSentTitle: 'Invitation pour {email}',
+    invitationMailed: 'L’invitation est partie par e-mail. Vous pouvez aussi transmettre ce lien vous-même :',
+    invitationNotMailed: 'L’e-mail n’a pas pu être envoyé. Transmettez ce lien vous-même :',
+    invitationLinkOnce: 'Ce lien n’est affiché qu’une fois. « Renvoyer l’invitation » en crée un nouveau.',
+    invitationCopy: 'Copier le lien',
+    invitationCopied: 'Lien copié'
   },
   adminAudit: {
     title: 'Journal',
@@ -1761,6 +1805,87 @@ export const fr = {
     autoApproveWarning: 'À désactiver avant l’arrivée de vrais vendeurs : aucune ferme n’est vérifiée par l’équipe.',
     root: 'Compte racine',
     rootHint: 'Créé au démarrage. Il ne peut être ni rétrogradé ni suspendu.'
+  },
+
+  security: {
+    back: 'Mon compte',
+    title: 'Sécurité du compte',
+    intro: 'Ajoutez une deuxième étape à la connexion : en plus du mot de passe, un code de votre téléphone ou une clé d’accès.',
+    requiredTitle: 'Votre rôle demande une double authentification',
+    requiredBody: 'Configurez une application d’authentification ou une clé d’accès ci-dessous pour ouvrir le back-office.',
+    reloginTitle: 'Reconnectez-vous avec votre deuxième facteur',
+    reloginBody: 'Cette session a été ouverte sans lui. Le back-office demande une session vérifiée.',
+    reloginAction: 'Se reconnecter',
+    readyTitle: 'Votre session est vérifiée',
+    readyAction: 'Ouvrir le back-office',
+    on: 'Activée',
+    off: 'Non configurée',
+    totpTitle: 'Application d’authentification',
+    totpBody: 'Google Authenticator, Microsoft Authenticator, 1Password… L’application affiche un code qui change toutes les 30 secondes.',
+    totpSetup: 'Configurer l’application',
+    totpDisable: 'Retirer l’application',
+    totpStep1: '1. Scannez ce code avec votre application d’authentification.',
+    totpManual: 'Impossible de scanner ? Saisissez cette clé dans l’application :',
+    totpStep2: '2. Saisissez le code à 6 chiffres affiché',
+    totpConfirm: 'Activer',
+    totpEnabled: 'Application d’authentification activée',
+    totpDisabled: 'Application d’authentification retirée',
+    qrAlt: 'QR code à scanner avec l’application d’authentification',
+    passkeysTitle: 'Clés d’accès',
+    passkeysBody: 'Empreinte, visage, code de l’appareil ou clé de sécurité : rien à recopier, et impossible à hameçonner.',
+    passkeysUnsupported: 'Ce navigateur ne prend pas en charge les clés d’accès.',
+    passkeyCount: '{count} clés',
+    passkeyCount_one: '{count} clé',
+    passkeyName: 'Nom de la clé (facultatif)',
+    passkeyAdd: 'Ajouter une clé d’accès',
+    passkeyUnnamed: 'Clé d’accès',
+    passkeyAdded: 'ajoutée le {date}',
+    passkeyRemove: 'Retirer',
+    passkeyAddedToast: 'Clé d’accès ajoutée',
+    passkeyRemoved: 'Clé d’accès retirée',
+    passkeyCancelled: 'La clé d’accès n’a pas été créée',
+    recoveryTitle: 'Codes de secours',
+    recoveryLeft: '{count} codes restants. Chacun remplace votre deuxième facteur une fois.',
+    recoveryLeft_one: '{count} code restant. Générez-en de nouveaux.',
+    recoveryNew: 'Générer de nouveaux codes',
+    codesTitle: 'Vos codes de secours',
+    codesBody: 'Conservez-les à l’abri : ils ne seront plus affichés. Chacun permet de vous connecter une fois si vous perdez votre téléphone.',
+    codesCopy: 'Copier',
+    codesCopied: 'Codes copiés',
+    codesDone: 'Je les ai notés',
+    passwordTitle: 'Confirmez avec votre mot de passe',
+    passwordConfirm: 'Confirmer',
+    passwordBody: {
+      disableTotp: 'L’application d’authentification ne sera plus demandée à la connexion.',
+      removePasskey: 'Cette clé d’accès ne pourra plus servir à vous connecter.',
+      recoveryCodes: 'Les codes actuels cesseront de fonctionner.'
+    },
+    failed: 'L’opération a échoué',
+    passkeysUnavailable: 'Les clés d’accès ne sont pas disponibles sur cette installation.'
+  },
+
+  invitation: {
+    title: 'Rejoindre l’équipe Betailo',
+    for: 'Invitation pour {email}',
+    existing: 'Un compte existe déjà avec cette adresse. Saisissez son mot de passe pour accepter, puis connectez-vous.',
+    newPassword: 'Choisissez un mot de passe (8 caractères minimum)',
+    accept: 'Accepter l’invitation',
+    goneTitle: 'Invitation expirée',
+    goneBody: 'Ce lien n’est plus valable. Demandez à la personne qui vous a invité de vous en renvoyer un.'
+  },
+
+  passwordReset: {
+    title: 'Mot de passe oublié',
+    intro: 'Saisissez l’adresse de votre compte. Si elle est connue, nous y envoyons un lien pour choisir un nouveau mot de passe.',
+    submit: 'Envoyer le lien',
+    sentTitle: 'Vérifiez votre boîte de réception',
+    sentBody: 'Si un compte existe avec cette adresse, un lien vient d’y être envoyé. Il est valable 1 heure.',
+    newTitle: 'Nouveau mot de passe',
+    newLabel: 'Nouveau mot de passe (8 caractères minimum)',
+    newSubmit: 'Enregistrer',
+    changedTitle: 'Mot de passe modifié',
+    changedBody: 'Toutes vos sessions ont été fermées. Connectez-vous avec le nouveau mot de passe.',
+    backToLogin: 'Retour à la connexion'
   }
 } as const;
 

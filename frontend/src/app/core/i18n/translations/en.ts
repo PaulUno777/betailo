@@ -26,7 +26,12 @@ export const en: TranslationDictionary = {
       staff_needs_super_admin: 'Only a super admin acts on a team account.',
       staff_role_unknown: 'This role does not exist.',
       last_super_admin: 'At least one super admin must remain.',
-      staff_owns_farm: 'This account owns a farm: it can’t join the team.'
+      staff_owns_farm: 'This account owns a farm: it can’t join the team.',
+      mfa_required: 'The back office requires two-step verification.',
+      staff_already_member: 'This person is already on the team.',
+      report_note_too_long: 'The note is too long (1000 characters at most).',
+      report_needs_listing: 'This decision only applies to a report on a listing.',
+      report_farm_not_approved: 'Only an approved farm can be sent back for verification.'
     },
     network: 'No connection. Check your network and try again.',
     server: 'Something went wrong on our side. Try again in a moment.',
@@ -42,7 +47,18 @@ export const en: TranslationDictionary = {
       email_invalid: 'Enter a valid email address.',
       password_too_short: 'The password needs at least {min} characters.',
       password_unchanged: 'The new password must differ from the current one.',
-      current_password_wrong: 'The current password is wrong.'
+      current_password_wrong: 'The current password is wrong.',
+      mfa_code_invalid: 'Wrong code.',
+      mfa_challenge_expired: 'This step has expired. Sign in again.',
+      mfa_totp_already_set: 'An app is already set up.',
+      mfa_totp_not_pending: 'No setup in progress. Start again.',
+      mfa_not_enabled: 'No two-step verification is set up.',
+      mfa_no_passkey: 'This account has no passkey.',
+      passkey_limit: 'You have reached the number of passkeys allowed ({max}).',
+      passkey_rejected: 'The passkey was refused. Try again.',
+      invitation_invalid: 'This invitation is no longer valid.',
+      reset_link_invalid: 'This link is no longer valid. Ask for a new one.',
+      passkeys_unavailable: 'Passkeys are not available on this installation.'
     },
     account: {
       display_name_required: 'Enter your name.',
@@ -64,7 +80,8 @@ export const en: TranslationDictionary = {
       id_document_back_required: 'Add the back of your identity document.',
       certification_required: 'Tick the declaration before sending.',
       id_document_type: 'This kind of document is not accepted.',
-      rejection_code: 'This refusal reason does not exist.'
+      rejection_code: 'This refusal reason does not exist.',
+      not_pending: 'This farm has no request in progress.'
     },
     cycle: {
       invalid_transition: "This step change isn't possible.",
@@ -401,7 +418,19 @@ export const en: TranslationDictionary = {
     passwordStrengthLabel: 'Password strength',
     passwordStrengthWeak: 'Weak',
     passwordStrengthMedium: 'Okay',
-    passwordStrengthStrong: 'Strong'
+    passwordStrengthStrong: 'Strong',
+    forgotLink: 'Forgot password?',
+    mfaTitle: 'Two-step verification',
+    mfaIntro: 'Enter the 6-digit code from your authenticator app.',
+    mfaRecoveryIntro: 'Enter one of your recovery codes. Each code works once.',
+    mfaCodeLabel: 'Verification code',
+    mfaRecoveryLabel: 'Recovery code',
+    mfaSubmit: 'Verify',
+    mfaPasskey: 'Use a passkey',
+    mfaUseRecovery: 'Use a recovery code',
+    mfaUseApp: 'Use the app',
+    mfaBack: 'Use another account',
+    mfaPasskeyCancelled: 'No passkey was presented. Try again.'
   },
   checkout: {
     paymentFailedDetail: 'Your reservation is saved unpaid: try again from My purchases.',
@@ -1298,7 +1327,8 @@ export const en: TranslationDictionary = {
       adminBody: 'Moderation, escrow, users',
       becomeTitle: 'Sell my animals',
       becomeBody: 'Free, in a few minutes'
-    }
+    },
+    security: 'Security and two-step verification'
   },
   modeSwitch: {
     label: 'Buy or sell',
@@ -1603,9 +1633,9 @@ export const en: TranslationDictionary = {
   adminStaff: {
     title: 'Team & roles',
     subtitle: 'Who is on the team, what each role may do, and the farm limit per account.',
-    addMember: 'Add a member',
+    addMember: 'Invite a member',
     membersTitle: 'Members · {count}',
-    membersHint: 'One role per member',
+    membersHint: 'One role per member · two-step verification required',
     colMember: 'Member',
     colRole: 'Role',
     colSince: 'Account created',
@@ -1629,9 +1659,9 @@ export const en: TranslationDictionary = {
     exceptionBy: 'by {name}, on {date}',
     exceptionUsage: '{owned} / {limit} farms',
     endException: 'End it',
-    grantTitle: 'Add a member',
-    grantBody: 'The person must already have a Betailo account. Enter their email and the role to give them. An account that owns a farm can’t join the team.',
-    grantConfirm: 'Give the role',
+    grantTitle: 'Invite a member',
+    grantBody: 'The person gets a link by e-mail to create their account, or attach the role to the one they already have. The link is valid for 7 days.',
+    grantConfirm: 'Send the invitation',
     changeTitle: 'Change {name}’s role',
     changeConfirm: 'Save',
     emailLabel: 'Account email',
@@ -1658,7 +1688,21 @@ export const en: TranslationDictionary = {
     endTitle: 'End {name}’s exception?',
     endBody: 'The account goes back to the default limit ({default}). Its existing farms are kept; it can’t open more beyond that.',
     colActivity: 'Last activity',
-    neverActive: 'no action yet'
+    neverActive: 'no action yet',
+    colMfa: 'Two-step',
+    mfaOn: 'On',
+    mfaPending: 'Pending',
+    invitedBy: 'invited by {name}',
+    invitationSent: 'invitation sent',
+    invitationResend: 'Resend the invitation',
+    invitationCancelled: 'Invitation cancelled',
+    invitationFailed: 'The invitation could not be sent',
+    invitationSentTitle: 'Invitation for {email}',
+    invitationMailed: 'The invitation went out by e-mail. You can also pass this link on yourself:',
+    invitationNotMailed: 'The e-mail could not be sent. Pass this link on yourself:',
+    invitationLinkOnce: 'This link is shown only once. “Resend the invitation” creates a new one.',
+    invitationCopy: 'Copy the link',
+    invitationCopied: 'Link copied'
   },
   adminAudit: {
     title: 'Journal',
@@ -1763,5 +1807,86 @@ export const en: TranslationDictionary = {
     autoApproveWarning: 'Turn off before real sellers arrive: no farm is checked by the team.',
     root: 'Root account',
     rootHint: 'Created at startup. It can be neither demoted nor suspended.'
+  },
+
+  security: {
+    back: 'My account',
+    title: 'Account security',
+    intro: 'Add a second step to signing in: besides the password, a code from your phone or a passkey.',
+    requiredTitle: 'Your role requires two-step verification',
+    requiredBody: 'Set up an authenticator app or a passkey below to open the back office.',
+    reloginTitle: 'Sign in again with your second factor',
+    reloginBody: 'This session was opened without it. The back office asks for a verified session.',
+    reloginAction: 'Sign in again',
+    readyTitle: 'Your session is verified',
+    readyAction: 'Open the back office',
+    on: 'On',
+    off: 'Not set up',
+    totpTitle: 'Authenticator app',
+    totpBody: 'Google Authenticator, Microsoft Authenticator, 1Password… The app shows a code that changes every 30 seconds.',
+    totpSetup: 'Set up the app',
+    totpDisable: 'Remove the app',
+    totpStep1: '1. Scan this code with your authenticator app.',
+    totpManual: 'Can’t scan? Type this key into the app:',
+    totpStep2: '2. Enter the 6-digit code it shows',
+    totpConfirm: 'Turn on',
+    totpEnabled: 'Authenticator app turned on',
+    totpDisabled: 'Authenticator app removed',
+    qrAlt: 'QR code to scan with the authenticator app',
+    passkeysTitle: 'Passkeys',
+    passkeysBody: 'Fingerprint, face, device PIN or a security key: nothing to type, and it cannot be phished.',
+    passkeysUnsupported: 'This browser does not support passkeys.',
+    passkeyCount: '{count} keys',
+    passkeyCount_one: '{count} key',
+    passkeyName: 'Key name (optional)',
+    passkeyAdd: 'Add a passkey',
+    passkeyUnnamed: 'Passkey',
+    passkeyAdded: 'added on {date}',
+    passkeyRemove: 'Remove',
+    passkeyAddedToast: 'Passkey added',
+    passkeyRemoved: 'Passkey removed',
+    passkeyCancelled: 'The passkey was not created',
+    recoveryTitle: 'Recovery codes',
+    recoveryLeft: '{count} codes left. Each replaces your second factor once.',
+    recoveryLeft_one: '{count} code left. Generate new ones.',
+    recoveryNew: 'Generate new codes',
+    codesTitle: 'Your recovery codes',
+    codesBody: 'Keep them somewhere safe: they will not be shown again. Each lets you sign in once if you lose your phone.',
+    codesCopy: 'Copy',
+    codesCopied: 'Codes copied',
+    codesDone: 'I have saved them',
+    passwordTitle: 'Confirm with your password',
+    passwordConfirm: 'Confirm',
+    passwordBody: {
+      disableTotp: 'The authenticator app will no longer be asked for at sign-in.',
+      removePasskey: 'This passkey will no longer sign you in.',
+      recoveryCodes: 'The current codes will stop working.'
+    },
+    failed: 'That did not work',
+    passkeysUnavailable: 'Passkeys are not available on this installation.'
+  },
+
+  invitation: {
+    title: 'Join the Betailo team',
+    for: 'Invitation for {email}',
+    existing: 'An account already exists with this address. Enter its password to accept, then sign in.',
+    newPassword: 'Choose a password (8 characters or more)',
+    accept: 'Accept the invitation',
+    goneTitle: 'Invitation expired',
+    goneBody: 'This link is no longer valid. Ask the person who invited you to send a new one.'
+  },
+
+  passwordReset: {
+    title: 'Forgot your password',
+    intro: 'Enter your account’s address. If we know it, we send a link there to choose a new password.',
+    submit: 'Send the link',
+    sentTitle: 'Check your inbox',
+    sentBody: 'If an account exists with this address, a link has just been sent there. It is valid for 1 hour.',
+    newTitle: 'New password',
+    newLabel: 'New password (8 characters or more)',
+    newSubmit: 'Save',
+    changedTitle: 'Password changed',
+    changedBody: 'All your sessions were ended. Sign in with the new password.',
+    backToLogin: 'Back to sign in'
   }
 };

@@ -149,6 +149,15 @@ func (f *fakeRefreshTokenRepo) RevokeFamily(_ context.Context, familyID bson.Obj
 	return nil
 }
 
+func (f *fakeRefreshTokenRepo) SetMFA(_ context.Context, id bson.ObjectID) error {
+	for _, t := range f.byHash {
+		if t.ID == id {
+			t.MFA = true
+		}
+	}
+	return nil
+}
+
 func (f *fakeRefreshTokenRepo) RevokeAllForUser(_ context.Context, userID bson.ObjectID, reason string, revokedAt time.Time) error {
 	for _, t := range f.byHash {
 		if t.UserID == userID && t.RevokedAt == nil {

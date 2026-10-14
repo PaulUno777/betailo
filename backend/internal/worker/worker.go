@@ -11,6 +11,7 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
@@ -34,6 +35,20 @@ type Worker struct {
 	Clock         ports.Clock
 	Logger        *slog.Logger
 	Interval      time.Duration
+	// Users and Mailer, when both set, also e-mail the notifications
+	// that matter away from the app (see mailed); PublicURL makes their
+	// links absolute.
+	Users     ports.UserRepository
+	Mailer    ports.Mailer
+	PublicURL string
+}
+
+// mailed are the notification types also sent by e-mail, with their
+// subject: decisions a person waits for without the app open.
+var mailed = map[string]string{
+	domain.NotifFarmApproved:  "Votre ferme est approuvée",
+	domain.NotifFarmRejected:  "Votre ferme : une correction est demandée",
+	domain.NotifFarmSuspended: "Votre ferme est suspendue",
 }
 
 // Run blocks, ticking until ctx is cancelled — call it in its own
@@ -122,9 +137,30 @@ func (w *Worker) drainNotifications(ctx context.Context) error {
 	for _, n := range pending {
 		w.Logger.Info("notification",
 			slog.String("userId", n.UserID.Hex()), slog.String("type", n.Type), slog.String("message", n.Message))
+		w.mail(ctx, n)
 		if err := w.Notifications.MarkSent(ctx, n.ID, w.Clock.Now()); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// mail sends n by e-mail when its type calls for it. Best effort: the
+// in-app notification is the record; a mail that could not go is logged.
+func (w *Worker) mail(ctx context.Context, n *domain.Notification) {
+	subject, ok := mailed[n.Type]
+	if !ok || w.Mailer == nil || w.Users == nil {
+		return
+	}
+	u, err := w.Users.FindByID(ctx, n.UserID)
+	if err != nil || u.Suspended {
+		return
+	}
+	text := "Bonjour,\n\n" + n.Message + "\n"
+	if n.Link != "" && w.PublicURL != "" {
+		text += "\n" + strings.TrimRight(w.PublicURL, "/") + n.Link + "\n"
+	}
+	if err := w.Mailer.Send(ctx, ports.Mail{To: u.Email, Subject: subject + " · Betailo", Text: text}); err != nil {
+		w.Logger.Error("worker: notification mail not sent", slog.String("type", n.Type), slog.Any("err", err))
+	}
 }

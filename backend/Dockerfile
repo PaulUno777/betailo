@@ -3,7 +3,7 @@
 # directory needs to be copied into the final image — the $jsonSchema
 # validators are embedded into the binary itself (see backend/schemas).
 
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

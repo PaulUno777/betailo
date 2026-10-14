@@ -33,6 +33,12 @@ type Dependencies struct {
 	// (nil: the role in the token).
 	StaffRoles StaffRoleSource
 	Cookies    CookieConfig
+	// StaffMFARequired refuses back-office requests from a session that
+	// did not pass a second factor.
+	StaffMFARequired bool
+	SecondFactor     *auth.SecondFactor
+	StaffInvitations *auth.StaffInvitations
+	PasswordReset    *auth.PasswordReset
 
 	GetProfile     *account.GetProfile
 	UpdateProfile  *account.UpdateProfile

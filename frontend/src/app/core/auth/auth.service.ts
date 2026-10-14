@@ -83,6 +83,12 @@ export class AuthService {
   /** Called by `refreshInterceptor`/the bootstrap initializer once a
    * silent refresh succeeds — only the access token changes; `user`
    * is left as whatever the last login or refresh already set. */
+  /** Swaps in an access token the API issued for this same session (it
+   * just passed, or set up, a second factor). */
+  useAccessToken(accessToken: string): void {
+    this.setAccessToken(accessToken);
+  }
+
   private setAccessToken(accessToken: string): void {
     this.tokenSignal.set(accessToken);
   }

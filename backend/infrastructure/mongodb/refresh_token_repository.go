@@ -23,6 +23,7 @@ type refreshTokenDoc struct {
 	IssuedAt      time.Time      `bson:"issuedAt"`
 	ExpiresAt     time.Time      `bson:"expiresAt"`
 	Persistent    bool           `bson:"persistent"`
+	MFA           bool           `bson:"mfa,omitempty"`
 	RevokedAt     *time.Time     `bson:"revokedAt,omitempty"`
 	RevokedReason string         `bson:"revokedReason,omitempty"`
 	ReplacedBy    *bson.ObjectID `bson:"replacedBy,omitempty"`
@@ -37,6 +38,7 @@ func fromPortRefreshToken(t *ports.RefreshToken) refreshTokenDoc {
 		IssuedAt:      t.IssuedAt,
 		ExpiresAt:     t.ExpiresAt,
 		Persistent:    t.Persistent,
+		MFA:           t.MFA,
 		RevokedAt:     t.RevokedAt,
 		RevokedReason: t.RevokedReason,
 		ReplacedBy:    t.ReplacedBy,
@@ -52,6 +54,7 @@ func (d refreshTokenDoc) toPort() *ports.RefreshToken {
 		IssuedAt:      d.IssuedAt,
 		ExpiresAt:     d.ExpiresAt,
 		Persistent:    d.Persistent,
+		MFA:           d.MFA,
 		RevokedAt:     d.RevokedAt,
 		RevokedReason: d.RevokedReason,
 		ReplacedBy:    d.ReplacedBy,
@@ -142,5 +145,11 @@ func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID bs
 		bson.M{"userId": userID, "revokedAt": nil},
 		bson.M{"$set": bson.M{"revokedAt": revokedAt, "revokedReason": reason}},
 	)
+	return err
+}
+
+// SetMFA implements ports.RefreshTokenRepository.
+func (r *RefreshTokenRepository) SetMFA(ctx context.Context, id bson.ObjectID) error {
+	_, err := r.Coll.UpdateOne(ctx, bson.M{"_id": id, "revokedAt": bson.M{"$exists": false}}, bson.M{"$set": bson.M{"mfa": true}})
 	return err
 }

@@ -32,6 +32,25 @@ export const routes: Routes = [
         canActivate: [guestGuard]
       },
       {
+        path: 'forgot-password',
+        loadComponent: () => import('./features/auth/password-reset.component').then((m) => m.PasswordResetComponent),
+        canActivate: [guestGuard]
+      },
+      {
+        path: 'reset-password/:token',
+        loadComponent: () => import('./features/auth/password-reset.component').then((m) => m.PasswordResetComponent)
+      },
+      {
+        // A staff invitation's link. Open to anyone holding it.
+        path: 'invitation/:token',
+        loadComponent: () => import('./features/auth/invitation.component').then((m) => m.InvitationComponent)
+      },
+      {
+        path: 'account/security',
+        loadComponent: () => import('./features/account/security.component').then((m) => m.AccountSecurityComponent),
+        canActivate: [authGuard]
+      },
+      {
         path: 'forum',
         loadComponent: () => import('./features/forum/forum-list.component').then((m) => m.ForumListComponent)
       },

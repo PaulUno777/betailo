@@ -10,6 +10,7 @@
     "persistent": { "bsonType": "bool" },
     "revokedAt": { "bsonType": "date" },
     "revokedReason": { "bsonType": "string" },
-    "replacedBy": { "bsonType": "objectId" }
+    "replacedBy": { "bsonType": "objectId" },
+    "mfa": { "bsonType": "bool" }
   }
 }

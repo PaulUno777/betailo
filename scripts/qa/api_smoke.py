@@ -22,7 +22,8 @@ expects MAX_FARMS_PER_ACCOUNT=1 and FARM_AUTO_APPROVE=false:
 Run it with scripts/qa/run_smoke.sh, which starts the stack with those
 settings.
 """
-import json, os, sys, time, uuid, urllib.request, urllib.error, http.cookiejar, datetime
+import json
+import os, os, sys, time, uuid, urllib.request, urllib.error, http.cookiejar, datetime
 
 BASE = os.environ.get("QA_API", "http://localhost:8080").rstrip("/")
 CREDS = {"ADMIN": os.environ["QA_ADMIN_EMAIL"], "PW": os.environ["QA_ADMIN_PASSWORD"]}
@@ -560,6 +561,120 @@ check("M09", "Farmer", "The owner is asked for a new identity document", "reject
       asked.get("status") == "rejected" and (asked.get("review") or {}).get("rejectionCode") == "reverification" and (asked.get("review") or {}).get("toRedo") == ["id_document"], f"status={asked.get('status')} review={asked.get('review')}")
 s, b = rep1.call("PUT", f"/admin/reports/{mod_report}/note", {"note": "x"})
 check("M10", "Buyer", "An ordinary account writing a staff note", "403", s == 403, f"{s}")
+
+# ---------------- Staff access: invitations, second factor, password reset ----------------
+import base64, hashlib, hmac, struct
+
+
+def totp_now(secret, at=None):
+    """The 6-digit RFC 6238 code an authenticator app would show."""
+    key = base64.b32decode(secret + "=" * (-len(secret) % 8), casefold=True)
+    counter = int((at or time.time()) // 30)
+    digest = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    return str((struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF) % 1000000).zfill(6)
+
+
+def mailpit_text(to):
+    """The newest e-mail the API sent to an address, from the local inbox."""
+    try:
+        with urllib.request.urlopen(f"{MAILPIT}/api/v1/search?query=to:{to}", timeout=10) as r:
+            found = json.loads(r.read()).get("messages") or []
+        if not found:
+            return ""
+        with urllib.request.urlopen(f"{MAILPIT}/api/v1/message/{found[0]['ID']}", timeout=10) as r:
+            return json.loads(r.read()).get("Text", "")
+    except Exception as e:
+        return f"(inbox unreachable: {e!r})"
+
+
+MAILPIT = os.environ.get("QA_MAILPIT", "http://localhost:8025")
+
+sec, _, _ = register("buyer", "Double Facteur")
+s, b = sec.call("POST", "/me/mfa/totp/setup")
+secret = (b or {}).get("secret", "")
+check("X01", "Account", "Start setting up an authenticator app", "200 secret, otpauth URL, QR image", s == 200 and secret and str(b.get("url", "")).startswith("otpauth://") and str(b.get("qr", "")).startswith("data:image/png;base64,"), f"{s}")
+s, b = sec.call("POST", "/me/mfa/totp/confirm", {"code": "000000"})
+check("X02", "Account", "Confirm with a wrong code", "401 code auth.mfa_code_invalid", s == 401 and (b or {}).get("code") == "auth.mfa_code_invalid", f"{s} {b}")
+s, b = sec.call("POST", "/me/mfa/totp/confirm", {"code": totp_now(secret)})
+codes = (b or {}).get("recoveryCodes") or []
+check("X03", "Account", "Confirm the authenticator app", "200, 10 recovery codes, a new access token", s == 200 and len(codes) == 10 and b.get("accessToken") and b["status"]["totp"] is True, f"{s} codes={len(codes)}")
+sec.token = (b or {}).get("accessToken") or sec.token
+s, b = sec.call("GET", "/me/mfa")
+check("X04", "Account", "The session that set the factor up counts as verified", "enabled, sessionVerified", s == 200 and b.get("enabled") is True and b.get("sessionVerified") is True, f"{s} {b}")
+second = Client()
+s, b = second.call("POST", "/auth/login", {"email": sec.email, "password": sec.pw, "remember": True}, token=False)
+mfa_token = (b or {}).get("mfaToken")
+check("X05", "Account", "A right password no longer opens a session by itself", "200 mfaRequired, no access token", s == 200 and (b or {}).get("mfaRequired") is True and mfa_token and "accessToken" not in b and "totp" in b.get("methods", []), f"{s} {str(b)[:120]}")
+s, b = second.call("POST", "/auth/mfa/verify", {"mfaToken": mfa_token, "code": "000000"}, token=False)
+check("X06", "Account", "Second step with a wrong code", "401", s == 401, f"{s} {b}")
+s, b = second.call("POST", "/auth/mfa/verify", {"mfaToken": mfa_token, "code": totp_now(secret)}, token=False)
+check("X07", "Account", "Second step with the app's code", "200 access token", s == 200 and (b or {}).get("accessToken"), f"{s} {str(b)[:100]}")
+s, b = second.call("POST", "/auth/mfa/verify", {"mfaToken": mfa_token, "code": totp_now(secret)}, token=False)
+check("X08", "Account", "A finished second step cannot be replayed", "401", s == 401, f"{s}")
+for attempt, want in ((1, 200), (2, 401)):
+    s, b = second.call("POST", "/auth/login", {"email": sec.email, "password": sec.pw}, token=False)
+    s, b = second.call("POST", "/auth/mfa/verify", {"mfaToken": (b or {}).get("mfaToken"), "recoveryCode": codes[0].lower()}, token=False)
+    check(f"X09.{attempt}", "Account", f"Recovery code, use {attempt}", str(want), s == want, f"{s}")
+s, b = sec.call("POST", "/me/mfa/totp/disable", {"password": "not-the-password"})
+check("X10", "Account", "Remove the factor with a wrong password", "401", s == 401, f"{s}")
+s, b = sec.call("POST", "/me/mfa/totp/disable", {"password": sec.pw})
+check("X11", "Account", "Remove the authenticator app", "200 disabled, no code left", s == 200 and b.get("enabled") is False and b.get("recoveryCodes") == 0, f"{s} {b}")
+s, b = sec.call("POST", "/me/mfa/passkeys/options")
+check("X12", "Account", "Start registering a passkey", "200 options with a challenge and a flow token", s == 200 and (b or {}).get("flowToken") and b["options"]["publicKey"].get("challenge"), f"{s}")
+
+invited = f"qa-invited-{uuid.uuid4().hex[:8]}@betailo.test"
+s, b = sec.call("POST", "/admin/staff/invitations", {"email": invited, "role": "support"})
+check("X20", "Account", "An ordinary account inviting staff", "403", s == 403, f"{s}")
+s, b = adm.call("POST", "/admin/staff/invitations", {"email": invited, "role": "support"})
+link = (b or {}).get("link", "")
+inv_id = (b or {}).get("id")
+check("X21", "Staff", "Invite a member by e-mail", "201 with a one-time link, e-mailed", s == 201 and "/invitation/" in link and b.get("mailed") is True, f"{s} {str(b)[:160]}")
+check("X22", "Staff", "The invitation e-mail carries the link", "the same link in the inbox", link != "" and link in mailpit_text(invited), mailpit_text(invited)[:120])
+s, b = adm.call("GET", "/admin/staff")
+check("X23", "Staff", "Pending invitations are listed with the team, without their link", "the address, no link", s == 200 and any(i.get("email") == invited and not i.get("link") for i in b.get("invitations", [])), f"{s}")
+s, b = adm.call("POST", f"/admin/staff/invitations/{inv_id}/resend")
+old_link, link = link, (b or {}).get("link", "")
+check("X24", "Staff", "Resend an invitation", "200 with a new link", s == 200 and link and link != old_link, f"{s}")
+s, b = g.call("GET", "/auth/invitations/" + old_link.rsplit("/", 1)[-1], token=False)
+check("X25", "Guest", "The replaced link is dead", "404 code auth.invitation_invalid", s == 404 and (b or {}).get("code") == "auth.invitation_invalid", f"{s} {b}")
+inv_token = link.rsplit("/", 1)[-1]
+s, b = g.call("GET", "/auth/invitations/" + inv_token, token=False)
+check("X26", "Guest", "Open an invitation", "200 address, role, no account yet", s == 200 and b.get("email") == invited and b.get("role") == "support" and b.get("accountExists") is False, f"{s} {b}")
+member = Client()
+s, b = member.call("POST", "/auth/invitations/accept", {"token": inv_token, "displayName": "Kevin Invité", "password": "short"}, token=False)
+check("X27", "Guest", "Accept with a password too short", "400", s == 400, f"{s}")
+s, b = member.call("POST", "/auth/invitations/accept", {"token": inv_token, "displayName": "Kevin Invité", "password": "Qa-invited-pass-1"}, token=False)
+member.token = (b or {}).get("accessToken")
+check("X28", "Guest", "Accept an invitation: the account is created with its role and signed in", "200 access token, staffRole=support", s == 200 and member.token and (b.get("user") or {}).get("staffRole") == "support", f"{s} {str(b)[:140]}")
+s, b = member.call("GET", "/admin/overview")
+check("X29", "Staff", "The invited member reaches the back office", "200", s == 200, f"{s}")
+s, b = member.call("POST", "/auth/invitations/accept", {"token": inv_token, "password": "Qa-invited-pass-1"}, token=False)
+check("X30", "Guest", "An invitation works once", "404", s == 404, f"{s}")
+s, b = adm.call("POST", "/admin/staff/invitations", {"email": invited, "role": "finance"})
+check("X31", "Staff", "Invite someone already on the staff", "409 code admin.staff_already_member", s == 409 and (b or {}).get("code") == "admin.staff_already_member", f"{s} {b}")
+other = f"qa-invited-{uuid.uuid4().hex[:8]}@betailo.test"
+s, b = adm.call("POST", "/admin/staff/invitations", {"email": other, "role": "moderator"})
+cancel_link, cancel_id = (b or {}).get("link", ""), (b or {}).get("id")
+s, b = adm.call("DELETE", f"/admin/staff/invitations/{cancel_id}")
+s2, b2 = g.call("GET", "/auth/invitations/" + cancel_link.rsplit("/", 1)[-1], token=False)
+check("X32", "Staff", "Cancel an invitation", "204, then its link is dead", s == 204 and s2 == 404, f"{s} {s2}")
+
+s, b = g.call("POST", "/auth/password/forgot", {"email": "nobody-" + uuid.uuid4().hex[:6] + "@betailo.test"}, token=False)
+s2, b2 = g.call("POST", "/auth/password/forgot", {"email": sec.email}, token=False)
+check("X40", "Guest", "Asking for a reset link answers the same for any address", "202 and 202", s == 202 and s2 == 202, f"{s} {s2}")
+mail = mailpit_text(sec.email)
+reset_token = mail.split("/reset-password/")[1].split()[0] if "/reset-password/" in mail else ""
+check("X41", "Guest", "The reset link is e-mailed to the account", "a link in the inbox", bool(reset_token), mail[:120])
+s, b = g.call("POST", "/auth/password/reset", {"token": reset_token, "password": "short"}, token=False)
+check("X42", "Guest", "Reset with a password too short", "400", s == 400, f"{s}")
+s, b = g.call("POST", "/auth/password/reset", {"token": reset_token, "password": "Qa-reset-pass-2"}, token=False)
+check("X43", "Guest", "Choose a new password from the link", "204", s == 204, f"{s} {b}")
+s, b = g.call("POST", "/auth/login", {"email": sec.email, "password": sec.pw}, token=False)
+s2, b2 = g.call("POST", "/auth/login", {"email": sec.email, "password": "Qa-reset-pass-2"}, token=False)
+check("X44", "Guest", "The old password is out, the new one works", "401 then 200", s == 401 and s2 == 200, f"{s} {s2}")
+s, b = g.call("POST", "/auth/password/reset", {"token": reset_token, "password": "Qa-reset-pass-3"}, token=False)
+check("X45", "Guest", "A reset link works once", "404 code auth.reset_link_invalid", s == 404 and (b or {}).get("code") == "auth.reset_link_invalid", f"{s} {b}")
 
 failed = [r for r in RESULTS if not r["ok"]]
 print(f"\n{len(RESULTS) - len(failed)}/{len(RESULTS)} passed")

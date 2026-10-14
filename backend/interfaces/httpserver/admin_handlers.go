@@ -11,6 +11,7 @@ import (
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
+	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/domain"
@@ -114,6 +115,9 @@ type adminUserResponse struct {
 	MemberSince   time.Time              `json:"memberSince"`
 	// LastActiveAt is a staff member's latest line in the journal.
 	LastActiveAt *time.Time `json:"lastActiveAt,omitempty"`
+	// MFAEnabled: the account has a second factor. Only set on the
+	// team page.
+	MFAEnabled bool `json:"mfaEnabled"`
 }
 
 func toAdminUserResponse(u *domain.User, farmCount int) adminUserResponse {
@@ -782,6 +786,8 @@ type staffRoleResponse struct {
 
 type staffResponse struct {
 	Members []adminUserResponse `json:"members"`
+	// Invitations are the ones still waiting to be accepted.
+	Invitations []invitationResponse `json:"invitations"`
 	// Roles is the permission table as the API enforces it, and
 	// Permissions every permission in display order: the client draws
 	// the matrix from these, it doesn't keep its own copy.
@@ -793,7 +799,7 @@ type staffResponse struct {
 // each staff member last acted.
 const staffActivityWindow = 500
 
-func handleAdminListStaff(uc *admin.ListStaff, audit *admin.ListAudit) http.HandlerFunc {
+func handleAdminListStaff(uc *admin.ListStaff, audit *admin.ListAudit, invitations *auth.StaffInvitations) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		members, err := uc.Execute(r.Context())
 		if err != nil {
@@ -816,7 +822,21 @@ func handleAdminListStaff(uc *admin.ListStaff, audit *admin.ListAudit) http.Hand
 			if at, ok := lastActive[m.ID]; ok {
 				row.LastActiveAt = &at
 			}
+			row.MFAEnabled = m.MFA.Enabled()
 			out.Members = append(out.Members, row)
+		}
+		out.Invitations = []invitationResponse{}
+		if invitations != nil {
+			pending, err := invitations.List(r.Context())
+			if err != nil {
+				writeError(w, err)
+				return
+			}
+			for _, inv := range pending {
+				row := toInvitationResponse(inv.Token)
+				row.InviterName = inv.InviterName
+				out.Invitations = append(out.Invitations, row)
+			}
 		}
 		for _, role := range domain.StaffRoles {
 			perms := []string{}

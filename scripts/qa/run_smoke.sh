@@ -14,6 +14,9 @@ ADMIN_PASSWORD="${QA_ADMIN_PASSWORD:-Qa-admin-smoke-2026}"
 export SUPER_ADMIN_EMAIL="$ADMIN_EMAIL" SUPER_ADMIN_PASSWORD="$ADMIN_PASSWORD"
 # The limits the smoke test checks against, whatever the shell has set.
 export MAX_FARMS_PER_ACCOUNT=1 FARM_AUTO_APPROVE=false
+# The smoke test signs staff in with a password alone; the second factor
+# has its own checks, on an account that sets one up.
+export STAFF_MFA_REQUIRED=false
 
 docker compose up -d --build mongo seaweedfs backend
 

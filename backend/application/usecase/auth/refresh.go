@@ -117,6 +117,7 @@ func (uc *RefreshToken) Execute(ctx context.Context, in RefreshTokenInput) (*Ref
 		UserID:    user.ID,
 		Email:     user.Email,
 		StaffRole: user.StaffRole,
+		MFA:       stored.MFA,
 		ExpiresAt: now.Add(accessTTL),
 	})
 	if err != nil {
@@ -135,6 +136,7 @@ func (uc *RefreshToken) Execute(ctx context.Context, in RefreshTokenInput) (*Ref
 		TokenHash:  hashRefreshToken(rawRefresh),
 		IssuedAt:   now,
 		ExpiresAt:  refreshExpiresAt,
+		MFA:        stored.MFA,
 		Persistent: stored.Persistent, // carried through the chain — see ports.RefreshToken's comment
 	}
 	if err := uc.RefreshTokens.Rotate(ctx, stored.ID, next); err != nil {

@@ -98,7 +98,11 @@ type actorContextKey struct{}
 // naming the permission and the roles that hold it, so the client can
 // say who to ask. A valid token without the permission is a 403, never
 // the 401 an invalid token gets.
-func RequirePermission(roles StaffRoleSource, p domain.Permission) func(http.Handler) http.Handler {
+//
+// With mfaRequired, a staff session that did not pass a second factor
+// is refused with admin.mfa_required whatever its role: the client
+// sends the member to set one up, or to sign in again with it.
+func RequirePermission(roles StaffRoleSource, p domain.Permission, mfaRequired bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, ok := ClaimsFromContext(r.Context())
@@ -117,6 +121,10 @@ func RequirePermission(roles StaffRoleSource, p domain.Permission) func(http.Han
 			}
 			if !role.IsStaff() {
 				writeError(w, errForbidden)
+				return
+			}
+			if mfaRequired && !claims.MFA {
+				writeError(w, domain.Coded("admin.mfa_required", errForbidden))
 				return
 			}
 			if !role.Can(p) {

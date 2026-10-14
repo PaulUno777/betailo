@@ -35,6 +35,43 @@ type userDoc struct {
 	Suspended     bool              `bson:"suspended,omitempty"`
 	TrustScore    float64           `bson:"trustScore"`
 	CreatedAt     time.Time         `bson:"createdAt"`
+	MFA           *mfaDoc           `bson:"mfa,omitempty"`
+}
+
+type passkeyDoc struct {
+	ID        []byte    `bson:"id"`
+	Name      string    `bson:"name,omitempty"`
+	CreatedAt time.Time `bson:"createdAt"`
+	Data      []byte    `bson:"data"`
+}
+
+type mfaDoc struct {
+	TOTPSecret      string       `bson:"totpSecret,omitempty"`
+	TOTPConfirmedAt *time.Time   `bson:"totpConfirmedAt,omitempty"`
+	RecoveryHashes  []string     `bson:"recoveryHashes,omitempty"`
+	Passkeys        []passkeyDoc `bson:"passkeys,omitempty"`
+}
+
+func fromDomainMFA(m domain.MFA) *mfaDoc {
+	if m.TOTPSecret == "" && len(m.Passkeys) == 0 && len(m.RecoveryHashes) == 0 {
+		return nil
+	}
+	d := &mfaDoc{TOTPSecret: m.TOTPSecret, TOTPConfirmedAt: m.TOTPConfirmedAt, RecoveryHashes: m.RecoveryHashes}
+	for _, p := range m.Passkeys {
+		d.Passkeys = append(d.Passkeys, passkeyDoc{ID: p.ID, Name: p.Name, CreatedAt: p.CreatedAt, Data: p.Data})
+	}
+	return d
+}
+
+func (d *mfaDoc) toDomain() domain.MFA {
+	if d == nil {
+		return domain.MFA{}
+	}
+	m := domain.MFA{TOTPSecret: d.TOTPSecret, TOTPConfirmedAt: d.TOTPConfirmedAt, RecoveryHashes: d.RecoveryHashes}
+	for _, p := range d.Passkeys {
+		m.Passkeys = append(m.Passkeys, domain.Passkey{ID: p.ID, Name: p.Name, CreatedAt: p.CreatedAt, Data: p.Data})
+	}
+	return m
 }
 
 type farmLimitNoteDoc struct {
@@ -62,6 +99,7 @@ func fromDomainUser(u *domain.User) userDoc {
 		Suspended:     u.Suspended,
 		TrustScore:    u.TrustScore,
 		CreatedAt:     u.CreatedAt,
+		MFA:           fromDomainMFA(u.MFA),
 	}
 }
 
@@ -84,6 +122,7 @@ func (d userDoc) toDomain() *domain.User {
 		Suspended:     d.Suspended,
 		TrustScore:    d.TrustScore,
 		CreatedAt:     d.CreatedAt,
+		MFA:           d.MFA.toDomain(),
 	}
 }
 

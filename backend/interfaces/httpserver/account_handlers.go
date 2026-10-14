@@ -136,7 +136,7 @@ func handleChangePassword(uc *auth.ChangePassword, login *auth.Login, cookies Co
 			writeError(w, err)
 			return
 		}
-		out, err := login.Execute(r.Context(), auth.LoginInput{Email: u.Email, Password: req.NewPassword, Remember: req.Remember})
+		out, err := login.SessionFor(r.Context(), u, req.Remember, claims.MFA)
 		if err != nil {
 			writeError(w, err)
 			return

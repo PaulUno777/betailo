@@ -51,6 +51,9 @@ type User struct {
 	// collects — forum posts, reviews and reservation lists need
 	// *something* attributable to show; full profile fields (phone,
 	// address) are out of scope until a module actually needs them.
+	// MFA holds the account's second factors (see MFA).
+	MFA MFA
+
 	DisplayName string
 	// Phone (E.164) and City are the buyer's own contact details,
 	// shown to a farmer they've reserved from. Optional.
