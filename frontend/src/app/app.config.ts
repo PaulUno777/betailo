@@ -4,6 +4,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { routes } from './app.routes';
+import { ReferenceService } from './core/reference/reference.service';
 import { AuthService } from './core/auth/auth.service';
 import { authInterceptor } from './core/http/auth.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
@@ -29,6 +30,10 @@ export const appConfig: ApplicationConfig = {
     // refreshSession() never throws (see AuthService), so this always
     // resolves and never blocks bootstrap on a slow or failed network
     // call beyond that one request.
-    provideAppInitializer(() => firstValueFrom(inject(AuthService).refreshSession()))
+    provideAppInitializer(() => firstValueFrom(inject(AuthService).refreshSession())),
+    // The reference data (categories, countries, tags…) every form and
+    // filter offers, loaded in parallel with the session; a failed load
+    // falls back to the copy from the last visit.
+    provideAppInitializer(() => firstValueFrom(inject(ReferenceService).load(), { defaultValue: undefined }))
   ]
 };

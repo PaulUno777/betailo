@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Farm } from '../../domain/models';
-import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_VALUES, SpeciesValue } from '../../domain/reference/species';
 import { FarmInput, FarmsApi } from '../../data-access/farms/farms.api';
 import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { AppError } from '../../core/http/app-error';
+import { SpeciesPickerComponent } from '../../shared/ui/species-picker/species-picker.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
@@ -21,7 +21,7 @@ import { FarmProofFormComponent } from './farm-proof-form.component';
  * done with both steps. */
 @Component({
   selector: 'bt-seller-onboarding',
-  imports: [FormsModule, ButtonComponent, IconComponent, NoticeComponent, TextFieldComponent, PlaceFieldsComponent, FarmProofFormComponent, TranslatePipe],
+  imports: [SpeciesPickerComponent, FormsModule, ButtonComponent, IconComponent, NoticeComponent, TextFieldComponent, PlaceFieldsComponent, FarmProofFormComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ol class="mb-5 grid grid-cols-2 gap-2" [attr.aria-label]="'sellerOnboarding.stepsLabel' | t">
@@ -71,20 +71,7 @@ import { FarmProofFormComponent } from './farm-proof-form.component';
 
       <fieldset class="flex flex-col gap-3">
         <legend class="mb-3 text-small font-bold text-ink">{{ 'sellerOnboarding.speciesLabel' | t }}</legend>
-        <div class="flex flex-wrap gap-2">
-          @for (s of speciesValues; track s) {
-            <button
-              type="button"
-              (click)="toggle(s)"
-              [attr.aria-pressed]="species().includes(s)"
-              class="flex h-11 items-center gap-2 rounded-full border px-4 text-body-strong transition"
-              [class]="species().includes(s) ? 'border-forest bg-forest-soft text-on-forest-soft' : 'border-line-strong bg-surface-card text-ink'"
-            >
-              <span class="h-2.5 w-2.5 rounded-full" [class]="dots[s]"></span>
-              {{ speciesLabels[s] | t }}
-            </button>
-          }
-        </div>
+          <bt-species-picker [(value)]="species" />
       </fieldset>
 
       <bt-button type="submit" size="lg" block [disabled]="!canSubmit()">
@@ -104,9 +91,6 @@ export class SellerOnboardingComponent {
 
   readonly created = output<Farm>();
 
-  protected readonly speciesValues = SPECIES_VALUES;
-  protected readonly speciesLabels = SPECIES_LABEL_KEYS;
-  protected readonly dots = SPECIES_DOT;
   protected readonly perks = ['sellerOnboarding.perk1', 'sellerOnboarding.perk2', 'sellerOnboarding.perk3'];
 
   protected readonly name = signal('');
@@ -114,15 +98,12 @@ export class SellerOnboardingComponent {
   protected readonly country = signal('');
   protected readonly region = signal('');
   protected readonly phone = signal('');
-  protected readonly species = signal<SpeciesValue[]>([]);
+  protected readonly species = signal<string[]>([]);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
   protected readonly canSubmit = computed(() => !this.saving() && !!this.name().trim() && !!this.location().trim());
 
-  protected toggle(s: SpeciesValue): void {
-    this.species.update((list) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]));
-  }
 
   protected submit(): void {
     if (!this.canSubmit()) return;

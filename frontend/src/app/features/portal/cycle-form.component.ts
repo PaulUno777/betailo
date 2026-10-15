@@ -7,6 +7,10 @@ import { ToastService } from '../../core/notifications/toast.service';
 import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
+import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
+import { LocaleService } from '../../core/i18n/locale.service';
+import { speciesCycleType, speciesGroups, speciesLabelKey } from '../../domain/reference/species';
+import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 
 /** `/portal/cycles/new` — per `CycleForm.dc.html`, simplified to the
@@ -17,7 +21,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
  * field it can't send. */
 @Component({
   selector: 'bt-cycle-form',
-  imports: [FormsModule, TextFieldComponent, ButtonComponent, TranslatePipe],
+  imports: [FormsModule, SelectFieldComponent, TextFieldComponent, ButtonComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-2xl p-6 sm:p-8">
@@ -27,13 +31,17 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
           <span class="flex h-11 w-11 items-center justify-center rounded-full bg-forest text-body-strong text-on-forest">1</span>
           <div class="flex flex-col gap-4">
             <h2 class="text-heading-4">{{ 'cycleForm.sectionSpeciesTitle' | t }}</h2>
-            <bt-text-field [label]="'cycleForm.speciesLabel' | t" [ngModel]="species()" (ngModelChange)="species.set($event)" />
-            <bt-text-field
-              [label]="'cycleForm.typeLabel' | t"
-              [placeholder]="'cycleForm.typePlaceholder' | t"
-              [ngModel]="type()"
-              (ngModelChange)="type.set($event)"
+            <bt-select-field
+              [label]="'cycleForm.speciesLabel' | t"
+              [placeholder]="'cycleForm.speciesPlaceholder' | t"
+              [options]="speciesOptions()"
+              [ngModel]="species()"
+              (ngModelChange)="species.set($event)"
             />
+            @if (type()) {
+              <!-- The API raises a species in the cycle type the catalog gives it. -->
+              <p class="text-small text-ink-muted">{{ 'cycleForm.typeFromSpecies' | t: { type: (typeLabel(type()) | t) } }}</p>
+            }
           </div>
         </div>
         <div class="grid grid-cols-[44px_1fr] gap-5">
@@ -71,8 +79,16 @@ export class CycleFormComponent {
 
   private readonly myFarm = computed(() => this.seller.currentFarm() ?? undefined);
 
+  private readonly locale = inject(LocaleService);
   protected readonly species = signal('');
-  protected readonly type = signal('');
+  protected readonly type = computed(() => speciesCycleType(this.species()));
+  protected readonly typeLabel = cycleTypeLabelKey;
+  /** Every species open to sale, named with its category. */
+  protected readonly speciesOptions = computed(() =>
+    speciesGroups().flatMap((g) =>
+      g.species.map((s) => ({ value: s, label: `${this.locale.t(g.labelKey)} · ${this.locale.t(speciesLabelKey(s))}` }))
+    )
+  );
   protected readonly capacity = signal('');
   protected readonly startsAt = signal('');
   protected readonly endsAt = signal('');

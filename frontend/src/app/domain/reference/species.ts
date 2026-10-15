@@ -1,48 +1,104 @@
-/** The species filter/category vocabulary — shared by Home's hero search
- * and the Marketplace filter sidebar so the two can't drift apart. Values
- * match what `GET /listings`'s `species` query param expects; labels are
- * translation keys, resolved by whoever renders them. */
-export const SPECIES_VALUES = ['poussins', 'jeunes-poulets', 'pondeuses', 'reproducteurs', 'porcs', 'chevres'] as const;
+import { CatalogCategory, CatalogSubcategory, refKey } from './catalog';
 
-export type SpeciesValue = (typeof SPECIES_VALUES)[number];
+/** The animal categories and their sub-categories (the "species" cycles
+ * and listings store), from the reference data. ReferenceService fills
+ * this before the app first renders; these helpers read it so every
+ * screen agrees with the version the API validates against. */
+let categories: readonly CatalogCategory[] = [];
 
-export const SPECIES_LABEL_KEYS: Readonly<Record<SpeciesValue, string>> = {
-  poussins: 'species.poussins',
-  'jeunes-poulets': 'species.jeunesPoulets',
-  pondeuses: 'species.pondeuses',
-  reproducteurs: 'species.reproducteurs',
-  porcs: 'species.porcs',
-  chevres: 'species.chevres'
+/** Each catalog tone as a class written out in full: Tailwind only
+ * generates the classes it can read in the source, never ones built
+ * from strings at run time. */
+const DOT_CLASSES: Readonly<Record<string, string>> = {
+  clay: 'bg-clay',
+  forest: 'bg-forest',
+  amber: 'bg-amber',
+  sky: 'bg-sky',
+  alert: 'bg-alert',
+  plum: 'bg-plum',
+  stone: 'bg-stone'
 };
 
-/** The dot colour each species wears on chips and choice cards. */
-export const SPECIES_DOT: Readonly<Record<SpeciesValue, string>> = {
-  poussins: 'bg-clay',
-  'jeunes-poulets': 'bg-forest',
-  pondeuses: 'bg-amber',
-  reproducteurs: 'bg-sky',
-  porcs: 'bg-alert',
-  chevres: 'bg-plum'
-};
+function dotClass(color: string | undefined): string {
+  return (color && DOT_CLASSES[color]) || 'bg-stone';
+}
+let bySpecies = new Map<string, { sub: CatalogSubcategory; category: CatalogCategory }>();
 
-/** What one unit is called, for display before the API has created the
- * listing (the sell wizard's preview). The API derives the stored unit
- * itself from the species; this only mirrors it as a translation key. */
-export const SPECIES_UNIT_KEYS: Readonly<Record<SpeciesValue, string>> = {
-  poussins: 'units.poussin',
-  'jeunes-poulets': 'units.sujet',
-  pondeuses: 'units.pondeuse',
-  reproducteurs: 'units.sujet',
-  porcs: 'units.porcelet',
-  chevres: 'units.chevre'
-};
-
-export function isSpecies(value: string): value is SpeciesValue {
-  return (SPECIES_VALUES as readonly string[]).includes(value);
+export function setCategories(list: readonly CatalogCategory[]): void {
+  categories = list;
+  bySpecies = new Map(list.flatMap((category) => category.subcategories.map((sub) => [sub.key, { sub, category }] as const)));
 }
 
-/** The label key for a stored species, or the raw value for one this
- * client doesn't know (older data): never a blank. */
+/** A category with only its sub-categories open to new listings. */
+export interface SpeciesGroup {
+  readonly key: string;
+  readonly labelKey: string;
+  readonly dot: string;
+  readonly species: readonly string[];
+}
+
+/** The active categories, each with its active sub-categories, in
+ * catalog order: what the sell flow and filters offer. */
+export function speciesGroups(): SpeciesGroup[] {
+  return categories
+    .filter((c) => c.active)
+    .map((c) => ({
+      key: c.key,
+      labelKey: refKey.category(c.key),
+      dot: dotClass(c.color),
+      species: c.subcategories.filter((s) => s.active).map((s) => s.key)
+    }))
+    .filter((g) => g.species.length > 0);
+}
+
+/** Every sub-category open to new listings, across categories. */
+export function speciesValues(): string[] {
+  return speciesGroups().flatMap((g) => g.species);
+}
+
+/** Whether the catalog knows this sub-category, active or not (older
+ * data keeps its label). */
+export function isSpecies(value: string): boolean {
+  return bySpecies.has(value);
+}
+
+/** The label key for a stored species, or the raw value for one the
+ * catalog doesn't know: never a blank. */
 export function speciesLabelKey(value: string): string {
-  return isSpecies(value) ? SPECIES_LABEL_KEYS[value] : value;
+  return isSpecies(value) ? refKey.species(value) : value;
+}
+
+/** The category tone a species wears on chips and choice cards. */
+export function speciesDot(value: string): string {
+  return dotClass(bySpecies.get(value)?.category.color);
+}
+
+/** The label key of what one animal of this species is called. */
+export function speciesUnitKey(value: string): string {
+  const unit = bySpecies.get(value)?.sub.unit.key;
+  return unit ? refKey.unit(unit) : '';
+}
+
+/** The category a species belongs to. */
+export function categoryOf(value: string): string | undefined {
+  return bySpecies.get(value)?.category.key;
+}
+
+/** Whether the catalog has this category. */
+export function isCategory(value: string): boolean {
+  return categories.some((c) => c.key === value);
+}
+
+export function categoryLabelKey(value: string): string {
+  return isCategory(value) ? refKey.category(value) : value;
+}
+
+/** The sub-categories of a category, active or not. */
+export function speciesOf(category: string): string[] {
+  return categories.find((c) => c.key === category)?.subcategories.map((s) => s.key) ?? [];
+}
+
+/** The cycle type a species is raised in (the API sets it from this). */
+export function speciesCycleType(value: string): string {
+  return bySpecies.get(value)?.sub.cycleType ?? '';
 }

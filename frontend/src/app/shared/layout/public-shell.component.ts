@@ -11,7 +11,7 @@ import { HeaderSearchComponent } from '../ui/header-search/header-search.compone
 import { IconComponent } from '../ui/icon/icon.component';
 import { ModeSwitchComponent } from '../ui/mode-switch/mode-switch.component';
 import { NavCountsService } from '../../core/navigation/nav-counts.service';
-import { SPECIES_LABEL_KEYS, SPECIES_VALUES } from '../../domain/reference/species';
+import { speciesGroups } from '../../domain/reference/species';
 import { ButtonComponent } from '../ui/button/button.component';
 import { IconButtonComponent } from '../ui/icon-button/icon-button.component';
 import { LogoComponent } from '../ui/logo/logo.component';
@@ -23,7 +23,6 @@ import { SiteFooterComponent } from './site-footer.component';
 
 /** Desktop's second header row: one chip per species, like the
  * category bar under every marketplace's search. */
-const CATEGORY_CHIPS = SPECIES_VALUES.map((value) => ({ value, labelKey: SPECIES_LABEL_KEYS[value] }));
 
 /** The shell for every public-site route (home, marketplace, listing,
  * auth, forum, account), laid out like the marketplaces our users
@@ -95,10 +94,10 @@ const CATEGORY_CHIPS = SPECIES_VALUES.map((value) => ({ value, labelKey: SPECIES
           <div class="mx-auto flex h-11 max-w-content-max items-center gap-1 px-10 text-small">
             <a
               routerLink="/marketplace"
-              [class]="chipClass(onMarket() && !activeSpecies())"
+              [class]="chipClass(onMarket() && !activeCategory())"
             >{{ 'nav.allAnimals' | t }}</a>
-            @for (c of categories; track c.value) {
-              <a routerLink="/marketplace" [queryParams]="{ species: c.value }" [class]="chipClass(activeSpecies() === c.value)">{{ c.labelKey | t }}</a>
+            @for (c of categories; track c.key) {
+              <a routerLink="/marketplace" [queryParams]="{ category: c.key }" [class]="chipClass(activeCategory() === c.key)">{{ c.labelKey | t }}</a>
             }
             <span class="ml-auto"></span>
             <a routerLink="/forum" routerLinkActive="text-forest" [class]="chipClass(false)">
@@ -130,7 +129,8 @@ export class PublicShellComponent {
   private readonly navCounts = inject(NavCountsService);
   private readonly router = inject(Router);
 
-  protected readonly categories = CATEGORY_CHIPS;
+  /** The animal categories (Volaille, Porcins…), from the reference data. */
+  protected readonly categories = speciesGroups();
   /** Everyone starts selling at /sell: an account with a farm gets the
    * wizard, anyone else opens their farm first (or signs in, via its
    * guard). */
@@ -159,7 +159,7 @@ export class PublicShellComponent {
     { requireSync: true }
   );
   protected readonly onMarket = computed(() => this.url().root.children['primary']?.segments[0]?.path === 'marketplace');
-  protected readonly activeSpecies = computed(() => (this.onMarket() ? this.url().queryParamMap.get('species') : null));
+  protected readonly activeCategory = computed(() => (this.onMarket() ? this.url().queryParamMap.get('category') : null));
 
   /** Focus pages (`data: { focus: true }`: listing detail, checkout…)
    * replace the bottom nav with their own sticky action bar on phones,

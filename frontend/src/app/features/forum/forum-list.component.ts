@@ -1,3 +1,5 @@
+import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
+import { ReferenceService } from '../../core/reference/reference.service';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { AvatarComponent } from '../../shared/ui/avatar/avatar.component';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +25,7 @@ import { apiResource } from '../../core/http/api-resource';
  * here is a stub. */
 @Component({
   selector: 'bt-forum-list',
-  imports: [FormsModule, RouterLink, AvatarComponent, TextFieldComponent, ButtonComponent, BadgeComponent, DialogComponent, IconComponent, TranslatePipe],
+  imports: [SelectFieldComponent, FormsModule, RouterLink, AvatarComponent, TextFieldComponent, ButtonComponent, BadgeComponent, DialogComponent, IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-content-max px-5 py-8 sm:px-18">
@@ -42,9 +44,10 @@ import { apiResource } from '../../core/http/api-resource';
         <div>
           <div class="mb-6 grid gap-3 sm:grid-cols-[1fr_240px]">
             <bt-text-field [label]="'forum.searchPlaceholder' | t" [ngModel]="query()" (ngModelChange)="query.set($event)" />
-            <bt-text-field
+            <bt-select-field
               [label]="'forum.categoryLabel' | t"
               [placeholder]="'forum.categoryPlaceholder' | t"
+              [options]="reference.forumOptions()"
               [ngModel]="category()"
               (ngModelChange)="category.set($event)"
             />
@@ -64,7 +67,7 @@ import { apiResource } from '../../core/http/api-resource';
                   <bt-avatar [name]="post.authorName || ('forum.someone' | t)" [src]="post.authorAvatarUrl" [size]="36" tone="sky" class="shrink-0" />
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
                     <span class="flex flex-wrap items-center gap-2">
-                      <bt-badge [tone]="categoryTone(post.category)">{{ post.category }}</bt-badge>
+                      <bt-badge [tone]="categoryTone(post.category)">{{ reference.forumLabelKey(post.category) | t }}</bt-badge>
                       <span class="text-caption text-ink-muted">{{ post.authorName || ('forum.someone' | t) }}</span>
                     </span>
                     <span class="text-body-strong">{{ post.title }}</span>
@@ -96,9 +99,10 @@ import { apiResource } from '../../core/http/api-resource';
       (closed)="newPostOpen.set(false)"
     >
       <div class="flex flex-col gap-4">
-        <bt-text-field
+        <bt-select-field
           [label]="'forum.categoryFieldLabel' | t"
           [placeholder]="'forum.categoryFieldPlaceholder' | t"
+          [options]="reference.forumOptions()"
           [ngModel]="newCategory()"
           (ngModelChange)="newCategory.set($event)"
         />
@@ -123,6 +127,7 @@ export class ForumListComponent {
   );
 
   protected readonly categoryTone = categoryTone;
+  protected readonly reference = inject(ReferenceService);
 
   protected readonly newPostOpen = signal(false);
   protected readonly newCategory = signal('');

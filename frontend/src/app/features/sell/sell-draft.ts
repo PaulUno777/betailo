@@ -1,9 +1,9 @@
-import { SpeciesValue, isSpecies } from '../../domain/reference/species';
+import { isSpecies } from '../../domain/reference/species';
 
 /** What the sell wizard remembers between visits. Photos are not kept:
  * picked files can't be stored, so the farmer re-picks them. */
 export interface SellDraft {
-  species: SpeciesValue | '';
+  species: string;
   breed: string;
   ageWeeks: number | null;
   quantity: number;

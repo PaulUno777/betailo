@@ -1,8 +1,9 @@
+import { ReferenceService } from '../../core/reference/reference.service';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ForumPost, ListingSearchResult } from '../../domain/models';
-import { SPECIES_LABEL_KEYS, SPECIES_VALUES } from '../../domain/reference/species';
+import { speciesGroups, speciesLabelKey } from '../../domain/reference/species';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { ForumApi } from '../../data-access/forum/forum.api';
 import { LocaleService } from '../../core/i18n/locale.service';
@@ -53,14 +54,14 @@ import { apiResource } from '../../core/http/api-resource';
       </form>
 
       <nav class="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4" [attr.aria-label]="'home.searchSpeciesLabel' | t">
-        @for (opt of speciesOptions(); track opt.value; let i = $index) {
+        @for (g of groups; track g.key) {
           <a
             [routerLink]="['/marketplace']"
-            [queryParams]="{ species: opt.value }"
+            [queryParams]="{ category: g.key }"
             class="flex h-control-md shrink-0 items-center gap-2 rounded-full border border-line bg-surface-card px-4 text-body-strong"
           >
-            <span class="h-2.5 w-2.5 rounded-full" [class]="speciesDot[i % speciesDot.length]"></span>
-            {{ opt.label }}
+            <span class="h-2.5 w-2.5 rounded-full" [class]="g.dot"></span>
+            {{ g.labelKey | t }}
           </a>
         }
       </nav>
@@ -136,8 +137,14 @@ import { apiResource } from '../../core/http/api-resource';
                 name="species"
               >
                 <option value="">{{ 'home.searchAllSpecies' | t }}</option>
-                @for (opt of speciesOptions(); track opt.value) {
-                  <option [value]="opt.value">{{ opt.label }}</option>
+                <!-- A whole category, or one kind within it. -->
+                @for (g of groups; track g.key) {
+                  <optgroup [label]="g.labelKey | t">
+                    <option [value]="'category:' + g.key">{{ 'home.searchWholeCategory' | t: { category: (g.labelKey | t) } }}</option>
+                    @for (s of g.species; track s) {
+                      <option [value]="s">{{ speciesLabel(s) | t }}</option>
+                    }
+                  </optgroup>
                 }
               </select>
             </div>
@@ -304,7 +311,7 @@ import { apiResource } from '../../core/http/api-resource';
                 [routerLink]="['/forum', post.id]"
                 class="flex items-center gap-4 border-b border-line py-5 text-ink no-underline hover:text-forest"
               >
-                <bt-badge [tone]="categoryTone(post.category)">{{ post.category }}</bt-badge>
+                <bt-badge [tone]="categoryTone(post.category)">{{ reference.forumLabelKey(post.category) | t }}</bt-badge>
                 <span class="flex-1 text-body-strong">{{ post.title }}</span>
                 <span class="flex items-center gap-1.5 text-small text-ink-muted">
                   <bt-icon name="message" [size]="16" />
@@ -344,13 +351,12 @@ export class HomeComponent {
   private readonly router = inject(Router);
   private readonly locale = inject(LocaleService);
 
-  protected readonly speciesOptions = computed(() =>
-    SPECIES_VALUES.map((value) => ({ value, label: this.locale.t(SPECIES_LABEL_KEYS[value]) }))
-  );
+  protected readonly groups = speciesGroups();
+  protected readonly speciesLabel = speciesLabelKey;
   protected readonly categoryTone = categoryTone;
+  protected readonly reference = inject(ReferenceService);
   protected readonly species = signal('');
   protected readonly query = signal('');
-  protected readonly speciesDot = ['bg-clay', 'bg-forest', 'bg-amber', 'bg-sky', 'bg-alert', 'bg-plum'];
   protected readonly city = signal('');
   protected readonly month = signal('');
 
@@ -382,7 +388,12 @@ export class HomeComponent {
    * regions, so "Bafoussam" or "Ouest" both work. */
   protected search(): void {
     this.router.navigate(['/marketplace'], {
-      queryParams: { species: this.species() || null, q: this.city().trim() || null, available: this.month() || null }
+      queryParams: {
+        category: this.species().startsWith('category:') ? this.species().slice('category:'.length) : null,
+        species: this.species() && !this.species().startsWith('category:') ? this.species() : null,
+        q: this.city().trim() || null,
+        available: this.month() || null
+      }
     });
   }
 }

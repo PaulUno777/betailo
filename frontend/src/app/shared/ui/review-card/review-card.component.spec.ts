@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Review } from '../../../domain/models';
 import { LocaleService } from '../../../core/i18n/locale.service';
 import { ReviewCardComponent } from './review-card.component';
+import { useTestReference } from '../../../testing/reference.fixture';
 
 const REVIEW: Review = {
   id: 'rv1',
@@ -24,6 +25,7 @@ describe('ReviewCardComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [ReviewCardComponent] });
     TestBed.inject(LocaleService).setLocale('fr');
+    useTestReference();
   });
 
   function render(review: Review, canVote = true) {

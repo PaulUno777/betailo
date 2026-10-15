@@ -46,6 +46,10 @@ export class LocaleService {
 
   private readonly dictionary = computed(() => DICTIONARIES[this.locale()]);
 
+  /** Labels that come from the API rather than the bundled dictionaries
+   * (the reference data's categories, units, tags…), flat by key. */
+  private readonly runtime = signal<Readonly<Record<Locale, Readonly<Record<string, string>>>>>({ en: {}, fr: {} });
+
   constructor() {
     // Screen readers pick their voice from <html lang>.
     effect(() => {
@@ -64,8 +68,14 @@ export class LocaleService {
 
   /** Reads `dictionary()` internally, so any signal-tracked read of this
    * (directly, or via the `translate` pipe) re-renders on locale change. */
+  /** Replaces every runtime label (see `runtime`). */
+  setRuntimeLabels(labels: Readonly<Record<Locale, Readonly<Record<string, string>>>>): void {
+    this.runtime.set(labels);
+  }
+
   t(key: string, params?: Record<string, string | number>): string {
-    const template = this.pluralVariant(key, params) ?? readPath(this.dictionary(), key) ?? key;
+    const template =
+      this.pluralVariant(key, params) ?? this.runtime()[this.locale()][key] ?? readPath(this.dictionary(), key) ?? key;
     return interpolate(template, params);
   }
 

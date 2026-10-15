@@ -5,7 +5,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { forkJoin, map, of, switchMap } from 'rxjs';
 import { ReservationList, ReviewCriteria } from '../../domain/models';
 import { ReservationsApi } from '../../data-access/reservations/reservations.api';
-import { REVIEW_TAGS, ReviewsApi } from '../../data-access/reviews/reviews.api';
+import { ReviewsApi } from '../../data-access/reviews/reviews.api';
+import { ReferenceService } from '../../core/reference/reference.service';
 import { PhotoUploadService } from '../../core/http/photo-upload.service';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
@@ -102,7 +103,7 @@ interface PickedPhoto {
                     class="h-11 rounded-full border px-4 text-body-strong transition"
                     [class]="tags().includes(tag) ? 'border-forest bg-forest text-on-forest' : 'border-line-strong bg-surface-card text-ink'"
                   >
-                    {{ 'reviewTags.' + tag | t }}
+                    {{ tagLabel(tag) | t }}
                   </button>
                 }
               </div>
@@ -171,7 +172,8 @@ export class ReviewFormComponent {
   private readonly toast = inject(ToastService);
 
   protected readonly criteria = CRITERIA;
-  protected readonly tagOptions = REVIEW_TAGS;
+  protected readonly tagLabel = (tag: string) => `ref.reviewTag.${tag}`;
+  protected readonly tagOptions = inject(ReferenceService).reviewTags();
   protected readonly maxPhotos = MAX_PHOTOS;
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((p) => p.get('id') ?? '')), { initialValue: '' });
