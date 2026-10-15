@@ -24,3 +24,9 @@ npm-debug.log*
 # --- AI ---
 graphify-out/
 design/
+# --- Python ---
+__pycache__/
+*.pyc
+
+# --- Local AI assistant settings ---
+.claude/

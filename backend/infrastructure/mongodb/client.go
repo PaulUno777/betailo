@@ -30,8 +30,7 @@ type Config struct {
 // Connect validates the config, connects a *mongo.Client and pings the
 // primary. The ping is deliberate: the driver's client is lazy by
 // design, so without it a bad URI would only surface on the first real
-// query instead of at startup (kept separate from Ping below so callers
-// that already have a client don't pay for two round trips).
+// query instead of at startup.
 func Connect(ctx context.Context, cfg Config) (*mongo.Client, error) {
 	if cfg.URI == "" {
 		return nil, fmt.Errorf("mongodb: MONGODB_URI must not be empty")
@@ -55,12 +54,4 @@ func Connect(ctx context.Context, cfg Config) (*mongo.Client, error) {
 	}
 
 	return client, nil
-}
-
-// Ping is a thin wrapper kept here so callers (e.g. a future /health
-// check) don't need to know the driver's read-preference API.
-func Ping(ctx context.Context, client *mongo.Client) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	return client.Ping(ctx, readpref.Primary())
 }

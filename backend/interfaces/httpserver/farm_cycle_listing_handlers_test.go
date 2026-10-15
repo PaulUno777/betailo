@@ -215,8 +215,4 @@ func TestFarm_HTTP_CountryAndRegion(t *testing.T) {
 		t.Errorf("farm abroad: status = %d, farm = %+v", abroad.Code, f)
 	}
 
-	geo := doJSON(t, router, http.MethodGet, "/reference/geo", nil, "")
-	if out := decodeJSON[geoResponse](t, geo); geo.Code != http.StatusOK || out.DefaultCountry != "CM" || len(out.Countries) == 0 || len(out.Countries[0].Regions) != 10 {
-		t.Errorf("geo reference: status = %d, body = %s", geo.Code, geo.Body.String())
-	}
 }

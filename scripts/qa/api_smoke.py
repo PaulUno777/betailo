@@ -472,8 +472,10 @@ check("A10", "Admin", "Admin places a reservation", "documented behavior (allowe
 
 
 # ---------------- Regression of QA defects + new rules ----------------
-s, b = g.call("GET", "/reference/geo")
-check("R01", "Guest", "Geo reference lists Cameroon's regions and calling codes", "200, CM with 10 regions, GH calling code 233", s == 200 and any(c["code"] == "CM" and len(c["regions"]) == 10 for c in b.get("countries", [])) and (b.get("callingCodes") or {}).get("GH") == "233", f"{s}")
+s, b = g.call("GET", "/reference")
+countries = {c["code"]: c for c in (b or {}).get("countries", [])} if isinstance(b, dict) else {}
+check("R01", "Guest", "Reference lists Cameroon's regions and calling codes", "200, CM with 10 regions, GH calling code 233",
+      s == 200 and len(countries.get("CM", {}).get("regions", [])) == 10 and countries.get("GH", {}).get("callingCode") == "233", f"{s}")
 s, b = g.call("GET", "/listings?pageSize=5")
 check("R02", "Guest", "Search returns facets", "species/cycleTypes/regions/price facets", s == 200 and all(k in (b.get("facets") or {}) for k in ("species", "cycleTypes", "statuses", "regions", "priceMin", "priceMax")), f"{s} {str(b.get('facets'))[:160]}")
 s, b = g.call("GET", "/listings?species=jeunes-poulets,poussins&status=planned,in_progress&available=" + now.strftime("%Y-%m"))

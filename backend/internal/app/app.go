@@ -445,26 +445,13 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 	if err := mongodb.Bootstrap(ctx, a.mongoDatabase); err != nil {
 		return err
 	}
-	if err := mongodb.BackfillReferences(ctx, a.mongoDatabase); err != nil {
-		return err
-	}
 	// The lists the platform shipped with become version 1 of the
 	// reference data on a database that has none yet.
 	if err := catalog.EnsureSeed(ctx, &mongodb.CatalogRepository{Coll: a.mongoDatabase.Collection("catalog_versions")}, time.Now()); err != nil {
 		return err
 	}
-	if n, err := mongodb.BackfillFarmPlaces(ctx, a.mongoDatabase); err != nil {
-		return err
-	} else if n > 0 {
-		a.Logger.Info("gave farms a country and region", "count", n)
-	}
 	if err := a.bootstrapRootAdmin(ctx); err != nil {
 		return err
-	}
-	if n, err := mongodb.MigrateUnpaidToWaitingList(ctx, a.mongoDatabase); err != nil {
-		return err
-	} else if n > 0 {
-		a.Logger.Info("moved unpaid reservations to the waiting list", "count", n)
 	}
 	a.Logger.Info("connected to MongoDB and bootstrapped collections")
 
