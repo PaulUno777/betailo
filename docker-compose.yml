@@ -94,9 +94,21 @@ services:
       # the back office. Off here so a fresh dev database is usable at
       # once; production leaves it on. See backend/.env.example.
       STAFF_MFA_REQUIRED: ${STAFF_MFA_REQUIRED:-false}
+      # The browser origins allowed to call the API, comma-separated. To
+      # try the app from a phone on the same network, add the computer's
+      # LAN address, e.g. in a .env file next to this one:
+      #   CORS_ALLOWED_ORIGIN=http://localhost:4200,http://192.168.1.13:4200
+      #   APP_PUBLIC_URL=http://192.168.1.13:4200
+      # and start the dev server with `ng serve --host 0.0.0.0`.
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-http://localhost:4200}
       # Where the site's pages are served: links in e-mails point there
-      # and passkeys are bound to its host.
+      # and passkeys are bound to its host (no passkeys on an IP address).
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:4200}
+      # Plain http in development: a Secure cookie is dropped on a LAN
+      # address, which would sign you out at every reload. The site and
+      # the API share a host here, so Lax is enough.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
       # E-mail goes to the local Mailpit inbox (http://localhost:8025).
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}

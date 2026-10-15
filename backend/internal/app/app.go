@@ -590,14 +590,12 @@ func newTokenSigner() (ports.TokenSigner, error) {
 // failure.
 // publicURL is where the site's pages are served from: links in e-mails
 // point there, and passkeys are bound to its host. APP_PUBLIC_URL when
-// set, else the one origin the API accepts.
+// set, else the first origin the API accepts.
 func publicURL() string {
-	for _, v := range []string{os.Getenv("APP_PUBLIC_URL"), os.Getenv("CORS_ALLOWED_ORIGIN")} {
-		if v = strings.TrimRight(strings.TrimSpace(v), "/"); v != "" {
-			return v
-		}
+	if v := strings.TrimRight(strings.TrimSpace(os.Getenv("APP_PUBLIC_URL")), "/"); v != "" {
+		return v
 	}
-	return "http://localhost:4200"
+	return httpserver.AllowedOrigins(os.Getenv("CORS_ALLOWED_ORIGIN"))[0]
 }
 
 func hostOf(rawURL string) string {
@@ -610,8 +608,10 @@ func hostOf(rawURL string) string {
 // passkeyOrigins are the origins a browser may present for a passkey.
 func passkeyOrigins(siteURL string) []string {
 	origins := []string{siteURL}
-	if cors := strings.TrimRight(strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGIN")), "/"); cors != "" && cors != siteURL {
-		origins = append(origins, cors)
+	for _, o := range httpserver.AllowedOrigins(os.Getenv("CORS_ALLOWED_ORIGIN")) {
+		if o != siteURL {
+			origins = append(origins, o)
+		}
 	}
 	return origins
 }
