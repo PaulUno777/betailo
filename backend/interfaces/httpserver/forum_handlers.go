@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,18 +10,25 @@ import (
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
+	"github.com/pauluno777/betailo/backend/application/usecase/people"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
 type forumReplyResponse struct {
-	AuthorID  string    `json:"authorId"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"createdAt"`
+	AuthorID string `json:"authorId"`
+	// AuthorName is the author's public name, AuthorAvatar their profile
+	// photo; both empty when unknown.
+	AuthorName   string    `json:"authorName,omitempty"`
+	AuthorAvatar string    `json:"authorAvatarUrl,omitempty"`
+	Body         string    `json:"body"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
 type forumPostResponse struct {
 	ID             string               `json:"id"`
 	AuthorID       string               `json:"authorId"`
+	AuthorName     string               `json:"authorName,omitempty"`
+	AuthorAvatar   string               `json:"authorAvatarUrl,omitempty"`
 	Category       string               `json:"category"`
 	Title          string               `json:"title"`
 	Body           string               `json:"body"`
@@ -30,19 +38,57 @@ type forumPostResponse struct {
 	BestReplyIndex *int                 `json:"bestReplyIndex,omitempty"`
 }
 
-func toForumPostResponse(p *domain.ForumPost) forumPostResponse {
-	resp := forumPostResponse{
-		ID: p.ID.Hex(), AuthorID: p.AuthorID.Hex(), Category: p.Category, Title: p.Title,
-		Body: p.Body, CreatedAt: p.CreatedAt, BestReplyIndex: p.BestReplyIndex,
+// forumView names the authors of posts and replies, each looked up once
+// per response.
+type forumView struct {
+	People  *people.Directory
+	Storage ports.ObjectStorage
+}
+
+func (v forumView) posts(ctx context.Context, posts []*domain.ForumPost) []forumPostResponse {
+	var ids []bson.ObjectID
+	for _, p := range posts {
+		ids = append(ids, p.AuthorID)
+		for _, rep := range p.Replies {
+			ids = append(ids, rep.AuthorID)
+		}
 	}
-	if p.ListingID != nil {
-		hex := p.ListingID.Hex()
-		resp.ListingID = &hex
+	known := map[bson.ObjectID]people.Person{}
+	if v.People != nil {
+		known = v.People.Lookup(ctx, ids)
 	}
-	for _, rep := range p.Replies {
-		resp.Replies = append(resp.Replies, forumReplyResponse{AuthorID: rep.AuthorID.Hex(), Body: rep.Body, CreatedAt: rep.CreatedAt})
+	avatars := map[string]string{}
+	avatar := func(key string) string {
+		if url, ok := avatars[key]; ok {
+			return url
+		}
+		avatars[key] = avatarURL(ctx, v.Storage, key)
+		return avatars[key]
 	}
-	return resp
+	out := make([]forumPostResponse, 0, len(posts))
+	for _, p := range posts {
+		author := known[p.AuthorID]
+		resp := forumPostResponse{
+			ID: p.ID.Hex(), AuthorID: p.AuthorID.Hex(), AuthorName: author.Name, AuthorAvatar: avatar(author.AvatarKey),
+			Category: p.Category, Title: p.Title, Body: p.Body, CreatedAt: p.CreatedAt, BestReplyIndex: p.BestReplyIndex,
+		}
+		if p.ListingID != nil {
+			hex := p.ListingID.Hex()
+			resp.ListingID = &hex
+		}
+		for _, rep := range p.Replies {
+			who := known[rep.AuthorID]
+			resp.Replies = append(resp.Replies, forumReplyResponse{
+				AuthorID: rep.AuthorID.Hex(), AuthorName: who.Name, AuthorAvatar: avatar(who.AvatarKey), Body: rep.Body, CreatedAt: rep.CreatedAt,
+			})
+		}
+		out = append(out, resp)
+	}
+	return out
+}
+
+func (v forumView) post(ctx context.Context, p *domain.ForumPost) forumPostResponse {
+	return v.posts(ctx, []*domain.ForumPost{p})[0]
 }
 
 type createForumPostRequest struct {
@@ -52,7 +98,7 @@ type createForumPostRequest struct {
 	ListingID string `json:"listingId,omitempty"`
 }
 
-func handleCreateForumPost(uc *forum.CreatePost) http.HandlerFunc {
+func handleCreateForumPost(uc *forum.CreatePost, view forumView) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -80,11 +126,11 @@ func handleCreateForumPost(uc *forum.CreatePost) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusCreated, toForumPostResponse(p))
+		writeJSON(w, http.StatusCreated, view.post(r.Context(), p))
 	}
 }
 
-func handleListForumPosts(uc *forum.ListPosts) http.HandlerFunc {
+func handleListForumPosts(uc *forum.ListPosts, view forumView) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter := ports.ForumListFilter{
 			Category: r.URL.Query().Get("category"),
@@ -96,15 +142,11 @@ func handleListForumPosts(uc *forum.ListPosts) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		out := make([]forumPostResponse, 0, len(posts))
-		for _, p := range posts {
-			out = append(out, toForumPostResponse(p))
-		}
-		writeJSON(w, http.StatusOK, out)
+		writeJSON(w, http.StatusOK, view.posts(r.Context(), posts))
 	}
 }
 
-func handleGetForumPost(uc *forum.GetPost) http.HandlerFunc {
+func handleGetForumPost(uc *forum.GetPost, view forumView) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pathObjectID(w, r, "id")
 		if !ok {
@@ -115,7 +157,7 @@ func handleGetForumPost(uc *forum.GetPost) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, toForumPostResponse(p))
+		writeJSON(w, http.StatusOK, view.post(r.Context(), p))
 	}
 }
 

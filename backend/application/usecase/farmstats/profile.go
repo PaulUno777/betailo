@@ -21,6 +21,10 @@ type Profile struct {
 	MemberSince   time.Time
 	ReviewAverage float64
 	ReviewCount   int
+	// OwnerName is the farmer's public name and OwnerAvatarKey their
+	// profile photo, shown next to the farm.
+	OwnerName      string
+	OwnerAvatarKey string
 }
 
 // ProfileSources is the read access BuildProfile needs.
@@ -45,12 +49,14 @@ func BuildProfile(ctx context.Context, src ProfileSources, f *domain.Farm) (*Pro
 		return nil, err
 	}
 	return &Profile{
-		Farm:          f,
-		TrustScore:    owner.TrustScore,
-		Verified:      f.Status.CanSell() && !f.Verification.AutoApproved,
-		SalesCount:    sales,
-		MemberSince:   owner.CreatedAt,
-		ReviewAverage: reviews.Average,
-		ReviewCount:   reviews.Count,
+		Farm:           f,
+		TrustScore:     owner.TrustScore,
+		Verified:       f.Status.CanSell() && !f.Verification.AutoApproved,
+		SalesCount:     sales,
+		MemberSince:    owner.CreatedAt,
+		ReviewAverage:  reviews.Average,
+		ReviewCount:    reviews.Count,
+		OwnerName:      domain.PublicName(owner.DisplayName),
+		OwnerAvatarKey: owner.AvatarKey,
 	}, nil
 }

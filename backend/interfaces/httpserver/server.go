@@ -72,13 +72,16 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /me/mfa/passkeys/options", chain(handlePasskeyBegin(deps.SecondFactor), auth))
 	mux.Handle("POST /me/mfa/passkeys", chain(handlePasskeyFinish(deps.SecondFactor), auth))
 	mux.Handle("POST /me/mfa/passkeys/remove", limit(deps.RateLimits.Login, chain(handlePasskeyRemove(deps.SecondFactor), auth)))
-	mux.Handle("GET /me", chain(handleGetProfile(deps.GetProfile, deps.SellerAccess), auth))
-	mux.Handle("PATCH /me", chain(handleUpdateProfile(deps.UpdateProfile), auth))
+	mux.Handle("GET /me", chain(handleGetProfile(deps.GetProfile, deps.SellerAccess, deps.Storage), auth))
+	mux.Handle("PATCH /me", chain(handleUpdateProfile(deps.UpdateProfile, deps.Storage), auth))
+	mux.Handle("POST /me/avatar/presign", chain(handlePresignAvatar(deps.PresignAvatar), auth))
+	mux.Handle("PUT /me/avatar", chain(handleSetAvatar(deps.SetAvatar, deps.Storage), auth))
+	mux.Handle("DELETE /me/avatar", chain(handleRemoveAvatar(deps.SetAvatar, deps.Storage), auth))
 	// Guessing the current password is rate-limited like login.
 	mux.Handle("POST /me/password", limit(deps.RateLimits.Login, chain(handleChangePassword(deps.ChangePassword, deps.Login, deps.Cookies), auth)))
 
 	mux.Handle("POST /farms", signedIn(handleCreateFarm(deps.CreateFarm)))
-	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile), OptionalAuth(deps.Signer, deps.Accounts)))
+	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
 	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms), auth))
 	mux.Handle("GET /farms/mine/cards", chain(handleListMyFarmCards(deps.MyFarmCards, deps.Storage), auth))
 	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm), auth))
@@ -141,9 +144,9 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /reports", chain(handleCreateReport(deps.CreateReport), auth))
 
 	// Forum — reading is public; posting/replying needs auth.
-	mux.Handle("POST /forum/posts", chain(handleCreateForumPost(deps.CreateForumPost), auth))
-	mux.HandleFunc("GET /forum/posts", handleListForumPosts(deps.ListForumPosts))
-	mux.HandleFunc("GET /forum/posts/{id}", handleGetForumPost(deps.GetForumPost))
+	mux.Handle("POST /forum/posts", chain(handleCreateForumPost(deps.CreateForumPost, forumView{deps.People, deps.Storage}), auth))
+	mux.HandleFunc("GET /forum/posts", handleListForumPosts(deps.ListForumPosts, forumView{deps.People, deps.Storage}))
+	mux.HandleFunc("GET /forum/posts/{id}", handleGetForumPost(deps.GetForumPost, forumView{deps.People, deps.Storage}))
 	mux.Handle("POST /forum/posts/{id}/replies", chain(handleAddForumReply(deps.AddForumReply), auth))
 	mux.Handle("POST /forum/posts/{id}/replies/{index}/mark-best", chain(handleMarkBestAnswer(deps.MarkBestAnswer), auth))
 
@@ -163,15 +166,15 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("GET /admin/overview", can(domain.PermOverviewRead, handleAdminOverview(deps.AdminOverview)))
 	mux.Handle("GET /admin/nav-counts", can(domain.PermOverviewRead, handleAdminNavCounts(deps.AdminNavCounts)))
 
-	mux.Handle("GET /admin/users", can(domain.PermAccountsRead, handleAdminListUsers(deps.AdminListUsers)))
-	mux.Handle("POST /admin/users/{id}/suspend", can(domain.PermAccountsSuspend, handleAdminSuspendUser(deps.AdminSuspendUser, journal)))
-	mux.Handle("POST /admin/users/{id}/reactivate", can(domain.PermAccountsSuspend, handleAdminReactivateUser(deps.AdminReactivateUser, journal)))
-	mux.Handle("POST /admin/users/{id}/farm-limit", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal)))
-	mux.Handle("GET /admin/farm-limits", can(domain.PermAccountsRead, handleAdminListFarmLimits(deps.AdminListFarmLimits)))
-	mux.Handle("POST /admin/farm-limits", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal)))
+	mux.Handle("GET /admin/users", can(domain.PermAccountsRead, handleAdminListUsers(deps.AdminListUsers, deps.Storage)))
+	mux.Handle("POST /admin/users/{id}/suspend", can(domain.PermAccountsSuspend, handleAdminSuspendUser(deps.AdminSuspendUser, journal, deps.Storage)))
+	mux.Handle("POST /admin/users/{id}/reactivate", can(domain.PermAccountsSuspend, handleAdminReactivateUser(deps.AdminReactivateUser, journal, deps.Storage)))
+	mux.Handle("POST /admin/users/{id}/farm-limit", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal, deps.Storage)))
+	mux.Handle("GET /admin/farm-limits", can(domain.PermAccountsRead, handleAdminListFarmLimits(deps.AdminListFarmLimits, deps.Storage)))
+	mux.Handle("POST /admin/farm-limits", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal, deps.Storage)))
 
 	mux.Handle("GET /admin/farms", can(domain.PermFarmsRead, handleAdminListFarms(deps.AdminListFarms, deps.AdminFarmQueueCounts, deps.Storage)))
-	mux.Handle("GET /admin/farms/{id}", can(domain.PermFarmsRead, handleAdminGetFarm(deps.AdminGetFarm, journal)))
+	mux.Handle("GET /admin/farms/{id}", can(domain.PermFarmsRead, handleAdminGetFarm(deps.AdminGetFarm, journal, deps.Storage)))
 	mux.Handle("POST /admin/farms/{id}/review", can(domain.PermFarmsReview, handleAdminReviewFarm(deps.ReviewFarm, journal)))
 
 	mux.Handle("GET /admin/cycles", can(domain.PermCatalogRead, handleAdminListCycles(deps.AdminListCycles)))
@@ -190,9 +193,9 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// The team itself. Reading who is on it and what each role may do
 	// is open to all staff (it is how a refusal gets explained);
 	// changing it is the super admin's alone.
-	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff, deps.AdminListAudit, deps.StaffInvitations)))
-	mux.Handle("POST /admin/staff", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
-	mux.Handle("POST /admin/staff/{id}/role", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal)))
+	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff, deps.AdminListAudit, deps.StaffInvitations, deps.Storage)))
+	mux.Handle("POST /admin/staff", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal, deps.Storage)))
+	mux.Handle("POST /admin/staff/{id}/role", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal, deps.Storage)))
 	mux.Handle("POST /admin/staff/invitations", can(domain.PermStaffManage, handleInviteStaff(deps.StaffInvitations, journal)))
 	mux.Handle("POST /admin/staff/invitations/{id}/resend", can(domain.PermStaffManage, handleResendInvitation(deps.StaffInvitations, journal)))
 	mux.Handle("DELETE /admin/staff/invitations/{id}", can(domain.PermStaffManage, handleCancelInvitation(deps.StaffInvitations, journal)))

@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -96,12 +97,14 @@ type farmProfileResponse struct {
 	MemberSince   time.Time `json:"memberSince"`
 	ReviewAverage float64   `json:"reviewAverage"`
 	ReviewCount   int       `json:"reviewCount"`
+	OwnerName     string    `json:"ownerName,omitempty"`
+	OwnerAvatar   string    `json:"ownerAvatarUrl,omitempty"`
 }
 
 // toFarmProfileResponse withholds the contact phone from anonymous
 // callers: a buyer has to sign in to call or message a farmer, which
 // keeps phone numbers out of reach of scrapers.
-func toFarmProfileResponse(p *farmstats.Profile, signedIn bool) farmProfileResponse {
+func toFarmProfileResponse(ctx context.Context, storage ports.ObjectStorage, p *farmstats.Profile, signedIn bool) farmProfileResponse {
 	base := toFarmResponse(p.Farm)
 	if !signedIn {
 		base.ContactPhone = ""
@@ -110,6 +113,7 @@ func toFarmProfileResponse(p *farmstats.Profile, signedIn bool) farmProfileRespo
 		farmResponse: base,
 		TrustScore:   p.TrustScore, Verified: p.Verified, SalesCount: p.SalesCount, MemberSince: p.MemberSince,
 		ReviewAverage: p.ReviewAverage, ReviewCount: p.ReviewCount,
+		OwnerName: p.OwnerName, OwnerAvatar: avatarURL(ctx, storage, p.OwnerAvatarKey),
 	}
 }
 
@@ -148,7 +152,7 @@ func handleCreateFarm(uc *farm.CreateFarm) http.HandlerFunc {
 	}
 }
 
-func handleGetFarmProfile(uc *farm.GetProfile) http.HandlerFunc {
+func handleGetFarmProfile(uc *farm.GetProfile, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pathObjectID(w, r, "id")
 		if !ok {
@@ -160,7 +164,7 @@ func handleGetFarmProfile(uc *farm.GetProfile) http.HandlerFunc {
 			return
 		}
 		_, signedIn := ClaimsFromContext(r.Context())
-		writeJSON(w, http.StatusOK, toFarmProfileResponse(p, signedIn))
+		writeJSON(w, http.StatusOK, toFarmProfileResponse(r.Context(), storage, p, signedIn))
 	}
 }
 
