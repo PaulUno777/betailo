@@ -358,6 +358,11 @@ export const en: TranslationDictionary = {
     label_one: '{count} photo',
     label: '{count} photos',
     goTo: 'Photo {n}',
+    open: 'View photo {n} full size',
+    close: 'Close',
+    prev: 'Previous photo',
+    next: 'Next photo',
+    counter: '{n} / {count}',
     noPhotos: 'No photo yet'
   },
   favorites: {

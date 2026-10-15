@@ -356,6 +356,11 @@ export const fr = {
     label_one: '{count} photo',
     label: '{count} photos',
     goTo: 'Photo {n}',
+    open: 'Voir la photo {n} en grand',
+    close: 'Fermer',
+    prev: 'Photo précédente',
+    next: 'Photo suivante',
+    counter: '{n} / {count}',
     noPhotos: 'Pas encore de photo'
   },
   favorites: {

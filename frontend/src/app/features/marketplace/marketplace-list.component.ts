@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { NgTemplateOutlet } from '@angular/common';
+import { ActivatedRoute, NavigationStart, ParamMap, Router } from '@angular/router';
+import { Location, NgTemplateOutlet, ViewportScroller } from '@angular/common';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, skip } from 'rxjs';
 import { ListingSearchParams, ListingSearchResult, MarketplaceListing, SearchFacets } from '../../domain/models';
 import { categoryLabelKey, isSpecies, speciesGroups, speciesIcon, speciesLabelKey, speciesOf } from '../../domain/reference/species';
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
@@ -19,6 +19,8 @@ import { AnimalIconComponent } from '../../shared/ui/animal-icon/animal-icon.com
 import { BottomSheetComponent } from '../../shared/ui/bottom-sheet/bottom-sheet.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { PriceRangeComponent, PriceRangeValue } from '../../shared/ui/price-range/price-range.component';
+import { InfiniteScrollDirective } from '../../shared/ui/infinite-scroll/infinite-scroll.directive';
+import { mediaQuery } from '../../shared/layout/media-query';
 
 // Must match the backend's ports.ListingSort* constants verbatim.
 const SORT_VALUES = ['availability', 'recent', 'rating', 'price_asc', 'price_desc'] as const;
@@ -35,6 +37,9 @@ const SORT_LABEL_KEYS: Readonly<Record<SortValue, string>> = {
 const OPEN_STATUSES = ['planned', 'in_progress'] as const;
 
 const PAGE_SIZE = 12;
+/** Coming back with `?page=N` refetches pages 1..N in one request, up to
+ * this many results (the API allows 100). */
+const MAX_RESTORE_SIZE = 96;
 const SEARCH_DEBOUNCE_MS = 300;
 const AVAILABILITY_MONTHS = 6;
 
@@ -108,6 +113,7 @@ type CategoryState = 'all' | 'some' | 'none';
     BottomSheetComponent,
     ButtonComponent,
     PriceRangeComponent,
+    InfiniteScrollDirective,
     TranslatePipe
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -223,19 +229,29 @@ type CategoryState = 'all' | 'some' | 'none';
               }
             </div>
           } @else {
-            <div class="flex flex-col gap-3 sm:hidden">
+            <!-- One list, laid out for the screen: rows on phones, a grid
+                 from sm up. Rendering both and hiding one with CSS would
+                 build every card twice. -->
+            <div [class]="isWide() ? 'grid grid-cols-2 gap-5 xl:grid-cols-3' : 'flex flex-col gap-3'">
               @for (item of items(); track item.listing.id) {
-                <bt-listing-card [item]="item" layout="row" />
+                <bt-listing-card [item]="item" [layout]="isWide() ? 'tile' : 'row'" />
               }
-            </div>
-            <div class="hidden gap-5 sm:grid sm:grid-cols-2 xl:grid-cols-3">
-              @for (item of items(); track item.listing.id) {
-                <bt-listing-card [item]="item" />
+              @if (loadingMore()) {
+                @for (i of moreSkeletons; track i) {
+                  <div aria-hidden="true" class="animate-pulse rounded-lg bg-surface-sunken" [class]="isWide() ? 'h-[380px]' : 'h-[122px]'"></div>
+                }
               }
             </div>
             @if (hasMore()) {
+              <!-- The next page loads as the reader nears the end; the
+                   button stays for keyboards and after a failed load.
+                   Re-created after each load, so a sentinel still in
+                   reach (a tall screen) fires again. -->
+              @if (!result.isLoading()) {
+                <div btInfiniteScroll (reached)="autoLoadMore()"></div>
+              }
               <div class="mt-6 flex justify-center">
-                <bt-button variant="outline" [disabled]="result.isLoading()" (click)="page.set(page() + 1)">
+                <bt-button variant="outline" [disabled]="result.isLoading()" (click)="loadMore()">
                   {{ (result.isLoading() ? 'common.loading' : 'marketplace.loadMore') | t }}
                 </bt-button>
               </div>
@@ -406,8 +422,21 @@ export class MarketplaceListComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly locale = inject(LocaleService);
+  private readonly scroller = inject(ViewportScroller);
+  private readonly location = inject(Location);
+  private readonly injector = inject(Injector);
+
+  /** Where to scroll once the results are on screen, when coming back
+   * (browser back) to a search left for a listing. The router's own
+   * restoration runs before the results arrive, on a page too short to
+   * reach it. */
+  private readonly pendingScroll = signal<number | null>(
+    this.router.currentNavigation()?.trigger === 'popstate' ? (savedScroll.get(currentUrl()) ?? null) : null
+  );
 
   protected readonly skeletons = [1, 2, 3, 4, 5, 6];
+  protected readonly moreSkeletons = [1, 2, 3];
+  protected readonly isWide = mediaQuery('(min-width: 640px)');
 
   protected readonly sortOptions = computed(() =>
     SORT_VALUES.map((value) => ({ value, label: this.locale.t(SORT_LABEL_KEYS[value]) }))
@@ -425,7 +454,19 @@ export class MarketplaceListComponent {
   );
 
   /** Back to page 1 whenever any filter changes. */
-  protected readonly page = linkedSignal({ source: this.filters, computation: () => 1 });
+  protected readonly page = linkedSignal<Filters, number>({
+    source: this.filters,
+    computation: (_, previous) => (previous ? 1 : this.pageFromUrl())
+  });
+
+  /** Coming back from a listing with `?page=3`: the first request fetches
+   * pages 1 to 3 at once so the list is as long as the reader left it and
+   * the router can restore the scroll position. Later pages load as
+   * usual; a filter change drops it. */
+  private readonly restorePages = linkedSignal<Filters, number>({
+    source: this.filters,
+    computation: (_, previous) => (previous ? 1 : this.pageFromUrl())
+  });
 
   private readonly params = computed<ListingSearchParams>(() => {
     const f = this.filters();
@@ -444,9 +485,17 @@ export class MarketplaceListComponent {
       maxPrice: f.maxPrice ?? undefined,
       verifiedOnly: f.verifiedOnly || undefined,
       sort: f.sort,
-      page: this.page(),
-      pageSize: PAGE_SIZE
+      ...this.pageParams()
     };
+  });
+
+  private readonly pageParams = computed(() => {
+    const page = this.page();
+    const restore = this.restorePages();
+    if (page === restore && restore > 1) {
+      return { page: 1, pageSize: Math.min(restore * PAGE_SIZE, MAX_RESTORE_SIZE) };
+    }
+    return { page, pageSize: PAGE_SIZE };
   });
 
   protected readonly result = apiResource<ListingSearchResult>(() => this.listingsApi.searchUrl(this.params()));
@@ -469,6 +518,8 @@ export class MarketplaceListComponent {
     computation: (total, previous) => total ?? previous?.value ?? 0
   });
   protected readonly hasMore = computed(() => this.items().length < this.total());
+  /** A next page is on its way: skeletons follow the cards. */
+  protected readonly loadingMore = computed(() => this.result.isLoading() && this.items().length > 0);
 
   /** The last facets, kept while the next search loads. */
   private readonly facets = linkedSignal<SearchFacets | undefined, SearchFacets>({
@@ -616,6 +667,20 @@ export class MarketplaceListComponent {
   protected readonly sortLabelKey = computed(() => SORT_LABEL_KEYS[this.filters().sort]);
 
   constructor() {
+    // Leaving: remember where the reader was in this search.
+    this.router.events
+      .pipe(
+        filter((e) => e instanceof NavigationStart),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => savedScroll.set(currentUrl(), this.scroller.getScrollPosition()[1]));
+    effect(() => {
+      const y = this.pendingScroll();
+      if (y !== null && this.items().length && !this.result.isLoading()) {
+        this.pendingScroll.set(null);
+        afterNextRender(() => this.scroller.scrollToPosition([0, y]), { injector: this.injector });
+      }
+    });
     // A search or species chip in the header while already on this page
     // changes the URL without re-creating the component: follow it. The
     // mirror below writes back the same params, which compare equal.
@@ -633,12 +698,12 @@ export class MarketplaceListComponent {
       }
     });
     // Mirror the filters into the URL (replacing, not pushing, history).
+    let mirrored: Filters | undefined;
     effect(() => {
       const f = this.filters();
       const [country, region] = f.place ? f.place.split('|') : [null, null];
-      this.router.navigate([], {
+      const tree = this.router.createUrlTree([], {
         relativeTo: this.route,
-        replaceUrl: true,
         queryParams: {
           q: f.q || null,
           category: f.categories.join(',') || null,
@@ -652,10 +717,36 @@ export class MarketplaceListComponent {
           minPrice: f.minPrice ?? null,
           maxPrice: f.maxPrice ?? null,
           verified: f.verifiedOnly ? '1' : null,
-          sort: f.sort === 'availability' ? null : f.sort
+          sort: f.sort === 'availability' ? null : f.sort,
+          page: this.page() > 1 ? this.page() : null
         }
       });
+      const url = this.router.serializeUrl(tree);
+      const filtersChanged = f !== mirrored;
+      mirrored = f;
+      // Same URL: the router would skip the navigation but still scroll
+      // to the top.
+      if (url === currentUrl()) return;
+      if (filtersChanged) {
+        this.router.navigateByUrl(tree, { replaceUrl: true });
+      } else {
+        // Only the page moved on: a router navigation would scroll the
+        // reader back to the top mid-list.
+        this.location.replaceState(url, '', this.location.getState());
+      }
     });
+  }
+
+  protected loadMore(): void {
+    this.page.update((p) => p + 1);
+  }
+
+  /** The sentinel came into reach: load the next page unless one is
+   * already on its way or the last one failed (the button retries). */
+  protected autoLoadMore(): void {
+    if (this.hasMore() && !this.result.isLoading() && !this.result.error()) {
+      this.loadMore();
+    }
   }
 
   protected patch(change: Partial<Filters>): void {
@@ -745,6 +836,11 @@ export class MarketplaceListComponent {
     });
   }
 
+  private pageFromUrl(): number {
+    const n = Number(this.route.snapshot.queryParamMap.get('page'));
+    return Number.isInteger(n) && n > 1 ? Math.min(n, Math.floor(MAX_RESTORE_SIZE / PAGE_SIZE)) : 1;
+  }
+
   private filtersFromUrl(p: ParamMap = this.route.snapshot.queryParamMap): Filters {
     const sort = p.get('sort');
     const list = (key: string) => (p.get(key) ?? '').split(',').map((v) => v.trim()).filter(Boolean);
@@ -771,6 +867,14 @@ export class MarketplaceListComponent {
       sort: (SORT_VALUES as readonly string[]).includes(sort ?? '') ? (sort as SortValue) : 'availability'
     };
   }
+}
+
+/** Scroll offsets of searches the reader left, by URL, for coming back
+ * with the browser's back button. */
+const savedScroll = new Map<string, number>();
+
+function currentUrl(): string {
+  return location.pathname + location.search;
 }
 
 const STATUS_LABEL_KEYS: Readonly<Record<string, string>> = {

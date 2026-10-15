@@ -85,6 +85,7 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
               [photos]="d.listing.photos ?? []"
               [alt]="d.listing.title"
               frameClass="aspect-[4/3] max-h-[62dvh] w-full lg:aspect-[16/10] lg:max-h-none lg:rounded-xl"
+              photoClass="pb-6 lg:pb-0"
             >
               <button type="button" class="overlay-btn lg:invisible" (click)="back()" [attr.aria-label]="'listingDetail.back' | t">
                 <bt-icon name="chevron-left" [size]="22" />
@@ -105,6 +106,8 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
               </div>
             </bt-image-gallery>
 
+            <!-- Slides up 24px over the photos; the gallery's photoClass
+                 keeps each photo whole above it. -->
             <div class="relative -mt-6 flex flex-col gap-6 rounded-t-xl bg-surface px-4 pt-5 lg:mt-8 lg:rounded-none lg:px-0 lg:pt-0">
               <header class="flex flex-col gap-3">
                 <div class="flex flex-wrap items-center gap-2">
