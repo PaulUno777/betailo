@@ -304,6 +304,8 @@ export const fr = {
     showResults_one: 'Voir {count} annonce',
     showResults: 'Voir {count} annonces',
     loadMore: 'Voir plus d’annonces',
+    shownCount: '{shown} sur {total} annonces affichées',
+    loadMoreFailed: 'Le chargement a échoué. Vérifiez votre connexion.',
     eyebrow: 'Marché',
     eyebrowCount_one: 'Marché · {count} cycle ouvert',
     eyebrowCount: 'Marché · {count} cycles ouverts',

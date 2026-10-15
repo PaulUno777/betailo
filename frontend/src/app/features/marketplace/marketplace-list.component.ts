@@ -19,7 +19,6 @@ import { AnimalIconComponent } from '../../shared/ui/animal-icon/animal-icon.com
 import { BottomSheetComponent } from '../../shared/ui/bottom-sheet/bottom-sheet.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { PriceRangeComponent, PriceRangeValue } from '../../shared/ui/price-range/price-range.component';
-import { InfiniteScrollDirective } from '../../shared/ui/infinite-scroll/infinite-scroll.directive';
 import { mediaQuery } from '../../shared/layout/media-query';
 
 // Must match the backend's ports.ListingSort* constants verbatim.
@@ -113,7 +112,6 @@ type CategoryState = 'all' | 'some' | 'none';
     BottomSheetComponent,
     ButtonComponent,
     PriceRangeComponent,
-    InfiniteScrollDirective,
     TranslatePipe
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -238,24 +236,23 @@ type CategoryState = 'all' | 'some' | 'none';
               }
               @if (loadingMore()) {
                 @for (i of moreSkeletons; track i) {
-                  <div aria-hidden="true" class="animate-pulse rounded-lg bg-surface-sunken" [class]="isWide() ? 'h-[380px]' : 'h-[122px]'"></div>
+                  <div aria-hidden="true" class="animate-pulse rounded-lg bg-surface-sunken" [class]="isWide() ? 'h-[380px]' : 'h-[148px]'"></div>
                 }
               }
             </div>
-            @if (hasMore()) {
-              <!-- The next page loads as the reader nears the end; the
-                   button stays for keyboards and after a failed load.
-                   Re-created after each load, so a sentinel still in
-                   reach (a tall screen) fires again. -->
-              @if (!result.isLoading()) {
-                <div btInfiniteScroll (reached)="autoLoadMore()"></div>
-              }
-              <div class="mt-6 flex justify-center">
+            <!-- More loads only on request: buyers on metered data pay
+                 for what they ask to see, and the footer stays reachable. -->
+            <div class="mt-6 flex flex-col items-center gap-3">
+              <p class="text-small text-ink-muted" role="status">{{ 'marketplace.shownCount' | t: { shown: items().length, total: total() } }}</p>
+              @if (hasMore()) {
+                @if (result.error()) {
+                  <p class="text-small text-alert">{{ 'marketplace.loadMoreFailed' | t }}</p>
+                }
                 <bt-button variant="outline" [disabled]="result.isLoading()" (click)="loadMore()">
-                  {{ (result.isLoading() ? 'common.loading' : 'marketplace.loadMore') | t }}
+                  {{ (result.isLoading() ? 'common.loading' : result.error() ? 'common.retry' : 'marketplace.loadMore') | t }}
                 </bt-button>
-              </div>
-            }
+              }
+            </div>
           }
         </section>
       </div>
@@ -737,15 +734,12 @@ export class MarketplaceListComponent {
     });
   }
 
+  /** The next page, or the same one again after a failed load. */
   protected loadMore(): void {
-    this.page.update((p) => p + 1);
-  }
-
-  /** The sentinel came into reach: load the next page unless one is
-   * already on its way or the last one failed (the button retries). */
-  protected autoLoadMore(): void {
-    if (this.hasMore() && !this.result.isLoading() && !this.result.error()) {
-      this.loadMore();
+    if (this.result.error()) {
+      this.result.reload();
+    } else {
+      this.page.update((p) => p + 1);
     }
   }
 

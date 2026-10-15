@@ -306,6 +306,8 @@ export const en: TranslationDictionary = {
     showResults_one: 'Show {count} listing',
     showResults: 'Show {count} listings',
     loadMore: 'Show more listings',
+    shownCount: '{shown} of {total} listings shown',
+    loadMoreFailed: 'Couldn’t load more. Check your connection.',
     eyebrow: 'Marketplace',
     eyebrowCount_one: 'Marketplace · {count} open cycle',
     eyebrowCount: 'Marketplace · {count} open cycles',
