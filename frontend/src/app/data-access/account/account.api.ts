@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { Account, Profile } from '../../domain/models';
 import { ApiClient } from '../../core/http/api-client';
 import { LoginResult } from '../auth/auth.api';
+import { PhotoSizes, PresignedUpload } from '../../core/http/photo-upload.service';
 
 export interface ProfileInput {
   readonly displayName: string;
@@ -44,6 +45,19 @@ export class AccountApi {
 
   updateProfile(input: ProfileInput): Observable<Profile> {
     return this.api.patch<Profile>('/me', input);
+  }
+
+  presignAvatar(sizes: PhotoSizes): Observable<PresignedUpload> {
+    return this.api.post<PresignedUpload>('/me/avatar/presign', sizes);
+  }
+
+  /** Makes an uploaded photo the profile photo. */
+  setAvatar(key: string): Observable<Profile> {
+    return this.api.put<Profile>('/me/avatar', { key });
+  }
+
+  removeAvatar(): Observable<Profile> {
+    return this.api.delete<Profile>('/me/avatar');
   }
 
   /** Ends every other session; this device is signed straight back in

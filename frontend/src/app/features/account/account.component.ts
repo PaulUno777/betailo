@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { switchMap } from 'rxjs';
 import { Router, RouterLink } from '@angular/router';
 import { Profile } from '../../domain/models';
 import { AccountApi } from '../../data-access/account/account.api';
 import { AuthService } from '../../core/auth/auth.service';
 import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { AppError } from '../../core/http/app-error';
+import { PhotoUploadService } from '../../core/http/photo-upload.service';
 import { ToastService } from '../../core/notifications/toast.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -50,13 +52,34 @@ type Sheet = 'profile' | 'password' | null;
   template: `
     <div class="mx-auto flex max-w-2xl flex-col gap-6 p-4 sm:p-8">
       <section class="flex items-center gap-4">
-        <bt-avatar [name]="name()" [size]="64" />
+        <!-- The profile photo: the camera badge picks a new one. -->
+        <label class="relative shrink-0 cursor-pointer" [class.opacity-60]="photoBusy()" [title]="'account.photoHint' | t">
+          <bt-avatar [name]="name()" [src]="profile.value()?.avatarUrl" [size]="64" />
+          <span class="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-forest text-on-forest">
+            <bt-icon name="camera" [size]="14" />
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            class="sr-only"
+            [disabled]="photoBusy()"
+            [attr.aria-label]="(profile.value()?.avatarUrl ? 'account.photoChange' : 'account.photoAdd') | t"
+            (change)="pickPhoto($event)"
+          />
+        </label>
         <div class="flex min-w-0 flex-col">
           <h1 class="truncate text-heading-2">{{ name() }}</h1>
           @if (profile.value(); as p) {
             <span class="text-small text-ink-muted">
               {{ 'account.memberSince' | t: { date: (p.memberSince | localDate: 'monthYear') } }}
             </span>
+            @if (photoBusy()) {
+              <span class="text-small text-ink-muted">{{ 'account.photoUploading' | t }}</span>
+            } @else if (p.avatarUrl) {
+              <button type="button" class="self-start text-small text-ink-muted underline underline-offset-2" (click)="removePhoto()">
+                {{ 'account.photoRemove' | t }}
+              </button>
+            }
           }
         </div>
       </section>
@@ -175,6 +198,7 @@ export class AccountComponent {
   protected readonly auth = inject(AuthService);
   protected readonly theme = inject(ThemeService);
   private readonly accountApi = inject(AccountApi);
+  private readonly uploads = inject(PhotoUploadService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly seller = inject(SellerSpaceService);
@@ -216,6 +240,7 @@ export class AccountComponent {
     'flex min-h-14 w-full items-center gap-3 border-t border-line px-4 text-body text-ink transition first:border-t-0 hover:bg-surface-sunken active:bg-surface-sunken';
 
   protected readonly sheet = signal<Sheet>(null);
+  protected readonly photoBusy = signal(false);
   protected readonly busy = signal(false);
   protected readonly displayName = signal('');
   protected readonly phone = signal('');
@@ -232,6 +257,44 @@ export class AccountComponent {
         untracked(() => this.auth.updateUser({ displayName: p.displayName }));
       }
     });
+  }
+
+  /** Resizes the picked photo, uploads it with its small copy, then
+   * makes it the profile photo. */
+  protected pickPhoto(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.photoBusy()) return;
+    this.photoBusy.set(true);
+    this.uploads
+      .upload(file, (sizes) => this.accountApi.presignAvatar(sizes), { thumb: true })
+      .pipe(switchMap((key) => this.accountApi.setAvatar(key)))
+      .subscribe({
+        next: (p) => this.photoSaved(p, 'account.photoSaved'),
+        error: (err: AppError) => this.photoFailed(err)
+      });
+  }
+
+  protected removePhoto(): void {
+    if (this.photoBusy()) return;
+    this.photoBusy.set(true);
+    this.accountApi.removeAvatar().subscribe({
+      next: (p) => this.photoSaved(p, 'account.photoRemoved'),
+      error: (err: AppError) => this.photoFailed(err)
+    });
+  }
+
+  private photoSaved(p: Profile, title: string): void {
+    this.photoBusy.set(false);
+    this.auth.updateUser({ avatarUrl: p.avatarUrl });
+    this.profile.reload();
+    this.toast.show({ tone: 'success', title });
+  }
+
+  private photoFailed(err: AppError): void {
+    this.photoBusy.set(false);
+    this.toast.show({ tone: 'danger', title: 'account.photoFailed', detail: err.message });
   }
 
   protected contactLine(p: Profile): string {

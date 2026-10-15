@@ -161,7 +161,7 @@ const TARGET_HOURS = 48;
             <div class="bo-card flex w-full flex-col gap-1.5 px-4 py-3.5 sm:w-auto sm:min-w-[280px]">
               <span class="text-eyebrow text-ink-muted">{{ 'adminFarms.ownerTitle' | t }}</span>
               <div class="flex items-center gap-2.5">
-                <bt-avatar [name]="d.owner?.displayName || d.owner?.email || '?'" [size]="36" tone="clay" class="shrink-0" />
+                <bt-avatar [name]="d.owner?.displayName || d.owner?.email || '?'" [src]="d.owner?.avatarUrl" [size]="36" tone="clay" class="shrink-0" />
                 <div class="flex min-w-0 flex-col">
                   <b class="wrap-anywhere text-small">{{ d.owner?.displayName || d.owner?.email }}</b>
                   <span class="text-caption text-ink-muted">

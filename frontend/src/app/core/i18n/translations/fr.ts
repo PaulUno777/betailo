@@ -43,7 +43,8 @@ export const fr = {
     insufficient_capacity: 'Il ne reste plus assez de places.',
     photo: {
       unsupported: 'Ce fichier ne peut pas être lu comme une photo. Choisissez une image JPEG ou PNG.',
-      too_large: 'Cette photo reste trop lourde même réduite ({max} Ko au plus). Choisissez-en une autre.'
+      too_large: 'Cette photo reste trop lourde même réduite ({max} Ko au plus). Choisissez-en une autre.',
+      key_required: 'Aucune photo n\'a été envoyée.',
     },
     auth: {
       email_invalid: 'Entrez une adresse e-mail valide.',
@@ -328,7 +329,8 @@ export const fr = {
     verified: 'Éleveur vérifié',
     whatsapp: 'WhatsApp',
     call: 'Appeler',
-    signInToContact: 'Connectez-vous pour contacter l’éleveur'
+    signInToContact: 'Connectez-vous pour contacter l’éleveur',
+    farmer: 'Éleveur : {name}'
   },
   gallery: {
     label_one: '{count} photo',
@@ -611,7 +613,8 @@ export const fr = {
     replySubmit: 'Répondre',
     replySubmitting: 'Envoi…',
     replyFailedTitle: "Échec de l'envoi",
-    loginToReply: 'Connectez-vous pour répondre.'
+    loginToReply: 'Connectez-vous pour répondre.',
+    someone: 'Membre Betailo'
   },
   priorityChoice: {
     payNowTitle: 'Payer maintenant',
@@ -1331,7 +1334,15 @@ export const fr = {
       becomeTitle: 'Vendre mes animaux',
       becomeBody: 'Gratuit, en quelques minutes'
     },
-    security: 'Sécurité et double authentification'
+    security: 'Sécurité et double authentification',
+    photoAdd: 'Ajouter une photo',
+    photoChange: 'Changer la photo',
+    photoRemove: 'Retirer la photo',
+    photoUploading: 'Envoi de la photo…',
+    photoSaved: 'Photo de profil enregistrée',
+    photoRemoved: 'Photo de profil retirée',
+    photoFailed: 'La photo n\'a pas pu être enregistrée',
+    photoHint: 'Visible à côté de votre nom : avis, forum, fermes.'
   },
   modeSwitch: {
     label: 'Acheter ou vendre',

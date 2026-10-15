@@ -38,6 +38,7 @@ type reviewResponse struct {
 	Mine           bool                 `json:"mine"`
 	Reply          *reviewReplyResponse `json:"reply,omitempty"`
 	AuthorName     string               `json:"authorName,omitempty"`
+	AuthorAvatar   string               `json:"authorAvatarUrl,omitempty"`
 	ReservationRef string               `json:"reservationRef,omitempty"`
 	CreatedAt      time.Time            `json:"createdAt"`
 }
@@ -49,7 +50,7 @@ func toReviewResponse(ctx context.Context, storage ports.ObjectStorage, it revie
 		Criteria: criteriaJSON{Health: r.Criteria.Health, Conformity: r.Criteria.Conformity,
 			Communication: r.Criteria.Communication, Timeliness: r.Criteria.Timeliness},
 		Tags: r.Tags, Photos: []string{}, Thumbs: []string{}, HelpfulCount: r.HelpfulCount, VotedByMe: it.VotedByViewer, Mine: it.ByViewer,
-		AuthorName: it.AuthorName, ReservationRef: it.ReservationRef, CreatedAt: r.CreatedAt,
+		AuthorName: it.AuthorName, AuthorAvatar: avatarURL(ctx, storage, it.AuthorAvatarKey), ReservationRef: it.ReservationRef, CreatedAt: r.CreatedAt,
 	}
 	if out.Tags == nil {
 		out.Tags = []string{}

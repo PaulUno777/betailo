@@ -45,7 +45,8 @@ export const en: TranslationDictionary = {
     insufficient_capacity: 'There are not enough places left.',
     photo: {
       unsupported: 'This file can’t be read as a photo. Pick a JPEG or PNG image.',
-      too_large: 'This photo is too heavy even once reduced ({max} KB at most). Pick another one.'
+      too_large: 'This photo is too heavy even once reduced ({max} KB at most). Pick another one.',
+      key_required: 'No photo was sent.',
     },
     auth: {
       email_invalid: 'Enter a valid email address.',
@@ -330,7 +331,8 @@ export const en: TranslationDictionary = {
     verified: 'Verified farmer',
     whatsapp: 'WhatsApp',
     call: 'Call',
-    signInToContact: 'Sign in to contact the farmer'
+    signInToContact: 'Sign in to contact the farmer',
+    farmer: 'Farmer: {name}'
   },
   gallery: {
     label_one: '{count} photo',
@@ -613,7 +615,8 @@ export const en: TranslationDictionary = {
     replySubmit: 'Reply',
     replySubmitting: 'Sending…',
     replyFailedTitle: 'Couldn’t send',
-    loginToReply: 'Log in to reply.'
+    loginToReply: 'Log in to reply.',
+    someone: 'Betailo member'
   },
   priorityChoice: {
     payNowTitle: 'Pay now',
@@ -1332,7 +1335,15 @@ export const en: TranslationDictionary = {
       becomeTitle: 'Sell my animals',
       becomeBody: 'Free, in a few minutes'
     },
-    security: 'Security and two-step verification'
+    security: 'Security and two-step verification',
+    photoAdd: 'Add a photo',
+    photoChange: 'Change photo',
+    photoRemove: 'Remove photo',
+    photoUploading: 'Uploading photo…',
+    photoSaved: 'Profile photo saved',
+    photoRemoved: 'Profile photo removed',
+    photoFailed: 'The photo couldn\'t be saved',
+    photoHint: 'Shown next to your name: reviews, forum, farms.'
   },
   modeSwitch: {
     label: 'Buy or sell',

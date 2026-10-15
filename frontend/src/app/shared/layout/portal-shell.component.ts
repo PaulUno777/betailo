@@ -81,7 +81,7 @@ const MORE_LINKS: readonly MoreSheetLink[] = [
     >
       <bt-farm-switcher sidebarTop class="block" />
       <a sidebarFooter routerLink="/account" class="flex items-center gap-2.5 rounded-[14px] bg-on-forest-deep/6 p-3 transition hover:bg-on-forest-deep/12">
-        <bt-avatar [name]="accountName()" [size]="38" tone="clay" class="shrink-0" />
+        <bt-avatar [name]="accountName()" [src]="seller.account()?.avatarUrl" [size]="38" tone="clay" class="shrink-0" />
         <span class="flex min-w-0 flex-col leading-snug">
           <b class="truncate text-small text-on-forest-deep">{{ accountName() }}</b>
           <span class="truncate text-caption text-on-forest-deep/70">{{ 'portalNav.accountHint' | t }}</span>

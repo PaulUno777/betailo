@@ -30,6 +30,7 @@ type userDoc struct {
 	FarmLimit     int               `bson:"farmLimit,omitempty"`
 	FarmLimitNote *farmLimitNoteDoc `bson:"farmLimitNote,omitempty"`
 	DisplayName   string            `bson:"displayName,omitempty"`
+	AvatarKey     string            `bson:"avatarKey,omitempty"`
 	Phone         string            `bson:"phone,omitempty"`
 	City          string            `bson:"city,omitempty"`
 	Suspended     bool              `bson:"suspended,omitempty"`
@@ -94,6 +95,7 @@ func fromDomainUser(u *domain.User) userDoc {
 		StaffRole:     u.StaffRole,
 		FarmLimit:     u.FarmLimit,
 		DisplayName:   u.DisplayName,
+		AvatarKey:     u.AvatarKey,
 		Phone:         u.Phone,
 		City:          u.City,
 		Suspended:     u.Suspended,
@@ -117,6 +119,7 @@ func (d userDoc) toDomain() *domain.User {
 		StaffRole:     d.StaffRole,
 		FarmLimit:     d.FarmLimit,
 		DisplayName:   d.DisplayName,
+		AvatarKey:     d.AvatarKey,
 		Phone:         d.Phone,
 		City:          d.City,
 		Suspended:     d.Suspended,

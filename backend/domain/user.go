@@ -55,6 +55,9 @@ type User struct {
 	MFA MFA
 
 	DisplayName string
+	// AvatarKey is the storage key of the account's profile photo, empty
+	// when it has none. Its small copy (ThumbKey) is what gets shown.
+	AvatarKey string
 	// Phone (E.164) and City are the buyer's own contact details,
 	// shown to a farmer they've reserved from. Optional.
 	Phone string

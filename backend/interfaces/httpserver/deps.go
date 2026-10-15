@@ -12,6 +12,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
 	"github.com/pauluno777/betailo/backend/application/usecase/inbox"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
+	"github.com/pauluno777/betailo/backend/application/usecase/people"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/application/usecase/review"
@@ -40,8 +41,12 @@ type Dependencies struct {
 	StaffInvitations *auth.StaffInvitations
 	PasswordReset    *auth.PasswordReset
 
-	GetProfile     *account.GetProfile
-	UpdateProfile  *account.UpdateProfile
+	GetProfile    *account.GetProfile
+	UpdateProfile *account.UpdateProfile
+	PresignAvatar *account.PresignAvatar
+	// People names the authors of forum posts and replies.
+	People         *people.Directory
+	SetAvatar      *account.SetAvatar
 	ChangePassword *auth.ChangePassword
 	SellerAccess   *farm.SellerAccess
 	// RateLimits applies to the credential endpoints; the zero value

@@ -1,9 +1,12 @@
 package httpserver
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/account"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
@@ -16,17 +19,32 @@ type profileResponse struct {
 	Email       string    `json:"email"`
 	StaffRole   string    `json:"staffRole,omitempty"`
 	DisplayName string    `json:"displayName,omitempty"`
+	AvatarURL   string    `json:"avatarUrl,omitempty"`
 	Phone       string    `json:"phone,omitempty"`
 	City        string    `json:"city,omitempty"`
 	TrustScore  float64   `json:"trustScore"`
 	MemberSince time.Time `json:"memberSince"`
 }
 
-func toProfileResponse(u *domain.User) profileResponse {
+func toProfileResponse(ctx context.Context, storage ports.ObjectStorage, u *domain.User) profileResponse {
 	return profileResponse{
-		ID: u.ID.Hex(), Email: u.Email, StaffRole: string(u.StaffRole), DisplayName: u.DisplayName, Phone: u.Phone, City: u.City,
+		ID: u.ID.Hex(), Email: u.Email, StaffRole: string(u.StaffRole), DisplayName: u.DisplayName,
+		AvatarURL: avatarURL(ctx, storage, u.AvatarKey), Phone: u.Phone, City: u.City,
 		TrustScore: u.TrustScore, MemberSince: u.CreatedAt,
 	}
+}
+
+// avatarURL is where a browser downloads a profile photo's small copy,
+// or "" when the account has none.
+func avatarURL(ctx context.Context, storage ports.ObjectStorage, key string) string {
+	if key == "" || storage == nil {
+		return ""
+	}
+	url, err := storage.PresignDownload(ctx, domain.ThumbKey(key))
+	if err != nil {
+		return ""
+	}
+	return url
 }
 
 // meResponse is `GET /me`: the profile plus what the account can do,
@@ -47,7 +65,7 @@ type meResponse struct {
 	IsRoot      bool     `json:"isRoot,omitempty"`
 }
 
-func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess) http.HandlerFunc {
+func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -73,7 +91,7 @@ func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess) http.Ha
 			permissions = append(permissions, string(p))
 		}
 		out := meResponse{
-			profileResponse: toProfileResponse(u), Farms: farms, FarmLimit: seller.FarmLimit, CanAddFarm: seller.CanAdd,
+			profileResponse: toProfileResponse(r.Context(), storage, u), Farms: farms, FarmLimit: seller.FarmLimit, CanAddFarm: seller.CanAdd,
 			Permissions: permissions, IsRoot: u.Root,
 		}
 		if u.FarmLimit > 0 && u.FarmLimitNote != nil {
@@ -89,7 +107,7 @@ type updateProfileRequest struct {
 	City        string `json:"city"`
 }
 
-func handleUpdateProfile(uc *account.UpdateProfile) http.HandlerFunc {
+func handleUpdateProfile(uc *account.UpdateProfile, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -107,7 +125,71 @@ func handleUpdateProfile(uc *account.UpdateProfile) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, toProfileResponse(u))
+		writeJSON(w, http.StatusOK, toProfileResponse(r.Context(), storage, u))
+	}
+}
+
+func handlePresignAvatar(uc *account.PresignAvatar) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		var req presignPhotoRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		out, err := uc.Execute(r.Context(), claims.UserID, req.Size, req.ThumbSize)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, presignPhotoResponse{Key: out.Key, UploadURL: out.UploadURL, ThumbUploadURL: out.ThumbUploadURL})
+	}
+}
+
+type setAvatarRequest struct {
+	Key string `json:"key"`
+}
+
+func handleSetAvatar(uc *account.SetAvatar, storage ports.ObjectStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		var req setAvatarRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if req.Key == "" {
+			writeError(w, domain.Coded("photo.key_required", fmt.Errorf("account: no photo key: %w", domain.ErrInvalid)))
+			return
+		}
+		u, err := uc.Execute(r.Context(), claims.UserID, req.Key)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toProfileResponse(r.Context(), storage, u))
+	}
+}
+
+func handleRemoveAvatar(uc *account.SetAvatar, storage ports.ObjectStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		u, err := uc.Execute(r.Context(), claims.UserID, "")
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toProfileResponse(r.Context(), storage, u))
 	}
 }
 

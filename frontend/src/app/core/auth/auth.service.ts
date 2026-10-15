@@ -128,7 +128,7 @@ export class AuthService {
   /** Patches the cached display user after the account changed (a new
    * display name). The role is never patched here: it only changes
    * through `reloadSession`, with a token that carries it. */
-  updateUser(change: Pick<Partial<User>, 'displayName' | 'email'>): void {
+  updateUser(change: Pick<Partial<User>, 'displayName' | 'email' | 'avatarUrl'>): void {
     const user = this.userSignal();
     if (!user) return;
     const next = { ...user, ...change };
@@ -136,14 +136,15 @@ export class AuthService {
     persistUser(next);
   }
 
-  /** Aligns the cached display user with the role the API reports on
-   * `GET /me`: staff are added and removed from the back office, long
-   * after the sign-in that cached this user. Menus only; every
+  /** Aligns the cached display user with the account as `GET /me`
+   * reports it: staff are added and removed from the back office long
+   * after the sign-in that cached this user, and the profile photo's
+   * signed URL expires, so both are taken from there. Menus only; every
    * `/admin` call is checked by the API against the stored role. */
-  syncStaffRole(role: StaffRole | undefined): void {
+  syncAccount(account: Pick<User, 'staffRole' | 'avatarUrl'>): void {
     const user = this.userSignal();
-    if (!user || user.staffRole === role) return;
-    const next = { ...user, staffRole: role };
+    if (!user || (user.staffRole === account.staffRole && user.avatarUrl === account.avatarUrl)) return;
+    const next = { ...user, staffRole: account.staffRole, avatarUrl: account.avatarUrl };
     this.userSignal.set(next);
     persistUser(next);
   }

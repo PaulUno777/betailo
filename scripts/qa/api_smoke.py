@@ -683,6 +683,27 @@ check("X44", "Guest", "The old password is out, the new one works", "401 then 20
 s, b = g.call("POST", "/auth/password/reset", {"token": reset_token, "password": "Qa-reset-pass-3"}, token=False)
 check("X45", "Guest", "A reset link works once", "404 code auth.reset_link_invalid", s == 404 and (b or {}).get("code") == "auth.reset_link_invalid", f"{s} {b}")
 
+# ---------- profile photos ----------
+pic, _, _ = register("avatar", "Awa Photo")
+other, _, _ = register("avatar2", "Other Photo")
+s, up = pic.call("POST", "/me/avatar/presign", PHOTO_SIZES)
+uploaded = s == 200 and put_file(up["uploadUrl"]) == 200 and put_file(up["thumbUploadUrl"]) == 200
+check("P01", "User", "Upload a profile photo and its small copy", "200 + both uploads", uploaded, f"{s} {str(up)[:80]}")
+s, b = pic.call("POST", "/me/avatar/presign", {"size": 801 << 10, "thumbSize": 1000})
+check("P02", "User", "Declare a profile photo over 800 KB", "400 photo.too_large", s == 400 and (b or {}).get("code") == "photo.too_large", f"{s} {b}")
+s, b = pic.call("PUT", "/me/avatar", {"key": up["key"]})
+check("P03", "User", "Set it as the profile photo", "200 with avatarUrl", s == 200 and bool((b or {}).get("avatarUrl")), f"{s} {str(b)[:100]}")
+s, b = pic.call("GET", "/me")
+check("P04", "User", "GET /me carries the photo's small copy", "avatarUrl to the .thumb.jpg", ".thumb.jpg" in (b or {}).get("avatarUrl", ""), str((b or {}).get("avatarUrl", ""))[:100])
+s, b = other.call("PUT", "/me/avatar", {"key": up["key"]})
+check("P05", "User", "Take someone else's uploaded photo as your own", "400", s == 400, f"{s} {b}")
+s, b = pic.call("POST", "/forum/posts", {"category": "general", "title": "Photo de profil QA", "body": "Bonjour à tous, je teste la photo."})
+s, b = g.call("GET", f"/forum/posts/{(b or {}).get('id')}", token=False)
+check("P06", "Guest", "A forum post shows its author's public name and photo", "authorName 'Awa P.' + authorAvatarUrl",
+      s == 200 and (b or {}).get("authorName") == "Awa P." and bool((b or {}).get("authorAvatarUrl")), f"{s} {(b or {}).get('authorName')}")
+s, b = pic.call("DELETE", "/me/avatar")
+check("P07", "User", "Remove the profile photo", "200 without avatarUrl", s == 200 and not (b or {}).get("avatarUrl"), f"{s} {str(b)[:80]}")
+
 failed = [r for r in RESULTS if not r["ok"]]
 print(f"\n{len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
 sys.exit(1 if failed else 0)

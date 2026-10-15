@@ -146,7 +146,7 @@ func handleGetListingDetail(uc *listing.GetDetail, storage ports.ObjectStorage) 
 		writeJSON(w, http.StatusOK, listingDetailResponse{
 			Listing:       toListingResponse(r.Context(), storage, d.Listing),
 			Cycle:         cycleDetailResponse{cycleResponse: toCycleResponse(d.Cycle), Timeline: toTimelineResponse(d.Timeline)},
-			Farm:          toFarmProfileResponse(d.Farm, signedIn),
+			Farm:          toFarmProfileResponse(r.Context(), storage, d.Farm, signedIn),
 			ReviewSummary: toReviewSummaryResponse(d.ReviewSummary),
 			TopReviews:    reviews,
 			Favorited:     d.Favorited,

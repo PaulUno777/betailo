@@ -15,10 +15,12 @@ import (
 // name only), which reservation it verifies, and whether the viewer
 // already found it helpful.
 type Item struct {
-	Review         *domain.Review
-	AuthorName     string
-	ReservationRef string
-	VotedByViewer  bool
+	Review     *domain.Review
+	AuthorName string
+	// AuthorAvatarKey is the author's profile photo, empty without one.
+	AuthorAvatarKey string
+	ReservationRef  string
+	VotedByViewer   bool
 	// ByViewer is true on the viewer's own review: they can't vote on it.
 	ByViewer bool
 }
@@ -50,7 +52,7 @@ func Build(ctx context.Context, src Sources, reviews []*domain.Review, viewerID 
 	for _, r := range reviews {
 		it := Item{Review: r, VotedByViewer: voted[r.ID], ByViewer: !viewerID.IsZero() && r.AuthorID == viewerID}
 		if u, err := src.Users.FindByID(ctx, r.AuthorID); err == nil {
-			it.AuthorName = domain.PublicName(u.DisplayName)
+			it.AuthorName, it.AuthorAvatarKey = domain.PublicName(u.DisplayName), u.AvatarKey
 		}
 		if res, err := src.Reservations.FindByID(ctx, r.ReservationID); err == nil {
 			it.ReservationRef = res.Reference

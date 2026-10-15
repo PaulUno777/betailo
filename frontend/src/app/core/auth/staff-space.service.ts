@@ -18,6 +18,7 @@ export class StaffSpaceService {
   readonly isRoot = computed(() => this.space.account()?.isRoot === true);
   readonly email = computed(() => this.space.account()?.email ?? '');
   readonly name = computed(() => this.space.account()?.displayName || this.space.account()?.email || '');
+  readonly avatarUrl = computed(() => this.space.account()?.avatarUrl);
   private readonly permissions = computed(() => new Set<Permission>(this.space.account()?.permissions ?? []));
 
   can(permission: Permission): boolean {

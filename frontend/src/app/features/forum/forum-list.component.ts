@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { AvatarComponent } from '../../shared/ui/avatar/avatar.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ForumPost } from '../../domain/models';
@@ -22,7 +23,7 @@ import { apiResource } from '../../core/http/api-resource';
  * here is a stub. */
 @Component({
   selector: 'bt-forum-list',
-  imports: [FormsModule, RouterLink, TextFieldComponent, ButtonComponent, BadgeComponent, DialogComponent, IconComponent, TranslatePipe],
+  imports: [FormsModule, RouterLink, AvatarComponent, TextFieldComponent, ButtonComponent, BadgeComponent, DialogComponent, IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-content-max px-5 py-8 sm:px-18">
@@ -60,8 +61,14 @@ import { apiResource } from '../../core/http/api-resource';
                   [routerLink]="['/forum', post.id]"
                   class="flex items-center gap-4 border-b border-line py-5 text-ink no-underline hover:text-forest"
                 >
-                  <bt-badge [tone]="categoryTone(post.category)">{{ post.category }}</bt-badge>
-                  <span class="flex-1 text-body-strong">{{ post.title }}</span>
+                  <bt-avatar [name]="post.authorName || ('forum.someone' | t)" [src]="post.authorAvatarUrl" [size]="36" tone="sky" class="shrink-0" />
+                  <span class="flex min-w-0 flex-1 flex-col gap-1">
+                    <span class="flex flex-wrap items-center gap-2">
+                      <bt-badge [tone]="categoryTone(post.category)">{{ post.category }}</bt-badge>
+                      <span class="text-caption text-ink-muted">{{ post.authorName || ('forum.someone' | t) }}</span>
+                    </span>
+                    <span class="text-body-strong">{{ post.title }}</span>
+                  </span>
                   <span class="flex items-center gap-1.5 text-small text-ink-muted">
                     <bt-icon name="message" [size]="16" />
                     {{ 'forum.repliesCount' | t: { count: post.replies?.length ?? 0 } }}

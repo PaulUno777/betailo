@@ -34,6 +34,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/forum"
 	"github.com/pauluno777/betailo/backend/application/usecase/inbox"
 	"github.com/pauluno777/betailo/backend/application/usecase/listing"
+	"github.com/pauluno777/betailo/backend/application/usecase/people"
 	"github.com/pauluno777/betailo/backend/application/usecase/report"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/application/usecase/review"
@@ -286,6 +287,9 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			PasswordReset:    passwordReset,
 			GetProfile:       &account.GetProfile{Users: users},
 			UpdateProfile:    &account.UpdateProfile{Users: users},
+			PresignAvatar:    &account.PresignAvatar{Storage: storageProvider},
+			SetAvatar:        &account.SetAvatar{Users: users},
+			People:           &people.Directory{Users: users},
 			ChangePassword:   &auth.ChangePassword{Users: users, Hasher: hasher, RefreshTokens: refreshTokens, Clock: systemClock},
 			SellerAccess:     &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms},
 			RateLimits:       httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),

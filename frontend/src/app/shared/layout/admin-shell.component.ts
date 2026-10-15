@@ -72,7 +72,7 @@ const TAB_LABELS: Readonly<Record<string, string>> = { '/admin': 'adminNav.overv
       [moreLinks]="moreLinks()"
     >
       <a sidebarFooter routerLink="/account" class="flex items-center gap-2.5 rounded-xl bg-white/5 px-3 py-2.5 transition hover:bg-white/10">
-        <bt-avatar [name]="staff.name()" [size]="34" tone="forest" />
+        <bt-avatar [name]="staff.name()" [src]="staff.avatarUrl()" [size]="34" tone="forest" />
         <span class="flex min-w-0 flex-col items-start gap-1">
           <b class="max-w-full truncate text-[13.5px] text-on-forest-deep">{{ staff.name() }}</b>
           @if (staff.role(); as role) {

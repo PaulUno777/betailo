@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/csv"
 	"net/http"
 	"strconv"
@@ -106,6 +107,7 @@ type adminUserResponse struct {
 	StaffRole   string `json:"staffRole,omitempty"`
 	IsRoot      bool   `json:"isRoot,omitempty"`
 	DisplayName string `json:"displayName,omitempty"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
 	// FarmLimit is what staff set for this account; 0 = platform default.
 	FarmLimit     int                    `json:"farmLimit"`
 	FarmLimitNote *farmLimitNoteResponse `json:"farmLimitNote,omitempty"`
@@ -120,9 +122,10 @@ type adminUserResponse struct {
 	MFAEnabled bool `json:"mfaEnabled"`
 }
 
-func toAdminUserResponse(u *domain.User, farmCount int) adminUserResponse {
+func toAdminUserResponse(ctx context.Context, storage ports.ObjectStorage, u *domain.User, farmCount int) adminUserResponse {
 	out := adminUserResponse{
 		ID: u.ID.Hex(), Email: u.Email, StaffRole: string(u.StaffRole), IsRoot: u.Root, DisplayName: u.DisplayName,
+		AvatarURL: avatarURL(ctx, storage, u.AvatarKey),
 		FarmLimit: u.FarmLimit, FarmCount: farmCount, Suspended: u.Suspended, TrustScore: u.TrustScore, MemberSince: u.CreatedAt,
 	}
 	if n := u.FarmLimitNote; n != nil {
@@ -131,7 +134,7 @@ func toAdminUserResponse(u *domain.User, farmCount int) adminUserResponse {
 	return out
 }
 
-func handleAdminListUsers(uc *admin.ListUsers) http.HandlerFunc {
+func handleAdminListUsers(uc *admin.ListUsers, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		items, err := uc.Execute(r.Context())
 		if err != nil {
@@ -140,7 +143,7 @@ func handleAdminListUsers(uc *admin.ListUsers) http.HandlerFunc {
 		}
 		out := make([]adminUserResponse, 0, len(items))
 		for _, item := range items {
-			out = append(out, toAdminUserResponse(item.User, item.FarmCount))
+			out = append(out, toAdminUserResponse(r.Context(), storage, item.User, item.FarmCount))
 		}
 		writeJSON(w, http.StatusOK, out)
 	}
@@ -156,7 +159,7 @@ type farmLimitRequest struct {
 
 // handleAdminSetFarmLimit serves both `POST /admin/users/{id}/farm-limit`
 // and `POST /admin/farm-limits` (account named by email).
-func handleAdminSetFarmLimit(uc *admin.SetFarmLimit, journal *admin.Journal) http.HandlerFunc {
+func handleAdminSetFarmLimit(uc *admin.SetFarmLimit, journal *admin.Journal, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
 		if !ok {
@@ -187,7 +190,7 @@ func handleAdminSetFarmLimit(uc *admin.SetFarmLimit, journal *admin.Journal) htt
 		journal.Record(r.Context(), actor, admin.Entry{
 			Action: domain.ActionFarmLimitSet, TargetType: "user", TargetID: item.User.ID, TargetLabel: item.User.Email, Detail: detail,
 		})
-		writeJSON(w, http.StatusOK, toAdminUserResponse(item.User, item.FarmCount))
+		writeJSON(w, http.StatusOK, toAdminUserResponse(r.Context(), storage, item.User, item.FarmCount))
 	}
 }
 
@@ -198,7 +201,7 @@ type farmLimitsResponse struct {
 	Exceptions []adminUserResponse `json:"exceptions"`
 }
 
-func handleAdminListFarmLimits(uc *admin.ListFarmLimits) http.HandlerFunc {
+func handleAdminListFarmLimits(uc *admin.ListFarmLimits, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		out, err := uc.Execute(r.Context())
 		if err != nil {
@@ -207,7 +210,7 @@ func handleAdminListFarmLimits(uc *admin.ListFarmLimits) http.HandlerFunc {
 		}
 		exceptions := make([]adminUserResponse, 0, len(out.Exceptions))
 		for _, ex := range out.Exceptions {
-			item := toAdminUserResponse(ex.User, ex.FarmCount)
+			item := toAdminUserResponse(r.Context(), storage, ex.User, ex.FarmCount)
 			if item.FarmLimitNote != nil {
 				item.FarmLimitNote.SetByName, item.FarmLimitNote.SetByRole = ex.SetByName, string(ex.SetByRole)
 			}
@@ -217,7 +220,7 @@ func handleAdminListFarmLimits(uc *admin.ListFarmLimits) http.HandlerFunc {
 	}
 }
 
-func handleAdminSuspendUser(uc *admin.SuspendUser, journal *admin.Journal) http.HandlerFunc {
+func handleAdminSuspendUser(uc *admin.SuspendUser, journal *admin.Journal, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
 		if !ok {
@@ -233,11 +236,11 @@ func handleAdminSuspendUser(uc *admin.SuspendUser, journal *admin.Journal) http.
 			return
 		}
 		journal.Record(r.Context(), actor, admin.Entry{Action: domain.ActionUserSuspend, TargetType: "user", TargetID: u.ID, TargetLabel: u.Email})
-		writeJSON(w, http.StatusOK, toAdminUserResponse(u, 0))
+		writeJSON(w, http.StatusOK, toAdminUserResponse(r.Context(), storage, u, 0))
 	}
 }
 
-func handleAdminReactivateUser(uc *admin.ReactivateUser, journal *admin.Journal) http.HandlerFunc {
+func handleAdminReactivateUser(uc *admin.ReactivateUser, journal *admin.Journal, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
 		if !ok {
@@ -253,7 +256,7 @@ func handleAdminReactivateUser(uc *admin.ReactivateUser, journal *admin.Journal)
 			return
 		}
 		journal.Record(r.Context(), actor, admin.Entry{Action: domain.ActionUserReactivate, TargetType: "user", TargetID: u.ID, TargetLabel: u.Email})
-		writeJSON(w, http.StatusOK, toAdminUserResponse(u, 0))
+		writeJSON(w, http.StatusOK, toAdminUserResponse(r.Context(), storage, u, 0))
 	}
 }
 
@@ -618,10 +621,10 @@ type adminFarmResponse struct {
 	ThumbURL string             `json:"thumbUrl,omitempty"`
 }
 
-func toAdminFarmResponse(item admin.FarmReviewItem) adminFarmResponse {
+func toAdminFarmResponse(ctx context.Context, storage ports.ObjectStorage, item admin.FarmReviewItem) adminFarmResponse {
 	out := adminFarmResponse{farmResponse: toOwnerFarmResponse(item.Farm)}
 	if item.Owner != nil {
-		owner := toAdminUserResponse(item.Owner, item.OwnerFarmCount)
+		owner := toAdminUserResponse(ctx, storage, item.Owner, item.OwnerFarmCount)
 		out.Owner = &owner
 	}
 	return out
@@ -655,7 +658,7 @@ func handleAdminListFarms(uc *admin.ListFarmsForReview, counts *admin.CountFarmQ
 		}
 		out := make([]adminFarmResponse, 0, len(items))
 		for _, item := range items {
-			row := toAdminFarmResponse(item)
+			row := toAdminFarmResponse(r.Context(), storage, item)
 			if keys := item.Farm.Verification.PhotoKeys; len(keys) > 0 && storage != nil {
 				if url, err := storage.PresignDownload(r.Context(), keys[0]); err == nil {
 					row.ThumbURL = url
@@ -690,7 +693,7 @@ type adminFarmDetailResponse struct {
 
 // handleAdminGetFarm hands out the proof, and writes that it did: who
 // looked at an identity document is part of the journal.
-func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal) http.HandlerFunc {
+func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
 		if !ok {
@@ -719,7 +722,7 @@ func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal) http
 			codes = append(codes, string(c))
 		}
 		writeJSON(w, http.StatusOK, adminFarmDetailResponse{
-			adminFarmResponse: toAdminFarmResponse(d.FarmReviewItem),
+			adminFarmResponse: toAdminFarmResponse(r.Context(), storage, d.FarmReviewItem),
 			IDDocumentURL:     d.IDDocumentURL, IDDocumentBackURL: d.IDDocumentBackURL, PhotoURLs: photos,
 			OwnerFarmCount: d.OwnerFarmCount, OwnerFarmLimit: d.OwnerFarmLimit, OwnerPurchases: d.OwnerPurchases, OwnerReports: d.OwnerReports,
 			ReviewerName: d.ReviewerName, ReviewerRole: string(d.ReviewerRole), RejectionCodes: codes,
@@ -799,7 +802,7 @@ type staffResponse struct {
 // each staff member last acted.
 const staffActivityWindow = 500
 
-func handleAdminListStaff(uc *admin.ListStaff, audit *admin.ListAudit, invitations *auth.StaffInvitations) http.HandlerFunc {
+func handleAdminListStaff(uc *admin.ListStaff, audit *admin.ListAudit, invitations *auth.StaffInvitations, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		members, err := uc.Execute(r.Context())
 		if err != nil {
@@ -818,7 +821,7 @@ func handleAdminListStaff(uc *admin.ListStaff, audit *admin.ListAudit, invitatio
 		}
 		out := staffResponse{Members: make([]adminUserResponse, 0, len(members))}
 		for _, m := range members {
-			row := toAdminUserResponse(m, 0)
+			row := toAdminUserResponse(r.Context(), storage, m, 0)
 			if at, ok := lastActive[m.ID]; ok {
 				row.LastActiveAt = &at
 			}
@@ -862,7 +865,7 @@ type staffRoleRequest struct {
 
 // handleAdminSetStaffRole serves both `POST /admin/staff` (account
 // named by email) and `POST /admin/staff/{id}/role`.
-func handleAdminSetStaffRole(uc *admin.SetStaffRole, journal *admin.Journal) http.HandlerFunc {
+func handleAdminSetStaffRole(uc *admin.SetStaffRole, journal *admin.Journal, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
 		if !ok {
@@ -899,7 +902,7 @@ func handleAdminSetStaffRole(uc *admin.SetStaffRole, journal *admin.Journal) htt
 			}
 			journal.Record(r.Context(), actor, admin.Entry{Action: action, TargetType: "user", TargetID: out.User.ID, TargetLabel: out.User.Email, Detail: detail})
 		}
-		writeJSON(w, http.StatusOK, toAdminUserResponse(out.User, 0))
+		writeJSON(w, http.StatusOK, toAdminUserResponse(r.Context(), storage, out.User, 0))
 	}
 }
 
