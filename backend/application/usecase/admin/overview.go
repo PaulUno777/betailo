@@ -3,8 +3,9 @@ package admin
 import (
 	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/v2/bson"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/domain"

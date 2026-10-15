@@ -224,7 +224,7 @@ func TestAdmin_HTTP_ListingsWithPhotosResolveURLs(t *testing.T) {
 
 	keys := make([]string, 0, 3)
 	for range 3 {
-		presignRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", nil, farmerToken)
+		presignRec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", photoSizes, farmerToken)
 		if presignRec.Code != http.StatusOK {
 			t.Fatalf("presign status = %d; body = %s", presignRec.Code, presignRec.Body.String())
 		}

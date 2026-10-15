@@ -70,6 +70,9 @@ def check(cid, profile, flow, expect, ok, actual):
 
 # 1x1 JPEG: every upload in this run (listing photos, farm proof).
 JPEG = bytes.fromhex("ffd8ffe000104a46494600010100000100010000ffdb004300080606070605080707070909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c2837292c30313434341f27393d38323c2e333432ffc0000b080001000101011100ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffda0008010100003f00fbfcffd9")
+# What the browser declares when it asks for upload URLs: the photo and
+# its small copy, which the URLs are then locked to.
+PHOTO_SIZES = {"size": len(JPEG), "thumbSize": len(JPEG)}
 
 
 def put_file(url):
@@ -88,7 +91,7 @@ def upload_farm_proof(owner, farm_id, n=3):
     """Uploads n proof files for a farm and returns their storage keys."""
     keys = []
     for _ in range(n):
-        s, b = owner.call("POST", f"/farms/{farm_id}/verification/presign")
+        s, b = owner.call("POST", f"/farms/{farm_id}/verification/presign", PHOTO_SIZES)
         put_file(b["uploadUrl"])
         keys.append(b["key"])
     return keys
@@ -184,7 +187,7 @@ s, b = far.call("POST", f"/listings/{qlisting}/publish")
 check("F06", "Farmer", "Publish without any photo (D2 code)", "400 code listing.photo_required", s == 400 and (b or {}).get("code") == "listing.photo_required", f"{s} {b}")
 s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-poulets", "quantity": 0, "unitPrice": -5, "title": ""})
 check("F07", "Farmer", "Quick listing with quantity 0 / negative price", "400", s == 400, f"{s} {b}")
-s, b = far.call("POST", f"/listings/{qlisting}/photos/presign")
+s, b = far.call("POST", f"/listings/{qlisting}/photos/presign", PHOTO_SIZES)
 check("F08", "Farmer", "Presign a listing photo upload", "200 key + uploadUrl", s == 200 and isinstance(b, dict) and b.get("uploadUrl"), f"{s} {str(b)[:100]}")
 key = (b or {}).get("key") if isinstance(b, dict) else None
 upload = (b or {}).get("uploadUrl") if isinstance(b, dict) else None
@@ -201,6 +204,10 @@ if upload:
     except Exception as e:
         up = repr(e)
     check("F09", "Farmer", "Upload photo to storage via presigned URL", "2xx", isinstance(up, int) and 200 <= up < 300, up)
+    tu = put_file(b["thumbUploadUrl"]) if b.get("thumbUploadUrl") else "no thumbUploadUrl"
+    check("F09b", "Farmer", "Upload the photo's small copy", "2xx", isinstance(tu, int) and 200 <= tu < 300, tu)
+    s2, b2 = far.call("POST", f"/listings/{qlisting}/photos/presign", {"size": 801 << 10, "thumbSize": 1000})
+    check("F09c", "Farmer", "Declare a photo over 800 KB", "400 photo.too_large", s2 == 400 and (b2 or {}).get("code") == "photo.too_large", f"{s2} {b2}")
     s, b = far.call("PUT", f"/listings/{qlisting}/photos", {"keys": [key]})
     check("F10", "Farmer", "Attach photo keys to listing", "200", s == 200, f"{s} {str(b)[:100]}")
 s, b = far.call("POST", f"/listings/{qlisting}/publish")
@@ -488,7 +495,7 @@ wl_farmer, _, _ = register("seller", "Waitlist Farmer")
 wf = open_approved_farm(wl_farmer, adm, {"name": "Ferme WL", "location": "Dschang", "region": "Ouest"})
 s, ql = wl_farmer.call("POST", f"/farms/{wf['id']}/quick-listings", {"species": "poussins", "quantity": 10, "unitPrice": 700, "title": "Lot liste d'attente", "deliveryAvailable": False})
 wl_listing, wl_cycle = ql["listing"]["id"], ql["cycle"]["id"]
-s, up = wl_farmer.call("POST", f"/listings/{wl_listing}/photos/presign")
+s, up = wl_farmer.call("POST", f"/listings/{wl_listing}/photos/presign", PHOTO_SIZES)
 req = urllib.request.Request(up["uploadUrl"], data=jpeg, method="PUT"); req.add_header("Content-Type", "image/jpeg"); urllib.request.urlopen(req, timeout=20)
 wl_farmer.call("PUT", f"/listings/{wl_listing}/photos", {"keys": [up["key"]]})
 wl_farmer.call("POST", f"/listings/{wl_listing}/publish")

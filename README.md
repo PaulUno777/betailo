@@ -270,8 +270,29 @@ Render, `PORT` est injecté par Render, `COOKIE_SAMESITE=none` et
 `COOKIE_SECURE=true` conviennent tant que le frontend et l'API sont sur
 deux domaines. `backend/.env.example` décrit chaque variable.
 
-Le bucket R2 doit accepter les envois du navigateur : dans ses réglages
-CORS, autoriser l'origine Vercel pour `GET` et `PUT`.
+Le bucket R2 doit accepter les envois du navigateur, qui envoie les
+photos directement au bucket : **R2 → bucket → Settings → CORS Policy**,
+avec l'adresse Vercel (sans barre finale) :
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://betailo.vercel.app"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Sans `Content-Type` dans `AllowedHeaders`, la requête préalable
+(`OPTIONS`) échoue et le navigateur bloque l'envoi. L'API refuse
+d'émettre une URL d'envoi pour plus de 800 Ko (photo) ou 120 Ko
+(miniature), et signe dans l'URL le type JPEG et la taille annoncée : un
+stockage qui vérifie toute la signature (S3, R2) refuse alors un fichier
+d'une autre taille. SeaweedFS, utilisé en local, ne fait pas cette
+vérification.
 
 `STAFF_MFA_REQUIRED=true` : à la première connexion, le compte racine
 est envoyé sur la page « Sécurité » pour ajouter une application

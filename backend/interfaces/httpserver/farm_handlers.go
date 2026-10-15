@@ -1,9 +1,10 @@
 package httpserver
 
 import (
-	"github.com/pauluno777/betailo/backend/application/ports"
 	"net/http"
 	"time"
+
+	"github.com/pauluno777/betailo/backend/application/ports"
 
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
 	"github.com/pauluno777/betailo/backend/application/usecase/farmstats"
@@ -287,7 +288,11 @@ func handlePresignFarmProof(uc *farm.PresignFarmProof) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		out, err := uc.Execute(r.Context(), id, claims.UserID)
+		var req presignPhotoRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		out, err := uc.Execute(r.Context(), id, claims.UserID, req.Size)
 		if err != nil {
 			writeError(w, err)
 			return

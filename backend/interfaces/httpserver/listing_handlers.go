@@ -20,6 +20,11 @@ type listingResponse struct {
 	Unit        string   `json:"unit,omitempty"`
 	Status      string   `json:"status"`
 	Photos      []string `json:"photos,omitempty"`
+	// Thumbs are the photos' small copies, index for index, for cards
+	// and grids. A photo uploaded before small copies existed has none:
+	// its thumb URL then answers 404 and the client falls back to the
+	// photo.
+	Thumbs []string `json:"thumbs,omitempty"`
 
 	Breed             string `json:"breed,omitempty"`
 	AgeWeeks          int    `json:"ageWeeks,omitempty"`
@@ -46,7 +51,12 @@ func toListingResponse(ctx context.Context, storage ports.ObjectStorage, l *doma
 			slog.Error("listing: presign photo download", slog.String("key", key), slog.Any("err", err))
 			continue
 		}
+		thumb, err := storage.PresignDownload(ctx, domain.ThumbKey(key))
+		if err != nil {
+			thumb = url
+		}
 		resp.Photos = append(resp.Photos, url)
+		resp.Thumbs = append(resp.Thumbs, thumb)
 	}
 	return resp
 }
@@ -188,9 +198,18 @@ func handleUpdateListing(uc *listing.UpdateListing, storage ports.ObjectStorage)
 	}
 }
 
+// presignPhotoRequest declares the byte sizes of a photo and of its
+// small copy, both already resized in the browser; the upload URLs only
+// accept exactly those sizes.
+type presignPhotoRequest struct {
+	Size      int64 `json:"size"`
+	ThumbSize int64 `json:"thumbSize"`
+}
+
 type presignPhotoResponse struct {
-	Key       string `json:"key"`
-	UploadURL string `json:"uploadUrl"`
+	Key            string `json:"key"`
+	UploadURL      string `json:"uploadUrl"`
+	ThumbUploadURL string `json:"thumbUploadUrl"`
 }
 
 func handlePresignListingPhoto(uc *listing.PresignListingPhoto) http.HandlerFunc {
@@ -204,12 +223,16 @@ func handlePresignListingPhoto(uc *listing.PresignListingPhoto) http.HandlerFunc
 		if !ok {
 			return
 		}
-		out, err := uc.Execute(r.Context(), listing.PresignListingPhotoInput{ListingID: id, OwnerID: claims.UserID})
+		var req presignPhotoRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		out, err := uc.Execute(r.Context(), listing.PresignListingPhotoInput{ListingID: id, OwnerID: claims.UserID, Size: req.Size, ThumbSize: req.ThumbSize})
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, presignPhotoResponse{Key: out.Key, UploadURL: out.UploadURL})
+		writeJSON(w, http.StatusOK, presignPhotoResponse{Key: out.Key, UploadURL: out.UploadURL, ThumbUploadURL: out.ThumbUploadURL})
 	}
 }
 

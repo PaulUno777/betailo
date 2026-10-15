@@ -9,9 +9,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -31,7 +33,7 @@ type Config struct {
 	AccessKey string
 	SecretKey string
 	Region    string        // R2 ignores the value but the SDK requires one; SeaweedFS does too
-	URLExpiry time.Duration // how long a presigned URL stays valid; defaults to 15 minutes
+	URLExpiry time.Duration // how long a presigned upload URL stays valid; defaults to 15 minutes
 
 	// PublicEndpoint is what a presigned URL is actually addressed to —
 	// the browser that receives one from an API response resolves it
@@ -104,10 +106,14 @@ func NewS3Provider(ctx context.Context, cfg Config) (*S3Provider, error) {
 }
 
 // PresignUpload implements ports.ObjectStorage.
-func (p *S3Provider) PresignUpload(ctx context.Context, key string) (string, error) {
+// PresignUpload signs Content-Length and Content-Type into the URL, so
+// storage refuses a body that isn't exactly size bytes of JPEG.
+func (p *S3Provider) PresignUpload(ctx context.Context, key string, size int64) (string, error) {
 	req, err := p.presign.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(p.bucket),
-		Key:    aws.String(key),
+		Bucket:        aws.String(p.bucket),
+		Key:           aws.String(key),
+		ContentLength: aws.Int64(size),
+		ContentType:   aws.String("image/jpeg"),
 	}, s3.WithPresignExpires(p.expiry))
 	if err != nil {
 		return "", fmt.Errorf("objectstorage: presign upload: %w", err)
@@ -115,12 +121,23 @@ func (p *S3Provider) PresignUpload(ctx context.Context, key string) (string, err
 	return req.URL, nil
 }
 
-// PresignDownload implements ports.ObjectStorage.
+// Download URLs are signed as of the start of the current
+// downloadWindow and stay valid for two of them: every request within a
+// window gets the same URL for a key, still good for at least one more
+// window, so the browser's cache (told the object never changes, which
+// holds since every key is minted once) serves it instead of storage.
+const downloadWindow = 6 * time.Hour
+
+// PresignDownload implements ports.ObjectStorage. It returns the same
+// URL for a key throughout a downloadWindow; see downloadWindow.
 func (p *S3Provider) PresignDownload(ctx context.Context, key string) (string, error) {
 	req, err := p.presign.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(p.bucket),
-		Key:    aws.String(key),
-	}, s3.WithPresignExpires(p.expiry))
+		Bucket:               aws.String(p.bucket),
+		Key:                  aws.String(key),
+		ResponseCacheControl: aws.String(fmt.Sprintf("private, max-age=%d, immutable", int((2 * downloadWindow).Seconds()))),
+	}, s3.WithPresignExpires(2*downloadWindow), func(o *s3.PresignOptions) {
+		o.Presigner = windowedPresigner{v4.NewSigner()}
+	})
 	if err != nil {
 		return "", fmt.Errorf("objectstorage: presign download: %w", err)
 	}
@@ -157,4 +174,12 @@ func (p *S3Provider) EnsureBucket(ctx context.Context) error {
 		return nil
 	}
 	return fmt.Errorf("objectstorage: create bucket: %w", err)
+}
+
+// windowedPresigner signs as of the start of the current downloadWindow
+// instead of now, which is what keeps a download URL stable.
+type windowedPresigner struct{ signer *v4.Signer }
+
+func (w windowedPresigner) PresignHTTP(ctx context.Context, creds aws.Credentials, r *http.Request, payloadHash, service, region string, signingTime time.Time, optFns ...func(*v4.SignerOptions)) (string, http.Header, error) {
+	return w.signer.PresignHTTP(ctx, creds, r, payloadHash, service, region, signingTime.UTC().Truncate(downloadWindow), optFns...)
 }

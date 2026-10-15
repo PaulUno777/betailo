@@ -24,12 +24,15 @@ type reviewReplyResponse struct {
 }
 
 type reviewResponse struct {
-	ID             string               `json:"id"`
-	Rating         int                  `json:"rating"`
-	Comment        string               `json:"comment,omitempty"`
-	Criteria       criteriaJSON         `json:"criteria"`
-	Tags           []string             `json:"tags"`
-	Photos         []string             `json:"photos"`
+	ID       string       `json:"id"`
+	Rating   int          `json:"rating"`
+	Comment  string       `json:"comment,omitempty"`
+	Criteria criteriaJSON `json:"criteria"`
+	Tags     []string     `json:"tags"`
+	Photos   []string     `json:"photos"`
+	// Thumbs are the photos' small copies, index for index (see
+	// listingResponse.Thumbs).
+	Thumbs         []string             `json:"thumbs"`
 	HelpfulCount   int                  `json:"helpfulCount"`
 	VotedByMe      bool                 `json:"votedByMe"`
 	Mine           bool                 `json:"mine"`
@@ -45,16 +48,23 @@ func toReviewResponse(ctx context.Context, storage ports.ObjectStorage, it revie
 		ID: r.ID.Hex(), Rating: r.Rating, Comment: r.Comment,
 		Criteria: criteriaJSON{Health: r.Criteria.Health, Conformity: r.Criteria.Conformity,
 			Communication: r.Criteria.Communication, Timeliness: r.Criteria.Timeliness},
-		Tags: r.Tags, Photos: []string{}, HelpfulCount: r.HelpfulCount, VotedByMe: it.VotedByViewer, Mine: it.ByViewer,
+		Tags: r.Tags, Photos: []string{}, Thumbs: []string{}, HelpfulCount: r.HelpfulCount, VotedByMe: it.VotedByViewer, Mine: it.ByViewer,
 		AuthorName: it.AuthorName, ReservationRef: it.ReservationRef, CreatedAt: r.CreatedAt,
 	}
 	if out.Tags == nil {
 		out.Tags = []string{}
 	}
 	for _, key := range r.Photos {
-		if url, err := storage.PresignDownload(ctx, key); err == nil {
-			out.Photos = append(out.Photos, url)
+		url, err := storage.PresignDownload(ctx, key)
+		if err != nil {
+			continue
 		}
+		thumb, err := storage.PresignDownload(ctx, domain.ThumbKey(key))
+		if err != nil {
+			thumb = url
+		}
+		out.Photos = append(out.Photos, url)
+		out.Thumbs = append(out.Thumbs, thumb)
 	}
 	if r.Reply != nil {
 		out.Reply = &reviewReplyResponse{Text: r.Reply.Text, At: r.Reply.At}
@@ -137,12 +147,16 @@ func handlePresignReviewPhoto(uc *review.PresignReviewPhoto) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		out, err := uc.Execute(r.Context(), reservationID, claims.UserID)
+		var req presignPhotoRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		out, err := uc.Execute(r.Context(), reservationID, claims.UserID, req.Size, req.ThumbSize)
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, presignPhotoResponse{Key: out.Key, UploadURL: out.UploadURL})
+		writeJSON(w, http.StatusOK, presignPhotoResponse{Key: out.Key, UploadURL: out.UploadURL, ThumbUploadURL: out.ThumbUploadURL})
 	}
 }
 

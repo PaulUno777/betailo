@@ -2,8 +2,11 @@ package httpserver
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/pauluno777/betailo/backend/domain"
 )
 
 func TestListingPhotos_HTTP_PresignThenSetThenResolvedOnRead(t *testing.T) {
@@ -12,12 +15,12 @@ func TestListingPhotos_HTTP_PresignThenSetThenResolvedOnRead(t *testing.T) {
 
 	var keys []string
 	for range 3 {
-		rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", nil, farmerToken)
+		rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", photoSizes, farmerToken)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("presign status = %d, want %d; body = %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 		out := decodeJSON[presignPhotoResponse](t, rec)
-		if out.Key == "" || out.UploadURL == "" {
+		if out.Key == "" || out.UploadURL == "" || out.ThumbUploadURL == "" {
 			t.Fatalf("presign response = %+v, want both fields set", out)
 		}
 		keys = append(keys, out.Key)
@@ -42,6 +45,29 @@ func TestListingPhotos_HTTP_PresignThenSetThenResolvedOnRead(t *testing.T) {
 	for _, url := range got.Photos {
 		if url == "" {
 			t.Error("a photo resolved to an empty URL")
+		}
+	}
+	if len(got.Thumbs) != 3 || !strings.HasSuffix(got.Thumbs[0], ".thumb.jpg") {
+		t.Fatalf("Thumbs = %v, want one small copy per photo", got.Thumbs)
+	}
+}
+
+// photoSizes is what the browser declares for a resized photo and its
+// small copy.
+var photoSizes = presignPhotoRequest{Size: 200 << 10, ThumbSize: 40 << 10}
+
+func TestListingPhotos_HTTP_PresignRefusesUndeclaredOrHeavySizes(t *testing.T) {
+	router := newTestRouter()
+	listingID, farmerToken := setupListing(t, router, 120)
+
+	for name, body := range map[string]presignPhotoRequest{
+		"no size":         {},
+		"photo too heavy": {Size: domain.MaxPhotoBytes + 1, ThumbSize: 40 << 10},
+		"thumb too heavy": {Size: 200 << 10, ThumbSize: domain.MaxThumbBytes + 1},
+	} {
+		rec := doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", body, farmerToken)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want %d; body = %s", name, rec.Code, http.StatusBadRequest, rec.Body.String())
 		}
 	}
 }

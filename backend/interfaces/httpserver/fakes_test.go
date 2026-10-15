@@ -475,7 +475,7 @@ func (fakePaymentProvider) Refund(context.Context, string, float64) error { retu
 // move anywhere in these tests, only the key/URL plumbing is exercised.
 type fakeObjectStorage struct{}
 
-func (fakeObjectStorage) PresignUpload(_ context.Context, key string) (string, error) {
+func (fakeObjectStorage) PresignUpload(_ context.Context, key string, _ int64) (string, error) {
 	return "https://fake-upload.example/" + key, nil
 }
 
