@@ -143,6 +143,20 @@ docker compose up --build
   s'annonce en interne comme `mongo:27017`, un nom qui ne se résout que
   depuis le réseau docker-compose — sans `directConnection=true`, la
   connexion initiale réussit puis échoue en essayant de résoudre ce nom.
+
+Pour essayer l'application depuis un téléphone sur le même réseau, créez
+un fichier `.env` à la racine (ignoré par git) avec l'adresse réseau de
+l'ordinateur, puis relancez le backend
+(`docker compose up -d --build backend`) et servez le frontend avec
+`pnpm exec ng serve --host 0.0.0.0` :
+
+```bash
+CORS_ALLOWED_ORIGIN=http://localhost:4200,http://192.168.1.13:4200
+APP_PUBLIC_URL=http://192.168.1.13:4200
+```
+
+Le site appelle alors l'API sur le port 8080 de la même adresse. Les
+passkeys ne fonctionnent pas sur une adresse IP.
 - SeaweedFS (stockage objet S3-compatible, dev uniquement) : API S3 sur localhost:9000 — remplace MinIO ici car ses images Docker Hub (`minio/minio`, `minio/mc`) exigent désormais une connexion Docker Hub ; même API S3, même code `ports.ObjectStorage`
 
 
@@ -292,8 +306,9 @@ Vérifier : `https://<service>.onrender.com/health` répond `200`.
   barre finale (`https://betailo-backend.onrender.com`). Elle est lue
   au build : après un changement, relancer un déploiement.
 
-Sans `API_BASE_URL`, le site appelle `http://localhost:8080` (le
-comportement en développement).
+Sans `API_BASE_URL` (en développement), le site appelle le port 8080 de
+la machine qui l'a servi : `http://localhost:8080`, ou l'adresse réseau
+de l'ordinateur depuis un téléphone.
 
 Sur [Netlify](https://www.netlify.com) à la place : **Add new site →
 Import an existing project**, **Base directory** `frontend`, et la même
