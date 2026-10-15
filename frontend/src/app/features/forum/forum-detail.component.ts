@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { AvatarComponent } from '../../shared/ui/avatar/avatar.component';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -24,7 +25,7 @@ import { apiResource } from '../../core/http/api-resource';
  * at ownership rules. */
 @Component({
   selector: 'bt-forum-detail',
-  imports: [FormsModule, RouterLink, TextFieldComponent, ButtonComponent, BadgeComponent, TranslatePipe],
+  imports: [FormsModule, RouterLink, AvatarComponent, TextFieldComponent, ButtonComponent, BadgeComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-3xl px-5 py-8 sm:px-0">
@@ -34,7 +35,13 @@ import { apiResource } from '../../core/http/api-resource';
         <div class="mt-4 flex flex-col gap-3 border-b border-line pb-6">
           <bt-badge [tone]="categoryTone(p.category)" class="w-fit">{{ p.category }}</bt-badge>
           <h1 class="text-heading-2">{{ p.title }}</h1>
-          <span class="text-small text-ink-muted">{{ 'forum.postedOn' | t: { date: dateLabel(p.createdAt) } }}</span>
+          <div class="flex items-center gap-2.5">
+            <bt-avatar [name]="p.authorName || ('forum.someone' | t)" [src]="p.authorAvatarUrl" [size]="32" tone="sky" />
+            <span class="flex flex-col">
+              <span class="text-small font-semibold text-ink">{{ p.authorName || ('forum.someone' | t) }}</span>
+              <span class="text-caption text-ink-muted">{{ 'forum.postedOn' | t: { date: dateLabel(p.createdAt) } }}</span>
+            </span>
+          </div>
           <p class="whitespace-pre-line text-body text-ink">{{ p.body }}</p>
         </div>
 
@@ -45,8 +52,14 @@ import { apiResource } from '../../core/http/api-resource';
           }
           @for (reply of p.replies ?? []; track $index) {
             <div class="flex flex-col gap-2 rounded-lg border border-line bg-surface-card p-4">
-              <div class="flex items-center justify-between">
-                <span class="text-small text-ink-muted">{{ 'forum.postedOn' | t: { date: dateLabel(reply.createdAt) } }}</span>
+              <div class="flex items-center justify-between gap-3">
+                <span class="flex min-w-0 items-center gap-2.5">
+                  <bt-avatar [name]="reply.authorName || ('forum.someone' | t)" [src]="reply.authorAvatarUrl" [size]="28" tone="sky" />
+                  <span class="flex min-w-0 flex-col">
+                    <span class="truncate text-small font-semibold text-ink">{{ reply.authorName || ('forum.someone' | t) }}</span>
+                    <span class="text-caption text-ink-muted">{{ 'forum.postedOn' | t: { date: dateLabel(reply.createdAt) } }}</span>
+                  </span>
+                </span>
                 @if (p.bestReplyIndex === $index) {
                   <bt-badge tone="forest-solid">{{ 'forum.bestAnswerBadge' | t }}</bt-badge>
                 } @else if (canMarkBest(p)) {

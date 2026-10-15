@@ -85,7 +85,7 @@ import { AdminPageHeaderComponent } from './ui/admin-page-header.component';
                   <tr>
                     <td class="bo-td">
                       <div class="flex items-center gap-3">
-                        <bt-avatar [name]="m.displayName || m.email" [size]="34" tone="sky" class="shrink-0" />
+                        <bt-avatar [name]="m.displayName || m.email" [src]="m.avatarUrl" [size]="34" tone="sky" class="shrink-0" />
                         <div class="flex min-w-0 flex-col">
                           <b class="wrap-anywhere">{{ m.displayName || m.email }}</b>
                           @if (m.displayName) {

@@ -54,4 +54,13 @@ describe('ReviewCardComponent', () => {
     const own = render({ ...REVIEW, mine: true });
     expect((own.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-pressed]')!.disabled).toBeTrue();
   });
+
+  it("shows the author's profile photo, or their initials without one", () => {
+    const withPhoto = render({ ...REVIEW, authorAvatarUrl: 'https://cdn.test/me.thumb.jpg' }).nativeElement as HTMLElement;
+    expect(withPhoto.querySelector('bt-avatar img')?.getAttribute('src')).toBe('https://cdn.test/me.thumb.jpg');
+
+    const without = render(REVIEW).nativeElement as HTMLElement;
+    expect(without.querySelector('bt-avatar img')).toBeNull();
+    expect(without.querySelector('bt-avatar')?.textContent?.trim()).toBe('MN');
+  });
 });

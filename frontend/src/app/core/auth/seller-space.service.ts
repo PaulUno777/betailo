@@ -68,10 +68,11 @@ export class SellerSpaceService {
       });
     });
 
-    // The account as the API sees it now is the reference for the role.
+    // The account as the API sees it now is the reference for the role
+    // and the profile photo.
     effect(() => {
       const account = this.resource.value();
-      if (account && this.auth.isAuthenticated()) untracked(() => this.auth.syncStaffRole(account.staffRole));
+      if (account && this.auth.isAuthenticated()) untracked(() => this.auth.syncAccount(account));
     });
   }
 

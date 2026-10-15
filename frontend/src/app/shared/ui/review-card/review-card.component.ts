@@ -19,7 +19,7 @@ import { ThumbSrcDirective } from '../thumb-src/thumb-src.directive';
   template: `
     <article class="flex flex-col gap-3 rounded-xl border border-line bg-surface-card p-4 sm:p-5">
       <header class="flex items-start gap-3">
-        <bt-avatar [name]="name()" tone="sky" [size]="40" />
+        <bt-avatar [name]="name()" [src]="review().authorAvatarUrl" tone="sky" [size]="40" />
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="truncate text-body-strong">{{ name() }}</span>
           <span class="text-caption text-ink-muted">{{ review().createdAt | localDate: 'monthYear' }}</span>

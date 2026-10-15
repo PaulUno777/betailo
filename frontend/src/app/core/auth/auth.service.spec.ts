@@ -75,6 +75,16 @@ describe('AuthService', () => {
     expect(restored.user()).toEqual(user);
   });
 
+  it('takes the role and profile photo from the account the API reports', () => {
+    const auth = TestBed.inject(AuthService);
+    auth.setSession('token-1', user);
+    auth.syncAccount({ staffRole: undefined, avatarUrl: 'https://cdn.test/me.thumb.jpg' });
+    expect(auth.user()?.avatarUrl).toBe('https://cdn.test/me.thumb.jpg');
+
+    auth.syncAccount({ staffRole: undefined, avatarUrl: undefined });
+    expect(auth.user()?.avatarUrl).toBeUndefined();
+  });
+
   it('clears local state and calls the server logout on signOut', () => {
     const auth = TestBed.inject(AuthService);
     auth.setSession('token-789', user);

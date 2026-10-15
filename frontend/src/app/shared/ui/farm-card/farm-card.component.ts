@@ -36,6 +36,12 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
           <span class="text-[10px] font-semibold uppercase tracking-wide">{{ 'farmCard.trust' | t }}</span>
         </div>
       </div>
+      @if (farm().ownerName || farm().ownerAvatarUrl) {
+        <div class="flex items-center gap-2.5 border-t border-line pt-3">
+          <bt-avatar [name]="farm().ownerName || farm().name" [src]="farm().ownerAvatarUrl" [size]="28" tone="clay" />
+          <span class="text-small text-ink-muted">{{ 'farmCard.farmer' | t: { name: farm().ownerName || '' } }}</span>
+        </div>
+      }
       @if (farm().contactPhone; as phone) {
         <div class="grid grid-cols-2 gap-2">
           <a

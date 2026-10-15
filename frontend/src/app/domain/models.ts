@@ -29,6 +29,8 @@ export interface User {
   /** Absent for everyone but the platform's team. */
   staffRole?: StaffRole;
   displayName?: string;
+  /** The profile photo's small copy (a signed URL); absent without one. */
+  avatarUrl?: string;
 }
 
 /** The signed-in user's own profile (`PATCH /me`). */
@@ -150,6 +152,9 @@ export interface FarmProfile extends Farm {
   memberSince: string;
   reviewAverage: number;
   reviewCount: number;
+  /** The farmer's public name ("Joël T.") and profile photo. */
+  ownerName?: string;
+  ownerAvatarUrl?: string;
 }
 
 export interface Cycle {
@@ -411,6 +416,7 @@ export interface Review {
   reply?: { text: string; at: string };
   /** "Joël T.", never an email; absent when the author set no name. */
   authorName?: string;
+  authorAvatarUrl?: string;
   /** The verified purchase: "Avis vérifié · RSV-1877". */
   reservationRef?: string;
   createdAt: string;
@@ -477,6 +483,9 @@ export interface ReportDetail {
 
 export interface ForumReply {
   authorId: string;
+  /** Public name ("Joël T.") and photo; absent when unknown. */
+  authorName?: string;
+  authorAvatarUrl?: string;
   body: string;
   createdAt: string;
 }
@@ -484,6 +493,8 @@ export interface ForumReply {
 export interface ForumPost {
   id: string;
   authorId: string;
+  authorName?: string;
+  authorAvatarUrl?: string;
   category: string;
   title: string;
   body: string;
@@ -585,6 +596,7 @@ export interface AdminUser {
   staffRole?: StaffRole;
   isRoot?: boolean;
   displayName?: string;
+  avatarUrl?: string;
   /** What staff set for this account; 0 = the platform default. */
   farmLimit: number;
   farmLimitNote?: FarmLimitNote;

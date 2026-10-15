@@ -58,7 +58,7 @@ function spaceOf(url: string): SpaceId {
         aria-haspopup="menu"
         class="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition hover:bg-surface-sunken"
       >
-        <bt-avatar [name]="displayName()" [size]="32" />
+        <bt-avatar [name]="displayName()" [src]="auth.user()?.avatarUrl" [size]="32" />
         <span class="max-w-32 truncate text-small text-ink">{{ displayName() }}</span>
         <bt-icon name="chevron-down" [size]="16" class="text-ink-muted" />
       </button>
@@ -80,7 +80,7 @@ function spaceOf(url: string): SpaceId {
               (click)="enter(space)"
               class="flex items-center gap-3 px-4 py-2 text-ink hover:bg-surface-sunken"
             >
-              <bt-avatar [name]="space.name" [size]="36" [shape]="space.id === 'personal' ? 'round' : 'square'" [tone]="space.id === 'personal' ? 'clay' : 'forest'" />
+              <bt-avatar [name]="space.name" [src]="space.id === 'personal' ? auth.user()?.avatarUrl : undefined" [size]="36" [shape]="space.id === 'personal' ? 'round' : 'square'" [tone]="space.id === 'personal' ? 'clay' : 'forest'" />
               <span class="flex min-w-0 flex-1 flex-col">
                 <span class="truncate text-body-strong">{{ space.name }}</span>
                 <span class="truncate text-small text-ink-muted">{{ space.hintKey | t }}</span>

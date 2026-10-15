@@ -106,7 +106,7 @@ const FILTERS: readonly Filter[] = ['all', 'sellers', 'staff', 'suspended'];
                     <tr>
                       <td class="bo-td">
                         <div class="flex items-center gap-3">
-                          <bt-avatar [name]="u.displayName || u.email" [size]="34" [tone]="u.staffRole ? 'sky' : 'clay'" class="shrink-0" />
+                          <bt-avatar [name]="u.displayName || u.email" [src]="u.avatarUrl" [size]="34" [tone]="u.staffRole ? 'sky' : 'clay'" class="shrink-0" />
                           <div class="flex min-w-0 flex-col">
                             <b class="wrap-anywhere">{{ u.displayName || u.email }}</b>
                             @if (u.displayName) {
