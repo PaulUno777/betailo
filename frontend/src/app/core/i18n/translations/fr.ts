@@ -10,6 +10,23 @@ export const fr = {
     loading: 'Chargement…'
   },
   apiErrors: {
+    catalog: {
+      stale: 'Une autre version de « {reference} » (v{version}) a été publiée entre-temps.',
+      part_unknown: 'Cette référence n’existe pas.',
+      invalid: 'Ces données ne peuvent pas être publiées :',
+      note_invalid: 'Dites ce qui change ({max} caractères au plus).',
+      key_removed: 'Une entrée déjà utilisée ne peut pas être supprimée, seulement désactivée :',
+      version_taken: 'Une autre publication vient d’avoir lieu.',
+      op_invalid: 'Ce changement n’est pas valide.',
+      op_key_taken: 'La clé « {key} » est déjà utilisée.',
+      op_key_immutable: 'Une clé publiée ne change plus.',
+      op_target_missing: 'Cette entrée n’existe pas (ou plus).',
+      changeset_stale: 'Les changements viennent d’être modifiés par un autre membre de l’équipe.',
+      change_needed: 'D’autres changements en dépendent : annulez-les d’abord.',
+      change_missing: 'Ce changement n’existe plus.',
+      no_changes: 'Aucun changement.',
+      changeset_conflict: 'Certains changements ne s’appliquent plus à la version en vigueur : annulez-les.'
+    },
     admin: {
       farm_limit_range: 'La limite doit être comprise entre 0 et {max}.',
       permission_denied: 'Votre rôle ne permet pas cette action.',
@@ -209,7 +226,7 @@ export const fr = {
     heroTitleAccent: 'directement à la ferme.',
     heroSubtitle:
       "Poussins, porcelets, pondeuses : suivez chaque cycle d'élevage de la mise en place à la livraison, et payez seulement quand tout s'est bien passé.",
-    heroImageAlt: 'Coq et poules dans un poulailler',
+    heroImageAlt: 'Un coq, une poule, une chèvre, un porcelet, un veau, des poussins et un lapin',
     heroCycleTitle: 'Cycle · Poussins Brahma',
     heroCycleDay: 'J+{count}',
     heroCycleStep1: 'Éclosion · 46 poussins',
@@ -251,9 +268,15 @@ export const fr = {
     forumReplyCount_one: '{count} réponse',
     forumReplyCount: '{count} réponses',
     farmerCtaEyebrow: 'Pour les éleveurs',
-    farmerCtaTitle: 'Vous êtes éleveur ?',
-    farmerCtaBody: 'Publiez votre premier cycle et recevez des réservations dès aujourd’hui.',
-    farmerCtaButton: 'Créer un compte éleveur',
+    farmerCtaTitle: 'Vous êtes éleveur ? Vendez sur Betailo.',
+    farmerCtaBody: 'Trois étapes avant vos premières réservations : votre compte, votre ferme, puis vos animaux.',
+    farmerCtaStepAccount: 'Créez votre compte',
+    farmerCtaStepFarm: 'Enregistrez votre ferme',
+    farmerCtaStepPost: 'Publiez vos animaux',
+    farmerCtaStepDone: 'Fait',
+    farmerCtaRegister: 'Créer mon compte',
+    farmerCtaFarm: 'Enregistrer ma ferme',
+    farmerCtaPost: 'Publier une annonce',
     searchWholeCategory: 'Toute la catégorie {category}'
   },
   marketplace: {
@@ -262,6 +285,10 @@ export const fr = {
     removeFilter: 'Retirer le filtre {label}',
     clearAll: 'Tout effacer',
     allRegions: 'Toutes les régions',
+    allTowns: 'Toutes les villes',
+    townLabel: 'Ville',
+    showKinds: 'Afficher les types de {category}',
+    hideKinds: 'Masquer les types de {category}',
     availableLabel: 'Disponible',
     anyDate: 'Toutes dates',
     availableIn: 'En {month}',
@@ -405,7 +432,9 @@ export const fr = {
     registerPasswordLabel: 'Mot de passe',
     registerConfirmLabel: 'Confirmer le mot de passe',
     registerPasswordMismatch: 'Les mots de passe ne correspondent pas.',
-    registerTermsLabel: "J'accepte les conditions d'utilisation de Betailo.",
+    registerTermsBefore: "J'accepte les",
+    registerTermsLink: 'conditions générales d’utilisation et de vente',
+    registerTermsAfter: ' de Betailo.',
     registerSubmit: 'Créer mon compte',
     registerSubmitting: 'Création…',
     registerHasAccount: 'Déjà un compte ?',
@@ -1108,7 +1137,7 @@ export const fr = {
     escrow: 'Séquestre',
     reports: 'Signalements',
     forum: 'Forum',
-    settings: 'Paramètres',
+    reference: 'Données de référence',
     navLabel: 'Back-office',
     farmsShort: 'Fermes',
     disputes: 'Litiges',
@@ -1121,6 +1150,12 @@ export const fr = {
       trust: 'Confiance',
       system: 'Système'
     }
+  },
+  terms: {
+    eyebrow: 'Contrat',
+    title: 'Conditions générales d’utilisation et de vente',
+    updated: 'Mise à jour le {date}',
+    contents: 'Sommaire'
   },
   footer: {
     tagline: "La marketplace des cycles d'élevage. Fait à Douala.",
@@ -1354,7 +1389,10 @@ export const fr = {
     country: 'Pays',
     region: 'Région',
     regionPick: 'Choisissez votre région',
-    regionPlaceholder: 'Région, province, État…'
+    regionPlaceholder: 'Région, province, État…',
+    townPick: 'Choisissez votre ville',
+    townOtherOption: 'Autre ville ou village…',
+    townOther: 'Nom de la ville ou du village'
   },
   cycleTypes: {
     couvee: 'Couvée',
@@ -1725,6 +1763,9 @@ export const fr = {
     staff: {
       grant: 'Rôle attribué',
       revoke: 'Rôle retiré'
+    },
+    catalog: {
+      publish: 'Données de référence publiées'
     }
   },
   permission: {
@@ -1757,6 +1798,9 @@ export const fr = {
     audit: {
       read: 'Lire le journal'
     },
+    reference: {
+      manage: 'Modifier les données de référence'
+    },
     exports: {
       accounting: 'Exports comptables'
     }
@@ -1783,16 +1827,224 @@ export const fr = {
     used: '{count} fermes sur {max}',
     used_one: '{count} ferme sur {max}'
   },
-  adminSettings: {
-    title: 'Paramètres',
-    subtitle: 'Les réglages de la plateforme, tels que l’API les applique. Ils se changent dans la configuration du serveur, puis au redémarrage.',
-    readOnly: 'variable d’environnement, lecture seule',
-    farmLimit: 'Fermes par compte, par défaut',
-    farmLimitLink: 'Gérer les exceptions',
-    autoApprove: 'Validation automatique des fermes',
-    autoApproveWarning: 'À désactiver avant l’arrivée de vrais vendeurs : aucune ferme n’est vérifiée par l’équipe.',
-    root: 'Compte racine',
-    rootHint: 'Créé au démarrage. Il ne peut être ni rétrogradé ni suspendu.'
+  adminReference: {
+    title: 'Données de référence',
+    subtitle: 'Catégories et types d’animaux, pays, régions et villes, listes du forum et des avis : ce que l’API accepte partout. Chaque modification rejoint les changements en attente, partagés par l’équipe, puis part en une version publiée.',
+    reference: 'Référence',
+    part: {
+      animals: 'Animaux',
+      places: 'Lieux',
+      forumCategories: 'Catégories du forum',
+      reviewTags: 'Points forts des avis',
+      reportReasons: 'Motifs de signalement',
+      farmReviewChecks: 'Vérification des fermes'
+    },
+    willPublish: 'Nouvelles versions : {versions}',
+    tabs: {
+      categories: 'Catégories',
+      places: 'Lieux',
+      lists: 'Listes',
+      history: 'Historique',
+      advanced: 'Avancé (JSON)'
+    },
+    entity: {
+      category: 'Catégorie',
+      subcategory: 'Type d’animal',
+      country: 'Pays',
+      region: 'Région',
+      city: 'Ville',
+      term: 'Entrée de liste'
+    },
+    newEntry: {
+      category: 'Nouvelle catégorie',
+      subcategory: 'Nouveau type dans {where}',
+      country: 'Nouveau pays',
+      region: 'Nouvelle région · {where}',
+      city: 'Nouvelle ville · {where}',
+      term: 'Nouvelle entrée · {where}'
+    },
+    usedBy_one: 'utilisé {count} fois',
+    usedBy: 'utilisé {count} fois',
+    drawerTab: {
+      form: 'Formulaire',
+      json: 'JSON'
+    },
+    field: {
+      code: 'Code du pays',
+      callingCode: 'Indicatif',
+      nameFr: 'Nom en français',
+      nameEn: 'Nom en anglais',
+      key: 'Clé',
+      region: 'Région',
+      category: 'Catégorie',
+      icon: 'Illustration',
+      tone: 'Couleur',
+      color: 'Couleur',
+      cycleType: 'Type de cycle',
+      unitFr: 'Un animal se dit (FR)',
+      unitEn: 'Un animal se dit (EN)',
+      active: 'Proposé aux nouveaux choix'
+    },
+    hint: {
+      code: 'Deux lettres, norme ISO (SN, GA…).',
+      key: 'Tirée du nom français. Enregistrée sur les fermes et annonces : elle ne changera plus une fois publiée.',
+      moves: 'L’entrée sera déplacée.',
+      unit: 'Clé de l’unité : {key}',
+      active: 'Décoché, l’entrée n’est plus proposée ; ce qui l’utilise déjà la garde.',
+      deactivateUsed: 'Encore utilisé {count} fois : ces fermes, annonces ou avis la gardent, elle n’est seulement plus proposée.',
+      jsonAdd: 'L’entrée complète, en JSON. Ctrl-Espace propose les propriétés et les valeurs permises.',
+      jsonEdit: 'Les champs de l’entrée, en JSON : seuls ceux que vous modifiez seront changés.'
+    },
+    tone: {
+      clay: 'Argile',
+      forest: 'Forêt',
+      amber: 'Ambre',
+      sky: 'Ciel',
+      alert: 'Rouge',
+      plum: 'Prune',
+      stone: 'Pierre'
+    },
+    firstKind: 'Premier type de la catégorie',
+    queueAdd: 'Ajouter aux changements',
+    queueEdit: 'Enregistrer dans les changements',
+    bulk: {
+      title: {
+        subcategory: 'Ajouter des types · {where}',
+        region: 'Ajouter des régions · {where}',
+        city: 'Ajouter des villes · {where}',
+        term: 'Ajouter des entrées · {where}'
+      },
+      hint: 'Une entrée par ligne : « Nom français ; English name », ou « clé ; nom ; name » depuis un tableur. Le nom anglais est facultatif.',
+      paste: 'Entrées à ajouter',
+      placeholder: {
+        subcategory: 'Oies ; Geese\nCanards de Barbarie ; Muscovy ducks',
+        region: 'Dakar\nThiès ; Thies',
+        city: 'Bamendjou\nBatié ; Batie',
+        term: 'Vaccination ; Vaccination\nTransport'
+      },
+      unitHint: 'L’unité de chaque type reprend son nom ; vous pourrez l’ajuster ensuite.',
+      preview_one: 'Aperçu · {count} entrée',
+      preview: 'Aperçu · {count} entrées',
+      empty: 'Collez des lignes à gauche.',
+      issue: {
+        key: 'Clé invalide',
+        duplicate: 'En double dans la liste',
+        taken: 'Clé déjà utilisée'
+      },
+      atLine: 'ligne {line}',
+      queue_one: 'Ajouter {count} entrée',
+      queue: 'Ajouter {count} entrées'
+    },
+    mark: {
+      added: 'Ajouté',
+      edited: 'Modifié',
+      moved: 'Déplacé'
+    },
+    inactive: 'Inactif',
+    moveUp: 'Monter',
+    moveDown: 'Descendre',
+    deactivate: 'Désactiver',
+    reactivate: 'Réactiver',
+    edit: 'Modifier',
+    searchKinds: 'Chercher une catégorie ou un type…',
+    filter: {
+      all: 'Tout',
+      active: 'Actifs',
+      inactive: 'Inactifs',
+      pending: 'En attente'
+    },
+    addCategory: 'Catégorie',
+    kindsCount_one: '{count} type',
+    kindsCount: '{count} types',
+    addKind: 'Ajouter un type',
+    pasteMany: 'Coller une liste',
+    nothingFound: 'Rien ne correspond.',
+    searchCountries: 'Chercher un pays…',
+    addCountry: 'Ajouter un pays',
+    regionsCount_one: '{count} région',
+    regionsCount: '{count} régions',
+    searchPlaces: 'Chercher une région ou une ville…',
+    addRegion: 'Région',
+    noRegions: 'Aucune région listée : les fermes de ce pays saisissent la leur. Ajoutez des régions pour en faire une liste.',
+    noTowns: 'Aucune ville listée.',
+    addTown: 'Ville',
+    addEntry: 'Ajouter',
+    lists: {
+      forumCategories: {
+        title: 'Catégories du forum',
+        hint: 'Où un sujet du forum est classé.'
+      },
+      reviewTags: {
+        title: 'Points forts des avis',
+        hint: 'Ce qu’un acheteur peut souligner dans son avis.'
+      },
+      reportReasons: {
+        title: 'Motifs de signalement',
+        hint: 'Pourquoi une annonce, un profil ou un message est signalé.'
+      },
+      farmReviewChecks: {
+        title: 'Vérification des fermes',
+        hint: 'Les points que l’équipe coche avant d’approuver une ferme.'
+      }
+    },
+    inForce: 'En vigueur',
+    fromSeed: 'Listes livrées avec la plateforme',
+    compare: 'Comparer',
+    restoreVersion: 'Restaurer',
+    comparing: '{reference} v{version} (en rouge) comparée au brouillon (en vert).',
+    sameAsDraft: 'Identique au brouillon.',
+    pickVersion: 'Choisissez une version pour la comparer au brouillon. « Restaurer » ajoute aux changements ce qui y ramène.',
+    advancedHint: 'Une référence du brouillon à la fois, en JSON, vérifiée par son propre schéma. Exportez-la, ou modifiez-la ici : l’API transforme les différences en changements ordinaires, à vérifier avant publication. Ce que vous retirez est désactivé, jamais supprimé.',
+    valid: 'JSON valide',
+    errors_one: '{count} erreur',
+    errors: '{count} erreurs',
+    format: 'Mettre en forme',
+    export: 'Exporter',
+    revertJson: 'Annuler les modifications',
+    queueJson: 'Ajouter aux changements',
+    pending: 'Changements en attente',
+    noPending: 'Aucun changement en attente. Ajoutez ou modifiez une entrée : elle apparaîtra ici avant publication.',
+    changeBroken: 'Ne s’applique plus à la version en vigueur.',
+    undo: 'Annuler',
+    note: 'Ce qui change',
+    notePlaceholder: 'Ce qui change, ex. « Villes de l’Ouest »',
+    reviewDiff: 'Voir le diff',
+    discardAll: 'Tout annuler',
+    publish: 'Publier',
+    publishing: 'Publication…',
+    published: 'Données de référence publiées',
+    reloaded: 'Un autre membre de l’équipe vient de modifier les changements : ils ont été rechargés.',
+    change: {
+      added: 'Ajout',
+      addedIn: 'Ajout dans {where}',
+      movedTo: 'Déplacé vers {where}',
+      reordered: 'Déplacé en position {position}',
+      deactivated: 'Désactivé',
+      reactivated: 'Réactivé',
+      label: 'Nom {lang} : {before} → {after}',
+      unit: 'Unité {lang} : {before} → {after}',
+      field: '{field} : {before} → {after}'
+    },
+    type: {
+      string: 'du texte',
+      boolean: 'true ou false',
+      object: 'un objet { }',
+      array: 'une liste [ ]',
+      number: 'un nombre'
+    },
+    problem: {
+      syntax: 'JSON invalide : {detail}',
+      required: '« {name} » manque.',
+      unknownProperty: '« {name} » n’est pas une propriété connue.',
+      enum: 'Valeur attendue : {values}.',
+      type: 'Attendu : {type}.',
+      pattern: 'Format invalide.',
+      empty: 'Ne peut pas être vide.',
+      tooLong: '{max} caractères au plus.',
+      minItems: 'Au moins {min} entrée(s).',
+      duplicate: 'La clé « {key} » est déjà utilisée.',
+      removed: '« {key} » est publiée et a disparu : remettez-la avec « active »: false.'
+    }
   },
 
   security: {

@@ -720,12 +720,13 @@ func (f *fakeFavoriteRepo) FavoritedAmong(_ context.Context, userID bson.ObjectI
 // fakeSequencer counts per key, like the counters collection.
 type fakeSequencer struct{ byKey map[string]int64 }
 
-func (f *fakeSequencer) Next(_ context.Context, key string) (int64, error) {
+func (f *fakeSequencer) NextReference(_ context.Context, prefix string) (string, error) {
 	if f.byKey == nil {
 		f.byKey = map[string]int64{}
 	}
-	f.byKey[key]++
-	return f.byKey[key], nil
+	period := prefix + "-2610"
+	f.byKey[period]++
+	return domain.FormatReference(period, f.byKey[period]), nil
 }
 
 // fakeNotificationRepo is the outbox and the inbox at once, like the

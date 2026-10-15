@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, booleanAt
 import { RouterLink } from '@angular/router';
 import { SellerSpaceService } from '../../../core/auth/seller-space.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { PlacePipe } from '../../../core/i18n/place.pipe';
 import { farmStatusEntry } from '../../../domain/rules/status-registry';
 import { AvatarComponent } from '../avatar/avatar.component';
 import { BottomSheetComponent } from '../bottom-sheet/bottom-sheet.component';
@@ -18,7 +19,7 @@ import { StatusBadgeComponent } from '../status-badge/status-badge.component';
  * the seller home on phones. */
 @Component({
   selector: 'bt-farm-switcher',
-  imports: [NgTemplateOutlet, RouterLink, AvatarComponent, BottomSheetComponent, IconComponent, StatusBadgeComponent, TranslatePipe],
+  imports: [NgTemplateOutlet, RouterLink, AvatarComponent, BottomSheetComponent, IconComponent, StatusBadgeComponent, TranslatePipe, PlacePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (seller.currentFarm(); as farm) {
@@ -46,7 +47,7 @@ import { StatusBadgeComponent } from '../status-badge/status-badge.component';
             <bt-avatar [name]="farm.name" [size]="light() ? 44 : 38" shape="square" tone="forest" class="shrink-0 !rounded-[10px]" />
             <span class="flex min-w-0 flex-1 flex-col leading-tight">
               <b class="truncate" [class]="light() ? 'font-display text-[19px]' : 'text-small'">{{ farm.name }}</b>
-              <span class="truncate text-caption" [class]="light() ? 'text-ink-muted' : 'text-on-forest-deep/70'">{{ statusKey(farm.status) | t }} · {{ farm.location }}</span>
+              <span class="truncate text-caption" [class]="light() ? 'text-ink-muted' : 'text-on-forest-deep/70'">{{ statusKey(farm.status) | t }} · {{ farm.location | place }}</span>
             </span>
           }
           <bt-icon name="chevron-down" [size]="16" class="shrink-0 transition" [class]="light() ? 'text-ink' : 'text-on-forest-deep/70'" [class.rotate-180]="open() && !light()" />
@@ -81,7 +82,7 @@ import { StatusBadgeComponent } from '../status-badge/status-badge.component';
               <bt-avatar [name]="f.name" [size]="32" shape="square" tone="forest" />
               <span class="flex min-w-0 flex-1 flex-col">
                 <span class="truncate text-body-strong">{{ f.name }}</span>
-                <span class="truncate text-small text-ink-muted">{{ f.location }}</span>
+                <span class="truncate text-small text-ink-muted">{{ f.location | place }}</span>
               </span>
               <bt-status-badge kind="farm" [status]="f.status" />
             </button>

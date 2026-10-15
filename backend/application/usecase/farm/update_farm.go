@@ -59,19 +59,19 @@ func (uc *UpdateFarm) Execute(ctx context.Context, in UpdateFarmInput) (*domain.
 	if countryIn == "" {
 		countryIn = f.Country
 	}
-	place, region, err := normalizePlace(ctx, uc.Catalog, countryIn, in.Region)
+	where, err := normalizePlace(ctx, uc.Catalog, countryIn, in.Region, location)
 	if err != nil {
 		return nil, err
 	}
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, place.CallingCode)
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, where.Country.CallingCode)
 	if err != nil {
 		return nil, err
 	}
 
 	f.Name = name
-	f.Location = location
-	f.Country = place.Code
-	f.Region = region
+	f.Location = where.Town
+	f.Country = where.Country.Code
+	f.Region = where.Region
 	f.Species = in.Species
 	f.Description = description
 	f.ContactPhone = phone

@@ -3,10 +3,22 @@ import { Observable } from 'rxjs';
 import { FarmDecision, FarmQueue, OverviewPeriod, RejectionCode, ResolveAction, StaffRole } from '../../domain/enums';
 import { AdminUser, Farm, Reservation, Report, StaffInvitation } from '../../domain/models';
 import { ApiClient, QueryParams } from '../../core/http/api-client';
+import { Catalog, CatalogLists } from '../../domain/reference/catalog';
 
 @Injectable({ providedIn: 'root' })
 export class AdminApi {
   private readonly api = inject(ApiClient);
+
+  /** The reference data's published versions, newest first. */
+  referenceVersionsUrl(): string {
+    return this.api.url('/admin/reference/versions');
+  }
+
+  /** Publishes the edited lists as the next version of the reference
+   * data; `baseVersion` is the one they were edited from. */
+  publishReference(baseVersion: number, note: string, catalog: CatalogLists): Observable<Catalog> {
+    return this.api.post<Catalog>('/admin/reference', { baseVersion, note, catalog });
+  }
 
   overviewUrl(period: OverviewPeriod): string {
     return this.api.url('/admin/overview', { period } as QueryParams);

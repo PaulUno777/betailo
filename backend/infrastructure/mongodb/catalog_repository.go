@@ -15,108 +15,118 @@ import (
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
-// CatalogRepository implements ports.CatalogRepository against
-// "catalog_versions": one document per version, its number as _id (so
-// two publishes can't take the same one), its lists kept as the JSON
-// that was published.
-type CatalogRepository struct {
+// LegacyCatalogRepository reads "catalog_versions", where the reference
+// data was kept as one document per version before the references were
+// split. Only the one-time move to ReferenceRepository reads it.
+type LegacyCatalogRepository struct {
 	Coll *mongo.Collection
 }
 
-var _ ports.CatalogRepository = (*CatalogRepository)(nil)
+var _ ports.LegacyCatalogSource = (*LegacyCatalogRepository)(nil)
 
-type catalogDoc struct {
-	Version     int           `bson:"_id"`
-	Note        string        `bson:"note,omitempty"`
-	PublishedBy bson.ObjectID `bson:"publishedBy,omitempty"`
-	PublishedAt time.Time     `bson:"publishedAt"`
-	Content     string        `bson:"content"`
+type legacyCatalogDoc struct {
+	Version      int    `bson:"_id"`
+	SeedRevision int    `bson:"seedRevision,omitempty"`
+	Content      string `bson:"content"`
 }
 
-func (d *catalogDoc) toDomain() (*domain.Catalog, error) {
+// Latest implements ports.LegacyCatalogSource.
+func (r *LegacyCatalogRepository) Latest(ctx context.Context) (*domain.Catalog, int, error) {
+	var d legacyCatalogDoc
+	err := r.Coll.FindOne(ctx, bson.M{}, options.FindOne().SetSort(bson.D{{Key: "_id", Value: -1}})).Decode(&d)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, 0, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, 0, err
+	}
 	var c domain.Catalog
 	if err := json.Unmarshal([]byte(d.Content), &c); err != nil {
-		return nil, fmt.Errorf("catalog version %d: %w", d.Version, err)
+		return nil, 0, fmt.Errorf("catalog version %d: %w", d.Version, err)
 	}
-	c.Version, c.Note, c.PublishedBy, c.PublishedAt = d.Version, d.Note, d.PublishedBy, d.PublishedAt
-	return &c, nil
+	return &c, d.SeedRevision, nil
+}
+
+// ReferenceRepository implements ports.CatalogRepository against
+// "reference_versions": one document per version of each reference,
+// keyed "<reference>:<version>" (so two publishes can't take the same
+// number), its content kept as the JSON that was published.
+type ReferenceRepository struct {
+	Coll *mongo.Collection
+}
+
+var _ ports.CatalogRepository = (*ReferenceRepository)(nil)
+
+type referenceDoc struct {
+	ID           string        `bson:"_id"`
+	Name         string        `bson:"name"`
+	Version      int           `bson:"version"`
+	Note         string        `bson:"note,omitempty"`
+	PublishedBy  bson.ObjectID `bson:"publishedBy,omitempty"`
+	PublishedAt  time.Time     `bson:"publishedAt"`
+	SeedRevision int           `bson:"seedRevision,omitempty"`
+	Content      string        `bson:"content"`
+}
+
+func (d *referenceDoc) toDomain() *domain.CatalogPart {
+	return &domain.CatalogPart{
+		Name: d.Name, Version: d.Version, Note: d.Note, PublishedBy: d.PublishedBy, PublishedAt: d.PublishedAt,
+		SeedRevision: d.SeedRevision, Content: json.RawMessage(d.Content),
+	}
+}
+
+func (r *ReferenceRepository) one(ctx context.Context, filter bson.M, opts ...options.Lister[options.FindOneOptions]) (*domain.CatalogPart, error) {
+	var d referenceDoc
+	err := r.Coll.FindOne(ctx, filter, opts...).Decode(&d)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return d.toDomain(), nil
 }
 
 // Latest implements ports.CatalogRepository.
-func (r *CatalogRepository) Latest(ctx context.Context) (*domain.Catalog, error) {
-	var d catalogDoc
-	err := r.Coll.FindOne(ctx, bson.M{}, options.FindOne().SetSort(bson.D{{Key: "_id", Value: -1}})).Decode(&d)
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, domain.ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return d.toDomain()
+func (r *ReferenceRepository) Latest(ctx context.Context, name string) (*domain.CatalogPart, error) {
+	return r.one(ctx, bson.M{"name": name}, options.FindOne().SetSort(bson.D{{Key: "version", Value: -1}}))
 }
 
 // Get implements ports.CatalogRepository.
-func (r *CatalogRepository) Get(ctx context.Context, version int) (*domain.Catalog, error) {
-	var d catalogDoc
-	err := r.Coll.FindOne(ctx, bson.M{"_id": version}).Decode(&d)
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, domain.ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return d.toDomain()
+func (r *ReferenceRepository) Get(ctx context.Context, name string, version int) (*domain.CatalogPart, error) {
+	return r.one(ctx, bson.M{"name": name, "version": version})
 }
 
 // List implements ports.CatalogRepository.
-func (r *CatalogRepository) List(ctx context.Context) ([]*domain.Catalog, error) {
-	cur, err := r.Coll.Find(ctx, bson.M{}, options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}))
+func (r *ReferenceRepository) List(ctx context.Context, name string) ([]*domain.CatalogPart, error) {
+	filter := bson.M{}
+	if name != "" {
+		filter["name"] = name
+	}
+	cur, err := r.Coll.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "publishedAt", Value: -1}, {Key: "version", Value: -1}}))
 	if err != nil {
 		return nil, err
 	}
-	var docs []catalogDoc
+	var docs []referenceDoc
 	if err := cur.All(ctx, &docs); err != nil {
 		return nil, err
 	}
-	out := make([]*domain.Catalog, 0, len(docs))
+	out := make([]*domain.CatalogPart, 0, len(docs))
 	for i := range docs {
-		c, err := docs[i].toDomain()
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, c)
+		out = append(out, docs[i].toDomain())
 	}
 	return out, nil
 }
 
 // Insert implements ports.CatalogRepository.
-func (r *CatalogRepository) Insert(ctx context.Context, c *domain.Catalog) error {
-	lists := *c
-	lists.Version, lists.Note, lists.PublishedAt = 0, "", time.Time{}
-	content, err := json.Marshal(catalogLists(lists))
-	if err != nil {
-		return err
-	}
-	_, err = r.Coll.InsertOne(ctx, catalogDoc{
-		Version: c.Version, Note: c.Note, PublishedBy: c.PublishedBy, PublishedAt: c.PublishedAt, Content: string(content),
+func (r *ReferenceRepository) Insert(ctx context.Context, p *domain.CatalogPart) error {
+	_, err := r.Coll.InsertOne(ctx, referenceDoc{
+		ID: fmt.Sprintf("%s:%d", p.Name, p.Version), Name: p.Name, Version: p.Version, Note: p.Note,
+		PublishedBy: p.PublishedBy, PublishedAt: p.PublishedAt, SeedRevision: p.SeedRevision, Content: string(p.Content),
 	})
 	if mongo.IsDuplicateKeyError(err) {
-		return domain.Coded("catalog.version_taken", fmt.Errorf("catalog: version %d was just published by someone else: %w", c.Version, domain.ErrConflict))
+		return domain.CodedWith("catalog.version_taken", map[string]any{"reference": p.Name},
+			fmt.Errorf("catalog: %s version %d was just published by someone else: %w", p.Name, p.Version, domain.ErrConflict))
 	}
 	return err
-}
-
-// catalogLists is a Catalog without its version metadata: what the
-// content field holds.
-type catalogLists domain.Catalog
-
-func (l catalogLists) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Categories       []domain.CatalogCategory `json:"categories"`
-		Countries        []domain.CatalogCountry  `json:"countries"`
-		ForumCategories  []domain.CatalogTerm     `json:"forumCategories"`
-		ReviewTags       []domain.CatalogTerm     `json:"reviewTags"`
-		ReportReasons    []domain.CatalogTerm     `json:"reportReasons"`
-		FarmReviewChecks []domain.CatalogTerm     `json:"farmReviewChecks"`
-	}{l.Categories, l.Countries, l.ForumCategories, l.ReviewTags, l.ReportReasons, l.FarmReviewChecks})
 }

@@ -110,7 +110,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	notifications := &mongodb.NotificationRepository{Coll: database.Collection("notifications")}
 	favorites := &mongodb.FavoriteRepository{Coll: database.Collection("favorites")}
 	counters := &mongodb.CounterRepository{Coll: database.Collection("counters")}
-	catalogRepo := &mongodb.CatalogRepository{Coll: database.Collection("catalog_versions")}
+	catalogRepo := &mongodb.ReferenceRepository{Coll: database.Collection("reference_versions")}
 	// The reference data in force, re-read at most every 30s so a
 	// publish on another instance is picked up.
 	catalogSource := &catalog.Cache{Repo: catalogRepo, TTL: 30 * time.Second}
@@ -406,6 +406,14 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			AdminGetReportDetail: adminGetReportDetail,
 			AdminSaveReportNote:  &admin.SaveReportNote{Reports: reports},
 			AdminResolveReport:   adminResolveReport,
+			CatalogVersions:      catalogRepo,
+			CatalogChangeset: &catalog.Changeset{
+				Versions: catalogRepo,
+				Pending:  &mongodb.CatalogChangesetRepository{Coll: database.Collection("catalog_changeset")},
+				Publish:  &catalog.Publish{Repo: catalogRepo, Clock: systemClock, Cache: catalogSource},
+				Clock:    systemClock,
+			},
+			CatalogUsage: &mongodb.CatalogUsage{DB: database},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -446,9 +454,21 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 		return err
 	}
 	// The lists the platform shipped with become version 1 of the
-	// reference data on a database that has none yet.
-	if err := catalog.EnsureSeed(ctx, &mongodb.CatalogRepository{Coll: a.mongoDatabase.Collection("catalog_versions")}, time.Now()); err != nil {
+	// reference data on a database that has none yet, and a newer seed
+	// revision follows on one still running an older seed.
+	// Every reference gets a version: the lists from before the split
+	// (catalog_versions) move over once, then newer seed revisions follow.
+	catalogRepo := &mongodb.ReferenceRepository{Coll: a.mongoDatabase.Collection("reference_versions")}
+	legacy := &mongodb.LegacyCatalogRepository{Coll: a.mongoDatabase.Collection("catalog_versions")}
+	if err := catalog.EnsureSeed(ctx, catalogRepo, legacy, time.Now()); err != nil {
 		return err
+	}
+	// Farms saved before regions and towns had keys get them.
+	farms := &mongodb.FarmRepository{Coll: a.mongoDatabase.Collection("farms")}
+	if n, err := farm.CanonicalizePlaces(ctx, farms, &catalog.Cache{Repo: catalogRepo, TTL: time.Minute}); err != nil {
+		return err
+	} else if n > 0 {
+		a.Logger.Info("farm places rewritten as catalog keys", "farms", n)
 	}
 	if err := a.bootstrapRootAdmin(ctx); err != nil {
 		return err

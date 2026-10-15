@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -82,10 +83,10 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 	}
 
 	dims := dimensionConditions(c)
-	except := func(skip string) bson.D {
+	except := func(skip ...string) bson.D {
 		var conds bson.A
 		for _, name := range dimensionOrder {
-			if name != skip && dims[name] != nil {
+			if !slices.Contains(skip, name) && dims[name] != nil {
 				conds = append(conds, dims[name])
 			}
 		}
@@ -94,7 +95,7 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 		}
 		return bson.D{{Key: "$match", Value: bson.M{"$and": conds}}}
 	}
-	all := except("")
+	all := except()
 
 	reviews := bson.A{
 		bson.D{{Key: "$lookup", Value: bson.M{"from": "reviews", "localField": "farm._id", "foreignField": "farmId", "as": "reviews"}}},
@@ -148,8 +149,8 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 		data = append(data, reviews...)
 	}
 
-	countBy := func(skip string, key any) bson.A {
-		return bson.A{except(skip),
+	countBy := func(key any, skip ...string) bson.A {
+		return bson.A{except(skip...),
 			bson.D{{Key: "$group", Value: bson.M{"_id": key, "count": bson.M{"$sum": 1}}}},
 			bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
 		}
@@ -157,10 +158,12 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 	pipeline = append(pipeline, bson.D{{Key: "$facet", Value: bson.M{
 		"data":       data,
 		"totalCount": bson.A{all, bson.D{{Key: "$count", Value: "count"}}},
-		"species":    countBy("species", "$cycle.species"),
-		"types":      countBy("types", bson.M{"$toLower": "$cycle.type"}),
-		"statuses":   countBy("statuses", "$cycle.status"),
-		"regions":    countBy("place", bson.M{"country": "$farm.country", "region": "$farm.region"}),
+		"species":    countBy("$cycle.species", "species"),
+		"types":      countBy(bson.M{"$toLower": "$cycle.type"}, "types"),
+		"statuses":   countBy("$cycle.status", "statuses"),
+		// A town settles its region: the region list ignores both.
+		"regions": countBy(bson.M{"country": "$farm.country", "region": "$farm.region"}, "place", "city"),
+		"cities":  countBy(bson.M{"country": "$farm.country", "region": "$farm.region", "city": "$farm.location"}, "city"),
 		"price": bson.A{except("price"), bson.D{{Key: "$group", Value: bson.M{
 			"_id": nil, "min": bson.M{"$min": "$unitPrice"}, "max": bson.M{"$max": "$unitPrice"},
 		}}}},
@@ -191,6 +194,14 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 			} `bson:"_id"`
 			Count int `bson:"count"`
 		} `bson:"regions"`
+		Cities []struct {
+			ID struct {
+				Country string `bson:"country"`
+				Region  string `bson:"region"`
+				City    string `bson:"city"`
+			} `bson:"_id"`
+			Count int `bson:"count"`
+		} `bson:"cities"`
 		Price []struct {
 			Min float64 `bson:"min"`
 			Max float64 `bson:"max"`
@@ -227,6 +238,12 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 			out.Facets.Regions = append(out.Facets.Regions, ports.RegionFacet{Country: rg.ID.Country, Region: rg.ID.Region, Count: rg.Count})
 		}
 	}
+	out.Facets.Cities = make([]ports.CityFacet, 0, len(facet.Cities))
+	for _, ct := range facet.Cities {
+		if ct.ID.City != "" {
+			out.Facets.Cities = append(out.Facets.Cities, ports.CityFacet{Country: ct.ID.Country, Region: ct.ID.Region, City: ct.ID.City, Count: ct.Count})
+		}
+	}
 	if len(facet.Price) > 0 {
 		out.Facets.PriceMin, out.Facets.PriceMax = facet.Price[0].Min, facet.Price[0].Max
 	}
@@ -257,7 +274,7 @@ func (r *ListingRepository) Search(ctx context.Context, c ports.ListingSearchCri
 
 // dimensionOrder lists the facet dimensions; each is left out of its
 // own facet's counts.
-var dimensionOrder = []string{"species", "types", "statuses", "place", "price"}
+var dimensionOrder = []string{"species", "types", "statuses", "place", "city", "price"}
 
 // dimensionConditions is one $match condition per facet dimension (nil
 // when that filter is off).
@@ -290,6 +307,9 @@ func dimensionConditions(c ports.ListingSearchCriteria) map[string]any {
 	if len(place) > 0 {
 		dims["place"] = place
 	}
+	if c.City != "" {
+		dims["city"] = bson.M{"farm.location": c.City}
+	}
 	if c.MinPrice > 0 || c.MaxPrice > 0 {
 		price := bson.M{}
 		if c.MinPrice > 0 {
@@ -307,12 +327,17 @@ func dimensionConditions(c ports.ListingSearchCriteria) map[string]any {
 // count alike.
 func commonConditions(c ports.ListingSearchCriteria) bson.A {
 	var conds bson.A
-	for _, word := range strings.Fields(c.Query) {
+	for i, word := range strings.Fields(c.Query) {
 		re := bson.M{"$regex": regexp.QuoteMeta(word), "$options": "i"}
-		conds = append(conds, bson.M{"$or": bson.A{
+		or := bson.A{
 			bson.M{"title": re}, bson.M{"farm.name": re}, bson.M{"farm.location": re},
 			bson.M{"farm.region": re}, bson.M{"cycle.species": re},
-		}})
+		}
+		if i < len(c.QueryPlaces) && len(c.QueryPlaces[i]) > 0 {
+			keys := c.QueryPlaces[i]
+			or = append(or, bson.M{"farm.location": bson.M{"$in": keys}}, bson.M{"farm.region": bson.M{"$in": keys}})
+		}
+		conds = append(conds, bson.M{"$or": or})
 	}
 	if c.VerifiedOnly {
 		conds = append(conds, bson.M{"farm.verification.autoApproved": bson.M{"$ne": true}})

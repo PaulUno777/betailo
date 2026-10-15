@@ -7,6 +7,7 @@ import { CapacityBarComponent } from '../capacity-bar/capacity-bar.component';
 import { RatingComponent } from '../rating/rating.component';
 import { IconComponent } from '../icon/icon.component';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { PlacePipe } from '../../../core/i18n/place.pipe';
 import { LocaleService } from '../../../core/i18n/locale.service';
 import { speciesLabelKey } from '../../../domain/reference/species';
 import { cycleTypeLabelKey } from '../../../domain/reference/cycle-types';
@@ -19,7 +20,7 @@ export type ListingCardLayout = 'tile' | 'row';
  * the left, so a screen shows four or five results instead of one. */
 @Component({
   selector: 'bt-listing-card',
-  imports: [ThumbSrcDirective, RouterLink, FcfaCurrencyPipe, StatusBadgeComponent, CapacityBarComponent, RatingComponent, IconComponent, TranslatePipe],
+  imports: [ThumbSrcDirective, RouterLink, FcfaCurrencyPipe, StatusBadgeComponent, CapacityBarComponent, RatingComponent, IconComponent, TranslatePipe, PlacePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (layout() === 'row') {
@@ -43,7 +44,7 @@ export type ListingCardLayout = 'tile' | 'row';
             }
           </div>
           <h3 class="line-clamp-2 text-body-strong leading-snug">{{ item().listing.title }}</h3>
-          <span class="truncate text-small text-ink-muted">{{ item().farmName }} · {{ item().farmLocation }}</span>
+          <span class="truncate text-small text-ink-muted">{{ item().farmName }} · {{ item().farmLocation | place }}</span>
           <span class="truncate text-caption" [class]="item().availableQuantity === 0 ? 'text-alert' : 'text-ink-muted'">
             {{ eyebrow() }} ·
             @if (item().availableQuantity === 0) {
@@ -116,7 +117,7 @@ export type ListingCardLayout = 'tile' | 'row';
           <h3 class="text-heading-4">{{ item().listing.title }}</h3>
           <span class="flex items-center gap-1.5 text-small text-ink-muted">
             <bt-icon name="pin" [size]="14" />
-            {{ item().farmName }} · {{ item().farmLocation }}
+            {{ item().farmName }} · {{ item().farmLocation | place }}
           </span>
           <bt-rating [value]="item().reviewAverage" [showValue]="true" [count]="item().reviewCount" [size]="14" />
           <bt-capacity-bar [capacity]="item().capacity" [availableQuantity]="item().availableQuantity" />

@@ -25,7 +25,8 @@ func TestUpdateFarm_Execute_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
 	}
-	if got.Name != "New" || got.Location != "Yaoundé" {
+	// A listed town is stored as its key, and settles the region.
+	if got.Name != "New" || got.Location != "yaounde" || got.Region != "centre" {
 		t.Errorf("got = %+v, want updated fields", got)
 	}
 }

@@ -26,9 +26,11 @@ type ListingSearchCriteria struct {
 	Categories []string
 	CycleTypes []string
 	Statuses   []domain.CycleStatus
-	// Country and Region match the farm's exactly (see domain.Farm).
+	// Country, Region and City match the farm's exactly (see
+	// domain.Farm): catalog keys where the catalog lists them.
 	Country      string
 	Region       string
+	City         string
 	MinPrice     float64
 	MaxPrice     float64
 	VerifiedOnly bool
@@ -40,6 +42,11 @@ type ListingSearchCriteria struct {
 	// Query is matched word by word: every word must appear in the
 	// title, the farm's name or town, its region, or the species.
 	Query string
+	// QueryPlaces holds, for each word of Query in order, the region and
+	// town keys whose name contains it in any language (SearchListings
+	// fills it from the catalog): farms store keys, so "Far North" or
+	// "Yaoundé" still find them.
+	QueryPlaces [][]string
 	// IDs, when non-empty, restricts results to these listings (still
 	// only published, unflagged ones). Backs "my favorites".
 	IDs []bson.ObjectID
@@ -108,6 +115,9 @@ type SearchFacets struct {
 	CycleTypes []FacetCount
 	Statuses   []FacetCount
 	Regions    []RegionFacet
+	// Cities are counted within the chosen region (or everywhere when
+	// none is), so the town filter offers the towns that have lots.
+	Cities []CityFacet
 	// PriceMin/PriceMax bound the unit prices the price filter can
 	// select from (zero when nothing matches).
 	PriceMin float64
@@ -122,6 +132,13 @@ type FacetCount struct {
 type RegionFacet struct {
 	Country string
 	Region  string
+	Count   int
+}
+
+type CityFacet struct {
+	Country string
+	Region  string
+	City    string
 	Count   int
 }
 

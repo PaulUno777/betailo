@@ -11,23 +11,37 @@ import (
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
+// place is where a farm is, as it stores it: the catalog's keys for a
+// listed region and town, the typed text otherwise.
+type place struct {
+	Country domain.CatalogCountry
+	Region  string
+	Town    string
+}
+
 // normalizePlace validates where the farm is against the catalog: one
-// of its active countries (the default when empty) and a region that,
-// for a country with a region list, must be one of its regions.
-func normalizePlace(ctx context.Context, src ports.CatalogSource, country, region string) (domain.CatalogCountry, string, error) {
+// of its active countries (the default when empty), a region that, for
+// a country with a region list, must be one of its regions, and a town
+// stored as its key when the catalog lists it (which also settles the
+// region), as typed otherwise.
+func normalizePlace(ctx context.Context, src ports.CatalogSource, country, region, town string) (place, error) {
 	cat, err := catalog.Of(ctx, src)
 	if err != nil {
-		return domain.CatalogCountry{}, "", err
+		return place{}, err
 	}
 	c, err := cat.Country(country)
 	if err != nil {
-		return domain.CatalogCountry{}, "", err
+		return place{}, err
 	}
 	r, err := c.CanonicalRegion(region)
 	if err != nil {
-		return domain.CatalogCountry{}, "", err
+		return place{}, err
 	}
-	return c, r, nil
+	t, r, err := c.CanonicalCity(r, town)
+	if err != nil {
+		return place{}, err
+	}
+	return place{Country: c, Region: r, Town: t}, nil
 }
 
 // normalizeProfileFields validates the optional public-profile fields

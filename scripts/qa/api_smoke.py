@@ -475,7 +475,7 @@ check("A10", "Admin", "Admin places a reservation", "documented behavior (allowe
 s, b = g.call("GET", "/reference")
 countries = {c["code"]: c for c in (b or {}).get("countries", [])} if isinstance(b, dict) else {}
 check("R01", "Guest", "Reference lists Cameroon's regions and calling codes", "200, CM with 10 regions, GH calling code 233",
-      s == 200 and len(countries.get("CM", {}).get("regions", [])) == 10 and countries.get("GH", {}).get("callingCode") == "233", f"{s}")
+      s == 200 and len([x for x in countries.get("CM", {}).get("regions", []) if x.get("active")]) == 10 and countries.get("GH", {}).get("callingCode") == "233", f"{s}")
 s, b = g.call("GET", "/listings?pageSize=5")
 check("R02", "Guest", "Search returns facets", "species/cycleTypes/regions/price facets", s == 200 and all(k in (b.get("facets") or {}) for k in ("species", "cycleTypes", "statuses", "regions", "priceMin", "priceMax")), f"{s} {str(b.get('facets'))[:160]}")
 s, b = g.call("GET", "/listings?species=jeunes-poulets,poussins&status=planned,in_progress&available=" + now.strftime("%Y-%m"))
@@ -487,10 +487,10 @@ check("R05", "Guest", "Word search across title and town", "finds the QA listing
 s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "region": "Atlantique"})
 check("R07", "Farmer", "Farm with an unknown Cameroonian region", "400 farm.region_invalid", s == 400 and (b or {}).get("code") == "farm.region_invalid", f"{s} {b}")
 s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "country": "CM", "region": "ouest"})
-check("R08", "Farmer", "Farm region is stored in canonical form", "Ouest", s == 200 and b.get("region") == "Ouest" and b.get("country") == "CM", f"{s} {b.get('region') if isinstance(b, dict) else b}")
+check("R08", "Farmer", "Farm region is stored as the catalog's key", "ouest", s == 200 and b.get("region") == "ouest" and b.get("country") == "CM", f"{s} {b.get('region') if isinstance(b, dict) else b}")
 
-s, b = g.call("GET", "/listings?country=CM&region=Ouest")
-check("R06", "Guest", "Region filter (farm in Bafoussam is Ouest)", "includes the QA listing", s == 200 and all(i.get("farmRegion") == "Ouest" for i in b.get("items", [])) and any(i["listing"]["id"] == qlisting for i in b.get("items", [])), f"{s} total={b.get('total')}")
+s, b = g.call("GET", "/listings?country=CM&region=ouest")
+check("R06", "Guest", "Region filter by key (farm in Bafoussam is in ouest)", "includes the QA listing", s == 200 and all(i.get("farmRegion") == "ouest" for i in b.get("items", [])) and any(i["listing"]["id"] == qlisting for i in b.get("items", [])), f"{s} total={b.get('total')}")
 
 # Waiting list: a full lot, an unpaid buyer, a paying buyer takes the places.
 wl_farmer, _, _ = register("seller", "Waitlist Farmer")
@@ -719,6 +719,201 @@ check("P06", "Guest", "A forum post shows its author's public name and photo", "
       s == 200 and (b or {}).get("authorName") == "Awa P." and bool((b or {}).get("authorAvatarUrl")), f"{s} {(b or {}).get('authorName')}")
 s, b = pic.call("DELETE", "/me/avatar")
 check("P07", "User", "Remove the profile photo", "200 without avatarUrl", s == 200 and not (b or {}).get("avatarUrl"), f"{s} {str(b)[:80]}")
+
+# ---------- places, reference codes, search ----------
+import re
+s, me = far.call("GET", "/me")
+farm_ref = (me.get("farms") or [{}])[0].get("reference", "")
+check("G01", "Farmer", "Farm reference is dated and sortable", "FRM-YYMM-NNNN", bool(re.fullmatch(r"FRM-\d{4}-\d{4,}", farm_ref)), farm_ref)
+s, b = buy.call("GET", "/reservations/mine")
+refs = [i.get("reference", "") for i in (b or {}).get("items", [])]
+check("G02", "Buyer", "Order references are dated and sortable", "RSV-YYMM-NNNN", bool(refs) and all(re.fullmatch(r"RSV-\d{4}-\d{4,}", r) for r in refs), refs[:3])
+s, b = far.call("GET", f"/cycles/{qcycle}")
+check("G03", "Farmer", "Cycle reference is dated and sortable", "CYC-YYMM-NNNN", bool(re.fullmatch(r"CYC-\d{4}-\d{4,}", (b or {}).get("reference", ""))), (b or {}).get("reference"))
+yao, _, _ = register("yaounde", "Ferme Yaoundé")
+s, b = yao.call("POST", "/farms", {"name": "Ferme du Centre", "location": "Yaoundé"})
+check("G04", "Farmer", "A listed town is stored as its key and settles the region", "location yaounde, region centre", s == 201 and b.get("location") == "yaounde" and b.get("region") == "centre", f"{s} {b.get('location') if isinstance(b, dict) else b}/{b.get('region') if isinstance(b, dict) else ''}")
+other_town, _, _ = register("bamendjou", "Ferme Bamendjou")
+s, b = other_town.call("POST", "/farms", {"name": "Ferme des Hauts", "location": "Bamendjou", "region": "West"})
+check("G05", "Farmer", "An unlisted town is kept as typed; the region named in English", "location Bamendjou, region ouest", s == 201 and b.get("location") == "Bamendjou" and b.get("region") == "ouest", f"{s} {b.get('location') if isinstance(b, dict) else b}/{b.get('region') if isinstance(b, dict) else ''}")
+# A listing of its own: the moderation scenarios above take the first
+# QA listing off the marketplace on purpose.
+place_farmer, _, _ = register("place", "Ferme de l'Ouest")
+place_farm = open_approved_farm(place_farmer, adm, {"name": "Ferme de l'Ouest", "location": "Bafoussam", "species": ["pondeuses"]})
+s, b = place_farmer.call("POST", f"/farms/{place_farm['id']}/quick-listings", {"species": "pondeuses", "quantity": 20, "unitPrice": 6000, "title": "Pondeuses de l'Ouest"})
+qlisting = b["listing"]["id"]
+s, up = place_farmer.call("POST", f"/listings/{qlisting}/photos/presign", PHOTO_SIZES)
+put_file(up["uploadUrl"]), put_file(up["thumbUploadUrl"])
+place_farmer.call("PUT", f"/listings/{qlisting}/photos", {"keys": [up["key"]]})
+s, b = place_farmer.call("POST", f"/listings/{qlisting}/publish")
+check("G05b", "Farmer", "Publish a listing from Bafoussam", "200 published", s == 200 and (b or {}).get("status") == "published", f"{s}")
+for word in ["West", "Bafoussam", "bafoussam"]:
+    s, b = g.call("GET", f"/listings?q={word}&pageSize=50", token=False)
+    check("G06", "Guest", f"Search '{word}' finds the Bafoussam listing", "includes the QA listing", s == 200 and any(i["listing"]["id"] == qlisting for i in b.get("items", [])), f"{s} total={(b or {}).get('total')}")
+s, b = g.call("GET", "/listings?country=CM&region=ouest&pageSize=50", token=False)
+towns = {c.get("city") for c in (b or {}).get("facets", {}).get("cities", [])}
+check("G07", "Guest", "The region's towns are counted", "bafoussam in the town facet", s == 200 and "bafoussam" in towns, f"{s} towns={sorted(towns)}")
+s, b = g.call("GET", "/listings?country=CM&region=ouest&city=bafoussam&pageSize=50", token=False)
+s2, b2 = g.call("GET", "/listings?country=CM&region=ouest&city=dschang&pageSize=50", token=False)
+check("G08", "Guest", "Filter by town", "Bafoussam in, Dschang out", any(i["listing"]["id"] == qlisting for i in b.get("items", [])) and not any(i["listing"]["id"] == qlisting for i in b2.get("items", [])), f"{s} {s2}")
+
+# ---------- reference data: one reference at a time ----------
+PARTS = ["animals", "places", "forumCategories", "reviewTags", "reportReasons", "farmReviewChecks"]
+etags = {}
+for name in PARTS:
+    req = urllib.request.Request(f"{BASE}/reference/{name}")
+    with urllib.request.urlopen(req, timeout=20) as r:
+        etags[name], body = r.headers.get("ETag"), json.loads(r.read())
+    req = urllib.request.Request(f"{BASE}/reference/{name}", headers={"If-None-Match": etags[name]})
+    try:
+        urllib.request.urlopen(req, timeout=20)
+        again = 200
+    except urllib.error.HTTPError as e:
+        again = e.code
+    check("RF01", "Guest", f"GET /reference/{name} on its own, cached by version", "200 then 304", body.get("name") == name and isinstance(body.get("version"), int) and again == 304, f"{etags[name]} {again}")
+s, b = g.call("GET", "/reference/dragons", token=False)
+check("RF02", "Guest", "An unknown reference", "404", s == 404, s)
+s, b = g.call("GET", "/reference", token=False)
+check("RF03", "Guest", "GET /reference still serves them together, with each version", "versions for the 6", s == 200 and set((b or {}).get("versions", {})) == set(PARTS), f"{s} {(b or {}).get('versions')}")
+
+# ---------- reference data: the editor (super admin) ----------
+s, b = buy.call("GET", "/admin/reference/changeset")
+check("RE01", "Buyer", "Open the reference editor", "403", s == 403, s)
+for name in PARTS:
+    s, b = adm.call("GET", f"/admin/reference/schema/{name}?lang=en")
+    check("RE02", "Admin", f"Schema of {name}", "200 with properties", s == 200 and bool((b or {}).get("properties")), f"{s} {(b or {}).get('title')}")
+s, cs = adm.call("GET", "/admin/reference/changeset")
+if cs.get("changes"):  # a previous run left changes: start clean
+    s, cs = adm.call("DELETE", f"/admin/reference/changeset?rev={cs['rev']}")
+rev0 = cs.get("rev", 0)
+tag = cs["draft"]["reviewTags"][0]
+qa = "qa-" + uuid.uuid4().hex[:6]
+ops = [
+    {"kind": "add", "ref": {"entity": "region", "country": "CM"}, "value": {"key": qa, "label": {"fr": f"Région {qa}", "en": f"Region {qa}"}, "active": True, "cities": []}},
+    {"kind": "add", "ref": {"entity": "city", "country": "CM", "parent": qa}, "value": {"key": qa + "-a", "label": {"fr": f"Ville {qa} A", "en": f"Town {qa} A"}, "active": True}},
+    {"kind": "add", "ref": {"entity": "city", "country": "CM", "parent": qa}, "value": {"key": qa + "-b", "label": {"fr": f"Ville {qa} B", "en": f"Town {qa} B"}, "active": True}},
+    {"kind": "update", "ref": {"entity": "term", "list": "reviewTags", "key": tag["key"]}, "value": {"label": {"en": "QA " + tag["label"]["en"]}}},
+]
+s, cs = adm.call("POST", "/admin/reference/changeset/ops", {"rev": rev0, "ops": ops})
+check("RE03", "Admin", "Queue a region, two towns and a partial edit", "4 changes, places + reviewTags touched, the old label kept",
+      s == 200 and len(cs.get("changes", [])) == 4 and cs.get("touched") == ["places", "reviewTags"] and cs["changes"][3].get("before", {}).get("label", {}).get("en") == tag["label"]["en"] and cs.get("ready"),
+      f"{s} touched={cs.get('touched')} n={len(cs.get('changes', []))}")
+s, b = adm.call("POST", "/admin/reference/changeset/ops", {"rev": cs["rev"], "ops": [{"kind": "update", "ref": {"entity": "category", "key": "volaille"}, "value": {"key": "poultry"}}]})
+check("RE04", "Admin", "Rename a published key", "400 catalog.op_key_immutable at index 0", s == 400 and b.get("code") == "catalog.op_key_immutable" and b.get("params", {}).get("index") == 0, f"{s} {b}")
+s, b = adm.call("POST", "/admin/reference/changeset/ops", {"rev": rev0, "ops": [ops[3]]})
+check("RE05", "Admin", "Write from an old revision (another admin wrote since)", "409 catalog.changeset_stale", s == 409 and b.get("code") == "catalog.changeset_stale", f"{s} {b}")
+s, b = adm.call("DELETE", f"/admin/reference/changeset/ops/{cs['changes'][0]['id']}?rev={cs['rev']}")
+check("RE06", "Admin", "Undo the region its towns need", "409 catalog.change_needed", s == 409 and b.get("code") == "catalog.change_needed", f"{s} {b}")
+s, cs2 = adm.call("DELETE", f"/admin/reference/changeset/ops/{cs['changes'][2]['id']}?rev={cs['rev']}")
+check("RE07", "Admin", "Undo one town", "200, 3 changes left", s == 200 and len(cs2.get("changes", [])) == 3, f"{s}")
+cs = cs2
+s, usage = adm.call("GET", "/admin/reference/usage")
+check("RE08", "Admin", "Usage counts", "species:jeunes-poulets and region:CM:ouest counted", s == 200 and usage.get("species:jeunes-poulets", 0) >= 1 and usage.get("region:CM:ouest", 0) >= 1, f"{s} {len(usage or {})} keys")
+s, b = adm.call("POST", "/admin/reference/changeset/publish", {"rev": cs["rev"], "note": " "})
+check("RE09", "Admin", "Publish without a note", "400 catalog.note_invalid", s == 400 and b.get("code") == "catalog.note_invalid", f"{s} {b}")
+before = {k: v for k, v in cs["baseVersions"].items()}
+s, pub = adm.call("POST", "/admin/reference/changeset/publish", {"rev": cs["rev"], "note": "QA: a region and a label"})
+made = {p["name"]: p["version"] for p in (pub or {}).get("published", [])}
+check("RE10", "Admin", "Publish versions only the touched references", "places and reviewTags +1, animals unchanged",
+      s == 201 and made == {"places": before["places"] + 1, "reviewTags": before["reviewTags"] + 1} and pub["reference"]["versions"]["animals"] == before["animals"], f"{s} {made}")
+s, b = g.call("GET", "/reference/places", token=False)
+cm = next(c for c in b["countries"] if c["code"] == "CM")
+check("RE11", "Guest", "The new region is served at once, with its town", f"{qa} with {qa}-a", any(r["key"] == qa and [c["key"] for c in r.get("cities", [])] == [qa + "-a"] for r in cm["regions"]), b.get("version"))
+qa_farmer, _, _ = register("qa-region", "Ferme QA Région")
+s, b = qa_farmer.call("POST", "/farms", {"name": "Ferme de la région QA", "location": f"Town {qa} A", "region": f"Region {qa}"})
+check("RE12", "Farmer", "A farm picks the new region and town by their English names", f"{qa}/{qa}-a", s == 201 and b.get("region") == qa and b.get("location") == qa + "-a", f"{s} {b.get('region') if isinstance(b, dict) else b}")
+s, vs = adm.call("GET", "/admin/reference/versions?name=reviewTags")
+check("RE13", "Admin", "One reference's history, newest first", "reviewTags only", s == 200 and vs and all(v["name"] == "reviewTags" for v in vs) and vs[0]["version"] == made.get("reviewTags"), f"{s} {[v['version'] for v in vs or []][:3]}")
+s, cs = adm.call("GET", "/admin/reference/changeset")
+s, cs = adm.call("POST", "/admin/reference/changeset/restore", {"rev": cs["rev"], "name": "reviewTags", "version": vs[1]["version"]})
+check("RE14", "Admin", "Restore the previous review highlights", "1 change: the label back", s == 200 and len(cs.get("changes", [])) == 1 and cs["changes"][0]["op"]["value"]["label"]["en"] == tag["label"]["en"], f"{s} {[c['op'] for c in cs.get('changes', [])]}")
+s, pub = adm.call("POST", "/admin/reference/changeset/publish", {"rev": cs["rev"], "note": "QA: restore the review highlights"})
+check("RE15", "Admin", "Publish the restore", "201 reviewTags only", s == 201 and [p["name"] for p in pub.get("published", [])] == ["reviewTags"], f"{s}")
+s, cs = adm.call("GET", "/admin/reference/changeset")
+forum = {"entries": cs["draft"]["forumCategories"][1:]}
+s, cs = adm.call("POST", "/admin/reference/changeset/import", {"rev": cs["rev"], "name": "forumCategories", "content": forum})
+dropped = cs["draft"]["forumCategories"][0] if s == 200 else {}
+check("RE16", "Admin", "Import a reference as JSON with an entry left out", "1 change: it is deactivated, not removed", s == 200 and len(cs.get("changes", [])) == 1 and dropped.get("active") is False, f"{s} {[c['op'] for c in cs.get('changes', [])]}")
+s, cs = adm.call("DELETE", f"/admin/reference/changeset?rev={cs['rev']}")
+check("RE17", "Admin", "Discard every pending change", "200, none left", s == 200 and not cs.get("changes"), f"{s}")
+s, cs = adm.call("POST", "/admin/reference/changeset/ops", {"rev": cs["rev"], "ops": [
+    {"kind": "update", "ref": {"entity": "city", "country": "CM", "key": qa + "-a"}, "value": {"active": False}},
+    {"kind": "update", "ref": {"entity": "region", "country": "CM", "key": qa}, "value": {"active": False}},
+]})
+s, pub = adm.call("POST", "/admin/reference/changeset/publish", {"rev": cs.get("rev"), "note": "QA: put the QA region away"})
+s2, b = g.call("GET", "/farms/" + str((qa_farmer.call("GET", "/me")[1].get("farms") or [{}])[0].get("id")), token=False)
+check("RE18", "Admin", "Deactivate the QA region: the farm keeps it", "201, farm still in it", s == 201 and (b or {}).get("region") == qa, f"{s} {s2}")
+
+# ---------- showcase: real photos, a full order, a review ----------
+PHOTOS = os.environ.get("QA_PHOTOS")
+if PHOTOS and os.path.isdir(PHOTOS):
+    def upload_photo(owner, listing_id, name):
+        main = open(os.path.join(PHOTOS, name + ".jpg"), "rb").read()
+        thumb = open(os.path.join(PHOTOS, name + ".thumb.jpg"), "rb").read()
+        s, b = owner.call("POST", f"/listings/{listing_id}/photos/presign", {"size": len(main), "thumbSize": len(thumb)})
+        if s != 200:
+            return None, s
+        for url, data in ((b["uploadUrl"], main), (b["thumbUploadUrl"], thumb)):
+            req = urllib.request.Request(url, data=data, method="PUT")
+            req.add_header("Content-Type", "image/jpeg")
+            urllib.request.urlopen(req, timeout=30)
+        return b["key"], s
+
+    farms = [
+        ("Ferme des Collines", "Bafoussam", "Awa Nana", [
+            ("reproducteurs", "Coq Brahma noir, souche pure", 35000, 4, ["IMG_1039", "IMG_1045"]),
+            ("pondeuses", "Poules pondeuses en pleine ponte", 6500, 30, ["IMG_1042"]),
+            ("poulets-locaux", "Poulets bicyclette élevés en plein air", 5000, 40, ["IMG_1114", "IMG_1115"]),
+        ]),
+        ("Élevage du Littoral", "Douala", "Paul Ekwalla", [
+            ("reproducteurs", "Coq Brahma blanc géant", 40000, 3, ["IMG_1095", "IMG_1099_2"]),
+            ("jeunes-poulets", "Jeunes Brahma noirs, 3 mois", 9000, 25, ["IMG_1098", "IMG_1051"]),
+        ]),
+        ("Brahma du Centre", "Yaoundé", "Marie Atangana", [
+            ("reproducteurs", "Trio Brahma fauve (1 coq, 2 poules)", 75000, 5, ["IMG_1096"]),
+            ("reproducteurs", "Coq Brahma herminé", 38000, 3, ["IMG_1100", "IMG_1072"]),
+        ]),
+    ]
+    shown = []
+    for farm_name, town, owner_name, listings in farms:
+        owner, _, _ = register("showcase", owner_name)
+        f = open_approved_farm(owner, adm, {"name": farm_name, "location": town, "species": sorted({l[0] for l in listings}),
+                                            "contactPhone": "677" + uuid.uuid4().hex[:6].translate(str.maketrans("abcdef", "123456")),
+                                            "description": f"{farm_name} : élevage familial de poulets Brahma à {town}."})
+        for species, title, price, qty, photos in listings:
+            s, b = owner.call("POST", f"/farms/{f['id']}/quick-listings", {"species": species, "breed": "Brahma", "ageWeeks": 16, "quantity": qty, "unitPrice": price, "title": title, "deliveryAvailable": True})
+            lid = b["listing"]["id"]
+            keys = [upload_photo(owner, lid, ph)[0] for ph in photos]
+            owner.call("PUT", f"/listings/{lid}/photos", {"keys": keys})
+            s, b = owner.call("POST", f"/listings/{lid}/publish")
+            check("S01", "Farmer", f"Publish '{title}' with {len(keys)} real photo(s)", "200 published", s == 200 and b.get("status") == "published", f"{s} {town}")
+            shown.append((owner, f, lid, title))
+    s, b = g.call("GET", "/listings?category=volaille&sort=recent&pageSize=100", token=False)
+    ids = {i["listing"]["id"] for i in (b or {}).get("items", [])}
+    check("S02", "Guest", "The marketplace shows the showcase listings", "all 7", all(l[2] in ids for l in shown), f"{s} {len(ids)}")
+    first = next(i for i in b["items"] if i["listing"]["id"] == shown[0][2])
+    photo_url = first["listing"]["photos"][0]
+    with urllib.request.urlopen(photo_url, timeout=20) as r:
+        size = len(r.read())
+    check("S03", "Guest", "A listing photo downloads", "> 50 KB (a real photo)", size > 50_000, size)
+
+    # A full order: reserve, pay, deliver, confirm, review with a rating, reply.
+    owner, f, lid, title = shown[0]
+    client, _, _ = register("client", "Brice Client")
+    s, b = client.call("POST", f"/listings/{lid}/reservations", {"quantity": 1, "payNow": True, "paymentMethod": "mtn_momo", "payerPhone": "670112233"})
+    rid = (b or {}).get("reservation", {}).get("id")
+    check("S04", "Buyer", "Order and pay a Brahma rooster", "201 confirmed", s == 201 and b["reservation"]["status"] == "confirmed", f"{s} {(b or {}).get('reservation', {}).get('reference')}")
+    s, b = owner.call("POST", f"/reservations/{rid}/mark-delivered")
+    check("S05", "Farmer", "Mark the order delivered", "200", s == 200, s)
+    s, b = client.call("POST", f"/reservations/{rid}/confirm-delivery")
+    check("S06", "Buyer", "Confirm receipt (escrow released)", "200", s == 200, s)
+    s, b = client.call("POST", f"/reservations/{rid}/reviews", {"rating": 5, "comment": "Coq magnifique, en pleine santé, livré à l'heure. Je recommande.",
+                                                                "criteria": {"health": 5, "conformity": 5, "communication": 4, "timeliness": 5}, "tags": ["healthy_animals", "on_time"]})
+    check("S07", "Buyer", "Review with a rating and highlights", "201", s == 201, f"{s} {str(b)[:80]}")
+    s, b = owner.call("POST", f"/reviews/{(b or {}).get('id')}/reply", {"text": "Merci Brice, au plaisir de vous revoir à la ferme."})
+    check("S08", "Farmer", "Reply to the review", "2xx", s in (200, 201), s)
+    s, b = g.call("GET", f"/farms/{f['id']}/reviews", token=False)
+    check("S09", "Guest", "The farm's reviews show the rating and the reply", "1 review 5★ with reply", s == 200 and json.dumps(b).count("Coq magnifique") == 1 and "au plaisir" in json.dumps(b), f"{s}")
 
 failed = [r for r in RESULTS if not r["ok"]]
 print(f"\n{len(RESULTS) - len(failed)}/{len(RESULTS)} passed")

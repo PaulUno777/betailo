@@ -1,17 +1,19 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 import { ApiClient } from '../http/api-client';
 import { LocaleService } from '../i18n/locale.service';
-import { Catalog, CatalogTerm, EMPTY_CATALOG, catalogLabels, refKey } from '../../domain/reference/catalog';
+import { CATALOG_PARTS, Catalog, CatalogPart, CatalogPartResponse, CatalogTerm, EMPTY_CATALOG, assembleCatalog, catalogLabels, refKey } from '../../domain/reference/catalog';
 import { setCategories } from '../../domain/reference/species';
 import { setCountries } from '../../domain/reference/countries';
 
 const STORAGE_KEY = 'betailo.reference';
 
-/** The reference data in force (`GET /reference`): loaded once before
- * the app first renders, its labels registered as translations and its
- * lists handed to the species and countries helpers. The last copy is
- * kept in the browser, so a failed load still shows the lists. */
+/** The reference data in force, one reference at a time
+ * (`GET /reference/{name}`: animals, places and each vocabulary), loaded
+ * in parallel before the app first renders; its labels are registered
+ * as translations and its lists handed to the species and countries
+ * helpers. Each reference's last copy is kept in the browser on its
+ * own, so a failed load still shows it. */
 @Injectable({ providedIn: 'root' })
 export class ReferenceService {
   private readonly api = inject(ApiClient);
@@ -20,10 +22,19 @@ export class ReferenceService {
   readonly catalog = signal<Catalog>(EMPTY_CATALOG);
 
   load(): Observable<void> {
-    return this.api.get<Catalog>('/reference').pipe(
-      catchError(() => of(readStored())),
-      map((catalog) => {
-        if (catalog) this.use(catalog);
+    return forkJoin(
+      CATALOG_PARTS.map((name) =>
+        this.api.get<CatalogPartResponse>(`/reference/${name}`).pipe(
+          map((part) => {
+            store(name, part);
+            return part;
+          }),
+          catchError(() => of(readStored(name)))
+        )
+      )
+    ).pipe(
+      map((parts) => {
+        if (parts.some(Boolean)) this.use(assembleCatalog(parts));
       })
     );
   }
@@ -50,23 +61,32 @@ export class ReferenceService {
     return refKey.farmCheck(key);
   }
 
+  /** A version just published from the back office: the whole app
+   * switches to it without reloading. */
+  apply(catalog: Catalog): void {
+    this.use(catalog);
+  }
+
   private use(catalog: Catalog): void {
     this.catalog.set(catalog);
     setCategories(catalog.categories);
     setCountries(catalog.countries, catalog.defaultCountry);
     this.locale.setRuntimeLabels(catalogLabels(catalog));
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(catalog));
-    } catch {
-      /* storage unavailable: the next visit loads it again */
-    }
   }
 }
 
-function readStored(): Catalog | null {
+function store(name: CatalogPart, part: CatalogPartResponse): void {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Catalog) : null;
+    localStorage.setItem(`${STORAGE_KEY}.${name}`, JSON.stringify(part));
+  } catch {
+    /* storage unavailable: the next visit loads it again */
+  }
+}
+
+function readStored(name: CatalogPart): CatalogPartResponse | null {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY}.${name}`);
+    return raw ? (JSON.parse(raw) as CatalogPartResponse) : null;
   } catch {
     return null;
   }

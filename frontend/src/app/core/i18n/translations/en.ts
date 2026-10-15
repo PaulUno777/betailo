@@ -12,6 +12,23 @@ export const en: TranslationDictionary = {
     loading: 'Loading…'
   },
   apiErrors: {
+    catalog: {
+      stale: 'Another version of “{reference}” (v{version}) was published meanwhile.',
+      part_unknown: 'This reference doesn’t exist.',
+      invalid: 'This data can’t be published:',
+      note_invalid: 'Say what changes ({max} characters at most).',
+      key_removed: 'An entry already in use can’t be removed, only deactivated:',
+      version_taken: 'Someone else just published.',
+      op_invalid: 'This change isn’t valid.',
+      op_key_taken: 'The key “{key}” is already used.',
+      op_key_immutable: 'A published key never changes.',
+      op_target_missing: 'This entry doesn’t exist (any more).',
+      changeset_stale: 'Another team member just changed the pending changes.',
+      change_needed: 'Other changes rely on this one: undo them first.',
+      change_missing: 'This change no longer exists.',
+      no_changes: 'No changes.',
+      changeset_conflict: 'Some changes no longer apply to the version in force: undo them.'
+    },
     admin: {
       farm_limit_range: 'The limit must be between 0 and {max}.',
       permission_denied: 'Your role does not allow this.',
@@ -211,7 +228,7 @@ export const en: TranslationDictionary = {
     heroTitleAccent: 'directly from the farm.',
     heroSubtitle:
       'Chicks, piglets, layer hens: follow every breeding cycle from setup to delivery, and pay only once everything has gone well.',
-    heroImageAlt: 'Rooster and hens in a coop',
+    heroImageAlt: 'A rooster, a hen, a goat, a piglet, a calf, chicks and a rabbit',
     heroCycleTitle: 'Cycle · Brahma chicks',
     heroCycleDay: 'Day {count}',
     heroCycleStep1: 'Hatching · 46 chicks',
@@ -253,9 +270,15 @@ export const en: TranslationDictionary = {
     forumReplyCount_one: '{count} reply',
     forumReplyCount: '{count} replies',
     farmerCtaEyebrow: 'For farmers',
-    farmerCtaTitle: 'Are you a farmer?',
-    farmerCtaBody: 'Publish your first cycle and start receiving reservations today.',
-    farmerCtaButton: 'Create a farmer account',
+    farmerCtaTitle: 'Are you a farmer? Sell on Betailo.',
+    farmerCtaBody: 'Three steps to your first reservations: your account, your farm, then your animals.',
+    farmerCtaStepAccount: 'Create your account',
+    farmerCtaStepFarm: 'Register your farm',
+    farmerCtaStepPost: 'Post your animals',
+    farmerCtaStepDone: 'Done',
+    farmerCtaRegister: 'Create my account',
+    farmerCtaFarm: 'Register my farm',
+    farmerCtaPost: 'Post a listing',
     searchWholeCategory: 'All {category}'
   },
   marketplace: {
@@ -264,6 +287,10 @@ export const en: TranslationDictionary = {
     removeFilter: 'Remove the {label} filter',
     clearAll: 'Clear all',
     allRegions: 'All regions',
+    allTowns: 'All towns',
+    townLabel: 'Town',
+    showKinds: 'Show the kinds of {category}',
+    hideKinds: 'Hide the kinds of {category}',
     availableLabel: 'Available',
     anyDate: 'Any date',
     availableIn: 'In {month}',
@@ -407,7 +434,9 @@ export const en: TranslationDictionary = {
     registerPasswordLabel: 'Password',
     registerConfirmLabel: 'Confirm password',
     registerPasswordMismatch: 'Passwords don’t match.',
-    registerTermsLabel: 'I accept Betailo’s terms of use.',
+    registerTermsBefore: 'I accept Betailo’s',
+    registerTermsLink: 'terms of use and sale',
+    registerTermsAfter: '.',
     registerSubmit: 'Create my account',
     registerSubmitting: 'Creating…',
     registerHasAccount: 'Already have an account?',
@@ -1109,7 +1138,7 @@ export const en: TranslationDictionary = {
     escrow: 'Escrow',
     reports: 'Reports',
     forum: 'Forum',
-    settings: 'Settings',
+    reference: 'Reference data',
     navLabel: 'Back office',
     farmsShort: 'Farms',
     disputes: 'Disputes',
@@ -1122,6 +1151,12 @@ export const en: TranslationDictionary = {
       trust: 'Trust',
       system: 'System'
     }
+  },
+  terms: {
+    eyebrow: 'Contract',
+    title: 'Terms of use and sale',
+    updated: 'Last updated {date}',
+    contents: 'Contents'
   },
   footer: {
     tagline: 'The marketplace for breeding cycles. Made in Douala.',
@@ -1355,7 +1390,10 @@ export const en: TranslationDictionary = {
     country: 'Country',
     region: 'Region',
     regionPick: 'Pick your region',
-    regionPlaceholder: 'Region, province, state…'
+    regionPlaceholder: 'Region, province, state…',
+    townPick: 'Pick your town',
+    townOtherOption: 'Another town or village…',
+    townOther: 'Name of the town or village'
   },
   cycleTypes: {
     couvee: 'Hatching',
@@ -1726,6 +1764,9 @@ export const en: TranslationDictionary = {
     staff: {
       grant: 'Role given',
       revoke: 'Role removed'
+    },
+    catalog: {
+      publish: 'Reference data published'
     }
   },
   permission: {
@@ -1758,6 +1799,9 @@ export const en: TranslationDictionary = {
     audit: {
       read: 'Read the journal'
     },
+    reference: {
+      manage: 'Edit the reference data'
+    },
     exports: {
       accounting: 'Accounting exports'
     }
@@ -1785,16 +1829,224 @@ export const en: TranslationDictionary = {
     used_one: '{count} farm out of {max}'
   },
 
-  adminSettings: {
-    title: 'Settings',
-    subtitle: 'The platform’s settings as the API applies them. They are changed in the server configuration, then on restart.',
-    readOnly: 'environment variable, read-only',
-    farmLimit: 'Farms per account, by default',
-    farmLimitLink: 'Manage exceptions',
-    autoApprove: 'Automatic farm approval',
-    autoApproveWarning: 'Turn off before real sellers arrive: no farm is checked by the team.',
-    root: 'Root account',
-    rootHint: 'Created at startup. It can be neither demoted nor suspended.'
+  adminReference: {
+    title: 'Reference data',
+    subtitle: 'Animal categories and kinds, countries, regions and towns, forum and review lists: what the API accepts everywhere. Every change joins the pending changes the team shares, then goes out as one published version.',
+    reference: 'Reference',
+    part: {
+      animals: 'Animals',
+      places: 'Places',
+      forumCategories: 'Forum categories',
+      reviewTags: 'Review highlights',
+      reportReasons: 'Report reasons',
+      farmReviewChecks: 'Farm checks'
+    },
+    willPublish: 'New versions: {versions}',
+    tabs: {
+      categories: 'Categories',
+      places: 'Places',
+      lists: 'Lists',
+      history: 'History',
+      advanced: 'Advanced (JSON)'
+    },
+    entity: {
+      category: 'Category',
+      subcategory: 'Kind of animal',
+      country: 'Country',
+      region: 'Region',
+      city: 'Town',
+      term: 'List entry'
+    },
+    newEntry: {
+      category: 'New category',
+      subcategory: 'New kind in {where}',
+      country: 'New country',
+      region: 'New region · {where}',
+      city: 'New town · {where}',
+      term: 'New entry · {where}'
+    },
+    usedBy_one: 'used once',
+    usedBy: 'used {count} times',
+    drawerTab: {
+      form: 'Form',
+      json: 'JSON'
+    },
+    field: {
+      code: 'Country code',
+      callingCode: 'Calling code',
+      nameFr: 'French name',
+      nameEn: 'English name',
+      key: 'Key',
+      region: 'Region',
+      category: 'Category',
+      icon: 'Drawing',
+      tone: 'Colour',
+      color: 'Colour',
+      cycleType: 'Cycle type',
+      unitFr: 'One animal is called (FR)',
+      unitEn: 'One animal is called (EN)',
+      active: 'Offered for new choices'
+    },
+    hint: {
+      code: 'Two letters, ISO standard (SN, GA…).',
+      key: 'Made from the French name. Stored on farms and listings: it won’t change once published.',
+      moves: 'The entry will be moved.',
+      unit: 'Unit key: {key}',
+      active: 'Unticked, the entry is no longer offered; what already uses it keeps it.',
+      deactivateUsed: 'Still used {count} times: those farms, listings or reviews keep it, it is just no longer offered.',
+      jsonAdd: 'The whole entry, as JSON. Ctrl-Space suggests properties and allowed values.',
+      jsonEdit: 'The entry’s fields, as JSON: only the ones you change are changed.'
+    },
+    tone: {
+      clay: 'Clay',
+      forest: 'Forest',
+      amber: 'Amber',
+      sky: 'Sky',
+      alert: 'Red',
+      plum: 'Plum',
+      stone: 'Stone'
+    },
+    firstKind: 'The category’s first kind',
+    queueAdd: 'Add to the changes',
+    queueEdit: 'Save to the changes',
+    bulk: {
+      title: {
+        subcategory: 'Add kinds · {where}',
+        region: 'Add regions · {where}',
+        city: 'Add towns · {where}',
+        term: 'Add entries · {where}'
+      },
+      hint: 'One entry per line: “Nom français ; English name”, or “key ; nom ; name” from a spreadsheet. The English name is optional.',
+      paste: 'Entries to add',
+      placeholder: {
+        subcategory: 'Oies ; Geese\nCanards de Barbarie ; Muscovy ducks',
+        region: 'Dakar\nThiès ; Thies',
+        city: 'Bamendjou\nBatié ; Batie',
+        term: 'Vaccination ; Vaccination\nTransport'
+      },
+      unitHint: 'Each kind’s unit takes its name; you can adjust it afterwards.',
+      preview_one: 'Preview · {count} entry',
+      preview: 'Preview · {count} entries',
+      empty: 'Paste lines on the left.',
+      issue: {
+        key: 'Invalid key',
+        duplicate: 'Twice in the list',
+        taken: 'Key already used'
+      },
+      atLine: 'line {line}',
+      queue_one: 'Add {count} entry',
+      queue: 'Add {count} entries'
+    },
+    mark: {
+      added: 'Added',
+      edited: 'Edited',
+      moved: 'Moved'
+    },
+    inactive: 'Inactive',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    deactivate: 'Deactivate',
+    reactivate: 'Reactivate',
+    edit: 'Edit',
+    searchKinds: 'Search a category or kind…',
+    filter: {
+      all: 'All',
+      active: 'Active',
+      inactive: 'Inactive',
+      pending: 'Pending'
+    },
+    addCategory: 'Category',
+    kindsCount_one: '{count} kind',
+    kindsCount: '{count} kinds',
+    addKind: 'Add a kind',
+    pasteMany: 'Paste a list',
+    nothingFound: 'Nothing matches.',
+    searchCountries: 'Search a country…',
+    addCountry: 'Add a country',
+    regionsCount_one: '{count} region',
+    regionsCount: '{count} regions',
+    searchPlaces: 'Search a region or town…',
+    addRegion: 'Region',
+    noRegions: 'No regions listed: farms in this country type theirs. Add regions to make it a list.',
+    noTowns: 'No towns listed.',
+    addTown: 'Town',
+    addEntry: 'Add',
+    lists: {
+      forumCategories: {
+        title: 'Forum categories',
+        hint: 'Where a forum topic is filed.'
+      },
+      reviewTags: {
+        title: 'Review highlights',
+        hint: 'What a buyer can point out in a review.'
+      },
+      reportReasons: {
+        title: 'Report reasons',
+        hint: 'Why a listing, profile or post is reported.'
+      },
+      farmReviewChecks: {
+        title: 'Farm checks',
+        hint: 'What the team ticks before approving a farm.'
+      }
+    },
+    inForce: 'In force',
+    fromSeed: 'Lists the platform shipped with',
+    compare: 'Compare',
+    restoreVersion: 'Restore',
+    comparing: '{reference} v{version} (red) compared with the draft (green).',
+    sameAsDraft: 'Same as the draft.',
+    pickVersion: 'Pick a version to compare it with the draft. “Restore” adds to the changes what brings it back.',
+    advancedHint: 'One reference of the draft at a time, as JSON, checked by its own schema. Export it, or edit it here: the API turns the differences into ordinary changes, reviewed before publishing. What you remove is deactivated, never deleted.',
+    valid: 'Valid JSON',
+    errors_one: '{count} error',
+    errors: '{count} errors',
+    format: 'Format',
+    export: 'Export',
+    revertJson: 'Undo edits',
+    queueJson: 'Add to the changes',
+    pending: 'Pending changes',
+    noPending: 'No pending changes. Add or edit an entry: it shows here before publishing.',
+    changeBroken: 'No longer applies to the version in force.',
+    undo: 'Undo',
+    note: 'What changes',
+    notePlaceholder: 'What changes, e.g. “Western towns”',
+    reviewDiff: 'See the diff',
+    discardAll: 'Discard all',
+    publish: 'Publish',
+    publishing: 'Publishing…',
+    published: 'Reference data published',
+    reloaded: 'Another team member just changed the pending changes: they were reloaded.',
+    change: {
+      added: 'Added',
+      addedIn: 'Added in {where}',
+      movedTo: 'Moved to {where}',
+      reordered: 'Moved to position {position}',
+      deactivated: 'Deactivated',
+      reactivated: 'Reactivated',
+      label: '{lang} name: {before} → {after}',
+      unit: '{lang} unit: {before} → {after}',
+      field: '{field}: {before} → {after}'
+    },
+    type: {
+      string: 'text',
+      boolean: 'true or false',
+      object: 'an object { }',
+      array: 'a list [ ]',
+      number: 'a number'
+    },
+    problem: {
+      syntax: 'Invalid JSON: {detail}',
+      required: '“{name}” is missing.',
+      unknownProperty: '“{name}” is not a known property.',
+      enum: 'Expected one of: {values}.',
+      type: 'Expected {type}.',
+      pattern: 'Invalid format.',
+      empty: 'Can’t be empty.',
+      tooLong: '{max} characters at most.',
+      minItems: 'At least {min} entry(ies).',
+      duplicate: 'The key “{key}” is already used.',
+      removed: '“{key}” is published and disappeared: put it back with "active": false.'
+    }
   },
 
   security: {

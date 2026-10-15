@@ -44,7 +44,7 @@ const NAV: readonly NavDef[] = [
   { labelKey: 'adminNav.disputes', icon: 'alert', route: '/admin/disputes', group: 'trust', permission: 'reports.read', count: 'openDisputes', countTone: 'muted' },
   { labelKey: 'adminNav.forum', icon: 'message', route: '/forum', group: 'trust', permission: 'overview.read' },
   { labelKey: 'adminNav.staff', icon: 'shield', route: '/admin/staff', group: 'system', permission: 'staff.manage' },
-  { labelKey: 'adminNav.settings', icon: 'settings', route: '/admin/settings', group: 'system', permission: 'staff.manage' },
+  { labelKey: 'adminNav.reference', icon: 'grid', route: '/admin/reference', group: 'system', permission: 'reference.manage' },
   { labelKey: 'adminNav.audit', icon: 'clock', route: '/admin/audit', group: 'system', permission: 'audit.read' }
 ];
 

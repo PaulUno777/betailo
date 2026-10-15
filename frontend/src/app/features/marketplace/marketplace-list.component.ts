@@ -5,9 +5,9 @@ import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
 import { ListingSearchParams, ListingSearchResult, MarketplaceListing, SearchFacets } from '../../domain/models';
-import { categoryLabelKey, isSpecies, speciesGroups, speciesLabelKey, speciesOf } from '../../domain/reference/species';
+import { categoryLabelKey, isSpecies, speciesGroups, speciesIcon, speciesLabelKey, speciesOf } from '../../domain/reference/species';
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
-import { countryName } from '../../domain/reference/countries';
+import { countryName, placeLabelKey } from '../../domain/reference/countries';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -15,6 +15,7 @@ import { apiResource } from '../../core/http/api-resource';
 import { ListingCardComponent } from '../../shared/ui/listing-card/listing-card.component';
 import { SelectFieldComponent, SelectOption } from '../../shared/ui/select-field/select-field.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { AnimalIconComponent } from '../../shared/ui/animal-icon/animal-icon.component';
 import { BottomSheetComponent } from '../../shared/ui/bottom-sheet/bottom-sheet.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { PriceRangeComponent, PriceRangeValue } from '../../shared/ui/price-range/price-range.component';
@@ -44,8 +45,10 @@ interface Filters {
   species: string[];
   cycleTypes: string[];
   statuses: string[];
-  /** `CM|Ouest`: a region is only unique within its country. */
+  /** `CM|ouest`: a region is only unique within its country. */
   place: string;
+  /** A town key within `place`'s region. */
+  city: string;
   /** `2026-10`: lots open at some point that month. */
   available: string;
   minPrice: number | null;
@@ -61,6 +64,7 @@ const EMPTY_FILTERS: Filters = {
   cycleTypes: [],
   statuses: [],
   place: '',
+  city: '',
   available: '',
   minPrice: null,
   maxPrice: null,
@@ -75,7 +79,10 @@ interface ActiveChip {
   readonly remove: Partial<Filters>;
 }
 
-const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], regions: [], priceMin: 0, priceMax: 0 };
+const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], regions: [], cities: [], priceMin: 0, priceMax: 0 };
+
+/** Where a category stands in the filter: whole, some of its kinds, none. */
+type CategoryState = 'all' | 'some' | 'none';
 
 /** The marketplace, per the design: a search, the active filters as
  * removable chips, and the filters themselves — species (with how many
@@ -97,6 +104,7 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
     ListingCardComponent,
     SelectFieldComponent,
     IconComponent,
+    AnimalIconComponent,
     BottomSheetComponent,
     ButtonComponent,
     PriceRangeComponent,
@@ -153,7 +161,8 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
       <div class="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 lg:hidden" role="group" [attr.aria-label]="'marketplace.speciesLabel' | t">
         <button type="button" [attr.aria-pressed]="!anyAnimalFilter()" [class]="chipClass(!anyAnimalFilter())" (click)="patch({ categories: [], species: [] })">{{ 'marketplace.allChip' | t }}</button>
         @for (cat of categoryOptions(); track cat.value) {
-          <button type="button" [attr.aria-pressed]="filters().categories.includes(cat.value)" [class]="chipClass(filters().categories.includes(cat.value))" (click)="toggleCategory(cat.value)">
+          <button type="button" [attr.aria-pressed]="cat.state !== 'none'" [class]="chipClass(cat.state !== 'none')" (click)="toggleCategory(cat.value)">
+            <bt-animal-icon [name]="cat.icon" [size]="20" />
             {{ cat.label }}
           </button>
         }
@@ -251,34 +260,54 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
 
     <ng-template #filterFields>
       <div class="flex flex-col gap-6">
-        <fieldset class="flex flex-col gap-1">
+        <fieldset class="flex flex-col gap-0.5">
           <legend class="mb-2 text-eyebrow text-ink-muted">{{ 'marketplace.speciesLabel' | t }}</legend>
-          <!-- A category, and once it's picked (or one of its kinds is), its kinds to narrow it. -->
+          <!-- Each category checks as a whole (all its kinds), or partly
+               when some kinds are picked; the chevron shows its kinds. -->
           @for (cat of categoryOptions(); track cat.value) {
-            <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-body hover:bg-surface-sunken" [class.opacity-50]="!cat.count && !cat.open">
-              <input
-                type="checkbox"
-                [checked]="filters().categories.includes(cat.value)"
-                (change)="toggleCategory(cat.value)"
-                class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest"
-              />
-              <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="cat.dot"></span>
-              <span class="flex-1 font-semibold">{{ cat.label }}</span>
-              <span class="font-mono text-small text-ink-muted">{{ cat.count }}</span>
-            </label>
-            @if (cat.open) {
-              @for (opt of cat.species; track opt.value) {
-                <label class="ml-8 flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-1 text-small hover:bg-surface-sunken" [class.opacity-50]="!opt.count && !filters().species.includes(opt.value)">
-                  <input
-                    type="checkbox"
-                    [checked]="filters().species.includes(opt.value)"
-                    (change)="toggle('species', opt.value)"
-                    class="h-[18px] w-[18px] shrink-0 rounded border-line-strong accent-forest"
-                  />
-                  <span class="flex-1">{{ opt.label }}</span>
-                  <span class="font-mono text-caption text-ink-muted">{{ opt.count }}</span>
-                </label>
-              }
+            <div class="flex min-h-11 items-center rounded-md hover:bg-surface-sunken" [class.opacity-50]="!cat.count && cat.state === 'none'">
+              <label class="flex flex-1 cursor-pointer items-center gap-3 px-1 py-1">
+                <input
+                  type="checkbox"
+                  [checked]="cat.state === 'all'"
+                  [indeterminate]="cat.state === 'some'"
+                  (change)="toggleCategory(cat.value, cat.expanded)"
+                  class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest"
+                />
+                <bt-animal-icon [name]="cat.icon" [size]="26" class="text-forest" />
+                <span class="flex-1 font-semibold">{{ cat.label }}</span>
+                <span class="font-mono text-small text-ink-muted">{{ cat.count }}</span>
+              </label>
+              <button
+                type="button"
+                (click)="toggleExpanded(cat.value, cat.expanded)"
+                [attr.aria-expanded]="cat.expanded"
+                [attr.aria-controls]="'kinds-' + cat.value"
+                [attr.aria-label]="(cat.expanded ? 'marketplace.hideKinds' : 'marketplace.showKinds') | t: { category: cat.label }"
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-muted hover:text-ink"
+              >
+                <bt-icon name="chevron-down" [size]="18" class="transition-transform" [class.rotate-180]="cat.expanded" />
+              </button>
+            </div>
+            @if (cat.expanded) {
+              <div [id]="'kinds-' + cat.value" role="group" [attr.aria-label]="cat.label" class="mb-1 ml-3.5 flex flex-col border-l-2 border-line pl-3">
+                @for (opt of cat.species; track opt.value) {
+                  <label
+                    class="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-1 text-small hover:bg-surface-sunken"
+                    [class.opacity-50]="!opt.count && !opt.checked"
+                  >
+                    <input
+                      type="checkbox"
+                      [checked]="opt.checked"
+                      (change)="toggleSpecies(cat.value, opt.value)"
+                      class="h-[18px] w-[18px] shrink-0 rounded border-line-strong accent-forest"
+                    />
+                    <bt-animal-icon [name]="opt.icon" [size]="20" class="text-ink-muted" />
+                    <span class="flex-1">{{ opt.label }}</span>
+                    <span class="font-mono text-caption text-ink-muted">{{ opt.count }}</span>
+                  </label>
+                }
+              </div>
             }
           }
           @for (opt of otherSpecies(); track opt.value) {
@@ -308,8 +337,18 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
           [options]="regionOptions()"
           [placeholder]="'marketplace.allRegions' | t"
           [ngModel]="filters().place"
-          (ngModelChange)="patch({ place: $event })"
+          (ngModelChange)="patch({ place: $event, city: '' })"
         />
+
+        @if (filters().place && cityOptions().length) {
+          <bt-select-field
+            [label]="'marketplace.townLabel' | t"
+            [options]="cityOptions()"
+            [placeholder]="'marketplace.allTowns' | t"
+            [ngModel]="filters().city"
+            (ngModelChange)="patch({ city: $event })"
+          />
+        }
 
         <bt-select-field
           [label]="'marketplace.availableLabel' | t"
@@ -399,6 +438,7 @@ export class MarketplaceListComponent {
       status: f.statuses.join(',') || undefined,
       country: country || undefined,
       region: region || undefined,
+      city: f.city || undefined,
       available: f.available || undefined,
       minPrice: f.minPrice ?? undefined,
       maxPrice: f.maxPrice ?? undefined,
@@ -436,20 +476,34 @@ export class MarketplaceListComponent {
     computation: (facets, previous) => facets ?? previous?.value ?? EMPTY_FACETS
   });
 
-  /** Every category open to sale, its count the sum of its kinds' (0
-   * included so the list never jumps), with its kinds to narrow it. A
-   * category opens once it, or one of its kinds, is picked. */
+  /** Categories the buyer opened or closed with the chevron; the others
+   * are open exactly when some (not all) of their kinds are picked. */
+  private readonly expandedChoice = signal<ReadonlyMap<string, boolean>>(new Map());
+
+  /** Every category open to sale, with the drawing the API gives it, its
+   * count the sum of its kinds' (0 included so the list never jumps),
+   * where it stands (whole, some kinds, none) and its kinds. */
   protected readonly categoryOptions = computed(() => {
     const counts = new Map(this.facets().species.map((f) => [f.value, f.count]));
     const f = this.filters();
+    const expanded = this.expandedChoice();
     return speciesGroups().map((g) => {
-      const species = g.species.map((value) => ({ value, label: this.locale.t(speciesLabelKey(value)), count: counts.get(value) ?? 0 }));
+      const whole = f.categories.includes(g.key);
+      const species = g.species.map((value) => ({
+        value,
+        label: this.locale.t(speciesLabelKey(value)),
+        icon: speciesIcon(value) || g.icon,
+        count: counts.get(value) ?? 0,
+        checked: whole || f.species.includes(value)
+      }));
+      const state: CategoryState = whole ? 'all' : species.some((s) => s.checked) ? 'some' : 'none';
       return {
         value: g.key,
         label: this.locale.t(g.labelKey),
-        dot: g.dot,
+        icon: g.icon,
         count: species.reduce((n, s) => n + s.count, 0),
-        open: f.categories.includes(g.key) || g.species.some((s) => f.species.includes(s)),
+        state,
+        expanded: expanded.get(g.key) ?? state === 'some',
         species
       };
     });
@@ -473,20 +527,34 @@ export class MarketplaceListComponent {
     return OPEN_STATUSES.map((value) => ({ value, label: this.locale.t(STATUS_LABEL_KEYS[value]), count: counts.get(value) ?? 0 }));
   });
 
-  /** Regions that have lots, with their count; prefixed with the
-   * country once the platform spans several. */
+  /** Regions that have lots, with their count, in the reader's
+   * language; prefixed with the country once the platform spans several. */
   protected readonly regionOptions = computed<SelectOption[]>(() => {
     const regions = this.facets().regions;
     const multi = new Set(regions.map((r) => r.country)).size > 1;
     const lang = this.locale.locale();
     const options = regions.map((r) => ({
       value: `${r.country}|${r.region}`,
-      label: `${multi ? countryName(r.country, lang) + ' · ' : ''}${r.region} (${r.count})`
+      label: `${multi ? countryName(r.country, lang) + ' · ' : ''}${this.locale.t(placeLabelKey(r.region))} (${r.count})`
     }));
     // Keep the active region listed even when the other filters leave it empty.
     const place = this.filters().place;
     if (place && !options.some((o) => o.value === place)) {
       options.unshift({ value: place, label: this.placeLabel(place) });
+    }
+    return options;
+  });
+
+  /** The chosen region's towns that have lots, with their count. */
+  protected readonly cityOptions = computed<SelectOption[]>(() => {
+    const [country, region] = this.filters().place.split('|');
+    const options = (this.facets().cities ?? [])
+      .filter((c) => c.country === country && c.region === region)
+      .map((c) => ({ value: c.city, label: `${this.locale.t(placeLabelKey(c.city))} (${c.count})` }));
+    // Keep the active town listed even when the other filters leave it empty.
+    const city = this.filters().city;
+    if (city && !options.some((o) => o.value === city)) {
+      options.unshift({ value: city, label: this.locale.t(placeLabelKey(city)) });
     }
     return options;
   });
@@ -525,7 +593,8 @@ export class MarketplaceListComponent {
     for (const v of f.cycleTypes) {
       chips.push({ id: 't-' + v, label: this.locale.t(cycleTypeLabelKey(v)), remove: { cycleTypes: f.cycleTypes.filter((x) => x !== v) } });
     }
-    if (f.place) chips.push({ id: 'place', label: this.placeLabel(f.place), remove: { place: '' } });
+    if (f.place) chips.push({ id: 'place', label: this.placeLabel(f.place), remove: { place: '', city: '' } });
+    if (f.city) chips.push({ id: 'city', label: this.locale.t(placeLabelKey(f.city)), remove: { city: '' } });
     if (f.available) chips.push({ id: 'available', label: this.monthLabel(f.available, lang), remove: { available: '' } });
     if (f.minPrice !== null || f.maxPrice !== null) {
       const fmt = (n: number) => new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US').format(n);
@@ -578,6 +647,7 @@ export class MarketplaceListComponent {
           status: f.statuses.join(',') || null,
           country: country || null,
           region: region || null,
+          city: f.city || null,
           available: f.available || null,
           minPrice: f.minPrice ?? null,
           maxPrice: f.maxPrice ?? null,
@@ -592,13 +662,44 @@ export class MarketplaceListComponent {
     this.filters.update((f) => ({ ...f, ...change }));
   }
 
-  /** Picks or drops a whole category; dropping it drops its kinds too. */
-  protected toggleCategory(key: string): void {
+  /** Picks a whole category, or drops it with any of its kinds. Picking
+   * it replaces kinds picked inside it: the whole includes them. From
+   * the sidebar, its kinds stay shown or hidden as they were. */
+  protected toggleCategory(key: string, expanded?: boolean): void {
+    if (expanded !== undefined) this.pinExpanded(key, expanded);
     this.filters.update((f) => {
-      if (!f.categories.includes(key)) return { ...f, categories: [...f.categories, key] };
       const inside = speciesOf(key);
-      return { ...f, categories: f.categories.filter((c) => c !== key), species: f.species.filter((s) => !inside.includes(s)) };
+      const species = f.species.filter((s) => !inside.includes(s));
+      return f.categories.includes(key)
+        ? { ...f, categories: f.categories.filter((c) => c !== key), species }
+        : { ...f, categories: [...f.categories, key], species };
     });
+  }
+
+  /** Picks or drops one kind. Dropping one from a whole category keeps
+   * the others; picking the last missing one makes it whole again. */
+  protected toggleSpecies(category: string, value: string): void {
+    this.pinExpanded(category, true);
+    const kinds = speciesGroups().find((g) => g.key === category)?.species ?? [value];
+    this.filters.update((f) => {
+      const others = f.species.filter((s) => !kinds.includes(s));
+      if (f.categories.includes(category)) {
+        return { ...f, categories: f.categories.filter((c) => c !== category), species: [...others, ...kinds.filter((k) => k !== value)] };
+      }
+      const picked = f.species.includes(value) ? f.species.filter((s) => s !== value) : [...f.species, value];
+      if (kinds.every((k) => picked.includes(k))) {
+        return { ...f, categories: [...f.categories, category], species: others };
+      }
+      return { ...f, species: picked };
+    });
+  }
+
+  protected toggleExpanded(category: string, expanded: boolean): void {
+    this.pinExpanded(category, !expanded);
+  }
+
+  private pinExpanded(category: string, expanded: boolean): void {
+    this.expandedChoice.update((m) => new Map(m).set(category, expanded));
   }
 
   protected toggle(key: 'species' | 'cycleTypes' | 'statuses', value: string): void {
@@ -619,7 +720,7 @@ export class MarketplaceListComponent {
 
   protected chipClass(active: boolean): string {
     return (
-      'h-control-md shrink-0 rounded-full border px-4 text-body-strong transition ' +
+      'inline-flex h-control-md shrink-0 items-center gap-2 rounded-full border px-4 text-body-strong transition ' +
       (active ? 'border-forest bg-forest text-on-forest' : 'border-line bg-surface-card text-ink')
     );
   }
@@ -633,8 +734,7 @@ export class MarketplaceListComponent {
 
   private placeLabel(place: string): string {
     const [country, region] = place.split('|');
-    const lang = this.locale.locale();
-    return region ? region : countryName(country, lang);
+    return region ? this.locale.t(placeLabelKey(region)) : countryName(country, this.locale.locale());
   }
 
   private monthLabel(value: string, lang: string): string {
@@ -654,6 +754,7 @@ export class MarketplaceListComponent {
     };
     const country = p.get('country')?.toUpperCase() ?? '';
     const region = p.get('region') ?? '';
+    const city = p.get('city') ?? '';
     const available = p.get('available') ?? '';
     return {
       q: p.get('q') ?? '',
@@ -662,6 +763,7 @@ export class MarketplaceListComponent {
       cycleTypes: list('cycleType'),
       statuses: list('status').filter((s) => (OPEN_STATUSES as readonly string[]).includes(s)),
       place: region ? `${country || 'CM'}|${region}` : '',
+      city: region ? city : '',
       available: /^\d{4}-\d{2}$/.test(available) ? available : '',
       minPrice: num('minPrice'),
       maxPrice: num('maxPrice'),

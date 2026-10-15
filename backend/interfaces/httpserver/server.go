@@ -43,6 +43,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /reference", handleReference(deps.Catalog))
+	mux.HandleFunc("GET /reference/{name}", handleReferencePart(deps.Catalog))
 	limit := func(policy RateLimit, h http.Handler) http.Handler {
 		return rateLimited(policy, deps.RateLimits.TrustProxyHeaders, time.Now, h)
 	}
@@ -193,6 +194,10 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// The team itself. Reading who is on it and what each role may do
 	// is open to all staff (it is how a refusal gets explained);
 	// changing it is the super admin's alone.
+	// The reference data every listing, farm and review is checked
+	// against: its history and a new version, the super admin's alone.
+	registerReferenceRoutes(mux, can, deps.CatalogChangeset, deps.CatalogVersions, deps.CatalogUsage, journal)
+
 	mux.Handle("GET /admin/staff", can(domain.PermOverviewRead, handleAdminListStaff(deps.AdminListStaff, deps.AdminListAudit, deps.StaffInvitations, deps.Storage)))
 	mux.Handle("POST /admin/staff", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal, deps.Storage)))
 	mux.Handle("POST /admin/staff/{id}/role", can(domain.PermStaffManage, handleAdminSetStaffRole(deps.AdminSetStaffRole, journal, deps.Storage)))

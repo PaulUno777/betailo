@@ -264,6 +264,13 @@ export interface RegionFacet {
   count: number;
 }
 
+export interface CityFacet {
+  country: string;
+  region: string;
+  city: string;
+  count: number;
+}
+
 /** What each filter would lead to, counted server-side: every
  * dimension with the other filters applied but not its own. */
 export interface SearchFacets {
@@ -271,6 +278,8 @@ export interface SearchFacets {
   cycleTypes: FacetCount[];
   statuses: FacetCount[];
   regions: RegionFacet[];
+  /** Towns with lots, within the chosen region (everywhere without one). */
+  cities?: CityFacet[];
   priceMin: number;
   priceMax: number;
 }
@@ -290,6 +299,8 @@ export interface ListingSearchParams {
   status?: string;
   country?: string;
   region?: string;
+  /** A town key (or a town typed freely), within `region`. */
+  city?: string;
   /** A month (`2026-10`) or a day: lots open at some point in it. */
   available?: string;
   minPrice?: number;

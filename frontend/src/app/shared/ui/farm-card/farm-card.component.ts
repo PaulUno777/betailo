@@ -5,6 +5,7 @@ import { telUrl, whatsappUrl } from '../../../domain/rules/contact';
 import { AvatarComponent } from '../avatar/avatar.component';
 import { IconComponent } from '../icon/icon.component';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { PlacePipe } from '../../../core/i18n/place.pipe';
 import { LocalDatePipe } from '../../pipes/local-date.pipe';
 
 /** The seller as a buyer sizes them up: name, place, completed sales,
@@ -14,7 +15,7 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
  * prompt to sign in to contact the farmer. */
 @Component({
   selector: 'bt-farm-card',
-  imports: [RouterLink, AvatarComponent, IconComponent, TranslatePipe, LocalDatePipe],
+  imports: [RouterLink, AvatarComponent, IconComponent, TranslatePipe, PlacePipe, LocalDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-4 rounded-lg border border-line bg-surface-card p-4">
@@ -28,7 +29,7 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
             }
           </span>
           <span class="text-small text-ink-muted">
-            {{ farm().location }} · {{ 'farmCard.sales' | t: { count: farm().salesCount } }} · {{ 'farmCard.since' | t: { year: (farm().memberSince | localDate: 'year') } }}
+            {{ farm().location | place }} · {{ 'farmCard.sales' | t: { count: farm().salesCount } }} · {{ 'farmCard.since' | t: { year: (farm().memberSince | localDate: 'year') } }}
           </span>
         </div>
         <div class="flex shrink-0 flex-col items-center rounded-md bg-forest-soft px-3 py-1.5 text-forest">

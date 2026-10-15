@@ -107,12 +107,12 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 		}
 	}
 
-	seq, err := uc.Sequencer.Next(ctx, domain.CycleRefPrefix)
+	ref, err := uc.Sequencer.NextReference(ctx, domain.CycleRefPrefix)
 	if err != nil {
 		return nil, err
 	}
 	c := &domain.Cycle{
-		ID: bson.NewObjectID(), Reference: domain.FormatReference(domain.CycleRefPrefix, seq),
+		ID: bson.NewObjectID(), Reference: ref,
 		FarmID: f.ID, Species: sp.Key, Type: sp.CycleType, Status: status,
 		Capacity: in.Quantity, AvailableQuantity: in.Quantity, StartsAt: startsAt,
 	}

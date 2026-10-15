@@ -16,6 +16,9 @@ const DefaultCountry = "CM"
 // MaxRegionLen bounds a free-text region (countries without a list).
 const MaxRegionLen = 60
 
+// MaxTownLen bounds a town typed freely (one the catalog doesn't list).
+const MaxTownLen = 60
+
 // foldKey lowercases s and strips its accents, so "Extrême-Nord",
 // "extreme-nord" and "EXTREME-NORD" compare equal.
 func foldKey(s string) string {

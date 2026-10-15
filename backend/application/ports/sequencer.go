@@ -2,10 +2,10 @@ package ports
 
 import "context"
 
-// Sequencer hands out gap-tolerant, strictly increasing numbers per key
-// (one counter for reservations, one for cycles), used for human
-// references like "RSV-0042". Next is atomic: concurrent callers never
-// receive the same value.
+// Sequencer hands out human references like "RSV-2610-0042" (see
+// domain.FormatReference): the prefix, the year and month, then a
+// strictly increasing, gap-tolerant number within that month. It is
+// atomic: concurrent callers never receive the same reference.
 type Sequencer interface {
-	Next(ctx context.Context, key string) (int64, error)
+	NextReference(ctx context.Context, prefix string) (string, error)
 }

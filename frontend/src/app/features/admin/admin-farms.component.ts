@@ -12,6 +12,7 @@ import { AppError } from '../../core/http/app-error';
 import { apiResource } from '../../core/http/api-resource';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { PlacePipe } from '../../core/i18n/place.pipe';
 import { ToastService } from '../../core/notifications/toast.service';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { AvatarComponent } from '../../shared/ui/avatar/avatar.component';
@@ -43,7 +44,7 @@ const TARGET_HOURS = 48;
  * links the API signs for staff only. */
 @Component({
   selector: 'bt-admin-farms',
-  imports: [FormsModule, RouterLink, AvatarComponent, BadgeComponent, ButtonComponent, IconComponent, StatusBadgeComponent, LocalDatePipe, TranslatePipe],
+  imports: [FormsModule, RouterLink, AvatarComponent, BadgeComponent, ButtonComponent, IconComponent, StatusBadgeComponent, LocalDatePipe, TranslatePipe, PlacePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="grid min-h-dvh lg:grid-cols-[380px_minmax(0,1fr)]">
@@ -101,7 +102,7 @@ const TARGET_HOURS = 48;
                         <span class="font-mono text-[11px] whitespace-nowrap" [class]="late(at) ? 'font-semibold text-clay-ink' : 'text-ink-muted'">{{ since(at) }}</span>
                       }
                     </span>
-                    <span class="wrap-anywhere text-[12.5px] text-ink-muted">{{ farm.owner?.displayName || farm.owner?.email }} · {{ farm.location }}</span>
+                    <span class="wrap-anywhere text-[12.5px] text-ink-muted">{{ farm.owner?.displayName || farm.owner?.email }} · {{ farm.location | place }}</span>
                     <span class="flex flex-wrap gap-1.5">
                       @if (farm.status !== 'pending') {
                         <bt-status-badge kind="farm" [status]="farm.status" />
@@ -145,7 +146,7 @@ const TARGET_HOURS = 48;
               </div>
               <h2 class="wrap-anywhere font-display text-[26px] leading-tight font-extrabold tracking-[-0.02em] sm:text-[32px]">{{ d.name }}</h2>
               <p class="wrap-anywhere text-small text-ink-muted">
-                {{ d.location }}{{ d.region ? ', ' + d.region : '' }}
+                {{ d.location | place }}{{ d.region ? ', ' + (d.region | place) : '' }}
                 @for (s of d.species ?? []; track s) {
                   · {{ speciesKey(s) | t }}
                 }

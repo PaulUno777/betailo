@@ -21,7 +21,7 @@ import { SidebarShellComponent } from './sidebar-shell.component';
  * and the forum where breeders help each other. */
 const ITEMS: readonly { labelKey: string; icon: IconName; route: string; exactMatch?: boolean }[] = [
   { labelKey: 'portalNav.dashboard', icon: 'home', route: '/portal', exactMatch: true },
-  { labelKey: 'portalNav.farms', icon: 'leaf', route: '/portal/farms' },
+  { labelKey: 'portalNav.farms', icon: 'farm', route: '/portal/farms' },
   { labelKey: 'portalNav.cycles', icon: 'cycle', route: '/portal/cycles' },
   { labelKey: 'portalNav.listings', icon: 'grid', route: '/portal/listings' },
   { labelKey: 'portalNav.sales', icon: 'calendar', route: '/portal/reservations' },
@@ -52,7 +52,7 @@ const MORE_LINKS: readonly MoreSheetLink[] = [
   { labelKey: 'portalNav.cycles', icon: 'cycle', route: '/portal/cycles' },
   { labelKey: 'portalNav.payments', icon: 'wallet', route: '/portal/payments' },
   { labelKey: 'portalNav.farm', icon: 'settings', route: '/portal/farm' },
-  { labelKey: 'portalNav.farms', icon: 'leaf', route: '/portal/farms' },
+  { labelKey: 'portalNav.farms', icon: 'farm', route: '/portal/farms' },
   { labelKey: 'nav.forum', icon: 'message', route: '/forum' },
   { labelKey: 'portalNav.buyMode', icon: 'search', route: '/' },
   { labelKey: 'nav.myAccount', icon: 'user', route: '/account' }

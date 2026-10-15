@@ -479,6 +479,30 @@ input:autofill {
     padding: 0 14px 10px;
     white-space: nowrap;
   }
+  /* A compact field for editing tables in the back office. */
+  .bo-input {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 8px;
+    background: var(--color-surface-card);
+    color: var(--color-ink);
+    font-size: 14px;
+  }
+  .bo-input:focus {
+    outline: none;
+    border-color: var(--color-forest);
+    box-shadow: var(--shadow-focus);
+  }
+  .bo-input:disabled,
+  .bo-input[readonly] {
+    background: var(--color-surface-sunken);
+    color: var(--color-ink-muted);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+  }
   .bo-td {
     padding: 13px 14px;
     border-top: 1px solid var(--color-line);
@@ -486,4 +510,16 @@ input:autofill {
     line-height: 20px;
     vertical-align: middle;
   }
+}
+
+/* The scattered animal outlines from the brand illustrations, as a
+ * decorative layer. The SVG is a mask painted with `currentColor`, so a
+ * `text-*` utility picks the tint and `opacity-*` how discreet it is
+ * (8–12 % keeps text readable), in either theme. */
+@utility animal-pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: currentColor;
+  mask: url('/images/motif-animaux.svg') repeat 0 0 / 420px;
 }

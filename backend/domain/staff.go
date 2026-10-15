@@ -34,6 +34,10 @@ const (
 	PermStaffManage Permission = "staff.manage"
 	// PermAuditRead reads the journal of staff actions.
 	PermAuditRead Permission = "audit.read"
+	// PermReferenceManage publishes a new version of the reference data
+	// (categories, regions and towns, vocabularies). Super admins only:
+	// every listing, farm and review is checked against it.
+	PermReferenceManage Permission = "reference.manage"
 )
 
 // Permissions lists every permission in the order the back office
@@ -41,7 +45,7 @@ const (
 var Permissions = []Permission{
 	PermOverviewRead, PermAccountsRead, PermFarmsRead, PermCatalogRead,
 	PermFarmsReview, PermFarmLimitSet, PermReportsRead, PermReportsResolve, PermAccountsSuspend,
-	PermEscrowRead, PermEscrowSettle, PermExportsAccounting, PermStaffManage, PermAuditRead,
+	PermEscrowRead, PermEscrowSettle, PermExportsAccounting, PermStaffManage, PermAuditRead, PermReferenceManage,
 }
 
 // StaffRoles lists the roles staff can hold, most powerful first.
