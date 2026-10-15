@@ -319,7 +319,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			},
 			ReviewFarm: &farm.ReviewFarm{Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock, Catalog: catalogSource},
 
-			CreateCycle: &cycle.CreateCycle{Farms: farms, Cycles: cycles, Sequencer: counters},
+			CreateCycle: &cycle.CreateCycle{Farms: farms, Cycles: cycles, Sequencer: counters, Catalog: catalogSource},
 			GetCycle:    &cycle.GetCycle{Cycles: cycles, Clock: systemClock},
 			AddHealthEvent: &cycle.AddHealthEvent{
 				Farms: farms, Cycles: cycles, Clock: systemClock,

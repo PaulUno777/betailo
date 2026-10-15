@@ -17,7 +17,7 @@ func setupHealthEvent(t *testing.T, status domain.CycleStatus) (*AddHealthEvent,
 	owner := bson.NewObjectID()
 	farm := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner}
 	cycles := newFakeCycles()
-	c := &domain.Cycle{FarmID: farm.ID, Species: "poule", Status: status}
+	c := &domain.Cycle{FarmID: farm.ID, Species: "poussins", Status: status}
 	if err := cycles.Create(context.Background(), c); err != nil {
 		t.Fatal(err)
 	}

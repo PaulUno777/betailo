@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -90,10 +91,10 @@ func TestSearchListings_HTTP_FiltersBySpeciesAndPrice(t *testing.T) {
 		return decodeJSON[listingResponse](t, listingRec).ID
 	}
 
-	cheapChicken := makeListing("poulet", 1000)
-	expensivePig := makeListing("porc", 20000)
+	cheapChicken := makeListing("poussins", 1000)
+	expensivePig := makeListing("porcs", 20000)
 
-	rec := doJSON(t, router, http.MethodGet, "/listings?species=poulet&maxPrice=5000", nil, "")
+	rec := doJSON(t, router, http.MethodGet, "/listings?species=poussins&maxPrice=5000", nil, "")
 	items := decodeJSON[marketplaceSearchResponse](t, rec).Items
 	foundCheap, foundExpensive := false, false
 	for _, item := range items {
@@ -105,9 +106,19 @@ func TestSearchListings_HTTP_FiltersBySpeciesAndPrice(t *testing.T) {
 		}
 	}
 	if !foundCheap {
-		t.Error("species=poulet&maxPrice=5000 should include the cheap chicken listing")
+		t.Error("species=poussins&maxPrice=5000 should include the cheap chicken listing")
 	}
 	if foundExpensive {
-		t.Error("species=poulet&maxPrice=5000 should exclude the pig listing")
+		t.Error("species=poussins&maxPrice=5000 should exclude the pig listing")
+	}
+
+	// A category stands for its sub-categories: the pig, not the chicks.
+	rec = doJSON(t, router, http.MethodGet, "/listings?category=porcins", nil, "")
+	ids := []string{}
+	for _, item := range decodeJSON[marketplaceSearchResponse](t, rec).Items {
+		ids = append(ids, item.Listing.ID)
+	}
+	if !slices.Contains(ids, expensivePig) || slices.Contains(ids, cheapChicken) {
+		t.Errorf("category=porcins = %v, want the pig listing only", ids)
 	}
 }

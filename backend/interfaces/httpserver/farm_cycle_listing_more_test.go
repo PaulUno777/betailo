@@ -39,7 +39,7 @@ func TestUpdateListing_HTTP_NotOwnerForbidden(t *testing.T) {
 	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, ownerToken)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
 	}, ownerToken)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 	listingRec := doJSON(t, router, http.MethodPost, "/listings", createListingRequest{
@@ -61,7 +61,7 @@ func TestDeleteCycle_HTTP_SuccessAndConflict(t *testing.T) {
 	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, token)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
 	}, token)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 
@@ -73,7 +73,7 @@ func TestDeleteCycle_HTTP_SuccessAndConflict(t *testing.T) {
 
 	// A second cycle, now with a listing: delete is blocked.
 	cycle2Rec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
 	}, token)
 	cycle2Out := decodeJSON[cycleResponse](t, cycle2Rec)
 	doJSON(t, router, http.MethodPost, "/listings", createListingRequest{

@@ -13,7 +13,7 @@ import (
 
 func TestGetCycle_Execute(t *testing.T) {
 	cycles := newFakeCycles()
-	c := &domain.Cycle{FarmID: bson.NewObjectID(), Species: "poule"}
+	c := &domain.Cycle{FarmID: bson.NewObjectID(), Species: "poussins"}
 	if err := cycles.Create(context.Background(), c); err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
@@ -23,8 +23,8 @@ func TestGetCycle_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
 	}
-	if got.Cycle.Species != "poule" {
-		t.Errorf("Species = %q, want %q", got.Cycle.Species, "poule")
+	if got.Cycle.Species != "poussins" {
+		t.Errorf("Species = %q, want %q", got.Cycle.Species, "poussins")
 	}
 	if len(got.Timeline) == 0 || got.Timeline[0].Kind != domain.TimelineStart {
 		t.Errorf("Timeline = %+v, want it to open with the start step", got.Timeline)
@@ -40,9 +40,9 @@ func TestListCyclesByFarm_Execute(t *testing.T) {
 	cycles := newFakeCycles()
 	farmA, farmB := bson.NewObjectID(), bson.NewObjectID()
 	for _, c := range []*domain.Cycle{
-		{FarmID: farmA, Species: "poule"},
-		{FarmID: farmA, Species: "porc"},
-		{FarmID: farmB, Species: "chèvre"},
+		{FarmID: farmA, Species: "poussins"},
+		{FarmID: farmA, Species: "porcs"},
+		{FarmID: farmB, Species: "chevres"},
 	} {
 		if err := cycles.Create(context.Background(), c); err != nil {
 			t.Fatalf("Create() error = %v", err)

@@ -118,12 +118,12 @@ func (e *env) seed(t *testing.T, capacity int) (farmer *domain.User, cycle *doma
 	if err := e.users.Create(ctx, farmer); err != nil {
 		t.Fatalf("create farmer: %v", err)
 	}
-	farm := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer.ID, Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poule"}, CreatedAt: now, Status: domain.FarmApproved}
+	farm := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer.ID, Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poussins"}, CreatedAt: now, Status: domain.FarmApproved}
 	if err := e.farms.Create(ctx, farm); err != nil {
 		t.Fatalf("create farm: %v", err)
 	}
 	cycle = &domain.Cycle{
-		ID: bson.NewObjectID(), FarmID: farm.ID, Species: "poule", Type: "couvee", Status: domain.CycleStatusInProgress,
+		ID: bson.NewObjectID(), FarmID: farm.ID, Species: "poussins", Type: "couvee", Status: domain.CycleStatusInProgress,
 		Capacity: capacity, AvailableQuantity: capacity, StartsAt: now.Add(24 * time.Hour),
 	}
 	if err := e.cycles.Create(ctx, cycle); err != nil {
@@ -373,9 +373,9 @@ func TestWorker_TickAdvancesCyclesClosesUnpaidAndDrainsOutbox(t *testing.T) {
 	// One planned cycle that should have started, one in-progress cycle
 	// that should have ended.
 	farmID := cycle.FarmID
-	toStart := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porc", Type: "engraissement", Status: domain.CycleStatusPlanned, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-time.Hour)}
+	toStart := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porcs", Type: "engraissement", Status: domain.CycleStatusPlanned, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-time.Hour)}
 	ended := now.Add(-time.Minute)
-	toEnd := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porc", Type: "engraissement", Status: domain.CycleStatusInProgress, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-48 * time.Hour), EndsAt: &ended}
+	toEnd := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porcs", Type: "engraissement", Status: domain.CycleStatusInProgress, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-48 * time.Hour), EndsAt: &ended}
 	for _, c := range []*domain.Cycle{toStart, toEnd} {
 		if err := e.cycles.Create(ctx, c); err != nil {
 			t.Fatal(err)
@@ -711,16 +711,16 @@ func TestListingSearch_PublishedPricesBySpeciesAndRegion(t *testing.T) {
 	_ = e.users.Create(ctx, farmer2)
 	f2 := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer2.ID, Name: "B", Location: "Douala", CreatedAt: time.Now(), Status: domain.FarmApproved}
 	_ = e.farms.Create(ctx, f2)
-	c2 := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f2.ID, Species: "poule", Type: "couvee", Status: domain.CycleStatusInProgress, Capacity: 5, AvailableQuantity: 5, StartsAt: time.Now()}
+	c2 := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f2.ID, Species: "poussins", Type: "couvee", Status: domain.CycleStatusInProgress, Capacity: 5, AvailableQuantity: 5, StartsAt: time.Now()}
 	_ = e.cycles.Create(ctx, c2)
 	_ = e.listings.Create(ctx, &domain.Listing{ID: bson.NewObjectID(), CycleID: &c2.ID, Title: "x", UnitPrice: 3000, Status: domain.ListingPublished})
 	_ = e.listings.Create(ctx, &domain.Listing{ID: bson.NewObjectID(), CycleID: &c2.ID, Title: "draft", UnitPrice: 99999, Status: domain.ListingDraft})
 
-	all, err := e.listings.PublishedPrices(ctx, "poule", "", 10)
+	all, err := e.listings.PublishedPrices(ctx, "poussins", "", 10)
 	if err != nil || len(all) != 2 {
 		t.Fatalf("all regions = %v, %v; want the two published prices (not the draft)", all, err)
 	}
-	douala, _ := e.listings.PublishedPrices(ctx, "poule", "douala", 10)
+	douala, _ := e.listings.PublishedPrices(ctx, "poussins", "douala", 10)
 	if len(douala) != 1 || douala[0] != 3000 {
 		t.Fatalf("Douala = %v, want [3000]", douala)
 	}

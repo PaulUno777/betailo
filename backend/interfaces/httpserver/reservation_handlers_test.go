@@ -18,7 +18,7 @@ func setupListing(t *testing.T, router http.Handler, capacity int) (listingID, f
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "couvee", Capacity: capacity, StartsAt: time.Now().Add(24 * time.Hour),
+		FarmID: farmOut.ID, Species: "poussins", Type: "couvee", Capacity: capacity, StartsAt: time.Now().Add(24 * time.Hour),
 	}, farmerToken)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 
