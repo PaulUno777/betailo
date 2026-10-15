@@ -196,6 +196,10 @@ export interface Listing {
   unit?: string;
   status: ListingStatus;
   photos?: string[];
+  /** Small copies of `photos`, same order, for cards and grids. A photo
+   * from before small copies existed has a thumb URL that 404s: show it
+   * with `btFallbackSrc` pointing at the photo. */
+  thumbs?: string[];
   breed?: string;
   ageWeeks?: number;
   deliveryAvailable?: boolean;
@@ -398,6 +402,8 @@ export interface Review {
   tags: string[];
   /** Signed download URLs. */
   photos: string[];
+  /** Small copies of `photos`, same order (see `Listing.thumbs`). */
+  thumbs: string[];
   helpfulCount: number;
   votedByMe: boolean;
   /** The viewer wrote it, so they can't vote on it. */

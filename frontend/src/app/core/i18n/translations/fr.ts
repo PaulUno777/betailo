@@ -41,6 +41,10 @@ export const fr = {
     account_suspended: 'Ce compte est suspendu. Contactez le support Betailo.',
     email_taken: 'Un compte existe déjà avec cet e-mail.',
     insufficient_capacity: 'Il ne reste plus assez de places.',
+    photo: {
+      unsupported: 'Ce fichier ne peut pas être lu comme une photo. Choisissez une image JPEG ou PNG.',
+      too_large: 'Cette photo reste trop lourde même réduite ({max} Ko au plus). Choisissez-en une autre.'
+    },
     auth: {
       email_invalid: 'Entrez une adresse e-mail valide.',
       password_too_short: 'Le mot de passe doit contenir au moins {min} caractères.',

@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Review, ReviewCriteria, ReviewFilter } from '../../domain/models';
 import { ApiClient } from '../../core/http/api-client';
-import { PresignedUpload } from '../../core/http/photo-upload.service';
+import { PhotoSizes, PresignedUpload } from '../../core/http/photo-upload.service';
 
 export interface CreateReviewInput {
   readonly rating: number;
@@ -23,8 +23,8 @@ export class ReviewsApi {
     return this.api.post<Review>(`/reservations/${reservationId}/reviews`, input);
   }
 
-  presignPhoto(reservationId: string): Observable<PresignedUpload> {
-    return this.api.post<PresignedUpload>(`/reservations/${reservationId}/reviews/photos/presign`);
+  presignPhoto(reservationId: string, sizes: PhotoSizes): Observable<PresignedUpload> {
+    return this.api.post<PresignedUpload>(`/reservations/${reservationId}/reviews/photos/presign`, sizes);
   }
 
   /** A `FarmReviewsPage`. */

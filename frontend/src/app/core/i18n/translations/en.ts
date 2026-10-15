@@ -43,6 +43,10 @@ export const en: TranslationDictionary = {
     account_suspended: 'This account is suspended. Contact Betailo support.',
     email_taken: 'An account already exists with this email.',
     insufficient_capacity: 'There are not enough places left.',
+    photo: {
+      unsupported: 'This file can’t be read as a photo. Pick a JPEG or PNG image.',
+      too_large: 'This photo is too heavy even once reduced ({max} KB at most). Pick another one.'
+    },
     auth: {
       email_invalid: 'Enter a valid email address.',
       password_too_short: 'The password needs at least {min} characters.',
