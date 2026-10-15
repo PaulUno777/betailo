@@ -24,7 +24,7 @@ import { AuthLayoutComponent } from './auth-layout.component';
   template: `
     <bt-auth-layout>
       @if (preview(); as p) {
-        <form (ngSubmit)="accept()" class="flex flex-col gap-5">
+        <form (submit)="$event.preventDefault(); accept()" class="flex flex-col gap-5">
           <h2 class="text-heading-3">{{ 'invitation.title' | t }}</h2>
           <p class="-mt-2 flex flex-wrap items-center gap-2 text-small text-ink-muted">
             <span>{{ 'invitation.for' | t: { email: p.email } }}</span>
