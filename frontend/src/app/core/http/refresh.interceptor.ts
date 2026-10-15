@@ -3,12 +3,13 @@ import { inject } from '@angular/core';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 
-/** Requests a 401 here must never trigger a refresh attempt — login
- * and register legitimately 401/400 on bad credentials (nothing to
+/** Requests a 401 here must never trigger a refresh attempt — login,
+ * register, the second sign-in step and a password reset legitimately
+ * 401 on a bad password, code or link (there is no session yet to
  * refresh), and excluding /auth/refresh itself is the loop guard: a
  * failed refresh must be allowed to actually fail, not try to refresh
  * its own failure. */
-const REFRESH_EXEMPT = ['/auth/login', '/auth/register', '/auth/refresh'];
+const REFRESH_EXEMPT = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/mfa/', '/auth/password/'];
 
 /** On a 401 from anything else, attempt one silent refresh (see
  * AuthService.refreshSession — single-flight, so concurrent 401s share

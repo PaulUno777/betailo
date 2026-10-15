@@ -78,8 +78,9 @@ describe('refreshInterceptor', () => {
     httpMock.expectNone((req) => req.headers.has('Authorization'));
   });
 
-  it('never attempts a refresh for /auth/login, /auth/register or /auth/refresh themselves', (done) => {
-    let remaining = 3;
+  it('never attempts a refresh for the sign-in calls or /auth/refresh itself', (done) => {
+    const paths = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/mfa/verify', '/auth/mfa/passkey/verify', '/auth/password/reset'];
+    let remaining = paths.length;
     const checkDone = () => {
       remaining--;
       if (remaining === 0) {
@@ -88,11 +89,11 @@ describe('refreshInterceptor', () => {
       }
     };
 
-    for (const path of ['/auth/login', '/auth/register', '/auth/refresh']) {
+    for (const path of paths) {
       http.post(path, {}).subscribe({ error: checkDone });
     }
 
-    for (const path of ['/auth/login', '/auth/register', '/auth/refresh']) {
+    for (const path of paths) {
       httpMock.expectOne(path).flush('unauthorized', { status: 401, statusText: 'Unauthorized' });
     }
   });

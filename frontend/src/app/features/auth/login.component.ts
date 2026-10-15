@@ -24,7 +24,7 @@ interface LoginForm {
     <bt-auth-layout>
       @if (challenge(); as c) {
         <!-- The password was right; the account asks for its second factor. -->
-        <form (ngSubmit)="verify()" class="flex flex-col gap-5">
+        <form (submit)="$event.preventDefault(); verify()" class="flex flex-col gap-5">
           <h2 class="text-heading-3">{{ 'auth.mfaTitle' | t }}</h2>
           <p class="-mt-2 text-small text-ink-muted">{{ (useRecovery() ? 'auth.mfaRecoveryIntro' : 'auth.mfaIntro') | t }}</p>
           @if (error(); as message) {

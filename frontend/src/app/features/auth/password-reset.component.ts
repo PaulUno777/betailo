@@ -26,7 +26,7 @@ import { AuthLayoutComponent } from './auth-layout.component';
           <a routerLink="/login" class="font-semibold text-forest underline underline-offset-2">{{ 'passwordReset.backToLogin' | t }}</a>
         </div>
       } @else if (token) {
-        <form (ngSubmit)="reset()" class="flex flex-col gap-5">
+        <form (submit)="$event.preventDefault(); reset()" class="flex flex-col gap-5">
           <h2 class="text-heading-3">{{ 'passwordReset.newTitle' | t }}</h2>
           @if (error(); as message) {
             <bt-notice tone="danger">{{ message }}</bt-notice>
@@ -35,7 +35,7 @@ import { AuthLayoutComponent } from './auth-layout.component';
           <bt-button type="submit" block size="lg" [disabled]="password.invalid || submitting()">{{ 'passwordReset.newSubmit' | t }}</bt-button>
         </form>
       } @else {
-        <form (ngSubmit)="request()" class="flex flex-col gap-5">
+        <form (submit)="$event.preventDefault(); request()" class="flex flex-col gap-5">
           <h2 class="text-heading-3">{{ 'passwordReset.title' | t }}</h2>
           <p class="-mt-2 text-small text-ink-muted">{{ 'passwordReset.intro' | t }}</p>
           @if (error(); as message) {
