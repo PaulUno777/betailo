@@ -551,24 +551,6 @@ func TestCounters_ConcurrentReferencesAreUniqueAndBackfillFillsGaps(t *testing.T
 	if len(seen) != 50 {
 		t.Fatalf("got %d distinct values, want 50", len(seen))
 	}
-
-	_, cycle, _ := e.seed(t, 10) // seeded straight through the repository: no reference
-	if err := mongodb.BackfillReferences(ctx, e.db); err != nil {
-		t.Fatal(err)
-	}
-	got, err := e.cycles.FindByID(ctx, cycle.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Reference != "CYC-0001" {
-		t.Fatalf("backfilled reference = %q, want CYC-0001", got.Reference)
-	}
-	if err := mongodb.BackfillReferences(ctx, e.db); err != nil {
-		t.Fatal(err)
-	}
-	if again, _ := e.cycles.FindByID(ctx, cycle.ID); again.Reference != "CYC-0001" {
-		t.Fatalf("backfill isn't idempotent: %q", again.Reference)
-	}
 }
 
 func TestNotificationInbox_NewestFirstUnreadAndScopedMarkRead(t *testing.T) {
@@ -726,40 +708,6 @@ func TestListingSearch_PublishedPricesBySpeciesAndRegion(t *testing.T) {
 	}
 	if none, _ := e.listings.PublishedPrices(ctx, "porcs", "", 10); len(none) != 0 {
 		t.Fatalf("other species = %v, want none", none)
-	}
-}
-
-// Reservations made under the old 24h-hold rule give their places back
-// once, and the migration is a no-op on the next startup.
-func TestMigrateUnpaidToWaitingList_ReturnsPlacesOnce(t *testing.T) {
-	e := newEnv(t)
-	ctx := context.Background()
-	_, cycle, listing := e.seed(t, 100)
-
-	// The old rule: the unpaid reservation had already taken 30 places.
-	if _, err := e.db.Collection("cycles").UpdateOne(ctx, bson.M{"_id": cycle.ID}, bson.M{"$set": bson.M{"availableQuantity": 70}}); err != nil {
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(time.Hour)
-	if _, err := e.db.Collection("reservations").InsertOne(ctx, bson.M{
-		"_id": bson.NewObjectID(), "listingId": listing.ID, "buyerId": bson.NewObjectID(), "quantity": 30,
-		"unitPrice": 2500.0, "totalAmount": 76500.0, "status": "pending", "createdAt": time.Now(), "paymentDeadline": deadline,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	for run, want := range []int{1, 0} {
-		n, err := mongodb.MigrateUnpaidToWaitingList(ctx, e.db)
-		if err != nil || n != want {
-			t.Fatalf("run %d: migrated = %d, %v; want %d, nil", run+1, n, err, want)
-		}
-	}
-	stored, err := e.cycles.FindByID(ctx, cycle.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stored.AvailableQuantity != 100 {
-		t.Errorf("availableQuantity = %d, want 100: the waiting list holds no places", stored.AvailableQuantity)
 	}
 }
 

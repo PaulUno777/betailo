@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
-	"github.com/pauluno777/betailo/backend/domain"
 )
 
 // CounterRepository implements ports.Sequencer against the "counters"
@@ -34,42 +33,4 @@ func (r *CounterRepository) Next(ctx context.Context, key string) (int64, error)
 		return 0, fmt.Errorf("counter %s: %w", key, err)
 	}
 	return doc.Seq, nil
-}
-
-// BackfillReferences gives every reservation, cycle and farm created before
-// references existed one, oldest first, from the same counters new ones
-// use. Idempotent: it only touches documents without a reference, so
-// running it on every startup is a no-op once done.
-func BackfillReferences(ctx context.Context, database *mongo.Database) error {
-	counters := &CounterRepository{Coll: database.Collection("counters")}
-	for _, target := range []struct{ collection, prefix string }{
-		{"cycles", domain.CycleRefPrefix},
-		{"reservations", domain.ReservationRefPrefix},
-		{"farms", domain.FarmRefPrefix},
-		{"reports", domain.ReportRefPrefix},
-	} {
-		coll := database.Collection(target.collection)
-		cur, err := coll.Find(ctx, bson.M{"reference": bson.M{"$exists": false}},
-			options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}).SetProjection(bson.M{"_id": 1}))
-		if err != nil {
-			return err
-		}
-		var docs []struct {
-			ID bson.ObjectID `bson:"_id"`
-		}
-		if err := cur.All(ctx, &docs); err != nil {
-			return err
-		}
-		for _, d := range docs {
-			n, err := counters.Next(ctx, target.prefix)
-			if err != nil {
-				return err
-			}
-			if _, err := coll.UpdateOne(ctx, bson.M{"_id": d.ID, "reference": bson.M{"$exists": false}},
-				bson.M{"$set": bson.M{"reference": domain.FormatReference(target.prefix, n)}}); err != nil {
-				return fmt.Errorf("backfill %s %s: %w", target.collection, d.ID.Hex(), err)
-			}
-		}
-	}
-	return nil
 }

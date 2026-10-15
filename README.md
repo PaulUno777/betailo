@@ -5,13 +5,15 @@
 > **Go** (backend) + **Angular / Tailwind** (frontend).
 
 ![CI](https://github.com/pauluno777/betailo/actions/workflows/ci.yml/badge.svg)
-![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)
+![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
 ![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-12-F69220?logo=pnpm&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-informational)
 
-> Projet portfolio : ce dépôt est l'amorçage technique (monorepo, CI, squelettes backend/frontend) du projet détaillé dans le document de proposition architecture complète, modèle de données, direction artistique et roadmap. Ce README documente **ce qui existe déjà dans le code** ; le document de proposition reste la référence produit.
+> Ce README documente **ce qui existe dans le code** ; les documents de
+> `docs/` (proposition, concepts & architecture, ADR) restent la référence
+> produit et les raisons des choix.
 
 
 
@@ -52,79 +54,50 @@ Détail du backend (le cœur du projet) :
 
 ```
 backend/
-├── cmd/api/                    # point d'entrée du binaire (juste : Initialize -> Bootstrap -> Run)
-├── domain/                     # entités pures — zéro tag bson/json, zéro import d'infra
+├── cmd/api/              # point d'entrée : Initialize -> Bootstrap -> Run
+├── domain/               # entités et règles pures — aucun import d'infrastructure
+│   └── catalog_seed.json # version 1 du référentiel (catégories, pays, listes)
 ├── application/
-│   ├── ports/                  # interfaces (repositories, TxManager, ObjectStorage, TokenSigner, ...)
-│   └── usecase/
-│       ├── auth/                # inscription, connexion — JWT vérifié par le middleware httpserver
-│       ├── farm/ cycle/ listing/ # CRUD complet, invariants de propriété et de suppression (voir ADR-0007)
-│       └── reservation/         # empêche la survente d'un cycle (transaction MongoDB)
-├── infrastructure/
-│   ├── mongodb/                 # implémente application/ports contre MongoDB (mongo-driver/v2)
-│   ├── objectstorage/           # implémente application/ports.ObjectStorage (S3-compatible)
-│   ├── security/                # bcrypt (application/ports.PasswordHasher)
-│   ├── jwt/                     # JWT HMAC-SHA256 (application/ports.TokenSigner)
-│   └── clock/                   # horloge système (application/ports.Clock)
-├── interfaces/httpserver/       # couche de livraison : routeur, middlewares, JSON
-├── internal/app/                # composition root : connecte tout ce qui précède
-├── schemas/                     # un validateur $jsonSchema MongoDB par collection
+│   ├── ports/            # interfaces : repositories, stockage, e-mail, paiement, horloge…
+│   └── usecase/          # un package par module :
+│       # auth (comptes, sessions, double authentification, invitations)
+│       # farm, cycle, listing, reservation (séquestre, liste d'attente)
+│       # review, forum, report, trust, favorite, inbox, notify, dashboard
+│       # admin (back-office, rôles, journal), catalog (référentiel versionné)
+├── infrastructure/       # implémente les ports : mongodb, objectstorage (S3/R2),
+│                         # jwt, security (bcrypt), totp, passkey, smtp, payment, clock
+├── interfaces/httpserver/ # routeur, middlewares, JSON
+├── internal/app/         # composition root : assemble tout ce qui précède
+├── internal/worker/      # tâches de fond (échéances, libération du séquestre, e-mails)
+├── schemas/              # un validateur $jsonSchema MongoDB par collection
 └── Dockerfile
 ```
 
 Architecture en couches à sens unique — `interfaces` → `application` →
 `domain`, et `infrastructure` implémente `application/ports` sans que
-`domain`/`application` ne la connaissent jamais dans l'autre sens
-(Dependency Inversion) :
+`domain`/`application` ne la connaissent (inversion de dépendance) :
 
-- **`domain/`** ne contient que des structs Go simples (types
-  d'identifiants MongoDB `bson.ObjectID` mis à part — imposé par le
-  modèle de données du document "Concepts & Architecture" — aucune
-  dépendance à `mongo-driver`, `net/http` ou quoi que ce soit d'autre).
-- **`application/ports/`** déclare les interfaces dont les usecases ont
-  besoin (`ListingRepository`, `CycleRepository`, `ReservationRepository`,
-  `TxManager`, `ObjectStorage`, `UserRepository`, `PasswordHasher`,
-  `TokenSigner`, `Clock`), chacune réduite aux méthodes réellement
-  utilisées (Interface Segregation) — les ajouter ici, pas dans
-  `infrastructure/`, c'est ce qui permet à `application/usecase` de ne
-  jamais importer `mongo-driver`, `bcrypt` ou une librairie JWT.
-- **`application/usecase/reservation`** implémente le flux anti-survente
-  d'un cycle : `ReserveCycle.Execute` ne dépend que des interfaces
-  ci-dessus, jamais de `*mongo.Client` — il se teste avec des doublons
-  (voir `reserve_cycle_test.go`), sans base de données.
-- **`application/usecase/auth`** implémente l'inscription et la
-  connexion : `Register`/`Login.Execute` ne dépendent que des interfaces
-  ci-dessus, jamais de bcrypt ou d'une librairie JWT directement — voir
-  [ADR-0006](docs/adr/0006-stateless-jwt-auth.md) pour les choix
-  (JWT sans session ni refresh token, auto-inscription limitée à
-  farmer/buyer).
-- **`application/usecase/farm` / `.../cycle` / `.../listing`**
-  implémentent le CRUD complet de la Phase 2 : résolution de la
-  propriété via la chaîne listing → cycle → farm → owner, invariants de
-  suppression dans les deux sens, et la machine à états du statut d'un
-  cycle — voir
-  [ADR-0007](docs/adr/0007-farm-cycle-listing-crud-invariants.md).
+- **`domain/`** : structs Go et règles métier, sans dépendance à
+  `mongo-driver` ni `net/http` (hors type d'identifiant `bson.ObjectID`).
+- **`application/usecase/`** : chaque règle (anti-survente d'un cycle,
+  séquestre, validation d'une ferme, permissions du personnel…) ne
+  dépend que des interfaces de `ports/` et se teste sans base de données.
 - **`infrastructure/mongodb`** est le seul package qui importe
-  `mongo-driver` ; chaque repository y implémente une interface de
-  `application/ports` et convertit entre les entités `domain` (sans
-  tags) et un document BSON privé au fichier (`reservationDoc`,
-  `userDoc`, etc.). `infrastructure/security` (bcrypt) et
-  `infrastructure/jwt` suivent le même principe pour leurs propres
-  dépendances.
-- **`internal/app`** est le composition root : le seul endroit qui
-  connaît à la fois les usecases et MongoDB/le stockage objet/JWT, et
-  qui les assemble (`Initialize`), avant que `cmd/api/main.go` n'appelle
-  `Bootstrap` puis `Run`.
+  `mongo-driver` ; chaque repository convertit entre les entités `domain`
+  et un document BSON privé au fichier.
+- **`internal/app`** est le seul endroit qui connaît à la fois les
+  usecases et l'infrastructure, et les assemble.
 
-Les modules qui n'ont pas encore de logique métier (review, forum,
-trust/report) restent volontairement de simples entités dans `domain/`
-sans port ni repository — leur en ajouter un sans méthode réelle serait
-de l'abstraction prématurée ; ils suivront ce même patron
-dès qu'une vraie règle métier apparaît.
+Le **référentiel** (catégories d'animaux et sous-catégories, pays et
+régions, catégories du forum, étiquettes d'avis, motifs de signalement,
+points de contrôle d'une ferme) est un document JSON versionné en base
+(`catalog_versions`) : l'API valide contre la version en vigueur et la
+sert sur `GET /reference`. La version 1 est
+`backend/domain/catalog_seed.json`, publiée au premier démarrage.
 
 ## Démarrage rapide
 
-Prérequis : Go 1.25+, Node 22.12+ (Node ≥22.22.3, ≥24.15 ou ≥26 pour passer à Angular 22 dès sa sortie stable voir note plus bas), [pnpm](https://pnpm.io/)
+Prérequis : Go 1.26+, Node 22.12+ (Node ≥22.22.3, ≥24.15 ou ≥26 pour passer à Angular 22 dès sa sortie stable voir note plus bas), [pnpm](https://pnpm.io/)
 via `corepack enable` (inclus avec Node), Docker (optionnel mais recommandé
 pour MongoDB et le stockage objet).
 
@@ -189,7 +162,7 @@ dehors de Docker.
 
 | Couche           | Choix                                                                                                    | Détail                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Backend          | Go 1.25, `net/http` natif, architecture en couches (`domain` → `application` → `infrastructure`/`interfaces`), ports + inversion de dépendance (voir `application/usecase/reservation`) | voir `backend/interfaces/httpserver` et `backend/application/usecase/reservation` |
+| Backend          | Go 1.26, `net/http` natif, architecture en couches (`domain` → `application` → `infrastructure`/`interfaces`), ports + inversion de dépendance (voir `application/usecase/reservation`) | voir `backend/interfaces/httpserver` et `backend/application/usecase/reservation` |
 | Base de données  | MongoDB (Atlas en prod, conteneur `mongo` en dev), driver officiel `mongo-driver/v2`, aucun ODM, validateurs `$jsonSchema` appliqués au démarrage | voir `backend/infrastructure/mongodb` et `backend/schemas/`             |
 | Stockage fichiers | Interface `ports.ObjectStorage` (URLs signées), implémentée via `aws-sdk-go-v2` — Cloudflare R2 en prod, SeaweedFS en dev, même code | voir `backend/infrastructure/objectstorage`                               |
 | Frontend         | Angular 21 (standalone components) + Tailwind CSS v4, géré avec pnpm                                       | palette de marque déclarée dans `frontend/src/styles.css` (`@theme`) |
@@ -223,7 +196,11 @@ Deux jobs indépendants tournent sur chaque push/PR vers `main` (voir
 `.github/workflows/ci.yml`) :
 
 - **Backend** : format (`gofmt`), `go vet`, tests avec race detector,
-build, et `golangci-lint`.
+tests d'intégration contre MongoDB (testcontainers), build, et
+`golangci-lint`.
+- **API smoke test** : la pile complète (MongoDB, SeaweedFS, Mailpit,
+API) démarrée par docker compose, puis `scripts/qa/api_smoke.py` qui
+parcourt les parcours acheteur, éleveur et personnel de bout en bout.
 - **Frontend** : `pnpm install --frozen-lockfile`, ESLint, tests unitaires
 en Chrome headless, build de production.
 
@@ -253,6 +230,20 @@ sont des services externes.
 Les deux adresses dépendent l'une de l'autre : créer d'abord le service
 Render pour connaître son adresse, puis le projet Vercel, puis revenir
 sur Render renseigner l'adresse Vercel.
+
+**Premier démarrage sur une base vide.** Rien à importer : au démarrage,
+l'API crée les collections et leurs validateurs, publie la version 1 du
+référentiel, crée le compte racine (`SUPER_ADMIN_EMAIL` /
+`SUPER_ADMIN_PASSWORD`) et le bucket s'il n'existe pas. Ensuite :
+
+1. Se connecter avec le compte racine ; avec `STAFF_MFA_REQUIRED=true`,
+   ajouter une application d'authentification (page « Sécurité ») et
+   garder les codes de secours.
+2. Inviter l'équipe depuis « Équipe & rôles » (e-mail via SMTP, ou lien
+   à copier).
+3. Créer un compte vendeur de test, une ferme, la valider depuis le
+   back-office, publier une annonce avec photo : cela vérifie d'un coup
+   la base, le stockage R2 (et sa règle CORS) et l'envoi d'e-mails.
 
 ### 1. Backend sur Render
 
@@ -367,14 +358,21 @@ de servir l'API sous le même domaine que le site (voir ADR-0008).
 
 ## État du projet / roadmap
 
-Ce dépôt correspond à la **phase 1 (Socle)** de la roadmap du document de
-proposition : structure du monorepo, CI de base, squelette backend
-compilable et testé, squelette frontend avec la charte graphique
-branchée. Les phases suivantes (cœur transactionnel, confiance/forum,
-asynchrone, finitions) restent à construire — voir le document de
-proposition pour le détail phase par phase et ce que chacune démontre
-comme compétence.
+En place : comptes et sessions (jeton d'accès + cookie de
+rafraîchissement, double authentification par application ou passkey
+pour le personnel), fermes validées par l'équipe, cycles et annonces par
+catégorie, réservation avec séquestre et liste d'attente, avis vérifiés,
+forum, signalements et modération, score de confiance, notifications et
+e-mails, back-office avec rôles, journal et exports, référentiel
+versionné.
+
+Prochaines étapes :
+
+- Éditeur du référentiel pour le super admin (JSON, versions, restauration).
+- Régions identifiées par une clé stable (renommage sans orphelins).
+- Prix au kilo pour les animaux vendus au poids vif.
+- Paiement mobile réel (MTN MoMo, Orange Money) à la place du bac à sable.
 
 ## Licence
 
-MIT — voir `[LICENSE](./LICENSE)`.
+MIT — voir [LICENSE](./LICENSE).

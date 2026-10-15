@@ -43,7 +43,6 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /reference", handleReference(deps.Catalog))
-	mux.HandleFunc("GET /reference/geo", handleGeoReference(deps.Catalog))
 	limit := func(policy RateLimit, h http.Handler) http.Handler {
 		return rateLimited(policy, deps.RateLimits.TrustProxyHeaders, time.Now, h)
 	}
