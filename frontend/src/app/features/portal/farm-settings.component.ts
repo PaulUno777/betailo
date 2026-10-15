@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Farm } from '../../domain/models';
-import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_VALUES, SpeciesValue, isSpecies } from '../../domain/reference/species';
 import { FarmsApi } from '../../data-access/farms/farms.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
 import { SellerSpaceService } from '../../core/auth/seller-space.service';
+import { isSpecies } from '../../domain/reference/species';
+import { SpeciesPickerComponent } from '../../shared/ui/species-picker/species-picker.component';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { DialogComponent } from '../../shared/ui/dialog/dialog.component';
@@ -19,7 +20,7 @@ import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.
  * cycles and says so. */
 @Component({
   selector: 'bt-farm-settings',
-  imports: [FormsModule, ButtonComponent, DialogComponent, TextFieldComponent, PlaceFieldsComponent, TranslatePipe],
+  imports: [SpeciesPickerComponent, FormsModule, ButtonComponent, DialogComponent, TextFieldComponent, PlaceFieldsComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-2xl p-4 sm:p-8">
@@ -31,20 +32,7 @@ import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.
           <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" [(phone)]="phone" />
           <fieldset class="flex flex-col gap-3">
             <legend class="mb-3 text-small font-bold text-ink">{{ 'sellerOnboarding.speciesLabel' | t }}</legend>
-            <div class="flex flex-wrap gap-2">
-              @for (s of speciesValues; track s) {
-                <button
-                  type="button"
-                  (click)="toggle(s)"
-                  [attr.aria-pressed]="species().includes(s)"
-                  class="flex h-11 items-center gap-2 rounded-full border px-4 text-body-strong transition"
-                  [class]="species().includes(s) ? 'border-forest bg-forest-soft text-on-forest-soft' : 'border-line-strong bg-surface-card text-ink'"
-                >
-                  <span class="h-2.5 w-2.5 rounded-full" [class]="dots[s]"></span>
-                  {{ speciesLabels[s] | t }}
-                </button>
-              }
-            </div>
+              <bt-species-picker [(value)]="species" />
           </fieldset>
           <bt-text-field
             [label]="'farmSettings.descriptionLabel' | t"
@@ -89,9 +77,6 @@ export class FarmSettingsComponent {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
-  protected readonly speciesValues = SPECIES_VALUES;
-  protected readonly speciesLabels = SPECIES_LABEL_KEYS;
-  protected readonly dots = SPECIES_DOT;
 
   protected readonly farm = computed(() => this.seller.currentFarm() ?? undefined);
 
@@ -101,7 +86,7 @@ export class FarmSettingsComponent {
   protected readonly region = signal('');
   protected readonly phone = signal('');
   protected readonly description = signal('');
-  protected readonly species = signal<SpeciesValue[]>([]);
+  protected readonly species = signal<string[]>([]);
   protected readonly saving = signal(false);
   protected readonly confirmDelete = signal(false);
 
@@ -123,9 +108,6 @@ export class FarmSettingsComponent {
     });
   }
 
-  protected toggle(s: SpeciesValue): void {
-    this.species.update((list) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]));
-  }
 
   protected save(f: Farm): void {
     if (!this.canSave()) return;

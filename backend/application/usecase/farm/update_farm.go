@@ -14,7 +14,8 @@ import (
 // UpdateFarm is the usecase: update a farm's editable fields, after
 // confirming the caller owns it.
 type UpdateFarm struct {
-	Farms ports.FarmRepository
+	Farms   ports.FarmRepository
+	Catalog ports.CatalogSource
 }
 
 // UpdateFarmInput is what a caller (the HTTP handler) supplies. OwnerID
@@ -58,18 +59,18 @@ func (uc *UpdateFarm) Execute(ctx context.Context, in UpdateFarmInput) (*domain.
 	if countryIn == "" {
 		countryIn = f.Country
 	}
-	country, region, err := normalizePlace(countryIn, in.Region)
+	place, region, err := normalizePlace(ctx, uc.Catalog, countryIn, in.Region)
 	if err != nil {
 		return nil, err
 	}
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, country)
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, place.CallingCode)
 	if err != nil {
 		return nil, err
 	}
 
 	f.Name = name
 	f.Location = location
-	f.Country = country
+	f.Country = place.Code
 	f.Region = region
 	f.Species = in.Species
 	f.Description = description

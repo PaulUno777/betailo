@@ -283,6 +283,8 @@ export interface ListingSearchResult {
 
 /** Multi-value filters travel comma-separated (`species=a,b`). */
 export interface ListingSearchParams {
+  /** Category keys: the API expands each into its sub-categories. */
+  category?: string;
   species?: string;
   cycleType?: string;
   status?: string;
@@ -299,13 +301,6 @@ export interface ListingSearchParams {
   pageSize?: number;
 }
 
-/** `GET /reference/geo`: the countries whose regions are a fixed list. */
-export interface GeoReference {
-  defaultCountry: string;
-  countries: { code: string; regions: string[] }[];
-  /** International prefix per country ("GH": "233"). */
-  callingCodes: Record<string, string>;
-}
 
 export interface ReservationPayment {
   status: PaymentStatus;

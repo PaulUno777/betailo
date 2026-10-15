@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -23,13 +24,17 @@ type CreateCycle struct {
 	Farms     ports.FarmRepository
 	Cycles    ports.CycleStore
 	Sequencer ports.Sequencer
+	// Catalog says which species can be raised and in which cycle type.
+	Catalog ports.CatalogSource
 }
 
 // CreateCycleInput is what a caller (the HTTP handler) supplies.
 // OwnerID comes from the authenticated user's token.
 type CreateCycleInput struct {
-	FarmID   bson.ObjectID
-	OwnerID  bson.ObjectID
+	FarmID  bson.ObjectID
+	OwnerID bson.ObjectID
+	// Species is a catalog sub-category key; the cycle's type is the
+	// one the catalog gives it, whatever Type says.
 	Species  string
 	Type     string
 	Capacity int
@@ -46,7 +51,8 @@ type CreateCycleInput struct {
 
 // Execute returns domain.ErrNotFound if the farm doesn't exist,
 // domain.ErrForbidden if OwnerID isn't the farm's owner, and
-// domain.ErrInvalid for a malformed input (missing species/type,
+// domain.ErrInvalid for a malformed input (a species the catalog
+// doesn't offer,
 // non-positive capacity, a zero start date, or an end date not after
 // the start date).
 func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domain.Cycle, error) {
@@ -58,11 +64,13 @@ func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domai
 		return nil, fmt.Errorf("cycle: not the farm owner: %w", domain.ErrForbidden)
 	}
 
-	if in.Species == "" {
-		return nil, fmt.Errorf("cycle: species is required: %w", domain.ErrInvalid)
+	cat, err := catalog.Of(ctx, uc.Catalog)
+	if err != nil {
+		return nil, err
 	}
-	if in.Type == "" {
-		return nil, fmt.Errorf("cycle: type is required: %w", domain.ErrInvalid)
+	sp, err := cat.SpeciesByKey(in.Species)
+	if err != nil {
+		return nil, err
 	}
 	if in.Capacity <= 0 {
 		return nil, fmt.Errorf("cycle: capacity must be positive: %w", domain.ErrInvalid)
@@ -85,8 +93,8 @@ func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domai
 
 	c := &domain.Cycle{
 		FarmID:   in.FarmID,
-		Species:  in.Species,
-		Type:     in.Type,
+		Species:  sp.Key,
+		Type:     sp.CycleType,
 		Status:   domain.CycleStatusPlanned,
 		Capacity: in.Capacity,
 		// AvailableQuantity starts equal to Capacity — reservation is the

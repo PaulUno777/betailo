@@ -23,7 +23,7 @@ func TestCreateFarm_Execute_Success(t *testing.T) {
 		OwnerID:      ownerID,
 		Name:         "  Ferme du Soleil  ",
 		Location:     "Douala",
-		Species:      []string{"poule", "porc"},
+		Species:      []string{"poussins", "porcs"},
 		Description:  "  Élevage familial depuis 2012.  ",
 		ContactPhone: "6 90 12 34 56",
 	})

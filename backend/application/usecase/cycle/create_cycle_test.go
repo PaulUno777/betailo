@@ -22,7 +22,7 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 	ends := starts.Add(30 * 24 * time.Hour)
 
 	c, err := uc.Execute(context.Background(), CreateCycleInput{
-		FarmID: f.ID, OwnerID: owner, Species: "poule", Type: "ponte",
+		FarmID: f.ID, OwnerID: owner, Species: "poussins", Type: "ponte",
 		Capacity: 100, StartsAt: starts, EndsAt: &ends,
 	})
 	if err != nil {
@@ -30,6 +30,9 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 	}
 	if c.Reference != "CYC-0001" {
 		t.Errorf("Reference = %q, want CYC-0001", c.Reference)
+	}
+	if c.Type != "couvee" {
+		t.Errorf("Type = %q, want couvee: the catalog's cycle type for poussins, not the one sent", c.Type)
 	}
 	if c.Status != domain.CycleStatusPlanned {
 		t.Errorf("Status = %v, want %v", c.Status, domain.CycleStatusPlanned)
@@ -47,7 +50,7 @@ func TestCreateCycle_Execute_NotFarmOwner(t *testing.T) {
 	uc := &CreateCycle{Farms: newFakeFarms(f), Cycles: newFakeCycles()}
 
 	_, err := uc.Execute(context.Background(), CreateCycleInput{
-		FarmID: f.ID, OwnerID: bson.NewObjectID(), Species: "poule", Type: "ponte",
+		FarmID: f.ID, OwnerID: bson.NewObjectID(), Species: "poussins", Type: "ponte",
 		Capacity: 10, StartsAt: time.Now(),
 	})
 	if !errors.Is(err, domain.ErrForbidden) {
@@ -66,12 +69,13 @@ func TestCreateCycle_Execute_Validation(t *testing.T) {
 		in   CreateCycleInput
 	}{
 		{"missing species", CreateCycleInput{Type: "ponte", Capacity: 10, StartsAt: starts}},
-		{"missing type", CreateCycleInput{Species: "poule", Capacity: 10, StartsAt: starts}},
-		{"zero capacity", CreateCycleInput{Species: "poule", Type: "ponte", Capacity: 0, StartsAt: starts}},
-		{"negative capacity", CreateCycleInput{Species: "poule", Type: "ponte", Capacity: -1, StartsAt: starts}},
-		{"zero startsAt", CreateCycleInput{Species: "poule", Type: "ponte", Capacity: 10}},
-		{"endsAt before startsAt", CreateCycleInput{Species: "poule", Type: "ponte", Capacity: 10, StartsAt: starts, EndsAt: &before}},
-		{"endsAt equal startsAt", CreateCycleInput{Species: "poule", Type: "ponte", Capacity: 10, StartsAt: starts, EndsAt: &starts}},
+		{"a species the catalog doesn't offer", CreateCycleInput{Species: "licornes", Capacity: 10, StartsAt: starts}},
+		{"a species of an inactive category", CreateCycleInput{Species: "veaux", Capacity: 10, StartsAt: starts}},
+		{"zero capacity", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 0, StartsAt: starts}},
+		{"negative capacity", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: -1, StartsAt: starts}},
+		{"zero startsAt", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 10}},
+		{"endsAt before startsAt", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: starts, EndsAt: &before}},
+		{"endsAt equal startsAt", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: starts, EndsAt: &starts}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

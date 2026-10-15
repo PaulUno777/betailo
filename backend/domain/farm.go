@@ -17,7 +17,7 @@ type Farm struct {
 	Name      string
 	Location  string // the town, as the farmer writes it
 	// Country is an ISO 3166-1 alpha-2 code (DefaultCountry when not
-	// given) and Region its first-level division: one of KnownRegions
+	// given) and Region its first-level division: one of the Catalog's regions
 	// for countries that have a list, free text elsewhere. Together they
 	// back the marketplace's region filter in any country.
 	Country   string
@@ -95,7 +95,7 @@ type FarmVerification struct {
 	// RejectionReason the message they wrote to the owner.
 	RejectionCode RejectionCode
 	// Checks are the review points the staff member ticked before
-	// deciding (see FarmReviewChecks); kept as a record of the review.
+	// deciding (see Catalog.FarmReviewChecks); kept as a record of the review.
 	Checks          []string
 	RejectionReason string
 }
@@ -212,13 +212,11 @@ func FarmProofPrefix(farmID bson.ObjectID) string {
 // MaxFarmDescriptionLen bounds Farm.Description.
 const MaxFarmDescriptionLen = 1000
 
-// FarmReviewChecks are the points a reviewer goes through, in order.
-var FarmReviewChecks = []string{"name_matches", "document_readable", "photos_genuine", "location_consistent"}
-
-// ValidFarmReviewChecks keeps the known checks of in, in display order.
-func ValidFarmReviewChecks(in []string) []string {
+// ValidFarmReviewChecks keeps the checks of in that are in known (the
+// Catalog's review checklist), in its order.
+func ValidFarmReviewChecks(in, known []string) []string {
 	var out []string
-	for _, known := range FarmReviewChecks {
+	for _, known := range known {
 		for _, c := range in {
 			if c == known {
 				out = append(out, known)

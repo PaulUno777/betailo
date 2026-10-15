@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
-	"github.com/pauluno777/betailo/backend/domain"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 )
 
 const (
@@ -21,7 +21,8 @@ const (
 // listings ask, nearby when there are enough of them, otherwise across
 // the platform.
 type PriceHint struct {
-	Search ports.ListingSearchRepository
+	Search  ports.ListingSearchRepository
+	Catalog ports.CatalogSource
 }
 
 type PriceHintOutput struct {
@@ -36,7 +37,11 @@ type PriceHintOutput struct {
 // Execute returns nil (and no error) when there aren't enough
 // comparable listings for a meaningful range.
 func (uc *PriceHint) Execute(ctx context.Context, species, region string) (*PriceHintOutput, error) {
-	if _, err := domain.LookupSpecies(species); err != nil {
+	cat, err := catalog.Of(ctx, uc.Catalog)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := cat.SpeciesByKey(species); err != nil {
 		return nil, err
 	}
 	regional := region != ""

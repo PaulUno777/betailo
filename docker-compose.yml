@@ -48,7 +48,11 @@ services:
   seaweedfs:
     image: chrislusf/seaweedfs:latest
     restart: unless-stopped
-    command: server -dir=/data -s3 -s3.port=9000
+    # Small volumes, and a fixed count: by default SeaweedFS sizes volumes
+    # at 30 GB and allows only as many as the free disk could hold full,
+    # so on a laptop's Docker disk uploads soon fail with "no writable
+    # volumes". Volume files grow as used; 50 of 1 GB is a ceiling.
+    command: server -dir=/data -s3 -s3.port=9000 -master.volumeSizeLimitMB=1024 -volume.max=50
     ports:
       - "9000:9000"
     volumes:

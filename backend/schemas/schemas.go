@@ -20,6 +20,7 @@ var files embed.FS
 // bootstrap creates them (dependency order: a collection referenced by
 // another comes first, though Mongo itself does not enforce it).
 var Names = []string{
+	"catalog_versions",
 	"users",
 	"refresh_tokens",
 	"farms",

@@ -1,10 +1,8 @@
 package domain
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
@@ -17,56 +15,6 @@ const DefaultCountry = "CM"
 
 // MaxRegionLen bounds a free-text region (countries without a list).
 const MaxRegionLen = 60
-
-// KnownRegions lists the first-level regions of the countries Betailo
-// knows in detail, in their usual written form. A farm in one of these
-// countries must name one of its regions, so buyers can filter on an
-// exact value. Any other country takes the region as typed: adding a
-// country here only makes its filter stricter, it is never required.
-var KnownRegions = map[string][]string{
-	"CM": {
-		"Adamaoua", "Centre", "Est", "Extrême-Nord", "Littoral",
-		"Nord", "Nord-Ouest", "Ouest", "Sud", "Sud-Ouest",
-	},
-}
-
-// NormalizeCountry returns an ISO 3166-1 alpha-2 code in upper case,
-// DefaultCountry for an empty one, or ErrInvalid.
-func NormalizeCountry(code string) (string, error) {
-	code = strings.ToUpper(strings.TrimSpace(code))
-	if code == "" {
-		return DefaultCountry, nil
-	}
-	if len(code) != 2 || !isASCIIUpper(code[0]) || !isASCIIUpper(code[1]) {
-		return "", Coded("farm.country_invalid", fmt.Errorf("farm: country must be a 2-letter ISO code: %w", ErrInvalid))
-	}
-	return code, nil
-}
-
-// CanonicalRegion returns region in its canonical form for country: one
-// of KnownRegions (matched ignoring case and accents) when the country
-// has a list, else the trimmed text. Empty stays empty (a farm may not
-// say yet).
-func CanonicalRegion(country, region string) (string, error) {
-	region = strings.Join(strings.Fields(region), " ")
-	if region == "" {
-		return "", nil
-	}
-	known, ok := KnownRegions[country]
-	if !ok {
-		if utf8.RuneCountInString(region) > MaxRegionLen {
-			return "", Coded("farm.region_invalid", fmt.Errorf("farm: region must be at most %d characters: %w", MaxRegionLen, ErrInvalid))
-		}
-		return region, nil
-	}
-	key := foldKey(region)
-	for _, r := range known {
-		if foldKey(r) == key {
-			return r, nil
-		}
-	}
-	return "", Coded("farm.region_invalid", fmt.Errorf("farm: %q is not a region of %s: %w", region, country, ErrInvalid))
-}
 
 // cameroonTownRegions places Cameroon's main towns in their region, for
 // filling in the region of farms created before regions existed.

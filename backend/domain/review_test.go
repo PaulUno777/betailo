@@ -13,11 +13,11 @@ func TestReviewRules(t *testing.T) {
 		t.Errorf("score 6 accepted: %v", err)
 	}
 
-	tags, err := NormalizeReviewTags([]string{"on_time", " on_time", "good_value"})
+	tags, err := NormalizeReviewTags([]string{"on_time", " on_time", "good_value"}, ActiveKeys(SeedCatalog().ReviewTags))
 	if err != nil || len(tags) != 2 {
 		t.Errorf("NormalizeReviewTags = %v, %v; want the two distinct known tags", tags, err)
 	}
-	if _, err := NormalizeReviewTags([]string{"free_beer"}); !errors.Is(err, ErrInvalid) {
+	if _, err := NormalizeReviewTags([]string{"free_beer"}, ActiveKeys(SeedCatalog().ReviewTags)); !errors.Is(err, ErrInvalid) {
 		t.Errorf("unknown tag accepted: %v", err)
 	}
 

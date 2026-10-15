@@ -5,7 +5,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
 import { ListingSearchParams, ListingSearchResult, MarketplaceListing, SearchFacets } from '../../domain/models';
-import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_VALUES, isSpecies } from '../../domain/reference/species';
+import { categoryLabelKey, isSpecies, speciesGroups, speciesLabelKey, speciesOf } from '../../domain/reference/species';
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { countryName } from '../../domain/reference/countries';
 import { ListingsApi } from '../../data-access/listings/listings.api';
@@ -39,6 +39,8 @@ const AVAILABILITY_MONTHS = 6;
 
 interface Filters {
   q: string;
+  /** Whole categories (Volaille…); `species` narrows within them. */
+  categories: string[];
   species: string[];
   cycleTypes: string[];
   statuses: string[];
@@ -54,6 +56,7 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = {
   q: '',
+  categories: [],
   species: [],
   cycleTypes: [],
   statuses: [],
@@ -148,10 +151,10 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
       </div>
 
       <div class="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 lg:hidden" role="group" [attr.aria-label]="'marketplace.speciesLabel' | t">
-        <button type="button" [attr.aria-pressed]="!filters().species.length" [class]="chipClass(!filters().species.length)" (click)="patch({ species: [] })">{{ 'marketplace.allChip' | t }}</button>
-        @for (opt of speciesOptions(); track opt.value) {
-          <button type="button" [attr.aria-pressed]="filters().species.includes(opt.value)" [class]="chipClass(filters().species.includes(opt.value))" (click)="toggle('species', opt.value)">
-            {{ opt.label }}
+        <button type="button" [attr.aria-pressed]="!anyAnimalFilter()" [class]="chipClass(!anyAnimalFilter())" (click)="patch({ categories: [], species: [] })">{{ 'marketplace.allChip' | t }}</button>
+        @for (cat of categoryOptions(); track cat.value) {
+          <button type="button" [attr.aria-pressed]="filters().categories.includes(cat.value)" [class]="chipClass(filters().categories.includes(cat.value))" (click)="toggleCategory(cat.value)">
+            {{ cat.label }}
           </button>
         }
       </div>
@@ -250,17 +253,37 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
       <div class="flex flex-col gap-6">
         <fieldset class="flex flex-col gap-1">
           <legend class="mb-2 text-eyebrow text-ink-muted">{{ 'marketplace.speciesLabel' | t }}</legend>
-          @for (opt of speciesOptions(); track opt.value) {
-            <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-body hover:bg-surface-sunken" [class.opacity-50]="!opt.count && !filters().species.includes(opt.value)">
+          <!-- A category, and once it's picked (or one of its kinds is), its kinds to narrow it. -->
+          @for (cat of categoryOptions(); track cat.value) {
+            <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-body hover:bg-surface-sunken" [class.opacity-50]="!cat.count && !cat.open">
               <input
                 type="checkbox"
-                [checked]="filters().species.includes(opt.value)"
-                (change)="toggle('species', opt.value)"
+                [checked]="filters().categories.includes(cat.value)"
+                (change)="toggleCategory(cat.value)"
                 class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest"
               />
-              @if (opt.dot) {
-                <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="opt.dot"></span>
+              <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="cat.dot"></span>
+              <span class="flex-1 font-semibold">{{ cat.label }}</span>
+              <span class="font-mono text-small text-ink-muted">{{ cat.count }}</span>
+            </label>
+            @if (cat.open) {
+              @for (opt of cat.species; track opt.value) {
+                <label class="ml-8 flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-1 text-small hover:bg-surface-sunken" [class.opacity-50]="!opt.count && !filters().species.includes(opt.value)">
+                  <input
+                    type="checkbox"
+                    [checked]="filters().species.includes(opt.value)"
+                    (change)="toggle('species', opt.value)"
+                    class="h-[18px] w-[18px] shrink-0 rounded border-line-strong accent-forest"
+                  />
+                  <span class="flex-1">{{ opt.label }}</span>
+                  <span class="font-mono text-caption text-ink-muted">{{ opt.count }}</span>
+                </label>
               }
+            }
+          }
+          @for (opt of otherSpecies(); track opt.value) {
+            <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-body hover:bg-surface-sunken">
+              <input type="checkbox" [checked]="filters().species.includes(opt.value)" (change)="toggle('species', opt.value)" class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest" />
               <span class="flex-1">{{ opt.label }}</span>
               <span class="font-mono text-small text-ink-muted">{{ opt.count }}</span>
             </label>
@@ -370,6 +393,7 @@ export class MarketplaceListComponent {
     const [country, region] = f.place ? f.place.split('|') : [undefined, undefined];
     return {
       q: f.q || undefined,
+      category: f.categories.join(',') || undefined,
       species: f.species.join(',') || undefined,
       cycleType: f.cycleTypes.join(',') || undefined,
       status: f.statuses.join(',') || undefined,
@@ -412,21 +436,33 @@ export class MarketplaceListComponent {
     computation: (facets, previous) => facets ?? previous?.value ?? EMPTY_FACETS
   });
 
-  /** Every known species (with its count, 0 included so the list never
-   * jumps), then any other species the data holds. */
-  protected readonly speciesOptions = computed(() => {
+  /** Every category open to sale, its count the sum of its kinds' (0
+   * included so the list never jumps), with its kinds to narrow it. A
+   * category opens once it, or one of its kinds, is picked. */
+  protected readonly categoryOptions = computed(() => {
     const counts = new Map(this.facets().species.map((f) => [f.value, f.count]));
-    const known = SPECIES_VALUES.map((value) => ({
-      value,
-      label: this.locale.t(SPECIES_LABEL_KEYS[value]),
-      dot: SPECIES_DOT[value] as string | undefined,
-      count: counts.get(value) ?? 0
-    }));
-    const other = this.facets()
-      .species.filter((f) => !isSpecies(f.value))
-      .map((f) => ({ value: f.value, label: f.value, dot: undefined, count: f.count }));
-    return [...known, ...other];
+    const f = this.filters();
+    return speciesGroups().map((g) => {
+      const species = g.species.map((value) => ({ value, label: this.locale.t(speciesLabelKey(value)), count: counts.get(value) ?? 0 }));
+      return {
+        value: g.key,
+        label: this.locale.t(g.labelKey),
+        dot: g.dot,
+        count: species.reduce((n, s) => n + s.count, 0),
+        open: f.categories.includes(g.key) || g.species.some((s) => f.species.includes(s)),
+        species
+      };
+    });
   });
+
+  /** Species the listings hold that the catalog doesn't offer. */
+  protected readonly otherSpecies = computed(() =>
+    this.facets()
+      .species.filter((f) => !isSpecies(f.value))
+      .map((f) => ({ value: f.value, label: f.value, count: f.count }))
+  );
+
+  protected readonly anyAnimalFilter = computed(() => this.filters().categories.length > 0 || this.filters().species.length > 0);
 
   protected readonly typeOptions = computed(() =>
     this.facets().cycleTypes.map((f) => ({ value: f.value, label: this.locale.t(cycleTypeLabelKey(f.value)), count: f.count }))
@@ -474,8 +510,17 @@ export class MarketplaceListComponent {
     const f = this.filters();
     const lang = this.locale.locale();
     const chips: ActiveChip[] = [];
+    for (const v of f.categories) {
+      // Removing a category drops the kinds picked inside it too.
+      const inside = speciesOf(v);
+      chips.push({
+        id: 'c-' + v,
+        label: this.locale.t(categoryLabelKey(v)),
+        remove: { categories: f.categories.filter((x) => x !== v), species: f.species.filter((x) => !inside.includes(x)) }
+      });
+    }
     for (const v of f.species) {
-      chips.push({ id: 's-' + v, label: isSpecies(v) ? this.locale.t(SPECIES_LABEL_KEYS[v]) : v, remove: { species: f.species.filter((x) => x !== v) } });
+      chips.push({ id: 's-' + v, label: this.locale.t(speciesLabelKey(v)), remove: { species: f.species.filter((x) => x !== v) } });
     }
     for (const v of f.cycleTypes) {
       chips.push({ id: 't-' + v, label: this.locale.t(cycleTypeLabelKey(v)), remove: { cycleTypes: f.cycleTypes.filter((x) => x !== v) } });
@@ -527,6 +572,7 @@ export class MarketplaceListComponent {
         replaceUrl: true,
         queryParams: {
           q: f.q || null,
+          category: f.categories.join(',') || null,
           species: f.species.join(',') || null,
           cycleType: f.cycleTypes.join(',') || null,
           status: f.statuses.join(',') || null,
@@ -544,6 +590,15 @@ export class MarketplaceListComponent {
 
   protected patch(change: Partial<Filters>): void {
     this.filters.update((f) => ({ ...f, ...change }));
+  }
+
+  /** Picks or drops a whole category; dropping it drops its kinds too. */
+  protected toggleCategory(key: string): void {
+    this.filters.update((f) => {
+      if (!f.categories.includes(key)) return { ...f, categories: [...f.categories, key] };
+      const inside = speciesOf(key);
+      return { ...f, categories: f.categories.filter((c) => c !== key), species: f.species.filter((s) => !inside.includes(s)) };
+    });
   }
 
   protected toggle(key: 'species' | 'cycleTypes' | 'statuses', value: string): void {
@@ -602,6 +657,7 @@ export class MarketplaceListComponent {
     const available = p.get('available') ?? '';
     return {
       q: p.get('q') ?? '',
+      categories: list('category'),
       species: list('species'),
       cycleTypes: list('cycleType'),
       statuses: list('status').filter((s) => (OPEN_STATUSES as readonly string[]).includes(s)),

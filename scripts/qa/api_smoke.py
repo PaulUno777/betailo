@@ -683,6 +683,20 @@ check("X44", "Guest", "The old password is out, the new one works", "401 then 20
 s, b = g.call("POST", "/auth/password/reset", {"token": reset_token, "password": "Qa-reset-pass-3"}, token=False)
 check("X45", "Guest", "A reset link works once", "404 code auth.reset_link_invalid", s == 404 and (b or {}).get("code") == "auth.reset_link_invalid", f"{s} {b}")
 
+# ---------- reference data (catalog) ----------
+s, ref = g.call("GET", "/reference", token=False)
+cats = {c["key"]: c for c in (ref or {}).get("categories", [])} if isinstance(ref, dict) else {}
+check("C01", "Guest", "GET /reference: categories with their sub-categories", "200, volaille holds dindes and pondeuses",
+      s == 200 and "dindes" in [x["key"] for x in cats.get("volaille", {}).get("subcategories", [])] and "pondeuses" in [x["key"] for x in cats.get("volaille", {}).get("subcategories", [])],
+      f"{s} v{(ref or {}).get('version') if isinstance(ref, dict) else ref} {list(cats)}")
+s, b = g.call("GET", "/listings?category=volaille&pageSize=50", token=False)
+species = {it["species"] for it in (b or {}).get("items", [])} if isinstance(b, dict) else set()
+check("C02", "Guest", "Filter the marketplace by a whole category", "200, only poultry", s == 200 and species <= {x["key"] for x in cats.get("volaille", {}).get("subcategories", [])}, f"{s} {sorted(species)}")
+s, b = buy.call("POST", "/forum/posts", {"category": "politique", "title": "Hors sujet", "body": "Texte"})
+check("C03", "Buyer", "Post under a category the catalog doesn't list", "400 forum.category_unknown", s == 400 and (b or {}).get("code") == "forum.category_unknown", f"{s} {b}")
+s, b = far.call("POST", "/cycles", {"farmId": farm_id, "species": "licornes", "type": "ponte", "capacity": 10, "startsAt": "2027-01-10T00:00:00Z"})
+check("C04", "Farmer", "Open a cycle of a species the catalog doesn't offer", "400 catalog.species_unknown", s == 400 and (b or {}).get("code") == "catalog.species_unknown", f"{s} {b}")
+
 # ---------- profile photos ----------
 pic, _, _ = register("avatar", "Awa Photo")
 other, _, _ = register("avatar2", "Other Photo")

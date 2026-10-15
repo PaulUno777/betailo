@@ -17,7 +17,7 @@ func TestDemoFlow_HTTP_FarmCycleListing(t *testing.T) {
 	farmerToken, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 
 	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{
-		Name: "Ferme du Soleil", Location: "Douala", Species: []string{"poule"},
+		Name: "Ferme du Soleil", Location: "Douala", Species: []string{"poussins"},
 	}, farmerToken)
 	if farmRec.Code != http.StatusCreated {
 		t.Fatalf("create farm status = %d, want %d; body = %s", farmRec.Code, http.StatusCreated, farmRec.Body.String())
@@ -26,7 +26,7 @@ func TestDemoFlow_HTTP_FarmCycleListing(t *testing.T) {
 
 	starts := time.Now().Add(24 * time.Hour)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 50, StartsAt: starts,
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 50, StartsAt: starts,
 	}, farmerToken)
 	if cycleRec.Code != http.StatusCreated {
 		t.Fatalf("create cycle status = %d, want %d; body = %s", cycleRec.Code, http.StatusCreated, cycleRec.Body.String())
@@ -125,7 +125,7 @@ func TestCreateCycle_HTTP_Validation(t *testing.T) {
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 
 	rec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 0, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 0, StartsAt: time.Now(),
 	}, token)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d — zero capacity must be rejected", rec.Code, http.StatusBadRequest)
@@ -138,7 +138,7 @@ func TestUpdateCycleStatus_HTTP_InvalidTransition(t *testing.T) {
 	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, token)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
 	}, token)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 
@@ -155,7 +155,7 @@ func TestDeleteFarm_HTTP_ConflictWithExistingCycle(t *testing.T) {
 	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, token)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
 	}, token)
 
 	rec := doJSON(t, router, http.MethodDelete, "/farms/"+farmOut.ID, nil, token)
@@ -170,7 +170,7 @@ func TestUnpublishListing_HTTP_RemovesFromPublicBrowse(t *testing.T) {
 	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, token)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poule", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
 	}, token)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 	listingRec := doJSON(t, router, http.MethodPost, "/listings", createListingRequest{

@@ -1,11 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GeoReference } from '../../../domain/models';
-import { FARM_COUNTRIES, countryName } from '../../../domain/reference/countries';
-import { GeoApi } from '../../../data-access/reference/geo.api';
+import { callingCodeOf, countryName, defaultFarmCountry, farmCountries, regionsOf } from '../../../domain/reference/countries';
 import { LocaleService } from '../../../core/i18n/locale.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
-import { apiResource } from '../../../core/http/api-resource';
 import { SelectFieldComponent, SelectOption } from '../select-field/select-field.component';
 import { TextFieldComponent } from '../text-field/text-field.component';
 
@@ -75,18 +72,16 @@ import { TextFieldComponent } from '../text-field/text-field.component';
 })
 export class PlaceFieldsComponent {
   private readonly locale = inject(LocaleService);
-  private readonly geoApi = inject(GeoApi);
 
   readonly country = model('');
   readonly region = model('');
   readonly location = model('');
   readonly phone = model('');
 
-  private readonly geo = apiResource<GeoReference>(() => this.geoApi.referenceUrl());
-
   protected readonly countryOptions = computed<SelectOption[]>(() => {
     const lang = this.locale.locale();
-    const codes = FARM_COUNTRIES.includes(this.country()) || !this.country() ? FARM_COUNTRIES : [this.country(), ...FARM_COUNTRIES];
+    const known = farmCountries();
+    const codes = known.includes(this.country()) || !this.country() ? known : [this.country(), ...known];
     const [first, ...rest] = codes;
     return [first, ...[...rest].sort((a, b) => countryName(a, lang).localeCompare(countryName(b, lang), lang))].map((code) => ({
       value: code,
@@ -96,21 +91,20 @@ export class PlaceFieldsComponent {
 
   /** The country's region list, or null when it's typed freely. */
   protected readonly regionOptions = computed<SelectOption[] | null>(() => {
-    const regions = this.geo.value()?.countries.find((c) => c.code === this.country())?.regions;
+    const regions = regionsOf(this.country());
     return regions ? regions.map((r) => ({ value: r, label: r })) : null;
   });
 
   /** "+233" for Ghana; none once the number carries its own "+". */
   protected readonly phonePrefix = computed(() => {
-    const code = this.geo.value()?.callingCodes?.[this.country()];
+    const code = callingCodeOf(this.country());
     return code && !this.phone().trim().startsWith('+') ? `+${code}` : undefined;
   });
 
   constructor() {
     // A farm that doesn't say yet starts in the platform's home country.
     effect(() => {
-      const fallback = this.geo.value()?.defaultCountry;
-      if (!this.country() && fallback) this.country.set(fallback);
+      if (!this.country()) this.country.set(defaultFarmCountry());
     });
   }
 

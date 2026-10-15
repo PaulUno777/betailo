@@ -23,6 +23,8 @@ import (
 type CreateFarm struct {
 	Users ports.UserRepository
 	Farms ports.FarmRepository
+	// Catalog says which countries and regions a farm can be in.
+	Catalog ports.CatalogSource
 	// MaxFarms is the platform's default number of farms per account
 	// (MAX_FARMS_PER_ACCOUNT); an account's own User.FarmLimit, set by
 	// staff, takes precedence.
@@ -68,11 +70,11 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 		return nil, domain.Coded("farm.location_required", fmt.Errorf("farm: location is required: %w", domain.ErrInvalid))
 	}
 
-	country, region, err := normalizePlace(in.Country, in.Region)
+	place, region, err := normalizePlace(ctx, uc.Catalog, in.Country, in.Region)
 	if err != nil {
 		return nil, err
 	}
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, country)
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, place.CallingCode)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +99,7 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 		OwnerID:   in.OwnerID,
 		Name:      name,
 		Location:  location,
-		Country:   country,
+		Country:   place.Code,
 		Region:    region,
 		Species:   in.Species,
 		CreatedAt: uc.Clock.Now(),

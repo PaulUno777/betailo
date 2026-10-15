@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -32,12 +33,14 @@ type QuickCreate struct {
 	Sequencer ports.Sequencer
 	Tx        ports.TxManager
 	Clock     ports.Clock
+	// Catalog gives the species: its cycle type and unit.
+	Catalog ports.CatalogSource
 }
 
 type QuickCreateInput struct {
 	FarmID      bson.ObjectID
 	OwnerID     bson.ObjectID
-	Species     string // a domain.Species key
+	Species     string // a catalog species key
 	Breed       string
 	AgeWeeks    int
 	Quantity    int
@@ -56,7 +59,11 @@ type QuickCreateOutput struct {
 }
 
 func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*QuickCreateOutput, error) {
-	sp, err := domain.LookupSpecies(in.Species)
+	cat, err := catalog.Of(ctx, uc.Catalog)
+	if err != nil {
+		return nil, err
+	}
+	sp, err := cat.SpeciesByKey(in.Species)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +118,7 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 	}
 	l := &domain.Listing{
 		ID: bson.NewObjectID(), CycleID: &c.ID, Title: title, Description: description,
-		UnitPrice: in.UnitPrice, Unit: sp.Unit, Status: domain.ListingDraft,
+		UnitPrice: in.UnitPrice, Unit: sp.Unit.Key, Status: domain.ListingDraft,
 		Breed: breed, AgeWeeks: in.AgeWeeks, DeliveryAvailable: in.DeliveryAvailable,
 	}
 	err = uc.Tx.WithinTx(ctx, func(ctx context.Context) error {

@@ -44,6 +44,8 @@ type Dependencies struct {
 	GetProfile    *account.GetProfile
 	UpdateProfile *account.UpdateProfile
 	PresignAvatar *account.PresignAvatar
+	// Catalog is the reference data in force (GET /reference).
+	Catalog ports.CatalogSource
 	// People names the authors of forum posts and replies.
 	People         *people.Directory
 	SetAvatar      *account.SetAvatar

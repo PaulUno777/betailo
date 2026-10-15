@@ -1,3 +1,4 @@
+import { ReferenceService } from '../../core/reference/reference.service';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { AvatarComponent } from '../../shared/ui/avatar/avatar.component';
 import { FormsModule } from '@angular/forms';
@@ -33,7 +34,7 @@ import { apiResource } from '../../core/http/api-resource';
 
       @if (post.value(); as p) {
         <div class="mt-4 flex flex-col gap-3 border-b border-line pb-6">
-          <bt-badge [tone]="categoryTone(p.category)" class="w-fit">{{ p.category }}</bt-badge>
+          <bt-badge [tone]="categoryTone(p.category)" class="w-fit">{{ reference.forumLabelKey(p.category) | t }}</bt-badge>
           <h1 class="text-heading-2">{{ p.title }}</h1>
           <div class="flex items-center gap-2.5">
             <bt-avatar [name]="p.authorName || ('forum.someone' | t)" [src]="p.authorAvatarUrl" [size]="32" tone="sky" />
@@ -112,6 +113,7 @@ export class ForumDetailComponent {
   protected readonly post = apiResource<ForumPost>(() => (this.id() ? this.forumApi.postUrl(this.id()) : undefined));
 
   protected readonly categoryTone = categoryTone;
+  protected readonly reference = inject(ReferenceService);
 
   protected readonly replyBody = signal('');
   protected readonly submittingReply = signal(false);

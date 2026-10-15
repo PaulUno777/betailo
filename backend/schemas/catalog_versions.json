@@ -1,0 +1,11 @@
+{
+  "bsonType": "object",
+  "required": ["_id", "content", "publishedAt"],
+  "properties": {
+    "_id": { "bsonType": ["int", "long"], "minimum": 1, "description": "the version number" },
+    "note": { "bsonType": "string", "maxLength": 300 },
+    "publishedBy": { "bsonType": "objectId" },
+    "publishedAt": { "bsonType": "date" },
+    "content": { "bsonType": "string", "description": "the catalog's lists as JSON, exactly as published" }
+  }
+}

@@ -246,7 +246,7 @@ const TARGET_HOURS = 48;
                 @for (c of d.reviewChecks; track c; let last = $last) {
                   <label class="flex min-h-11 cursor-pointer items-center gap-3 text-small" [class.border-b]="!last" [class.border-line]="!last">
                     <input type="checkbox" class="h-[18px] w-[18px] shrink-0 accent-forest" [checked]="checked().has(c)" (change)="toggle(c)" />
-                    <span class="flex-1">{{ 'adminFarms.check.' + c | t }}</span>
+                    <span class="flex-1">{{ 'ref.farmCheck.' + c | t }}</span>
                   </label>
                 }
               </div>
@@ -258,7 +258,7 @@ const TARGET_HOURS = 48;
               @for (c of d.reviewChecks; track c; let last = $last) {
                 <span class="flex min-h-10 items-center gap-3 text-small" [class.border-b]="!last" [class.border-line]="!last" [class.text-ink-muted]="!d.checks.includes(c)">
                   <bt-icon [name]="d.checks.includes(c) ? 'check' : 'minus'" [size]="16" [class]="d.checks.includes(c) ? 'text-forest' : 'text-ink-muted'" />
-                  <span class="flex-1">{{ 'adminFarms.check.' + c | t }}</span>
+                  <span class="flex-1">{{ 'ref.farmCheck.' + c | t }}</span>
                 </span>
               }
             </div>

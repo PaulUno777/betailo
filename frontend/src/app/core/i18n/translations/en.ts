@@ -147,14 +147,6 @@ export const en: TranslationDictionary = {
     orangeMoney: 'Orange Money',
     card: 'Card'
   },
-  species: {
-    poussins: 'Chicks',
-    jeunesPoulets: 'Young chickens',
-    pondeuses: 'Layer hens',
-    reproducteurs: 'Breeding stock',
-    porcs: 'Pigs',
-    chevres: 'Goats'
-  },
   nav: {
     farmLimitReached: 'Farm limit reached ({count}).',
     newListing: 'New listing',
@@ -263,7 +255,8 @@ export const en: TranslationDictionary = {
     farmerCtaEyebrow: 'For farmers',
     farmerCtaTitle: 'Are you a farmer?',
     farmerCtaBody: 'Publish your first cycle and start receiving reservations today.',
-    farmerCtaButton: 'Create a farmer account'
+    farmerCtaButton: 'Create a farmer account',
+    searchWholeCategory: 'All {category}'
   },
   marketplace: {
     sortAvailability: 'Soonest available',
@@ -717,14 +710,6 @@ export const en: TranslationDictionary = {
     replyFailed: 'Couldn’t publish the reply',
     voteFailed: 'Couldn’t vote',
   },
-  reviewTags: {
-    healthy_animals: 'Healthy animals',
-    as_described: 'As pictured',
-    on_time: 'On-time delivery',
-    good_packaging: 'Good packaging',
-    responsive_farmer: 'Responsive farmer',
-    good_value: 'Good value',
-  },
   review: {
     photoAlt: 'Buyer’s photo',
     replyAction: 'Reply',
@@ -844,15 +829,15 @@ export const en: TranslationDictionary = {
     sectionScheduleTitle: 'Schedule',
     sectionCapacityTitle: 'Capacity',
     speciesLabel: 'Species',
-    typeLabel: 'Cycle type',
-    typePlaceholder: 'Hatching, fattening…',
     capacityLabel: 'Capacity',
     startsAtLabel: 'Start date',
     endsAtLabel: 'End date (optional)',
     submitButton: 'Create cycle',
     submitting: 'Creating…',
     submitFailedTitle: 'Couldn’t create cycle',
-    cancelButton: 'Cancel'
+    cancelButton: 'Cancel',
+    speciesPlaceholder: 'Choose what you raise',
+    typeFromSpecies: 'Cycle type: {type}'
   },
   listingForm: {
     title: 'Publish a listing',
@@ -1204,7 +1189,8 @@ export const en: TranslationDictionary = {
       '1': 'Pick your animals',
       '2': 'Enter the number and the price',
       '3': 'Pick the availability date'
-    }
+    },
+    categoryLabel: 'Category'
   },
   sellerOnboarding: {
     titleAnother: 'Add a farm',
@@ -1238,13 +1224,6 @@ export const en: TranslationDictionary = {
     tip: 'Sharp photos, in daylight. Tap a photo to make it the cover.',
     remaining: '{count} more allowed',
     remaining_one: '{count} more allowed'
-  },
-  units: {
-    poussin: 'chick',
-    sujet: 'bird',
-    pondeuse: 'layer',
-    porcelet: 'piglet',
-    chevre: 'goat'
   },
   portalListings: {
     notApprovedTitle: 'Publishing on hold',
@@ -1603,12 +1582,6 @@ export const en: TranslationDictionary = {
     farmPhotos: 'Farm photos · {count}',
     noPhotos: 'No photo provided.',
     checksTitle: 'Points to check',
-    check: {
-      name_matches: 'The name on the document matches the account',
-      document_readable: 'The document is readable and not expired',
-      photos_genuine: 'The photos show a real farm',
-      location_consistent: 'The location is consistent'
-    },
     checksHint: 'The points you tick are kept with your decision.',
     decided: {
       approved: 'Approved by {name} on {date}',

@@ -51,7 +51,7 @@ import { ThumbSrcDirective } from '../thumb-src/thumb-src.directive';
       @if (review().tags.length) {
         <div class="flex flex-wrap gap-1.5">
           @for (tag of review().tags; track tag) {
-            <span class="rounded-full bg-forest-soft px-3 py-1 text-caption text-forest">{{ 'reviewTags.' + tag | t }}</span>
+            <span class="rounded-full bg-forest-soft px-3 py-1 text-caption text-forest">{{ 'ref.reviewTag.' + tag | t }}</span>
           }
         </div>
       }

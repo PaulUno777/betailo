@@ -12,8 +12,6 @@ export interface CreateReviewInput {
   readonly photoKeys?: string[];
 }
 
-/** The closed vocabulary the API accepts ("Ce qui vous a plu"). */
-export const REVIEW_TAGS = ['healthy_animals', 'as_described', 'on_time', 'good_packaging', 'responsive_farmer', 'good_value'] as const;
 
 @Injectable({ providedIn: 'root' })
 export class ReviewsApi {

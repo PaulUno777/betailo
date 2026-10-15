@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Observable, of, switchMap } from 'rxjs';
 import { Listing, PriceHint } from '../../domain/models';
-import { SPECIES_DOT, SPECIES_LABEL_KEYS, SPECIES_UNIT_KEYS, SPECIES_VALUES, SpeciesValue } from '../../domain/reference/species';
+import { categoryOf, speciesGroups, speciesLabelKey, speciesUnitKey } from '../../domain/reference/species';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { ListingPhotosService } from '../../data-access/listings/listing-photos.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -118,8 +118,24 @@ type Section = 0 | 1 | 2 | 3;
               <span [class]="badgeClass(1)">@if (complete()[1]) {<bt-icon name="check" [size]="14" />} @else {2}</span>
               {{ 'sell.animalsTitle' | t }}
             </h2>
-            <div class="grid grid-cols-3 gap-2" role="radiogroup" [attr.aria-label]="'sell.animalsTitle' | t">
-              @for (s of speciesValues; track s) {
+            <!-- First the category, then what is sold in it. -->
+            <div class="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1" role="tablist" [attr.aria-label]="'sell.categoryLabel' | t">
+              @for (g of groups; track g.key) {
+                <button
+                  type="button"
+                  role="tab"
+                  [attr.aria-selected]="currentGroup()?.key === g.key"
+                  (click)="pickedCategory.set(g.key)"
+                  class="flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-small font-semibold transition"
+                  [class]="currentGroup()?.key === g.key ? 'border-forest bg-forest text-on-forest' : 'border-line-strong bg-surface-card text-ink'"
+                >
+                  <span class="h-2.5 w-2.5 rounded-full" [class]="g.dot"></span>
+                  {{ g.labelKey | t }}
+                </button>
+              }
+            </div>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" [attr.aria-label]="'sell.animalsTitle' | t">
+              @for (s of currentGroup()?.species ?? []; track s) {
                 <button
                   type="button"
                   role="radio"
@@ -128,8 +144,8 @@ type Section = 0 | 1 | 2 | 3;
                   class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 p-2 text-center text-small font-semibold transition active:scale-[0.98]"
                   [class]="draft().species === s ? 'border-forest bg-forest-soft text-on-forest-soft' : 'border-line bg-surface-card text-ink'"
                 >
-                  <span class="h-3 w-3 rounded-full" [class]="dots[s]"></span>
-                  {{ speciesLabels[s] | t }}
+                  <span class="h-3 w-3 rounded-full" [class]="currentGroup()?.dot"></span>
+                  {{ speciesLabel(s) | t }}
                 </button>
               }
             </div>
@@ -284,9 +300,15 @@ export class SellWizardComponent {
   private readonly locale = inject(LocaleService);
 
   protected readonly sections: readonly Section[] = [0, 1, 2, 3];
-  protected readonly speciesValues = SPECIES_VALUES;
-  protected readonly speciesLabels = SPECIES_LABEL_KEYS;
-  protected readonly dots = SPECIES_DOT;
+  protected readonly groups = speciesGroups();
+  protected readonly speciesLabel = speciesLabelKey;
+  /** The category the farmer opened; until then, the one of the species
+   * already picked, or the first. */
+  protected readonly pickedCategory = signal('');
+  protected readonly currentGroup = computed(() => {
+    const key = this.pickedCategory() || categoryOf(this.draft().species) || this.groups[0]?.key;
+    return this.groups.find((g) => g.key === key);
+  });
   protected readonly whenOptions = ['now', 'date'] as const;
   protected readonly maxQuantity = MAX_QUANTITY;
   protected readonly today = new Date().toISOString().slice(0, 10);
@@ -308,7 +330,7 @@ export class SellWizardComponent {
   protected readonly saving = signal(false);
   protected readonly publishing = signal(false);
 
-  protected readonly unitKey = computed(() => (this.draft().species ? SPECIES_UNIT_KEYS[this.draft().species as SpeciesValue] : ''));
+  protected readonly unitKey = computed(() => speciesUnitKey(this.draft().species));
 
   private readonly hintRes = apiResource<PriceHint | null>(() => {
     const species = this.draft().species;
@@ -332,7 +354,7 @@ export class SellWizardComponent {
   protected readonly title = computed(() => {
     const d = this.draft();
     if (!d.species) return '';
-    const name = [this.locale.t(SPECIES_LABEL_KEYS[d.species]), d.breed.trim()].filter(Boolean).join(' ');
+    const name = [this.locale.t(speciesLabelKey(d.species)), d.breed.trim()].filter(Boolean).join(' ');
     if (d.when === 'date' && d.date) {
       const date = new Intl.DateTimeFormat(this.locale.locale(), { day: 'numeric', month: 'long' }).format(new Date(d.date + 'T00:00:00'));
       return this.locale.t('sell.titleFrom', { name, date });

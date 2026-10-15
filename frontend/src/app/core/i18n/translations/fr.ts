@@ -145,14 +145,6 @@ export const fr = {
     orangeMoney: 'Orange Money',
     card: 'Carte bancaire'
   },
-  species: {
-    poussins: 'Poussins',
-    jeunesPoulets: 'Jeunes poulets',
-    pondeuses: 'Pondeuses',
-    reproducteurs: 'Reproducteurs',
-    porcs: 'Porcs',
-    chevres: 'Chèvres'
-  },
   nav: {
     farmLimitReached: 'Limite de fermes atteinte ({count}).',
     newListing: 'Nouvelle annonce',
@@ -261,7 +253,8 @@ export const fr = {
     farmerCtaEyebrow: 'Pour les éleveurs',
     farmerCtaTitle: 'Vous êtes éleveur ?',
     farmerCtaBody: 'Publiez votre premier cycle et recevez des réservations dès aujourd’hui.',
-    farmerCtaButton: 'Créer un compte éleveur'
+    farmerCtaButton: 'Créer un compte éleveur',
+    searchWholeCategory: 'Toute la catégorie {category}'
   },
   marketplace: {
     sortAvailability: 'Disponibilité proche',
@@ -716,14 +709,6 @@ export const fr = {
     replyFailed: 'Impossible de publier la réponse',
     voteFailed: 'Vote impossible',
   },
-  reviewTags: {
-    healthy_animals: 'Animaux en bonne santé',
-    as_described: 'Conforme aux photos',
-    on_time: 'Livraison à l’heure',
-    good_packaging: 'Bon emballage',
-    responsive_farmer: 'Éleveur réactif',
-    good_value: 'Bon rapport qualité-prix',
-  },
   review: {
     photoAlt: 'Photo de l’acheteur',
     replyAction: 'Répondre',
@@ -843,15 +828,15 @@ export const fr = {
     sectionScheduleTitle: 'Calendrier',
     sectionCapacityTitle: 'Capacité',
     speciesLabel: 'Espèce',
-    typeLabel: 'Type de cycle',
-    typePlaceholder: 'Couvée, engraissement…',
     capacityLabel: 'Capacité',
     startsAtLabel: 'Date de début',
     endsAtLabel: 'Date de fin (optionnelle)',
     submitButton: 'Créer le cycle',
     submitting: 'Création…',
     submitFailedTitle: 'Échec de la création',
-    cancelButton: 'Annuler'
+    cancelButton: 'Annuler',
+    speciesPlaceholder: 'Choisissez ce que vous élevez',
+    typeFromSpecies: 'Type de cycle : {type}'
   },
   listingForm: {
     title: 'Publier une annonce',
@@ -1203,7 +1188,8 @@ export const fr = {
       '1': 'Choisissez vos animaux',
       '2': 'Indiquez le nombre et le prix',
       '3': 'Choisissez la date de disponibilité'
-    }
+    },
+    categoryLabel: 'Catégorie'
   },
   sellerOnboarding: {
     titleAnother: 'Ajoutez une ferme',
@@ -1237,13 +1223,6 @@ export const fr = {
     tip: 'Photos nettes, en plein jour. Touchez une photo pour la mettre en couverture.',
     remaining: 'encore {count} possibles',
     remaining_one: 'encore {count} possible'
-  },
-  units: {
-    poussin: 'poussin',
-    sujet: 'sujet',
-    pondeuse: 'pondeuse',
-    porcelet: 'porcelet',
-    chevre: 'chèvre'
   },
   portalListings: {
     notApprovedTitle: 'Publication en attente',
@@ -1602,12 +1581,6 @@ export const fr = {
     farmPhotos: 'Photos de la ferme · {count}',
     noPhotos: 'Aucune photo fournie.',
     checksTitle: 'Points à vérifier',
-    check: {
-      name_matches: 'Le nom sur la pièce correspond au compte',
-      document_readable: 'La pièce est lisible et non expirée',
-      photos_genuine: 'Les photos montrent une vraie exploitation',
-      location_consistent: 'La localisation est cohérente'
-    },
     checksHint: 'Les points cochés sont enregistrés avec votre décision.',
     decided: {
       approved: 'Approuvée par {name} le {date}',

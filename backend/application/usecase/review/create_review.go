@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
@@ -30,6 +31,8 @@ type CreateReview struct {
 	Clock        ports.Clock
 	// Notifications tells the farmer about the new review. Optional.
 	Notifications ports.NotificationRepository
+	// Catalog holds the review tags a buyer can pick.
+	Catalog ports.CatalogSource
 }
 
 type CreateReviewInput struct {
@@ -55,7 +58,11 @@ func (uc *CreateReview) Execute(ctx context.Context, in CreateReviewInput) (*dom
 	if err := in.Criteria.Validate(); err != nil {
 		return nil, err
 	}
-	tags, err := domain.NormalizeReviewTags(in.Tags)
+	cat, err := catalog.Of(ctx, uc.Catalog)
+	if err != nil {
+		return nil, err
+	}
+	tags, err := domain.NormalizeReviewTags(in.Tags, domain.ActiveKeys(cat.ReviewTags))
 	if err != nil {
 		return nil, err
 	}
