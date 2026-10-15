@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	catalogusecase "github.com/pauluno777/betailo/backend/application/usecase/catalog"
+
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
@@ -693,7 +695,7 @@ type adminFarmDetailResponse struct {
 
 // handleAdminGetFarm hands out the proof, and writes that it did: who
 // looked at an identity document is part of the journal.
-func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal, storage ports.ObjectStorage) http.HandlerFunc {
+func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal, storage ports.ObjectStorage, catalog ports.CatalogSource) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
 		if !ok {
@@ -717,6 +719,11 @@ func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal, stor
 		if photos == nil {
 			photos = []string{}
 		}
+		cat, err := catalogusecase.Of(r.Context(), catalog)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
 		codes := make([]string, 0, len(domain.RejectionCodes))
 		for _, c := range domain.RejectionCodes {
 			codes = append(codes, string(c))
@@ -726,7 +733,7 @@ func handleAdminGetFarm(uc *admin.GetFarmForReview, journal *admin.Journal, stor
 			IDDocumentURL:     d.IDDocumentURL, IDDocumentBackURL: d.IDDocumentBackURL, PhotoURLs: photos,
 			OwnerFarmCount: d.OwnerFarmCount, OwnerFarmLimit: d.OwnerFarmLimit, OwnerPurchases: d.OwnerPurchases, OwnerReports: d.OwnerReports,
 			ReviewerName: d.ReviewerName, ReviewerRole: string(d.ReviewerRole), RejectionCodes: codes,
-			ReviewChecks: domain.FarmReviewChecks, Checks: append([]string{}, d.Farm.Verification.Checks...),
+			ReviewChecks: domain.ActiveKeys(cat.FarmReviewChecks), Checks: append([]string{}, d.Farm.Verification.Checks...),
 		})
 	}
 }

@@ -29,7 +29,7 @@ type Review struct {
 
 	// Criteria are the optional detailed scores ("En détail").
 	Criteria ReviewCriteria
-	// Tags are picked from ReviewTags ("Ce qui vous a plu").
+	// Tags are picked from the Catalog's review tags ("Ce qui vous a plu").
 	Tags []string
 	// Photos are object-storage keys, like listing photos.
 	Photos []string
@@ -64,12 +64,6 @@ type ReviewReply struct {
 	At   time.Time
 }
 
-// ReviewTags is the closed vocabulary of "what you liked" chips. The
-// client labels them; only these keys are accepted.
-var ReviewTags = []string{
-	"healthy_animals", "as_described", "on_time", "good_packaging", "responsive_farmer", "good_value",
-}
-
 // Review limits.
 const (
 	MaxReviewCommentLen = 1000
@@ -77,12 +71,13 @@ const (
 	MaxReviewPhotos     = 4
 )
 
-// NormalizeReviewTags dedupes tags and rejects any outside ReviewTags.
-func NormalizeReviewTags(tags []string) ([]string, error) {
+// NormalizeReviewTags dedupes tags and rejects any outside known (the
+// Catalog's active review tags).
+func NormalizeReviewTags(tags, known []string) ([]string, error) {
 	out := make([]string, 0, len(tags))
 	for _, t := range tags {
 		t = strings.TrimSpace(t)
-		if !slices.Contains(ReviewTags, t) {
+		if !slices.Contains(known, t) {
 			return nil, fmt.Errorf("review: unknown tag %q: %w", t, ErrInvalid)
 		}
 		if !slices.Contains(out, t) {

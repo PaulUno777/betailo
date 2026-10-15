@@ -1,0 +1,862 @@
+{
+  "note": "Version initiale : les listes livrées avec la plateforme",
+  "categories": [
+    {
+      "key": "volaille",
+      "label": {
+        "fr": "Volaille",
+        "en": "Poultry"
+      },
+      "color": "clay",
+      "active": true,
+      "subcategories": [
+        {
+          "key": "poussins",
+          "label": {
+            "fr": "Poussins d’un jour",
+            "en": "Day-old chicks"
+          },
+          "cycleType": "couvee",
+          "unit": {
+            "key": "poussin",
+            "label": {
+              "fr": "poussin",
+              "en": "chick"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "jeunes-poulets",
+          "label": {
+            "fr": "Poulets de chair",
+            "en": "Broilers"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "sujet",
+            "label": {
+              "fr": "sujet",
+              "en": "bird"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "pondeuses",
+          "label": {
+            "fr": "Poules pondeuses",
+            "en": "Laying hens"
+          },
+          "cycleType": "ponte",
+          "unit": {
+            "key": "pondeuse",
+            "label": {
+              "fr": "pondeuse",
+              "en": "layer"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "reproducteurs",
+          "label": {
+            "fr": "Reproducteurs",
+            "en": "Breeders"
+          },
+          "cycleType": "reproduction",
+          "unit": {
+            "key": "sujet",
+            "label": {
+              "fr": "sujet",
+              "en": "bird"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "poulets-locaux",
+          "label": {
+            "fr": "Poulets locaux",
+            "en": "Village chickens"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "sujet",
+            "label": {
+              "fr": "sujet",
+              "en": "bird"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "dindes",
+          "label": {
+            "fr": "Dindes",
+            "en": "Turkeys"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "dinde",
+            "label": {
+              "fr": "dinde",
+              "en": "turkey"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "canards",
+          "label": {
+            "fr": "Canards",
+            "en": "Ducks"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "canard",
+            "label": {
+              "fr": "canard",
+              "en": "duck"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "pintades",
+          "label": {
+            "fr": "Pintades",
+            "en": "Guinea fowl"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "pintade",
+            "label": {
+              "fr": "pintade",
+              "en": "guinea fowl"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "cailles",
+          "label": {
+            "fr": "Cailles",
+            "en": "Quails"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "caille",
+            "label": {
+              "fr": "caille",
+              "en": "quail"
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    {
+      "key": "porcins",
+      "label": {
+        "fr": "Porcins",
+        "en": "Pigs"
+      },
+      "color": "alert",
+      "active": true,
+      "subcategories": [
+        {
+          "key": "porcs",
+          "label": {
+            "fr": "Porcelets",
+            "en": "Piglets"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "porcelet",
+            "label": {
+              "fr": "porcelet",
+              "en": "piglet"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "porcs-charcutiers",
+          "label": {
+            "fr": "Porcs charcutiers",
+            "en": "Finishing pigs"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "porc",
+            "label": {
+              "fr": "porc",
+              "en": "pig"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "porcs-reproducteurs",
+          "label": {
+            "fr": "Truies et verrats",
+            "en": "Sows and boars"
+          },
+          "cycleType": "reproduction",
+          "unit": {
+            "key": "sujet",
+            "label": {
+              "fr": "sujet",
+              "en": "animal"
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    {
+      "key": "caprins",
+      "label": {
+        "fr": "Caprins",
+        "en": "Goats"
+      },
+      "color": "plum",
+      "active": true,
+      "subcategories": [
+        {
+          "key": "chevres",
+          "label": {
+            "fr": "Chèvres",
+            "en": "Goats"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "chèvre",
+            "label": {
+              "fr": "chèvre",
+              "en": "goat"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "chevreaux",
+          "label": {
+            "fr": "Chevreaux",
+            "en": "Kids"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "chevreau",
+            "label": {
+              "fr": "chevreau",
+              "en": "kid"
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    {
+      "key": "ovins",
+      "label": {
+        "fr": "Ovins",
+        "en": "Sheep"
+      },
+      "color": "stone",
+      "active": true,
+      "subcategories": [
+        {
+          "key": "moutons",
+          "label": {
+            "fr": "Moutons",
+            "en": "Sheep"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "mouton",
+            "label": {
+              "fr": "mouton",
+              "en": "sheep"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "agneaux",
+          "label": {
+            "fr": "Agneaux",
+            "en": "Lambs"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "agneau",
+            "label": {
+              "fr": "agneau",
+              "en": "lamb"
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    {
+      "key": "lapins",
+      "label": {
+        "fr": "Lapins",
+        "en": "Rabbits"
+      },
+      "color": "amber",
+      "active": true,
+      "subcategories": [
+        {
+          "key": "lapereaux",
+          "label": {
+            "fr": "Lapereaux",
+            "en": "Young rabbits"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "lapereau",
+            "label": {
+              "fr": "lapereau",
+              "en": "young rabbit"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "lapins-reproducteurs",
+          "label": {
+            "fr": "Lapins reproducteurs",
+            "en": "Breeding rabbits"
+          },
+          "cycleType": "reproduction",
+          "unit": {
+            "key": "lapin",
+            "label": {
+              "fr": "lapin",
+              "en": "rabbit"
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    {
+      "key": "bovins",
+      "label": {
+        "fr": "Bovins",
+        "en": "Cattle"
+      },
+      "color": "forest",
+      "active": false,
+      "subcategories": [
+        {
+          "key": "veaux",
+          "label": {
+            "fr": "Veaux",
+            "en": "Calves"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "veau",
+            "label": {
+              "fr": "veau",
+              "en": "calf"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "taurillons",
+          "label": {
+            "fr": "Taurillons",
+            "en": "Young bulls"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "sujet",
+            "label": {
+              "fr": "sujet",
+              "en": "animal"
+            }
+          },
+          "active": true
+        }
+      ]
+    },
+    {
+      "key": "pisciculture",
+      "label": {
+        "fr": "Pisciculture",
+        "en": "Fish farming"
+      },
+      "color": "sky",
+      "active": false,
+      "subcategories": [
+        {
+          "key": "alevins",
+          "label": {
+            "fr": "Alevins",
+            "en": "Fingerlings"
+          },
+          "cycleType": "elevage",
+          "unit": {
+            "key": "alevin",
+            "label": {
+              "fr": "alevin",
+              "en": "fingerling"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "poissons-de-table",
+          "label": {
+            "fr": "Poissons de table",
+            "en": "Table fish"
+          },
+          "cycleType": "engraissement",
+          "unit": {
+            "key": "poisson",
+            "label": {
+              "fr": "poisson",
+              "en": "fish"
+            }
+          },
+          "active": true
+        }
+      ]
+    }
+  ],
+  "countries": [
+    {
+      "code": "CM",
+      "callingCode": "237",
+      "active": true,
+      "regions": [
+        {
+          "key": "adamaoua",
+          "label": "Adamaoua",
+          "active": true
+        },
+        {
+          "key": "centre",
+          "label": "Centre",
+          "active": true
+        },
+        {
+          "key": "est",
+          "label": "Est",
+          "active": true
+        },
+        {
+          "key": "extreme-nord",
+          "label": "Extrême-Nord",
+          "active": true
+        },
+        {
+          "key": "littoral",
+          "label": "Littoral",
+          "active": true
+        },
+        {
+          "key": "nord",
+          "label": "Nord",
+          "active": true
+        },
+        {
+          "key": "nord-ouest",
+          "label": "Nord-Ouest",
+          "active": true
+        },
+        {
+          "key": "ouest",
+          "label": "Ouest",
+          "active": true
+        },
+        {
+          "key": "sud",
+          "label": "Sud",
+          "active": true
+        },
+        {
+          "key": "sud-ouest",
+          "label": "Sud-Ouest",
+          "active": true
+        }
+      ]
+    },
+    {
+      "code": "BJ",
+      "callingCode": "229",
+      "active": true
+    },
+    {
+      "code": "BF",
+      "callingCode": "226",
+      "active": true
+    },
+    {
+      "code": "BI",
+      "callingCode": "257",
+      "active": true
+    },
+    {
+      "code": "CF",
+      "callingCode": "236",
+      "active": true
+    },
+    {
+      "code": "CG",
+      "callingCode": "242",
+      "active": true
+    },
+    {
+      "code": "CD",
+      "callingCode": "243",
+      "active": true
+    },
+    {
+      "code": "CI",
+      "callingCode": "225",
+      "active": true
+    },
+    {
+      "code": "DZ",
+      "callingCode": "213",
+      "active": true
+    },
+    {
+      "code": "EG",
+      "callingCode": "20",
+      "active": true
+    },
+    {
+      "code": "ET",
+      "callingCode": "251",
+      "active": true
+    },
+    {
+      "code": "GA",
+      "callingCode": "241",
+      "active": true
+    },
+    {
+      "code": "GH",
+      "callingCode": "233",
+      "active": true
+    },
+    {
+      "code": "GN",
+      "callingCode": "224",
+      "active": true
+    },
+    {
+      "code": "GQ",
+      "callingCode": "240",
+      "active": true
+    },
+    {
+      "code": "KE",
+      "callingCode": "254",
+      "active": true
+    },
+    {
+      "code": "MA",
+      "callingCode": "212",
+      "active": true
+    },
+    {
+      "code": "MG",
+      "callingCode": "261",
+      "active": true
+    },
+    {
+      "code": "ML",
+      "callingCode": "223",
+      "active": true
+    },
+    {
+      "code": "MR",
+      "callingCode": "222",
+      "active": true
+    },
+    {
+      "code": "MW",
+      "callingCode": "265",
+      "active": true
+    },
+    {
+      "code": "MZ",
+      "callingCode": "258",
+      "active": true
+    },
+    {
+      "code": "NE",
+      "callingCode": "227",
+      "active": true
+    },
+    {
+      "code": "NG",
+      "callingCode": "234",
+      "active": true
+    },
+    {
+      "code": "RW",
+      "callingCode": "250",
+      "active": true
+    },
+    {
+      "code": "SN",
+      "callingCode": "221",
+      "active": true
+    },
+    {
+      "code": "TD",
+      "callingCode": "235",
+      "active": true
+    },
+    {
+      "code": "TG",
+      "callingCode": "228",
+      "active": true
+    },
+    {
+      "code": "TN",
+      "callingCode": "216",
+      "active": true
+    },
+    {
+      "code": "TZ",
+      "callingCode": "255",
+      "active": true
+    },
+    {
+      "code": "UG",
+      "callingCode": "256",
+      "active": true
+    },
+    {
+      "code": "ZA",
+      "callingCode": "27",
+      "active": true
+    },
+    {
+      "code": "ZM",
+      "callingCode": "260",
+      "active": true
+    },
+    {
+      "code": "ZW",
+      "callingCode": "263",
+      "active": true
+    },
+    {
+      "code": "BE",
+      "callingCode": "32",
+      "active": true
+    },
+    {
+      "code": "CA",
+      "callingCode": "1",
+      "active": true
+    },
+    {
+      "code": "FR",
+      "callingCode": "33",
+      "active": true
+    },
+    {
+      "code": "US",
+      "callingCode": "1",
+      "active": true
+    }
+  ],
+  "forumCategories": [
+    {
+      "key": "general",
+      "label": {
+        "fr": "Général",
+        "en": "General"
+      },
+      "active": true
+    },
+    {
+      "key": "sante",
+      "label": {
+        "fr": "Santé animale",
+        "en": "Animal health"
+      },
+      "active": true
+    },
+    {
+      "key": "alimentation",
+      "label": {
+        "fr": "Alimentation",
+        "en": "Feeding"
+      },
+      "active": true
+    },
+    {
+      "key": "reproduction",
+      "label": {
+        "fr": "Reproduction",
+        "en": "Breeding"
+      },
+      "active": true
+    },
+    {
+      "key": "marche",
+      "label": {
+        "fr": "Marché et prix",
+        "en": "Market and prices"
+      },
+      "active": true
+    },
+    {
+      "key": "materiel",
+      "label": {
+        "fr": "Matériel et bâtiments",
+        "en": "Equipment and housing"
+      },
+      "active": true
+    }
+  ],
+  "reviewTags": [
+    {
+      "key": "healthy_animals",
+      "label": {
+        "fr": "Animaux en bonne santé",
+        "en": "Healthy animals"
+      },
+      "active": true
+    },
+    {
+      "key": "as_described",
+      "label": {
+        "fr": "Conforme aux photos",
+        "en": "As pictured"
+      },
+      "active": true
+    },
+    {
+      "key": "on_time",
+      "label": {
+        "fr": "Livraison à l’heure",
+        "en": "On-time delivery"
+      },
+      "active": true
+    },
+    {
+      "key": "good_packaging",
+      "label": {
+        "fr": "Bon emballage",
+        "en": "Good packaging"
+      },
+      "active": true
+    },
+    {
+      "key": "responsive_farmer",
+      "label": {
+        "fr": "Éleveur réactif",
+        "en": "Responsive farmer"
+      },
+      "active": true
+    },
+    {
+      "key": "good_value",
+      "label": {
+        "fr": "Bon rapport qualité-prix",
+        "en": "Good value"
+      },
+      "active": true
+    }
+  ],
+  "reportReasons": [
+    {
+      "key": "off_platform_payment",
+      "label": {
+        "fr": "Paiement demandé hors plateforme",
+        "en": "Payment asked outside the platform"
+      },
+      "active": true
+    },
+    {
+      "key": "reused_photos",
+      "label": {
+        "fr": "Photos réutilisées ou trompeuses",
+        "en": "Reused or misleading photos"
+      },
+      "active": true
+    },
+    {
+      "key": "impersonation",
+      "label": {
+        "fr": "Usurpation d’identité",
+        "en": "Impersonation"
+      },
+      "active": true
+    },
+    {
+      "key": "misleading_listing",
+      "label": {
+        "fr": "Annonce trompeuse",
+        "en": "Misleading listing"
+      },
+      "active": true
+    },
+    {
+      "key": "abusive_behaviour",
+      "label": {
+        "fr": "Comportement inapproprié",
+        "en": "Inappropriate behaviour"
+      },
+      "active": true
+    },
+    {
+      "key": "other",
+      "label": {
+        "fr": "Autre",
+        "en": "Other"
+      },
+      "active": true
+    }
+  ],
+  "farmReviewChecks": [
+    {
+      "key": "name_matches",
+      "label": {
+        "fr": "Le nom sur la pièce correspond au compte",
+        "en": "The name on the document matches the account"
+      },
+      "active": true
+    },
+    {
+      "key": "document_readable",
+      "label": {
+        "fr": "La pièce est lisible et non expirée",
+        "en": "The document is readable and not expired"
+      },
+      "active": true
+    },
+    {
+      "key": "photos_genuine",
+      "label": {
+        "fr": "Les photos montrent une vraie exploitation",
+        "en": "The photos show a real farm"
+      },
+      "active": true
+    },
+    {
+      "key": "location_consistent",
+      "label": {
+        "fr": "La localisation est cohérente",
+        "en": "The location is consistent"
+      },
+      "active": true
+    }
+  ]
+}

@@ -42,7 +42,8 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	signedIn := func(h http.Handler) http.Handler { return chain(h, auth) }
 
 	mux.HandleFunc("GET /health", handleHealth)
-	mux.HandleFunc("GET /reference/geo", handleGeoReference)
+	mux.HandleFunc("GET /reference", handleReference(deps.Catalog))
+	mux.HandleFunc("GET /reference/geo", handleGeoReference(deps.Catalog))
 	limit := func(policy RateLimit, h http.Handler) http.Handler {
 		return rateLimited(policy, deps.RateLimits.TrustProxyHeaders, time.Now, h)
 	}
@@ -174,7 +175,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	mux.Handle("POST /admin/farm-limits", can(domain.PermFarmLimitSet, handleAdminSetFarmLimit(deps.AdminSetFarmLimit, journal, deps.Storage)))
 
 	mux.Handle("GET /admin/farms", can(domain.PermFarmsRead, handleAdminListFarms(deps.AdminListFarms, deps.AdminFarmQueueCounts, deps.Storage)))
-	mux.Handle("GET /admin/farms/{id}", can(domain.PermFarmsRead, handleAdminGetFarm(deps.AdminGetFarm, journal, deps.Storage)))
+	mux.Handle("GET /admin/farms/{id}", can(domain.PermFarmsRead, handleAdminGetFarm(deps.AdminGetFarm, journal, deps.Storage, deps.Catalog)))
 	mux.Handle("POST /admin/farms/{id}/review", can(domain.PermFarmsReview, handleAdminReviewFarm(deps.ReviewFarm, journal)))
 
 	mux.Handle("GET /admin/cycles", can(domain.PermCatalogRead, handleAdminListCycles(deps.AdminListCycles)))

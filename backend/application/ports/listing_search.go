@@ -19,7 +19,11 @@ type ListingSearchCriteria struct {
 	// Species, CycleTypes and Statuses match any of their values. An
 	// empty Statuses means the cycles open for reservation (planned and
 	// in progress) — except for an IDs lookup, which shows every status.
-	Species    []string
+	Species []string
+	// Categories are catalog category keys: SearchListings turns each
+	// into its sub-categories (unless Species already narrows it) before
+	// the repository sees the criteria.
+	Categories []string
 	CycleTypes []string
 	Statuses   []domain.CycleStatus
 	// Country and Region match the farm's exactly (see domain.Farm).

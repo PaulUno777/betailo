@@ -7,12 +7,14 @@ package forum
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
@@ -21,6 +23,8 @@ import (
 type CreatePost struct {
 	Forum ports.ForumRepository
 	Clock ports.Clock
+	// Catalog holds the categories a post can be filed under.
+	Catalog ports.CatalogSource
 }
 
 type CreatePostInput struct {
@@ -34,6 +38,13 @@ type CreatePostInput struct {
 func (uc *CreatePost) Execute(ctx context.Context, in CreatePostInput) (*domain.ForumPost, error) {
 	if in.Category == "" || in.Title == "" || in.Body == "" {
 		return nil, domain.Coded("forum.post_required", fmt.Errorf("forum: category, title and body are required: %w", domain.ErrInvalid))
+	}
+	cat, err := catalog.Of(ctx, uc.Catalog)
+	if err != nil {
+		return nil, err
+	}
+	if !slices.Contains(domain.ActiveKeys(cat.ForumCategories), in.Category) {
+		return nil, domain.Coded("forum.category_unknown", fmt.Errorf("forum: unknown category %q: %w", in.Category, domain.ErrInvalid))
 	}
 	p := &domain.ForumPost{
 		ID: bson.NewObjectID(), AuthorID: in.AuthorID, Category: in.Category,

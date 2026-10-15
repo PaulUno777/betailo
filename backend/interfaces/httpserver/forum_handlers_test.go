@@ -11,14 +11,19 @@ func TestForum_HTTP_PostReplyAndMarkBestAnswer(t *testing.T) {
 	replierToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
 	postRec := doJSON(t, router, http.MethodPost, "/forum/posts", createForumPostRequest{
-		Category: "sanitaire", Title: "Calendrier de vaccination ?", Body: "500 poulets, quel calendrier ?",
+		Category: "sante", Title: "Calendrier de vaccination ?", Body: "500 poulets, quel calendrier ?",
 	}, authorToken)
 	if postRec.Code != http.StatusCreated {
 		t.Fatalf("create post status = %d, want %d; body = %s", postRec.Code, http.StatusCreated, postRec.Body.String())
 	}
 	post := decodeJSON[forumPostResponse](t, postRec)
 
-	listRec := doJSON(t, router, http.MethodGet, "/forum/posts?category=sanitaire", nil, "")
+	odd := doJSON(t, router, http.MethodPost, "/forum/posts", createForumPostRequest{Category: "n'importe quoi", Title: "Titre", Body: "Texte"}, authorToken)
+	if odd.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, odd).Code != "forum.category_unknown" {
+		t.Errorf("unlisted category: status = %d, body = %s; want 400 forum.category_unknown", odd.Code, odd.Body.String())
+	}
+
+	listRec := doJSON(t, router, http.MethodGet, "/forum/posts?category=sante", nil, "")
 	if listRec.Code != http.StatusOK {
 		t.Fatalf("list posts status = %d, want %d", listRec.Code, http.StatusOK)
 	}

@@ -94,7 +94,7 @@ func handleSearchListings(uc *listing.SearchListings, storage ports.ObjectStorag
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		criteria := ports.ListingSearchCriteria{
-			Species: listParam(q, "species"), CycleTypes: listParam(q, "cycleType"),
+			Species: listParam(q, "species"), Categories: listParam(q, "category"), CycleTypes: listParam(q, "cycleType"),
 			Country: strings.ToUpper(strings.TrimSpace(q.Get("country"))), Region: strings.TrimSpace(q.Get("region")),
 			MinPrice: parseFloatOr(q.Get("minPrice"), 0), MaxPrice: parseFloatOr(q.Get("maxPrice"), 0),
 			VerifiedOnly: q.Get("verifiedOnly") == "true",

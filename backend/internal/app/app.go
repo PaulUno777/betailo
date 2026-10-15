@@ -27,6 +27,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/account"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
 	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
@@ -109,6 +110,10 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	notifications := &mongodb.NotificationRepository{Coll: database.Collection("notifications")}
 	favorites := &mongodb.FavoriteRepository{Coll: database.Collection("favorites")}
 	counters := &mongodb.CounterRepository{Coll: database.Collection("counters")}
+	catalogRepo := &mongodb.CatalogRepository{Coll: database.Collection("catalog_versions")}
+	// The reference data in force, re-read at most every 30s so a
+	// publish on another instance is picked up.
+	catalogSource := &catalog.Cache{Repo: catalogRepo, TTL: 30 * time.Second}
 	reports.Sequencer = counters
 	txManager := &mongodb.TxManager{Client: client}
 	hasher := security.BcryptHasher{}
@@ -200,12 +205,13 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	createReview := &review.CreateReview{
 		Reservations: reservations, Listings: listings, Cycles: cycles, Farms: farms, Reviews: reviews, Trust: trustRecompute,
 		Clock: systemClock, Notifications: notifications,
+		Catalog: catalogSource,
 	}
 	listFarmReviews := &review.ListByFarm{Reviews: reviews, Store: reviews, Users: users, Reservations: reservations}
 
 	createReport := &report.CreateReport{Reports: reports, Listings: listings, Clock: systemClock}
 
-	createForumPost := &forum.CreatePost{Forum: forumPosts, Clock: systemClock}
+	createForumPost := &forum.CreatePost{Forum: forumPosts, Clock: systemClock, Catalog: catalogSource}
 	listForumPosts := &forum.ListPosts{Forum: forumPosts}
 	getForumPost := &forum.GetPost{Forum: forumPosts}
 	addForumReply := &forum.AddReply{Forum: forumPosts, Clock: systemClock, Notifications: notifications}
@@ -290,11 +296,12 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			PresignAvatar:    &account.PresignAvatar{Storage: storageProvider},
 			SetAvatar:        &account.SetAvatar{Users: users},
 			People:           &people.Directory{Users: users},
+			Catalog:          catalogSource,
 			ChangePassword:   &auth.ChangePassword{Users: users, Hasher: hasher, RefreshTokens: refreshTokens, Clock: systemClock},
 			SellerAccess:     &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms},
 			RateLimits:       httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
-			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, Trust: trustRecompute, Clock: systemClock, Sequencer: counters},
+			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, Trust: trustRecompute, Clock: systemClock, Sequencer: counters, Catalog: catalogSource},
 			GetFarmProfile: &farm.GetProfile{
 				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
 			},
@@ -302,7 +309,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			MyFarmCards: &farm.MyFarmCards{
 				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
 			},
-			UpdateFarm: &farm.UpdateFarm{Farms: farms},
+			UpdateFarm: &farm.UpdateFarm{Farms: farms, Catalog: catalogSource},
 			DeleteFarm: &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
 			PresignFarmProof:       &farm.PresignFarmProof{Farms: farms, Storage: storageProvider},
@@ -310,7 +317,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			SubmitFarmForReview: &farm.SubmitFarmForReview{
 				Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock, AutoApprove: autoApproveFarms,
 			},
-			ReviewFarm: &farm.ReviewFarm{Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock},
+			ReviewFarm: &farm.ReviewFarm{Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock, Catalog: catalogSource},
 
 			CreateCycle: &cycle.CreateCycle{Farms: farms, Cycles: cycles, Sequencer: counters},
 			GetCycle:    &cycle.GetCycle{Cycles: cycles, Clock: systemClock},
@@ -324,10 +331,10 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 
 			CreateListing:      &listing.CreateListing{Farms: farms, Cycles: cycles, Listings: listings},
 			GetListing:         &listing.GetListing{Listings: listings, Cycles: cycles, Farms: farms},
-			QuickCreateListing: &listing.QuickCreate{Farms: farms, Cycles: cycles, Listings: listings, Sequencer: counters, Tx: txManager, Clock: systemClock},
+			QuickCreateListing: &listing.QuickCreate{Farms: farms, Cycles: cycles, Listings: listings, Sequencer: counters, Tx: txManager, Clock: systemClock, Catalog: catalogSource},
 			PublishListing:     &listing.Publish{Farms: farms, Cycles: cycles, Listings: listings},
 			ListFarmListings:   &listing.ListFarmListings{Farms: farms, Cycles: cycles, Listings: listings, Reservations: reservations},
-			PriceHint:          &listing.PriceHint{Search: listings},
+			PriceHint:          &listing.PriceHint{Search: listings, Catalog: catalogSource},
 			UpdateCycle:        &cycle.UpdateCycle{Farms: farms, Cycles: cycles, Editor: cycles},
 			GetListingDetail: &listing.GetDetail{
 				Listings: listings, Cycles: cycles, Farms: farms, Users: users, Reviews: reviews,
@@ -337,7 +344,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			UnpublishListing:         &listing.UnpublishListing{Farms: farms, Cycles: cycles, Listings: listings},
 			PresignListingPhoto:      &listing.PresignListingPhoto{Farms: farms, Cycles: cycles, Listings: listings, Storage: storageProvider},
 			SetListingPhotos:         &listing.SetListingPhotos{Farms: farms, Cycles: cycles, Listings: listings},
-			SearchListings:           &listing.SearchListings{Search: listings, Favorites: favorites},
+			SearchListings:           &listing.SearchListings{Search: listings, Favorites: favorites, Catalog: catalogSource},
 			ListNotifications:        &inbox.List{Inbox: notifications},
 			UnreadNotifications:      &inbox.UnreadCount{Inbox: notifications},
 			MarkNotificationRead:     &inbox.MarkRead{Inbox: notifications, Clock: systemClock},
@@ -439,6 +446,11 @@ func (a *Application) Bootstrap(ctx context.Context) error {
 		return err
 	}
 	if err := mongodb.BackfillReferences(ctx, a.mongoDatabase); err != nil {
+		return err
+	}
+	// The lists the platform shipped with become version 1 of the
+	// reference data on a database that has none yet.
+	if err := catalog.EnsureSeed(ctx, &mongodb.CatalogRepository{Coll: a.mongoDatabase.Collection("catalog_versions")}, time.Now()); err != nil {
 		return err
 	}
 	if n, err := mongodb.BackfillFarmPlaces(ctx, a.mongoDatabase); err != nil {

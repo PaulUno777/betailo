@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/application/usecase/notify"
 	"github.com/pauluno777/betailo/backend/domain"
 )
@@ -216,6 +217,8 @@ type ReviewFarm struct {
 	Trust         ports.TrustRecomputer
 	Notifications ports.NotificationRepository
 	Clock         ports.Clock
+	// Catalog holds the review checklist the saved checks come from.
+	Catalog ports.CatalogSource
 }
 
 type ReviewFarmInput struct {
@@ -289,7 +292,11 @@ func (uc *ReviewFarm) Execute(ctx context.Context, in ReviewFarmInput) (*domain.
 	f.Verification.AutoApproved = false
 	f.Verification.RejectionCode = code
 	f.Verification.RejectionReason = reason
-	f.Verification.Checks = domain.ValidFarmReviewChecks(in.Checks)
+	cat, err := catalog.Of(ctx, uc.Catalog)
+	if err != nil {
+		return nil, err
+	}
+	f.Verification.Checks = domain.ValidFarmReviewChecks(in.Checks, domain.ActiveKeys(cat.FarmReviewChecks))
 	if err := uc.Farms.Update(ctx, f); err != nil {
 		return nil, err
 	}

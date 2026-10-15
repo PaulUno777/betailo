@@ -64,7 +64,7 @@ func TestNotifications_HTTP_ForumReplyTellsTheAuthorButNotYourself(t *testing.T)
 	replierToken, _ := registerAndLogin(t, router, uniqueEmail("replier"), "buyer")
 
 	post := decodeJSON[forumPostResponse](t, doJSON(t, router, http.MethodPost, "/forum/posts", createForumPostRequest{
-		Category: "Sanitaire", Title: "Vaccin Newcastle", Body: "Quel calendrier ?",
+		Category: "sante", Title: "Vaccin Newcastle", Body: "Quel calendrier ?",
 	}, authorToken))
 
 	doJSON(t, router, http.MethodPost, "/forum/posts/"+post.ID+"/replies", map[string]string{"body": "Je réponds à moi-même"}, authorToken)
