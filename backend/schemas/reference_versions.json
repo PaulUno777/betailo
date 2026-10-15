@@ -1,0 +1,14 @@
+{
+  "bsonType": "object",
+  "required": ["_id", "name", "version", "content", "publishedAt"],
+  "properties": {
+    "_id": { "bsonType": "string", "description": "<reference>:<version>, so a version number is taken once" },
+    "name": { "enum": ["animals", "places", "forumCategories", "reviewTags", "reportReasons", "farmReviewChecks"] },
+    "version": { "bsonType": ["int", "long"], "minimum": 1 },
+    "note": { "bsonType": "string", "maxLength": 300 },
+    "publishedBy": { "bsonType": "objectId" },
+    "publishedAt": { "bsonType": "date" },
+    "seedRevision": { "bsonType": ["int", "long"], "minimum": 1 },
+    "content": { "bsonType": "string", "description": "the reference's content as JSON, exactly as published" }
+  }
+}

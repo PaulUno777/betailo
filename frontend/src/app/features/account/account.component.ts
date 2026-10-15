@@ -231,7 +231,7 @@ export class AccountComponent {
       { route: '/notifications', labelKey: 'nav.notifications', icon: 'bell' }
     ];
     if (this.seller.hasFarm()) {
-      base.push({ route: '/portal/farms', labelKey: 'account.myFarms', icon: 'home' });
+      base.push({ route: '/portal/farms', labelKey: 'account.myFarms', icon: 'farm' });
     }
     return base;
   });

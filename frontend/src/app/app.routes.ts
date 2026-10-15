@@ -51,6 +51,11 @@ export const routes: Routes = [
         canActivate: [authGuard]
       },
       {
+        path: 'terms',
+        loadComponent: () => import('./features/legal/terms.component').then((m) => m.TermsComponent)
+      },
+      { path: 'cgu', redirectTo: 'terms' },
+      {
         path: 'forum',
         loadComponent: () => import('./features/forum/forum-list.component').then((m) => m.ForumListComponent)
       },
@@ -219,10 +224,37 @@ export const routes: Routes = [
         loadComponent: () => import('./features/admin/admin-staff.component').then((m) => m.AdminStaffComponent),
         canActivate: [permissionGuard('staff.manage')]
       },
+      // Settings was folded away: its switches show on the overview and
+      // the team page, and what can be edited is the reference data.
+      { path: 'settings', redirectTo: 'reference' },
       {
-        path: 'settings',
-        loadComponent: () => import('./features/admin/admin-settings.component').then((m) => m.AdminSettingsComponent),
-        canActivate: [permissionGuard('staff.manage')]
+        // One route per resource, each loaded when opened.
+        path: 'reference',
+        loadComponent: () => import('./features/admin/admin-reference.component').then((m) => m.AdminReferenceComponent),
+        canActivate: [permissionGuard('reference.manage')],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'categories' },
+          {
+            path: 'categories',
+            loadComponent: () => import('./features/admin/reference/categories-view.component').then((m) => m.CategoriesViewComponent)
+          },
+          {
+            path: 'places',
+            loadComponent: () => import('./features/admin/reference/places-view.component').then((m) => m.PlacesViewComponent)
+          },
+          {
+            path: 'lists',
+            loadComponent: () => import('./features/admin/reference/lists-view.component').then((m) => m.ListsViewComponent)
+          },
+          {
+            path: 'history',
+            loadComponent: () => import('./features/admin/reference/history-view.component').then((m) => m.HistoryViewComponent)
+          },
+          {
+            path: 'advanced',
+            loadComponent: () => import('./features/admin/reference/advanced-view.component').then((m) => m.AdvancedViewComponent)
+          }
+        ]
       },
       {
         path: 'audit',

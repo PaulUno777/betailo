@@ -14,6 +14,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/account"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
+	catalogusecase "github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
 	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
@@ -174,6 +175,7 @@ func (f *fakeRefreshTokenRepo) RevokeAllForUser(_ context.Context, userID bson.O
 // itself refuses the admin role, on purpose — see
 // TestRegister_HTTP_RejectsAdminRole).
 type testFakes struct {
+	catalogVersions *fakeCatalogRepo
 	// createFarm and submitFarm are exposed so a test can turn the
 	// production settings on: tf.createFarm.MaxFarms = 1,
 	// tf.submitFarm.AutoApprove = true.
@@ -260,7 +262,8 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 	tf := &testFakes{
 		users: newFakeUserRepo(), refreshTokens: newFakeRefreshTokenRepo(), farms: newFakeFarmRepo(), audit: &fakeAuditLog{}, cycles: newFakeCycleStore(),
 		listings: newFakeListingStore(), reservations: newFakeReservationRepo(),
-		reviews: newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(), sequencer: &fakeSequencer{}, notifications: &fakeNotificationRepo{},
+		catalogVersions: &fakeCatalogRepo{},
+		reviews:         newFakeReviewRepo(), reports: newFakeReportRepo(), forumPosts: newFakeForumRepo(), favorites: newFakeFavoriteRepo(), sequencer: &fakeSequencer{}, notifications: &fakeNotificationRepo{},
 		signer: &jwt.Signer{Secret: []byte("test-secret-do-not-use-in-production")},
 		clock:  clock.System{},
 	}
@@ -438,6 +441,12 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Reservations: tf.reservations, Payments: payments, Clock: tf.clock, Parties: parties, Notifications: tf.notifications,
 		},
 		AdminListReports: &admin.ListReports{Reports: tf.reports},
+		CatalogVersions:  tf.catalogVersions,
+		CatalogChangeset: &catalogusecase.Changeset{
+			Versions: tf.catalogVersions, Pending: &fakeChangesetRepo{}, Clock: tf.clock,
+			Publish: &catalogusecase.Publish{Repo: tf.catalogVersions, Clock: tf.clock},
+		},
+		CatalogUsage: fakeUsage{"species:poussins": 4},
 		AdminGetReportDetail: &admin.GetReportDetail{
 			Reports: tf.reports, Users: tf.users, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms,
 			Search: search, Clock: tf.clock,

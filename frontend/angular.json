@@ -32,7 +32,14 @@
             "styles": [
               "src/styles.css"
             ],
-            "scripts": []
+            "scripts": [],
+            "allowedCommonJsDependencies": [
+              "ajv",
+              "ajv/dist/2020",
+              "fast-deep-equal",
+              "fast-uri",
+              "json-schema-traverse"
+            ]
           },
           "configurations": {
             "production": {

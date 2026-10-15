@@ -50,6 +50,8 @@ const (
 	ActionStaffInvite     = "staff.invite"
 	// ActionStaffInviteCancel withdraws a pending invitation.
 	ActionStaffInviteCancel = "staff.invite_cancel"
+	// ActionCatalogPublish publishes a new version of the reference data.
+	ActionCatalogPublish = "catalog.publish"
 )
 
 // MaxAuditDetailLen bounds AdminAction.Detail.

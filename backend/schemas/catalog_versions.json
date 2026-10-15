@@ -6,6 +6,7 @@
     "note": { "bsonType": "string", "maxLength": 300 },
     "publishedBy": { "bsonType": "objectId" },
     "publishedAt": { "bsonType": "date" },
+    "seedRevision": { "bsonType": ["int", "long"], "minimum": 1, "description": "the catalog_seed.json revision it came from" },
     "content": { "bsonType": "string", "description": "the catalog's lists as JSON, exactly as published" }
   }
 }

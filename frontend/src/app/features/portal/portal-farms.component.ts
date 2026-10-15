@@ -8,6 +8,7 @@ import { apiResource } from '../../core/http/api-resource';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { ToastService } from '../../core/notifications/toast.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { PlacePipe } from '../../core/i18n/place.pipe';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { AppError } from '../../core/http/app-error';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
@@ -29,7 +30,7 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
  * a short-lived link only its owner gets. */
 @Component({
   selector: 'bt-portal-farms',
-  imports: [RouterLink, ButtonComponent, DialogComponent, IconComponent, StatusBadgeComponent, FarmProofFormComponent, SellerOnboardingComponent, LocalDatePipe, TranslatePipe],
+  imports: [RouterLink, ButtonComponent, DialogComponent, IconComponent, StatusBadgeComponent, FarmProofFormComponent, SellerOnboardingComponent, LocalDatePipe, TranslatePipe, PlacePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-6 p-4 sm:p-8 lg:px-10">
@@ -104,7 +105,7 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
                 }
               </div>
               <span class="wrap-anywhere text-small text-ink-muted">
-                {{ farm.location }}{{ farm.region ? ', ' + farm.region : '' }}
+                {{ farm.location | place }}{{ farm.region ? ', ' + (farm.region | place) : '' }}
                 @for (s of farm.species ?? []; track s) {
                   · {{ speciesKey(s) | t }}
                 }

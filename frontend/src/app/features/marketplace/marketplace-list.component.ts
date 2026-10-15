@@ -1,13 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { NgTemplateOutlet } from '@angular/common';
+import { ActivatedRoute, NavigationStart, ParamMap, Router } from '@angular/router';
+import { Location, NgTemplateOutlet, ViewportScroller } from '@angular/common';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, skip } from 'rxjs';
 import { ListingSearchParams, ListingSearchResult, MarketplaceListing, SearchFacets } from '../../domain/models';
-import { categoryLabelKey, isSpecies, speciesGroups, speciesLabelKey, speciesOf } from '../../domain/reference/species';
+import { categoryLabelKey, isSpecies, speciesGroups, speciesIcon, speciesLabelKey, speciesOf } from '../../domain/reference/species';
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
-import { countryName } from '../../domain/reference/countries';
+import { countryName, placeLabelKey } from '../../domain/reference/countries';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -15,9 +15,11 @@ import { apiResource } from '../../core/http/api-resource';
 import { ListingCardComponent } from '../../shared/ui/listing-card/listing-card.component';
 import { SelectFieldComponent, SelectOption } from '../../shared/ui/select-field/select-field.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { AnimalIconComponent } from '../../shared/ui/animal-icon/animal-icon.component';
 import { BottomSheetComponent } from '../../shared/ui/bottom-sheet/bottom-sheet.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { PriceRangeComponent, PriceRangeValue } from '../../shared/ui/price-range/price-range.component';
+import { mediaQuery } from '../../shared/layout/media-query';
 
 // Must match the backend's ports.ListingSort* constants verbatim.
 const SORT_VALUES = ['availability', 'recent', 'rating', 'price_asc', 'price_desc'] as const;
@@ -34,6 +36,9 @@ const SORT_LABEL_KEYS: Readonly<Record<SortValue, string>> = {
 const OPEN_STATUSES = ['planned', 'in_progress'] as const;
 
 const PAGE_SIZE = 12;
+/** Coming back with `?page=N` refetches pages 1..N in one request, up to
+ * this many results (the API allows 100). */
+const MAX_RESTORE_SIZE = 96;
 const SEARCH_DEBOUNCE_MS = 300;
 const AVAILABILITY_MONTHS = 6;
 
@@ -44,8 +49,10 @@ interface Filters {
   species: string[];
   cycleTypes: string[];
   statuses: string[];
-  /** `CM|Ouest`: a region is only unique within its country. */
+  /** `CM|ouest`: a region is only unique within its country. */
   place: string;
+  /** A town key within `place`'s region. */
+  city: string;
   /** `2026-10`: lots open at some point that month. */
   available: string;
   minPrice: number | null;
@@ -61,6 +68,7 @@ const EMPTY_FILTERS: Filters = {
   cycleTypes: [],
   statuses: [],
   place: '',
+  city: '',
   available: '',
   minPrice: null,
   maxPrice: null,
@@ -75,7 +83,10 @@ interface ActiveChip {
   readonly remove: Partial<Filters>;
 }
 
-const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], regions: [], priceMin: 0, priceMax: 0 };
+const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], regions: [], cities: [], priceMin: 0, priceMax: 0 };
+
+/** Where a category stands in the filter: whole, some of its kinds, none. */
+type CategoryState = 'all' | 'some' | 'none';
 
 /** The marketplace, per the design: a search, the active filters as
  * removable chips, and the filters themselves — species (with how many
@@ -97,6 +108,7 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
     ListingCardComponent,
     SelectFieldComponent,
     IconComponent,
+    AnimalIconComponent,
     BottomSheetComponent,
     ButtonComponent,
     PriceRangeComponent,
@@ -153,7 +165,8 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
       <div class="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 lg:hidden" role="group" [attr.aria-label]="'marketplace.speciesLabel' | t">
         <button type="button" [attr.aria-pressed]="!anyAnimalFilter()" [class]="chipClass(!anyAnimalFilter())" (click)="patch({ categories: [], species: [] })">{{ 'marketplace.allChip' | t }}</button>
         @for (cat of categoryOptions(); track cat.value) {
-          <button type="button" [attr.aria-pressed]="filters().categories.includes(cat.value)" [class]="chipClass(filters().categories.includes(cat.value))" (click)="toggleCategory(cat.value)">
+          <button type="button" [attr.aria-pressed]="cat.state !== 'none'" [class]="chipClass(cat.state !== 'none')" (click)="toggleCategory(cat.value)">
+            <bt-animal-icon [name]="cat.icon" [size]="20" />
             {{ cat.label }}
           </button>
         }
@@ -214,23 +227,32 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
               }
             </div>
           } @else {
-            <div class="flex flex-col gap-3 sm:hidden">
+            <!-- One list, laid out for the screen: rows on phones, a grid
+                 from sm up. Rendering both and hiding one with CSS would
+                 build every card twice. -->
+            <div [class]="isWide() ? 'grid grid-cols-2 gap-5 xl:grid-cols-3' : 'flex flex-col gap-3'">
               @for (item of items(); track item.listing.id) {
-                <bt-listing-card [item]="item" layout="row" />
+                <bt-listing-card [item]="item" [layout]="isWide() ? 'tile' : 'row'" />
+              }
+              @if (loadingMore()) {
+                @for (i of moreSkeletons; track i) {
+                  <div aria-hidden="true" class="animate-pulse rounded-lg bg-surface-sunken" [class]="isWide() ? 'h-[380px]' : 'h-[148px]'"></div>
+                }
               }
             </div>
-            <div class="hidden gap-5 sm:grid sm:grid-cols-2 xl:grid-cols-3">
-              @for (item of items(); track item.listing.id) {
-                <bt-listing-card [item]="item" />
-              }
-            </div>
-            @if (hasMore()) {
-              <div class="mt-6 flex justify-center">
-                <bt-button variant="outline" [disabled]="result.isLoading()" (click)="page.set(page() + 1)">
-                  {{ (result.isLoading() ? 'common.loading' : 'marketplace.loadMore') | t }}
+            <!-- More loads only on request: buyers on metered data pay
+                 for what they ask to see, and the footer stays reachable. -->
+            <div class="mt-6 flex flex-col items-center gap-3">
+              <p class="text-small text-ink-muted" role="status">{{ 'marketplace.shownCount' | t: { shown: items().length, total: total() } }}</p>
+              @if (hasMore()) {
+                @if (result.error()) {
+                  <p class="text-small text-alert">{{ 'marketplace.loadMoreFailed' | t }}</p>
+                }
+                <bt-button variant="outline" [disabled]="result.isLoading()" (click)="loadMore()">
+                  {{ (result.isLoading() ? 'common.loading' : result.error() ? 'common.retry' : 'marketplace.loadMore') | t }}
                 </bt-button>
-              </div>
-            }
+              }
+            </div>
           }
         </section>
       </div>
@@ -251,34 +273,54 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
 
     <ng-template #filterFields>
       <div class="flex flex-col gap-6">
-        <fieldset class="flex flex-col gap-1">
+        <fieldset class="flex flex-col gap-0.5">
           <legend class="mb-2 text-eyebrow text-ink-muted">{{ 'marketplace.speciesLabel' | t }}</legend>
-          <!-- A category, and once it's picked (or one of its kinds is), its kinds to narrow it. -->
+          <!-- Each category checks as a whole (all its kinds), or partly
+               when some kinds are picked; the chevron shows its kinds. -->
           @for (cat of categoryOptions(); track cat.value) {
-            <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1 text-body hover:bg-surface-sunken" [class.opacity-50]="!cat.count && !cat.open">
-              <input
-                type="checkbox"
-                [checked]="filters().categories.includes(cat.value)"
-                (change)="toggleCategory(cat.value)"
-                class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest"
-              />
-              <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="cat.dot"></span>
-              <span class="flex-1 font-semibold">{{ cat.label }}</span>
-              <span class="font-mono text-small text-ink-muted">{{ cat.count }}</span>
-            </label>
-            @if (cat.open) {
-              @for (opt of cat.species; track opt.value) {
-                <label class="ml-8 flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-1 text-small hover:bg-surface-sunken" [class.opacity-50]="!opt.count && !filters().species.includes(opt.value)">
-                  <input
-                    type="checkbox"
-                    [checked]="filters().species.includes(opt.value)"
-                    (change)="toggle('species', opt.value)"
-                    class="h-[18px] w-[18px] shrink-0 rounded border-line-strong accent-forest"
-                  />
-                  <span class="flex-1">{{ opt.label }}</span>
-                  <span class="font-mono text-caption text-ink-muted">{{ opt.count }}</span>
-                </label>
-              }
+            <div class="flex min-h-11 items-center rounded-md hover:bg-surface-sunken" [class.opacity-50]="!cat.count && cat.state === 'none'">
+              <label class="flex flex-1 cursor-pointer items-center gap-3 px-1 py-1">
+                <input
+                  type="checkbox"
+                  [checked]="cat.state === 'all'"
+                  [indeterminate]="cat.state === 'some'"
+                  (change)="toggleCategory(cat.value, cat.expanded)"
+                  class="h-5 w-5 shrink-0 rounded border-line-strong accent-forest"
+                />
+                <bt-animal-icon [name]="cat.icon" [size]="26" class="text-forest" />
+                <span class="flex-1 font-semibold">{{ cat.label }}</span>
+                <span class="font-mono text-small text-ink-muted">{{ cat.count }}</span>
+              </label>
+              <button
+                type="button"
+                (click)="toggleExpanded(cat.value, cat.expanded)"
+                [attr.aria-expanded]="cat.expanded"
+                [attr.aria-controls]="'kinds-' + cat.value"
+                [attr.aria-label]="(cat.expanded ? 'marketplace.hideKinds' : 'marketplace.showKinds') | t: { category: cat.label }"
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-muted hover:text-ink"
+              >
+                <bt-icon name="chevron-down" [size]="18" class="transition-transform" [class.rotate-180]="cat.expanded" />
+              </button>
+            </div>
+            @if (cat.expanded) {
+              <div [id]="'kinds-' + cat.value" role="group" [attr.aria-label]="cat.label" class="mb-1 ml-3.5 flex flex-col border-l-2 border-line pl-3">
+                @for (opt of cat.species; track opt.value) {
+                  <label
+                    class="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-1 text-small hover:bg-surface-sunken"
+                    [class.opacity-50]="!opt.count && !opt.checked"
+                  >
+                    <input
+                      type="checkbox"
+                      [checked]="opt.checked"
+                      (change)="toggleSpecies(cat.value, opt.value)"
+                      class="h-[18px] w-[18px] shrink-0 rounded border-line-strong accent-forest"
+                    />
+                    <bt-animal-icon [name]="opt.icon" [size]="20" class="text-ink-muted" />
+                    <span class="flex-1">{{ opt.label }}</span>
+                    <span class="font-mono text-caption text-ink-muted">{{ opt.count }}</span>
+                  </label>
+                }
+              </div>
             }
           }
           @for (opt of otherSpecies(); track opt.value) {
@@ -308,8 +350,18 @@ const EMPTY_FACETS: SearchFacets = { species: [], cycleTypes: [], statuses: [], 
           [options]="regionOptions()"
           [placeholder]="'marketplace.allRegions' | t"
           [ngModel]="filters().place"
-          (ngModelChange)="patch({ place: $event })"
+          (ngModelChange)="patch({ place: $event, city: '' })"
         />
+
+        @if (filters().place && cityOptions().length) {
+          <bt-select-field
+            [label]="'marketplace.townLabel' | t"
+            [options]="cityOptions()"
+            [placeholder]="'marketplace.allTowns' | t"
+            [ngModel]="filters().city"
+            (ngModelChange)="patch({ city: $event })"
+          />
+        }
 
         <bt-select-field
           [label]="'marketplace.availableLabel' | t"
@@ -367,8 +419,21 @@ export class MarketplaceListComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly locale = inject(LocaleService);
+  private readonly scroller = inject(ViewportScroller);
+  private readonly location = inject(Location);
+  private readonly injector = inject(Injector);
+
+  /** Where to scroll once the results are on screen, when coming back
+   * (browser back) to a search left for a listing. The router's own
+   * restoration runs before the results arrive, on a page too short to
+   * reach it. */
+  private readonly pendingScroll = signal<number | null>(
+    this.router.currentNavigation()?.trigger === 'popstate' ? (savedScroll.get(currentUrl()) ?? null) : null
+  );
 
   protected readonly skeletons = [1, 2, 3, 4, 5, 6];
+  protected readonly moreSkeletons = [1, 2, 3];
+  protected readonly isWide = mediaQuery('(min-width: 640px)');
 
   protected readonly sortOptions = computed(() =>
     SORT_VALUES.map((value) => ({ value, label: this.locale.t(SORT_LABEL_KEYS[value]) }))
@@ -386,7 +451,19 @@ export class MarketplaceListComponent {
   );
 
   /** Back to page 1 whenever any filter changes. */
-  protected readonly page = linkedSignal({ source: this.filters, computation: () => 1 });
+  protected readonly page = linkedSignal<Filters, number>({
+    source: this.filters,
+    computation: (_, previous) => (previous ? 1 : this.pageFromUrl())
+  });
+
+  /** Coming back from a listing with `?page=3`: the first request fetches
+   * pages 1 to 3 at once so the list is as long as the reader left it and
+   * the router can restore the scroll position. Later pages load as
+   * usual; a filter change drops it. */
+  private readonly restorePages = linkedSignal<Filters, number>({
+    source: this.filters,
+    computation: (_, previous) => (previous ? 1 : this.pageFromUrl())
+  });
 
   private readonly params = computed<ListingSearchParams>(() => {
     const f = this.filters();
@@ -399,14 +476,23 @@ export class MarketplaceListComponent {
       status: f.statuses.join(',') || undefined,
       country: country || undefined,
       region: region || undefined,
+      city: f.city || undefined,
       available: f.available || undefined,
       minPrice: f.minPrice ?? undefined,
       maxPrice: f.maxPrice ?? undefined,
       verifiedOnly: f.verifiedOnly || undefined,
       sort: f.sort,
-      page: this.page(),
-      pageSize: PAGE_SIZE
+      ...this.pageParams()
     };
+  });
+
+  private readonly pageParams = computed(() => {
+    const page = this.page();
+    const restore = this.restorePages();
+    if (page === restore && restore > 1) {
+      return { page: 1, pageSize: Math.min(restore * PAGE_SIZE, MAX_RESTORE_SIZE) };
+    }
+    return { page, pageSize: PAGE_SIZE };
   });
 
   protected readonly result = apiResource<ListingSearchResult>(() => this.listingsApi.searchUrl(this.params()));
@@ -429,6 +515,8 @@ export class MarketplaceListComponent {
     computation: (total, previous) => total ?? previous?.value ?? 0
   });
   protected readonly hasMore = computed(() => this.items().length < this.total());
+  /** A next page is on its way: skeletons follow the cards. */
+  protected readonly loadingMore = computed(() => this.result.isLoading() && this.items().length > 0);
 
   /** The last facets, kept while the next search loads. */
   private readonly facets = linkedSignal<SearchFacets | undefined, SearchFacets>({
@@ -436,20 +524,34 @@ export class MarketplaceListComponent {
     computation: (facets, previous) => facets ?? previous?.value ?? EMPTY_FACETS
   });
 
-  /** Every category open to sale, its count the sum of its kinds' (0
-   * included so the list never jumps), with its kinds to narrow it. A
-   * category opens once it, or one of its kinds, is picked. */
+  /** Categories the buyer opened or closed with the chevron; the others
+   * are open exactly when some (not all) of their kinds are picked. */
+  private readonly expandedChoice = signal<ReadonlyMap<string, boolean>>(new Map());
+
+  /** Every category open to sale, with the drawing the API gives it, its
+   * count the sum of its kinds' (0 included so the list never jumps),
+   * where it stands (whole, some kinds, none) and its kinds. */
   protected readonly categoryOptions = computed(() => {
     const counts = new Map(this.facets().species.map((f) => [f.value, f.count]));
     const f = this.filters();
+    const expanded = this.expandedChoice();
     return speciesGroups().map((g) => {
-      const species = g.species.map((value) => ({ value, label: this.locale.t(speciesLabelKey(value)), count: counts.get(value) ?? 0 }));
+      const whole = f.categories.includes(g.key);
+      const species = g.species.map((value) => ({
+        value,
+        label: this.locale.t(speciesLabelKey(value)),
+        icon: speciesIcon(value) || g.icon,
+        count: counts.get(value) ?? 0,
+        checked: whole || f.species.includes(value)
+      }));
+      const state: CategoryState = whole ? 'all' : species.some((s) => s.checked) ? 'some' : 'none';
       return {
         value: g.key,
         label: this.locale.t(g.labelKey),
-        dot: g.dot,
+        icon: g.icon,
         count: species.reduce((n, s) => n + s.count, 0),
-        open: f.categories.includes(g.key) || g.species.some((s) => f.species.includes(s)),
+        state,
+        expanded: expanded.get(g.key) ?? state === 'some',
         species
       };
     });
@@ -473,20 +575,34 @@ export class MarketplaceListComponent {
     return OPEN_STATUSES.map((value) => ({ value, label: this.locale.t(STATUS_LABEL_KEYS[value]), count: counts.get(value) ?? 0 }));
   });
 
-  /** Regions that have lots, with their count; prefixed with the
-   * country once the platform spans several. */
+  /** Regions that have lots, with their count, in the reader's
+   * language; prefixed with the country once the platform spans several. */
   protected readonly regionOptions = computed<SelectOption[]>(() => {
     const regions = this.facets().regions;
     const multi = new Set(regions.map((r) => r.country)).size > 1;
     const lang = this.locale.locale();
     const options = regions.map((r) => ({
       value: `${r.country}|${r.region}`,
-      label: `${multi ? countryName(r.country, lang) + ' · ' : ''}${r.region} (${r.count})`
+      label: `${multi ? countryName(r.country, lang) + ' · ' : ''}${this.locale.t(placeLabelKey(r.region))} (${r.count})`
     }));
     // Keep the active region listed even when the other filters leave it empty.
     const place = this.filters().place;
     if (place && !options.some((o) => o.value === place)) {
       options.unshift({ value: place, label: this.placeLabel(place) });
+    }
+    return options;
+  });
+
+  /** The chosen region's towns that have lots, with their count. */
+  protected readonly cityOptions = computed<SelectOption[]>(() => {
+    const [country, region] = this.filters().place.split('|');
+    const options = (this.facets().cities ?? [])
+      .filter((c) => c.country === country && c.region === region)
+      .map((c) => ({ value: c.city, label: `${this.locale.t(placeLabelKey(c.city))} (${c.count})` }));
+    // Keep the active town listed even when the other filters leave it empty.
+    const city = this.filters().city;
+    if (city && !options.some((o) => o.value === city)) {
+      options.unshift({ value: city, label: this.locale.t(placeLabelKey(city)) });
     }
     return options;
   });
@@ -525,7 +641,8 @@ export class MarketplaceListComponent {
     for (const v of f.cycleTypes) {
       chips.push({ id: 't-' + v, label: this.locale.t(cycleTypeLabelKey(v)), remove: { cycleTypes: f.cycleTypes.filter((x) => x !== v) } });
     }
-    if (f.place) chips.push({ id: 'place', label: this.placeLabel(f.place), remove: { place: '' } });
+    if (f.place) chips.push({ id: 'place', label: this.placeLabel(f.place), remove: { place: '', city: '' } });
+    if (f.city) chips.push({ id: 'city', label: this.locale.t(placeLabelKey(f.city)), remove: { city: '' } });
     if (f.available) chips.push({ id: 'available', label: this.monthLabel(f.available, lang), remove: { available: '' } });
     if (f.minPrice !== null || f.maxPrice !== null) {
       const fmt = (n: number) => new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US').format(n);
@@ -547,6 +664,20 @@ export class MarketplaceListComponent {
   protected readonly sortLabelKey = computed(() => SORT_LABEL_KEYS[this.filters().sort]);
 
   constructor() {
+    // Leaving: remember where the reader was in this search.
+    this.router.events
+      .pipe(
+        filter((e) => e instanceof NavigationStart),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => savedScroll.set(currentUrl(), this.scroller.getScrollPosition()[1]));
+    effect(() => {
+      const y = this.pendingScroll();
+      if (y !== null && this.items().length && !this.result.isLoading()) {
+        this.pendingScroll.set(null);
+        afterNextRender(() => this.scroller.scrollToPosition([0, y]), { injector: this.injector });
+      }
+    });
     // A search or species chip in the header while already on this page
     // changes the URL without re-creating the component: follow it. The
     // mirror below writes back the same params, which compare equal.
@@ -564,12 +695,12 @@ export class MarketplaceListComponent {
       }
     });
     // Mirror the filters into the URL (replacing, not pushing, history).
+    let mirrored: Filters | undefined;
     effect(() => {
       const f = this.filters();
       const [country, region] = f.place ? f.place.split('|') : [null, null];
-      this.router.navigate([], {
+      const tree = this.router.createUrlTree([], {
         relativeTo: this.route,
-        replaceUrl: true,
         queryParams: {
           q: f.q || null,
           category: f.categories.join(',') || null,
@@ -578,27 +709,82 @@ export class MarketplaceListComponent {
           status: f.statuses.join(',') || null,
           country: country || null,
           region: region || null,
+          city: f.city || null,
           available: f.available || null,
           minPrice: f.minPrice ?? null,
           maxPrice: f.maxPrice ?? null,
           verified: f.verifiedOnly ? '1' : null,
-          sort: f.sort === 'availability' ? null : f.sort
+          sort: f.sort === 'availability' ? null : f.sort,
+          page: this.page() > 1 ? this.page() : null
         }
       });
+      const url = this.router.serializeUrl(tree);
+      const filtersChanged = f !== mirrored;
+      mirrored = f;
+      // Same URL: the router would skip the navigation but still scroll
+      // to the top.
+      if (url === currentUrl()) return;
+      if (filtersChanged) {
+        this.router.navigateByUrl(tree, { replaceUrl: true });
+      } else {
+        // Only the page moved on: a router navigation would scroll the
+        // reader back to the top mid-list.
+        this.location.replaceState(url, '', this.location.getState());
+      }
     });
+  }
+
+  /** The next page, or the same one again after a failed load. */
+  protected loadMore(): void {
+    if (this.result.error()) {
+      this.result.reload();
+    } else {
+      this.page.update((p) => p + 1);
+    }
   }
 
   protected patch(change: Partial<Filters>): void {
     this.filters.update((f) => ({ ...f, ...change }));
   }
 
-  /** Picks or drops a whole category; dropping it drops its kinds too. */
-  protected toggleCategory(key: string): void {
+  /** Picks a whole category, or drops it with any of its kinds. Picking
+   * it replaces kinds picked inside it: the whole includes them. From
+   * the sidebar, its kinds stay shown or hidden as they were. */
+  protected toggleCategory(key: string, expanded?: boolean): void {
+    if (expanded !== undefined) this.pinExpanded(key, expanded);
     this.filters.update((f) => {
-      if (!f.categories.includes(key)) return { ...f, categories: [...f.categories, key] };
       const inside = speciesOf(key);
-      return { ...f, categories: f.categories.filter((c) => c !== key), species: f.species.filter((s) => !inside.includes(s)) };
+      const species = f.species.filter((s) => !inside.includes(s));
+      return f.categories.includes(key)
+        ? { ...f, categories: f.categories.filter((c) => c !== key), species }
+        : { ...f, categories: [...f.categories, key], species };
     });
+  }
+
+  /** Picks or drops one kind. Dropping one from a whole category keeps
+   * the others; picking the last missing one makes it whole again. */
+  protected toggleSpecies(category: string, value: string): void {
+    this.pinExpanded(category, true);
+    const kinds = speciesGroups().find((g) => g.key === category)?.species ?? [value];
+    this.filters.update((f) => {
+      const others = f.species.filter((s) => !kinds.includes(s));
+      if (f.categories.includes(category)) {
+        return { ...f, categories: f.categories.filter((c) => c !== category), species: [...others, ...kinds.filter((k) => k !== value)] };
+      }
+      const picked = f.species.includes(value) ? f.species.filter((s) => s !== value) : [...f.species, value];
+      if (kinds.every((k) => picked.includes(k))) {
+        return { ...f, categories: [...f.categories, category], species: others };
+      }
+      return { ...f, species: picked };
+    });
+  }
+
+  protected toggleExpanded(category: string, expanded: boolean): void {
+    this.pinExpanded(category, !expanded);
+  }
+
+  private pinExpanded(category: string, expanded: boolean): void {
+    this.expandedChoice.update((m) => new Map(m).set(category, expanded));
   }
 
   protected toggle(key: 'species' | 'cycleTypes' | 'statuses', value: string): void {
@@ -619,7 +805,7 @@ export class MarketplaceListComponent {
 
   protected chipClass(active: boolean): string {
     return (
-      'h-control-md shrink-0 rounded-full border px-4 text-body-strong transition ' +
+      'inline-flex h-control-md shrink-0 items-center gap-2 rounded-full border px-4 text-body-strong transition ' +
       (active ? 'border-forest bg-forest text-on-forest' : 'border-line bg-surface-card text-ink')
     );
   }
@@ -633,8 +819,7 @@ export class MarketplaceListComponent {
 
   private placeLabel(place: string): string {
     const [country, region] = place.split('|');
-    const lang = this.locale.locale();
-    return region ? region : countryName(country, lang);
+    return region ? this.locale.t(placeLabelKey(region)) : countryName(country, this.locale.locale());
   }
 
   private monthLabel(value: string, lang: string): string {
@@ -643,6 +828,11 @@ export class MarketplaceListComponent {
     return this.locale.t('marketplace.availableIn', {
       month: new Intl.DateTimeFormat(lang, { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
     });
+  }
+
+  private pageFromUrl(): number {
+    const n = Number(this.route.snapshot.queryParamMap.get('page'));
+    return Number.isInteger(n) && n > 1 ? Math.min(n, Math.floor(MAX_RESTORE_SIZE / PAGE_SIZE)) : 1;
   }
 
   private filtersFromUrl(p: ParamMap = this.route.snapshot.queryParamMap): Filters {
@@ -654,6 +844,7 @@ export class MarketplaceListComponent {
     };
     const country = p.get('country')?.toUpperCase() ?? '';
     const region = p.get('region') ?? '';
+    const city = p.get('city') ?? '';
     const available = p.get('available') ?? '';
     return {
       q: p.get('q') ?? '',
@@ -662,6 +853,7 @@ export class MarketplaceListComponent {
       cycleTypes: list('cycleType'),
       statuses: list('status').filter((s) => (OPEN_STATUSES as readonly string[]).includes(s)),
       place: region ? `${country || 'CM'}|${region}` : '',
+      city: region ? city : '',
       available: /^\d{4}-\d{2}$/.test(available) ? available : '',
       minPrice: num('minPrice'),
       maxPrice: num('maxPrice'),
@@ -669,6 +861,14 @@ export class MarketplaceListComponent {
       sort: (SORT_VALUES as readonly string[]).includes(sort ?? '') ? (sort as SortValue) : 'availability'
     };
   }
+}
+
+/** Scroll offsets of searches the reader left, by URL, for coming back
+ * with the browser's back button. */
+const savedScroll = new Map<string, number>();
+
+function currentUrl(): string {
+  return location.pathname + location.search;
 }
 
 const STATUS_LABEL_KEYS: Readonly<Record<string, string>> = {

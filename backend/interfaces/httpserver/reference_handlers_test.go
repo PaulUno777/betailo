@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-func TestReference_ServesTheCatalogWithItsVersionAsETag(t *testing.T) {
-	h := handleReference(nil) // nil source: the seed, version 1
+func TestReference_ServesTheCatalogWithItsVersionsAsETag(t *testing.T) {
+	h := handleReference(nil) // nil source: the seed, every reference at version 1
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/reference", nil))
 	out := decodeJSON[struct {
-		Version        int `json:"version"`
+		Versions       map[string]int `json:"versions"`
 		DefaultCountry string
 		Categories     []struct {
 			Key           string
@@ -19,7 +19,7 @@ func TestReference_ServesTheCatalogWithItsVersionAsETag(t *testing.T) {
 		}
 		ForumCategories []struct{ Key string }
 	}](t, rec)
-	if rec.Code != http.StatusOK || out.Version != 1 || out.DefaultCountry != "CM" || len(out.Categories) != 7 || len(out.Categories[0].Subcategories) != 9 || len(out.ForumCategories) == 0 {
+	if rec.Code != http.StatusOK || out.Versions["animals"] != 1 || out.Versions["places"] != 1 || out.DefaultCountry != "CM" || len(out.Categories) != 7 || len(out.Categories[0].Subcategories) != 9 || len(out.ForumCategories) == 0 {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
 

@@ -70,11 +70,11 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 		return nil, domain.Coded("farm.location_required", fmt.Errorf("farm: location is required: %w", domain.ErrInvalid))
 	}
 
-	place, region, err := normalizePlace(ctx, uc.Catalog, in.Country, in.Region)
+	where, err := normalizePlace(ctx, uc.Catalog, in.Country, in.Region, location)
 	if err != nil {
 		return nil, err
 	}
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, place.CallingCode)
+	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, where.Country.CallingCode)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 		Status:    domain.FarmDraft,
 		OwnerID:   in.OwnerID,
 		Name:      name,
-		Location:  location,
-		Country:   place.Code,
-		Region:    region,
+		Location:  where.Town,
+		Country:   where.Country.Code,
+		Region:    where.Region,
 		Species:   in.Species,
 		CreatedAt: uc.Clock.Now(),
 
@@ -109,11 +109,11 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 	}
 
 	if uc.Sequencer != nil {
-		seq, err := uc.Sequencer.Next(ctx, domain.FarmRefPrefix)
+		ref, err := uc.Sequencer.NextReference(ctx, domain.FarmRefPrefix)
 		if err != nil {
 			return nil, err
 		}
-		f.Reference = domain.FormatReference(domain.FarmRefPrefix, seq)
+		f.Reference = ref
 	}
 
 	if err := uc.Farms.Create(ctx, f); err != nil {

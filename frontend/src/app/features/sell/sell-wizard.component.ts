@@ -12,6 +12,7 @@ import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { PlacePipe } from '../../core/i18n/place.pipe';
 import { apiResource } from '../../core/http/api-resource';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
@@ -55,7 +56,7 @@ type Section = 0 | 1 | 2 | 3;
     StickyActionBarComponent,
     TextFieldComponent,
     FcfaCurrencyPipe,
-    TranslatePipe,
+    TranslatePipe, PlacePipe,
     SellerOnboardingComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -187,7 +188,7 @@ type Section = 0 | 1 | 2 | 3;
               <div class="flex gap-3 rounded-lg bg-forest-soft p-3.5 text-small text-on-forest-soft" aria-live="polite">
                 <bt-icon name="chart" [size]="18" class="mt-0.5 shrink-0 text-forest" />
                 <span>
-                  {{ (h.regional ? 'sell.hintNational' : 'sell.hintRegional') | t: { region: farm()!.location, low: (h.low | fcfa), high: (h.high | fcfa) } }}
+                  {{ (h.regional ? 'sell.hintNational' : 'sell.hintRegional') | t: { region: (farm()!.location | place), low: (h.low | fcfa), high: (h.high | fcfa) } }}
                 </span>
               </div>
             }
@@ -228,7 +229,7 @@ type Section = 0 | 1 | 2 | 3;
             <div class="flex items-center gap-3 rounded-lg border border-line bg-surface-card p-4">
               <bt-icon name="pin" [size]="22" class="shrink-0 text-forest" />
               <div class="flex min-w-0 flex-1 flex-col">
-                <span class="truncate text-body-strong">{{ farm()!.location }}</span>
+                <span class="truncate text-body-strong">{{ farm()!.location | place }}</span>
                 <span class="text-small text-ink-muted">{{ 'sell.farmLocation' | t }}</span>
               </div>
               <a href="/portal/farm" (click)="$event.preventDefault(); router.navigateByUrl('/portal/farm')" class="flex h-11 items-center px-2 text-body-strong text-forest">
@@ -267,7 +268,7 @@ type Section = 0 | 1 | 2 | 3;
               </div>
               <div class="flex min-w-0 flex-col justify-center gap-1">
                 <span class="line-clamp-2 text-body-strong">{{ title() || ('sell.previewEmptyTitle' | t) }}</span>
-                <span class="truncate text-small text-ink-muted">{{ farm()!.name }} · {{ farm()!.location }}</span>
+                <span class="truncate text-small text-ink-muted">{{ farm()!.name }} · {{ farm()!.location | place }}</span>
                 <span class="text-body">
                   <strong class="text-heading-4">{{ draft().unitPrice ?? 0 | fcfa }}</strong>
                   <span class="text-small text-ink-muted"> · {{ 'sell.previewAvailable' | t: { count: draft().quantity } }}</span>

@@ -96,7 +96,7 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 	}
 	l, cycleID, unitPrice, farm := ok.listing, ok.cycle.ID, ok.listing.UnitPrice, ok.farm
 
-	seq, err := uc.Sequencer.Next(ctx, domain.ReservationRefPrefix)
+	ref, err := uc.Sequencer.NextReference(ctx, domain.ReservationRefPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (uc *ReserveCycle) Execute(ctx context.Context, in ReserveCycleInput) (*Res
 
 	res := &domain.Reservation{
 		ID:          bson.NewObjectID(),
-		Reference:   domain.FormatReference(domain.ReservationRefPrefix, seq),
+		Reference:   ref,
 		ListingID:   in.ListingID,
 		BuyerID:     in.BuyerID,
 		Quantity:    in.Quantity,

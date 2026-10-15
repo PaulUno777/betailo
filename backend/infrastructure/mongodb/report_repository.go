@@ -55,11 +55,11 @@ func (r *ReportRepository) Insert(ctx context.Context, rp *domain.Report) error 
 		rp.ID = bson.NewObjectID()
 	}
 	if rp.Reference == "" && r.Sequencer != nil {
-		n, err := r.Sequencer.Next(ctx, domain.ReportRefPrefix)
+		ref, err := r.Sequencer.NextReference(ctx, domain.ReportRefPrefix)
 		if err != nil {
 			return err
 		}
-		rp.Reference = domain.FormatReference(domain.ReportRefPrefix, n)
+		rp.Reference = ref
 	}
 	_, err := r.Coll.InsertOne(ctx, fromDomainReport(rp))
 	return err

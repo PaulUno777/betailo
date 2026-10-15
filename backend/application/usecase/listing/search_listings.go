@@ -3,6 +3,7 @@ package listing
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
@@ -26,13 +27,21 @@ type SearchListings struct {
 // Execute runs the search. A non-zero viewerID (a signed-in caller)
 // also flags which results that user has saved.
 func (uc *SearchListings) Execute(ctx context.Context, criteria ports.ListingSearchCriteria, viewerID bson.ObjectID) (ports.ListingSearchResult, error) {
-	if len(criteria.Categories) > 0 {
+	if len(criteria.Categories) > 0 || strings.TrimSpace(criteria.Query) != "" {
 		cat, err := catalog.Of(ctx, uc.Catalog)
 		if err != nil {
 			return ports.ListingSearchResult{}, err
 		}
-		criteria.Species = expandCategories(cat, criteria.Categories, criteria.Species)
-		criteria.Categories = nil
+		if len(criteria.Categories) > 0 {
+			criteria.Species = expandCategories(cat, criteria.Categories, criteria.Species)
+			criteria.Categories = nil
+		}
+		// Farms store region and town keys: each word also finds the
+		// places whose name, in either language, contains it.
+		criteria.QueryPlaces = nil
+		for _, word := range strings.Fields(criteria.Query) {
+			criteria.QueryPlaces = append(criteria.QueryPlaces, cat.PlaceKeys(word))
+		}
 	}
 	result, err := uc.Search.Search(ctx, criteria)
 	if err != nil || viewerID.IsZero() || len(result.Items) == 0 {

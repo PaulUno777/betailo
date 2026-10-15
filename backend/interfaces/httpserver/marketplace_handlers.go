@@ -61,13 +61,22 @@ type regionFacetResponse struct {
 	Count   int    `json:"count"`
 }
 
+type cityFacetResponse struct {
+	Country string `json:"country"`
+	Region  string `json:"region"`
+	City    string `json:"city"`
+	Count   int    `json:"count"`
+}
+
 // searchFacetsResponse is what each filter would lead to: counts per
-// species, cycle type, status and region, and the price range.
+// species, cycle type, status, region and town, and the price range.
+// Regions and towns are the catalog's keys where it lists them.
 type searchFacetsResponse struct {
 	Species    []facetCountResponse  `json:"species"`
 	CycleTypes []facetCountResponse  `json:"cycleTypes"`
 	Statuses   []facetCountResponse  `json:"statuses"`
 	Regions    []regionFacetResponse `json:"regions"`
+	Cities     []cityFacetResponse   `json:"cities"`
 	PriceMin   float64               `json:"priceMin"`
 	PriceMax   float64               `json:"priceMax"`
 }
@@ -84,9 +93,13 @@ func toFacetsResponse(f ports.SearchFacets) searchFacetsResponse {
 	for _, r := range f.Regions {
 		regions = append(regions, regionFacetResponse{Country: r.Country, Region: r.Region, Count: r.Count})
 	}
+	cities := make([]cityFacetResponse, 0, len(f.Cities))
+	for _, c := range f.Cities {
+		cities = append(cities, cityFacetResponse{Country: c.Country, Region: c.Region, City: c.City, Count: c.Count})
+	}
 	return searchFacetsResponse{
 		Species: counts(f.Species), CycleTypes: counts(f.CycleTypes), Statuses: counts(f.Statuses),
-		Regions: regions, PriceMin: f.PriceMin, PriceMax: f.PriceMax,
+		Regions: regions, Cities: cities, PriceMin: f.PriceMin, PriceMax: f.PriceMax,
 	}
 }
 
@@ -96,6 +109,7 @@ func handleSearchListings(uc *listing.SearchListings, storage ports.ObjectStorag
 		criteria := ports.ListingSearchCriteria{
 			Species: listParam(q, "species"), Categories: listParam(q, "category"), CycleTypes: listParam(q, "cycleType"),
 			Country: strings.ToUpper(strings.TrimSpace(q.Get("country"))), Region: strings.TrimSpace(q.Get("region")),
+			City:     strings.TrimSpace(q.Get("city")),
 			MinPrice: parseFloatOr(q.Get("minPrice"), 0), MaxPrice: parseFloatOr(q.Get("maxPrice"), 0),
 			VerifiedOnly: q.Get("verifiedOnly") == "true",
 			Query:        q.Get("q"), Sort: q.Get("sort"),

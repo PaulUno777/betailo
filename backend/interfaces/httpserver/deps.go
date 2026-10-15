@@ -5,6 +5,7 @@ import (
 	"github.com/pauluno777/betailo/backend/application/usecase/account"
 	"github.com/pauluno777/betailo/backend/application/usecase/admin"
 	"github.com/pauluno777/betailo/backend/application/usecase/auth"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/application/usecase/cycle"
 	"github.com/pauluno777/betailo/backend/application/usecase/dashboard"
 	"github.com/pauluno777/betailo/backend/application/usecase/farm"
@@ -149,4 +150,10 @@ type Dependencies struct {
 	AdminGetReportDetail *admin.GetReportDetail
 	AdminSaveReportNote  *admin.SaveReportNote
 	AdminResolveReport   *admin.ResolveReport
+	// CatalogVersions is the reference data's history, CatalogChangeset
+	// the changes waiting to be published, CatalogUsage what uses each
+	// entry. Super admins only.
+	CatalogVersions  ports.CatalogRepository
+	CatalogChangeset *catalog.Changeset
+	CatalogUsage     ports.CatalogUsage
 }

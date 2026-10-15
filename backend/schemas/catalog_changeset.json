@@ -1,0 +1,22 @@
+{
+  "bsonType": "object",
+  "required": ["_id", "rev", "changes"],
+  "properties": {
+    "_id": { "bsonType": "string", "description": "always \"pending\": the one shared changeset" },
+    "rev": { "bsonType": ["int", "long"], "minimum": 1, "description": "bumped on every write; a write based on an older rev is refused" },
+    "changes": {
+      "bsonType": "array",
+      "items": {
+        "bsonType": "object",
+        "required": ["id", "op", "by", "at"],
+        "properties": {
+          "id": { "bsonType": "objectId" },
+          "op": { "bsonType": "string", "description": "the operation, as JSON" },
+          "by": { "bsonType": "objectId" },
+          "at": { "bsonType": "date" }
+        }
+      }
+    },
+    "updatedAt": { "bsonType": "date" }
+  }
+}

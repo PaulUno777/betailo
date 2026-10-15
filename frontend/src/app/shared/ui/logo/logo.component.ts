@@ -11,24 +11,20 @@ export type LogoVariant = 'full' | 'mark';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="inline-flex items-center gap-2" [class]="wordmarkColorClass()">
-      <svg [attr.width]="markSize()" [attr.height]="markSize()" viewBox="0 0 32 32" fill="none">
-        <path
-          d="M27 16a11 11 0 0 1-18.7 7.8L5 20.5"
-          [attr.stroke]="arrowColor()"
-          stroke-width="2.4"
-          stroke-linecap="round"
-        />
-        <path
-          d="M5 16A11 11 0 0 1 23.7 8.2L27 11.5"
-          [attr.stroke]="arrowColor()"
-          stroke-width="2.4"
-          stroke-linecap="round"
-        />
-        <path d="M16 10c3.5 0 6 2.7 6 6.2-3.6 0-6.6-1-6-6.2z" [attr.fill]="leafColor()" />
-        <path d="M16 10c-3.5 0-6 2.7-6 6.2 3.6 0 6.6-1 6-6.2z" [attr.fill]="leafColor()" />
+      <!-- The brand kit's symbol (betailo-symbole), on its own 49.2×50.4 box. -->
+      <svg [attr.width]="markSize()" [attr.height]="markSize()" viewBox="7.4 6.8 49.2 50.4" fill="none" aria-hidden="true">
+        <g [attr.stroke]="arrowColor()" stroke-width="6" stroke-linecap="round">
+          <path d="M10.6 27.5A22 22 0 0 1 49.5 19" />
+          <path d="M53.4 36.5A22 22 0 0 1 14.5 45" />
+        </g>
+        <g [attr.fill]="arrowColor()">
+          <path d="M54.8 26.4 55.4 15 44.2 23Z" />
+          <path d="M9.2 37.6 8.6 49 19.8 41Z" />
+        </g>
+        <path d="M21 43C21 31 29 23 43 21.5 43 34.5 35 43 21 43Z" [attr.fill]="leafColor()" />
       </svg>
       @if (variant() === 'full') {
-        <span class="text-heading-4">Betailo</span>
+        <span class="text-heading-4 font-extrabold tracking-tight">Betailo</span>
       }
     </span>
   `

@@ -107,11 +107,11 @@ func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domai
 		MaxPerReservation: in.MaxPerReservation,
 	}
 
-	seq, err := uc.Sequencer.Next(ctx, domain.CycleRefPrefix)
+	ref, err := uc.Sequencer.NextReference(ctx, domain.CycleRefPrefix)
 	if err != nil {
 		return nil, err
 	}
-	c.Reference = domain.FormatReference(domain.CycleRefPrefix, seq)
+	c.Reference = ref
 
 	if err := uc.Cycles.Create(ctx, c); err != nil {
 		return nil, err

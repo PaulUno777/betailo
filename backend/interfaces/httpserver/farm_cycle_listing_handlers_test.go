@@ -199,8 +199,8 @@ func TestFarm_HTTP_CountryAndRegion(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create status = %d; body = %s", rec.Code, rec.Body.String())
 	}
-	if f := decodeJSON[farmResponse](t, rec); f.Country != "CM" || f.Region != "Ouest" {
-		t.Errorf("farm = %s/%s, want the default country and the canonical region CM/Ouest", f.Country, f.Region)
+	if f := decodeJSON[farmResponse](t, rec); f.Country != "CM" || f.Region != "ouest" || f.Location != "dschang" {
+		t.Errorf("farm = %s/%s/%s, want the default country and the catalog's keys CM/ouest/dschang", f.Country, f.Region, f.Location)
 	}
 
 	bad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Region: "Atlantique"}, token)

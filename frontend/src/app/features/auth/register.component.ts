@@ -101,7 +101,13 @@ function passwordsMatchValidator(control: AbstractControl): ValidationErrors | n
             formControlName="acceptTerms"
             class="mt-0.5 h-[18px] w-[18px] shrink-0 rounded border-line-strong accent-forest"
           />
-          {{ 'auth.registerTermsLabel' | t }}
+          <span>
+            {{ 'auth.registerTermsBefore' | t }}
+            <!-- A new tab, so the half-filled form stays put. -->
+            <a routerLink="/terms" target="_blank" rel="noopener" class="font-semibold text-forest underline underline-offset-2">{{
+              'auth.registerTermsLink' | t
+            }}</a>{{ 'auth.registerTermsAfter' | t }}
+          </span>
         </label>
         <bt-button type="submit" block size="lg" [disabled]="form.invalid || submitting()">
           {{ (submitting() ? 'auth.registerSubmitting' : 'auth.registerSubmit') | t }}

@@ -168,9 +168,9 @@ func (c fakeClock) Now() time.Time { return c.now }
 
 type fakeSequencer struct{ n int64 }
 
-func (f *fakeSequencer) Next(context.Context, string) (int64, error) {
+func (f *fakeSequencer) NextReference(_ context.Context, prefix string) (string, error) {
 	f.n++
-	return f.n, nil
+	return domain.FormatReference(prefix+"-2610", f.n), nil
 }
 
 func (f *fakeFarms) ListByStatus(context.Context, domain.FarmStatus) ([]*domain.Farm, error) {

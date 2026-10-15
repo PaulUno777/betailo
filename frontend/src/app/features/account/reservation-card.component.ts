@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { ReservationAction, ReservationView } from '../../domain/models';
 import { whatsappUrl } from '../../domain/rules/contact';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { PlacePipe } from '../../core/i18n/place.pipe';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { CountdownComponent } from '../../shared/ui/countdown/countdown.component';
@@ -19,7 +20,7 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
  * the chosen action and the page carries it out. */
 @Component({
   selector: 'bt-reservation-card',
-  imports: [TranslatePipe, ButtonComponent, IconComponent, CountdownComponent, FcfaCurrencyPipe, LocalDatePipe],
+  imports: [TranslatePipe, PlacePipe, ButtonComponent, IconComponent, CountdownComponent, FcfaCurrencyPipe, LocalDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article
@@ -44,7 +45,7 @@ interface StatusLine { key: string; tone: 'clay' | 'forest' | 'muted' | 'alert';
           </div>
           <span class="line-clamp-2 text-body-strong lg:font-display lg:text-[20px] lg:leading-snug">{{ view().quantity }} × {{ view().listing.title }}</span>
           @if (perspective() === 'buyer') {
-            <span class="truncate text-small text-ink-muted">{{ view().farm.name }} · {{ view().farm.location }}</span>
+            <span class="truncate text-small text-ink-muted">{{ view().farm.name }} · {{ view().farm.location | place }}</span>
           } @else {
             <span class="truncate text-small text-ink-muted">{{ view().cycle.reference }} · {{ view().payment?.method ? ('paymentMethod.' + methodKey() | t) : ('reservations.status.unpaidShort' | t) }}</span>
           }

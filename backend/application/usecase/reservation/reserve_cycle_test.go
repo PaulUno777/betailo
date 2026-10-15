@@ -65,9 +65,9 @@ var (
 // fakeSeq counts like the counters collection.
 type fakeSeq struct{ n int64 }
 
-func (f *fakeSeq) Next(context.Context, string) (int64, error) {
+func (f *fakeSeq) NextReference(_ context.Context, prefix string) (string, error) {
 	f.n++
-	return f.n, nil
+	return domain.FormatReference(prefix+"-2610", f.n), nil
 }
 
 type fakeCycles struct {
@@ -458,8 +458,8 @@ func TestReserveCycle_Execute_AssignsReferenceAndMasksPayer(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := out.Reservation
-	if res.Reference != "RSV-0001" {
-		t.Errorf("Reference = %q, want RSV-0001", res.Reference)
+	if res.Reference != "RSV-2610-0001" {
+		t.Errorf("Reference = %q, want RSV-2610-0001", res.Reference)
 	}
 	if res.Payment.Method != "mtn_momo" || res.Payment.PayerPhoneMasked != "+237 6•• •• 34 56" || res.Payment.ProviderRef == "" {
 		t.Errorf("payment = %+v, want method, masked phone and provider ref recorded", res.Payment)

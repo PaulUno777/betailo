@@ -41,9 +41,9 @@ import { LogoComponent } from '../ui/logo/logo.component';
         <div class="flex flex-col gap-2.5 sm:col-span-3">
           <span class="text-small font-medium">{{ 'footer.trustHeading' | t }}</span>
           <a routerLink="/" fragment="how" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'nav.howItWorks' | t }}</a>
-          <span class="text-small text-on-forest-deep/70">{{ 'footer.howEscrowWorks' | t }}</span>
+          <a routerLink="/terms" fragment="paiement" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.howEscrowWorks' | t }}</a>
           <span class="text-small text-on-forest-deep/70">{{ 'footer.reportScam' | t }}</span>
-          <span class="text-small text-on-forest-deep/70">{{ 'footer.terms' | t }}</span>
+          <a routerLink="/terms" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.terms' | t }}</a>
         </div>
       </div>
     </footer>

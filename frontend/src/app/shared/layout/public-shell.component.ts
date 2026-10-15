@@ -20,6 +20,7 @@ import { UserMenuComponent } from '../ui/user-menu/user-menu.component';
 import { NotificationBellComponent } from '../ui/notification-bell/notification-bell.component';
 import { ToastHostComponent } from '../ui/toast/toast-host.component';
 import { SiteFooterComponent } from './site-footer.component';
+import { AnimalIconComponent } from '../ui/animal-icon/animal-icon.component';
 
 /** Desktop's second header row: one chip per species, like the
  * category bar under every marketplace's search. */
@@ -43,6 +44,7 @@ import { SiteFooterComponent } from './site-footer.component';
 @Component({
   selector: 'bt-public-shell',
   imports: [
+    AnimalIconComponent,
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
@@ -97,7 +99,10 @@ import { SiteFooterComponent } from './site-footer.component';
               [class]="chipClass(onMarket() && !activeCategory())"
             >{{ 'nav.allAnimals' | t }}</a>
             @for (c of categories; track c.key) {
-              <a routerLink="/marketplace" [queryParams]="{ category: c.key }" [class]="chipClass(activeCategory() === c.key)">{{ c.labelKey | t }}</a>
+              <a routerLink="/marketplace" [queryParams]="{ category: c.key }" [class]="chipClass(activeCategory() === c.key)">
+                <bt-animal-icon [name]="c.icon" [size]="20" />
+                {{ c.labelKey | t }}
+              </a>
             }
             <span class="ml-auto"></span>
             <a routerLink="/forum" routerLinkActive="text-forest" [class]="chipClass(false)">

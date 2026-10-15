@@ -28,8 +28,8 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
 	}
-	if c.Reference != "CYC-0001" {
-		t.Errorf("Reference = %q, want CYC-0001", c.Reference)
+	if c.Reference != "CYC-2610-0001" {
+		t.Errorf("Reference = %q, want CYC-2610-0001", c.Reference)
 	}
 	if c.Type != "couvee" {
 		t.Errorf("Type = %q, want couvee: the catalog's cycle type for poussins, not the one sent", c.Type)

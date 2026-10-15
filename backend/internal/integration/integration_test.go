@@ -12,6 +12,7 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -26,6 +27,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
+	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
 	"github.com/pauluno777/betailo/backend/application/usecase/reservation"
 	"github.com/pauluno777/betailo/backend/application/usecase/review"
 	"github.com/pauluno777/betailo/backend/application/usecase/trust"
@@ -529,22 +531,22 @@ func TestCounters_ConcurrentReferencesAreUniqueAndBackfillFillsGaps(t *testing.T
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	seen := map[int64]bool{}
+	seen := map[string]bool{}
 	for range 50 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			n, err := e.counters.Next(ctx, "RSV")
+			ref, err := e.counters.NextReference(ctx, "RSV")
 			if err != nil {
 				t.Error(err)
 				return
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			if seen[n] {
-				t.Errorf("duplicate counter value %d", n)
+			if seen[ref] {
+				t.Errorf("duplicate reference %s", ref)
 			}
-			seen[n] = true
+			seen[ref] = true
 		}()
 	}
 	wg.Wait()
@@ -730,7 +732,9 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 		}
 		return f
 	}
-	ouest, littoral := farm("Dschang", "Ouest"), farm("Douala", "Littoral")
+	// Farms store the catalog's keys for a listed region and town.
+	ouest, littoral := farm("dschang", "ouest"), farm("douala", "littoral")
+	bafoussam := farm("bafoussam", "ouest")
 
 	list := func(f *domain.Farm, species, typ string, status domain.CycleStatus, price float64, starts time.Time) {
 		c := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f.ID, Species: species, Type: typ, Status: status, Capacity: 10, AvailableQuantity: 10, StartsAt: starts}
@@ -746,6 +750,7 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 	list(ouest, "porcs", "engraissement", domain.CycleStatusPlanned, 30000, now.AddDate(0, 2, 0))
 	list(littoral, "poussins", "Couvee", domain.CycleStatusPlanned, 900, now)
 	list(littoral, "poussins", "couvee", domain.CycleStatusDone, 700, now.AddDate(0, -2, 0))
+	list(bafoussam, "lapereaux", "engraissement", domain.CycleStatusPlanned, 5000, now)
 
 	search := func(c ports.ListingSearchCriteria) ports.ListingSearchResult {
 		t.Helper()
@@ -764,11 +769,14 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 	}
 
 	all := search(ports.ListingSearchCriteria{})
-	if all.Total != 3 {
-		t.Fatalf("default total = %d, want 3 (the done cycle is hidden)", all.Total)
+	if all.Total != 4 {
+		t.Fatalf("default total = %d, want 4 (the done cycle is hidden)", all.Total)
 	}
 	if got := counts(all.Facets.CycleTypes); got["couvee"] != 2 {
 		t.Errorf("type facet = %v, want couvee:2 (case folded)", got)
+	}
+	if len(all.Facets.Cities) != 3 {
+		t.Errorf("town facet = %v, want dschang, douala and bafoussam", all.Facets.Cities)
 	}
 	if all.Facets.PriceMin != 800 || all.Facets.PriceMax != 30000 {
 		t.Errorf("price range = %v..%v, want 800..30000", all.Facets.PriceMin, all.Facets.PriceMax)
@@ -782,18 +790,27 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 		t.Errorf("species facet with a species picked = %v, want the other species still counted", got)
 	}
 
-	inOuest := search(ports.ListingSearchCriteria{Country: "CM", Region: "Ouest"})
-	if inOuest.Total != 2 || len(inOuest.Facets.Regions) != 2 {
-		t.Errorf("region filter: total %d, region facets %v; want 2 lots and both regions offered", inOuest.Total, inOuest.Facets.Regions)
+	inOuest := search(ports.ListingSearchCriteria{Country: "CM", Region: "ouest"})
+	if inOuest.Total != 3 || len(inOuest.Facets.Regions) != 2 || len(inOuest.Facets.Cities) != 2 {
+		t.Errorf("region filter: total %d, regions %v, towns %v; want 3 lots, both regions and the region's two towns", inOuest.Total, inOuest.Facets.Regions, inOuest.Facets.Cities)
+	}
+
+	inDschang := search(ports.ListingSearchCriteria{Country: "CM", Region: "ouest", City: "dschang"})
+	if inDschang.Total != 2 || len(inDschang.Facets.Cities) != 2 || len(inDschang.Facets.Regions) != 2 {
+		t.Errorf("town filter: total %d, towns %v, regions %v; want 2 lots, the other town and both regions still offered", inDschang.Total, inDschang.Facets.Cities, inDschang.Facets.Regions)
 	}
 
 	if got := search(ports.ListingSearchCriteria{Query: "poussins Douala"}).Total; got != 1 {
 		t.Errorf("query by species and town = %d, want 1", got)
 	}
+	// "West" is the English name of the region the key "ouest" stands for.
+	if got := search(ports.ListingSearchCriteria{Query: "West", QueryPlaces: [][]string{{"ouest", "nord-ouest", "sud-ouest"}}}).Total; got != 3 {
+		t.Errorf("query by the region's English name = %d, want 3", got)
+	}
 
 	soon := search(ports.ListingSearchCriteria{AvailableFrom: now.AddDate(0, 0, -1), AvailableTo: now.AddDate(0, 0, 7)})
-	if soon.Total != 2 {
-		t.Errorf("available this week = %d, want 2 (the pigs start in two months)", soon.Total)
+	if soon.Total != 3 {
+		t.Errorf("available this week = %d, want 3 (the pigs start in two months)", soon.Total)
 	}
 
 	done := search(ports.ListingSearchCriteria{Statuses: []domain.CycleStatus{domain.CycleStatusDone}})
@@ -860,5 +877,91 @@ func TestListingSearch_OnlyApprovedFarmsAndTheReviewQueue(t *testing.T) {
 	}
 	if !onMarket() {
 		t.Error("the listing should be back once the farm is approved")
+	}
+}
+
+// A database from before the split: its catalog document becomes each
+// reference's version 1, once, and a newer seed then reaches only the
+// references whose content it changes.
+func TestCatalog_MovesTheLegacyCatalogIntoReferencesOnce(t *testing.T) {
+	db := client.Database("it_" + bson.NewObjectID().Hex())
+	t.Cleanup(func() { _ = db.Drop(context.Background()) })
+	ctx := context.Background()
+	if err := mongodb.Bootstrap(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	old := domain.SeedCatalog()
+	old.ReviewTags[0].Label.EN = "Healthy herd"
+	content, _ := json.Marshal(old)
+	if _, err := db.Collection("catalog_versions").InsertOne(ctx, bson.M{"_id": 3, "content": string(content), "publishedAt": time.Now(), "seedRevision": domain.SeedRevision()}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &mongodb.ReferenceRepository{Coll: db.Collection("reference_versions")}
+	legacy := &mongodb.LegacyCatalogRepository{Coll: db.Collection("catalog_versions")}
+	for range 3 { // three startups
+		if err := catalog.EnsureSeed(ctx, repo, legacy, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	all, err := repo.List(ctx, "")
+	if err != nil || len(all) != len(domain.CatalogParts) {
+		t.Fatalf("versions = %d, %v; want one per reference", len(all), err)
+	}
+	c, _, err := catalog.Current(ctx, repo)
+	if err != nil || c.ReviewTags[0].Label.EN != "Healthy herd" {
+		t.Fatalf("current = %v, %v; want the legacy lists", c, err)
+	}
+
+	// A second publish of the same number is refused.
+	if err := repo.Insert(ctx, &domain.CatalogPart{Name: domain.PartPlaces, Version: 1, PublishedAt: time.Now(), Content: json.RawMessage(`{"countries":[]}`)}); !errors.Is(err, domain.ErrConflict) {
+		t.Errorf("duplicate version: %v, want a conflict", err)
+	}
+}
+
+// Two admins writing the changeset from the same revision: one wins,
+// the other is told it's stale, and nothing is lost.
+func TestCatalogChangeset_RevisionGuardsConcurrentWrites(t *testing.T) {
+	db := client.Database("it_" + bson.NewObjectID().Hex())
+	t.Cleanup(func() { _ = db.Drop(context.Background()) })
+	ctx := context.Background()
+	if err := mongodb.Bootstrap(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	repo := &mongodb.CatalogChangesetRepository{Coll: db.Collection("catalog_changeset")}
+
+	change := func(key string) domain.CatalogChange {
+		return domain.CatalogChange{ID: bson.NewObjectID(), By: bson.NewObjectID(), At: time.Now().UTC().Truncate(time.Millisecond), Op: domain.CatalogOp{
+			Kind: domain.OpUpdate, Ref: domain.CatalogRef{Entity: domain.EntityCategory, Key: key}, Value: json.RawMessage(`{"active":false}`),
+		}}
+	}
+	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: []domain.CatalogChange{change("ovins")}}, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: []domain.CatalogChange{change("lapins")}}, 0); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("second write from rev 0: %v, want a conflict", err)
+	}
+	cs, err := repo.Get(ctx)
+	if err != nil || cs.Rev != 1 || len(cs.Changes) != 1 || cs.Changes[0].Op.Ref.Key != "ovins" {
+		t.Fatalf("changeset = %+v, %v", cs, err)
+	}
+	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: append(cs.Changes, change("lapins"))}, 1); err != nil {
+		t.Fatal(err)
+	}
+	if cs, _ := repo.Get(ctx); cs.Rev != 2 || len(cs.Changes) != 2 {
+		t.Errorf("after the second write: rev %d, %d changes", cs.Rev, len(cs.Changes))
+	}
+}
+
+func TestCatalogUsage_CountsWhatUsesEachKey(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	_, _, _ = e.seed(t, 10)
+	usage, err := (&mongodb.CatalogUsage{DB: e.db}).Usage(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The seeded farm names no country: its town counts under "city::".
+	if usage["species:poussins"] < 1 || usage["city::Dschang"] != 1 {
+		t.Errorf("usage = %v, want the seeded cycle and farm counted", usage)
 	}
 }

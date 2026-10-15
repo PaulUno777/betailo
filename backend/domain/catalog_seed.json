@@ -1,5 +1,6 @@
 {
-  "note": "Version initiale : les listes livrées avec la plateforme",
+  "note": "Révision 2 : icônes des catégories, régions traduites et villes principales",
+  "seedRevision": 2,
   "categories": [
     {
       "key": "volaille",
@@ -7,6 +8,7 @@
         "fr": "Volaille",
         "en": "Poultry"
       },
+      "icon": "poule",
       "color": "clay",
       "active": true,
       "subcategories": [
@@ -17,6 +19,7 @@
             "en": "Day-old chicks"
           },
           "cycleType": "couvee",
+          "icon": "poussin",
           "unit": {
             "key": "poussin",
             "label": {
@@ -33,6 +36,7 @@
             "en": "Broilers"
           },
           "cycleType": "engraissement",
+          "icon": "poule",
           "unit": {
             "key": "sujet",
             "label": {
@@ -49,6 +53,7 @@
             "en": "Laying hens"
           },
           "cycleType": "ponte",
+          "icon": "poule",
           "unit": {
             "key": "pondeuse",
             "label": {
@@ -65,6 +70,7 @@
             "en": "Breeders"
           },
           "cycleType": "reproduction",
+          "icon": "coq",
           "unit": {
             "key": "sujet",
             "label": {
@@ -81,6 +87,7 @@
             "en": "Village chickens"
           },
           "cycleType": "elevage",
+          "icon": "coq",
           "unit": {
             "key": "sujet",
             "label": {
@@ -97,6 +104,7 @@
             "en": "Turkeys"
           },
           "cycleType": "engraissement",
+          "icon": "dinde",
           "unit": {
             "key": "dinde",
             "label": {
@@ -113,6 +121,7 @@
             "en": "Ducks"
           },
           "cycleType": "engraissement",
+          "icon": "canard",
           "unit": {
             "key": "canard",
             "label": {
@@ -129,6 +138,7 @@
             "en": "Guinea fowl"
           },
           "cycleType": "elevage",
+          "icon": "pintade",
           "unit": {
             "key": "pintade",
             "label": {
@@ -145,6 +155,7 @@
             "en": "Quails"
           },
           "cycleType": "elevage",
+          "icon": "poule",
           "unit": {
             "key": "caille",
             "label": {
@@ -162,6 +173,7 @@
         "fr": "Porcins",
         "en": "Pigs"
       },
+      "icon": "porc",
       "color": "alert",
       "active": true,
       "subcategories": [
@@ -172,6 +184,7 @@
             "en": "Piglets"
           },
           "cycleType": "engraissement",
+          "icon": "porc",
           "unit": {
             "key": "porcelet",
             "label": {
@@ -188,6 +201,7 @@
             "en": "Finishing pigs"
           },
           "cycleType": "engraissement",
+          "icon": "porc",
           "unit": {
             "key": "porc",
             "label": {
@@ -204,6 +218,7 @@
             "en": "Sows and boars"
           },
           "cycleType": "reproduction",
+          "icon": "porc",
           "unit": {
             "key": "sujet",
             "label": {
@@ -221,6 +236,7 @@
         "fr": "Caprins",
         "en": "Goats"
       },
+      "icon": "chevre",
       "color": "plum",
       "active": true,
       "subcategories": [
@@ -231,6 +247,7 @@
             "en": "Goats"
           },
           "cycleType": "elevage",
+          "icon": "chevre",
           "unit": {
             "key": "chèvre",
             "label": {
@@ -247,6 +264,7 @@
             "en": "Kids"
           },
           "cycleType": "elevage",
+          "icon": "chevre",
           "unit": {
             "key": "chevreau",
             "label": {
@@ -264,6 +282,7 @@
         "fr": "Ovins",
         "en": "Sheep"
       },
+      "icon": "mouton",
       "color": "stone",
       "active": true,
       "subcategories": [
@@ -274,6 +293,7 @@
             "en": "Sheep"
           },
           "cycleType": "elevage",
+          "icon": "mouton",
           "unit": {
             "key": "mouton",
             "label": {
@@ -290,6 +310,7 @@
             "en": "Lambs"
           },
           "cycleType": "elevage",
+          "icon": "mouton",
           "unit": {
             "key": "agneau",
             "label": {
@@ -307,6 +328,7 @@
         "fr": "Lapins",
         "en": "Rabbits"
       },
+      "icon": "lapin",
       "color": "amber",
       "active": true,
       "subcategories": [
@@ -317,6 +339,7 @@
             "en": "Young rabbits"
           },
           "cycleType": "engraissement",
+          "icon": "lapin",
           "unit": {
             "key": "lapereau",
             "label": {
@@ -333,6 +356,7 @@
             "en": "Breeding rabbits"
           },
           "cycleType": "reproduction",
+          "icon": "lapin",
           "unit": {
             "key": "lapin",
             "label": {
@@ -350,6 +374,7 @@
         "fr": "Bovins",
         "en": "Cattle"
       },
+      "icon": "vache",
       "color": "forest",
       "active": false,
       "subcategories": [
@@ -360,6 +385,7 @@
             "en": "Calves"
           },
           "cycleType": "elevage",
+          "icon": "vache",
           "unit": {
             "key": "veau",
             "label": {
@@ -376,6 +402,7 @@
             "en": "Young bulls"
           },
           "cycleType": "engraissement",
+          "icon": "vache",
           "unit": {
             "key": "sujet",
             "label": {
@@ -393,6 +420,7 @@
         "fr": "Pisciculture",
         "en": "Fish farming"
       },
+      "icon": "poisson",
       "color": "sky",
       "active": false,
       "subcategories": [
@@ -403,6 +431,7 @@
             "en": "Fingerlings"
           },
           "cycleType": "elevage",
+          "icon": "poisson",
           "unit": {
             "key": "alevin",
             "label": {
@@ -419,6 +448,7 @@
             "en": "Table fish"
           },
           "cycleType": "engraissement",
+          "icon": "poisson",
           "unit": {
             "key": "poisson",
             "label": {
@@ -439,53 +469,711 @@
       "regions": [
         {
           "key": "adamaoua",
-          "label": "Adamaoua",
-          "active": true
+          "label": {
+            "fr": "Adamaoua",
+            "en": "Adamawa"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "ngaoundere",
+              "label": {
+                "fr": "Ngaoundéré",
+                "en": "Ngaoundere"
+              },
+              "active": true
+            },
+            {
+              "key": "meiganga",
+              "label": {
+                "fr": "Meiganga",
+                "en": "Meiganga"
+              },
+              "active": true
+            },
+            {
+              "key": "tibati",
+              "label": {
+                "fr": "Tibati",
+                "en": "Tibati"
+              },
+              "active": true
+            },
+            {
+              "key": "tignere",
+              "label": {
+                "fr": "Tignère",
+                "en": "Tignere"
+              },
+              "active": true
+            },
+            {
+              "key": "banyo",
+              "label": {
+                "fr": "Banyo",
+                "en": "Banyo"
+              },
+              "active": true
+            },
+            {
+              "key": "ngaoundal",
+              "label": {
+                "fr": "Ngaoundal",
+                "en": "Ngaoundal"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "centre",
-          "label": "Centre",
-          "active": true
+          "label": {
+            "fr": "Centre",
+            "en": "Centre"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "yaounde",
+              "label": {
+                "fr": "Yaoundé",
+                "en": "Yaounde"
+              },
+              "active": true
+            },
+            {
+              "key": "mbalmayo",
+              "label": {
+                "fr": "Mbalmayo",
+                "en": "Mbalmayo"
+              },
+              "active": true
+            },
+            {
+              "key": "obala",
+              "label": {
+                "fr": "Obala",
+                "en": "Obala"
+              },
+              "active": true
+            },
+            {
+              "key": "bafia",
+              "label": {
+                "fr": "Bafia",
+                "en": "Bafia"
+              },
+              "active": true
+            },
+            {
+              "key": "mfou",
+              "label": {
+                "fr": "Mfou",
+                "en": "Mfou"
+              },
+              "active": true
+            },
+            {
+              "key": "soa",
+              "label": {
+                "fr": "Soa",
+                "en": "Soa"
+              },
+              "active": true
+            },
+            {
+              "key": "akonolinga",
+              "label": {
+                "fr": "Akonolinga",
+                "en": "Akonolinga"
+              },
+              "active": true
+            },
+            {
+              "key": "nanga-eboko",
+              "label": {
+                "fr": "Nanga-Eboko",
+                "en": "Nanga Eboko"
+              },
+              "active": true
+            },
+            {
+              "key": "eseka",
+              "label": {
+                "fr": "Éséka",
+                "en": "Eseka"
+              },
+              "active": true
+            },
+            {
+              "key": "monatele",
+              "label": {
+                "fr": "Monatélé",
+                "en": "Monatele"
+              },
+              "active": true
+            },
+            {
+              "key": "ntui",
+              "label": {
+                "fr": "Ntui",
+                "en": "Ntui"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "est",
-          "label": "Est",
-          "active": true
+          "label": {
+            "fr": "Est",
+            "en": "East"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "bertoua",
+              "label": {
+                "fr": "Bertoua",
+                "en": "Bertoua"
+              },
+              "active": true
+            },
+            {
+              "key": "batouri",
+              "label": {
+                "fr": "Batouri",
+                "en": "Batouri"
+              },
+              "active": true
+            },
+            {
+              "key": "abong-mbang",
+              "label": {
+                "fr": "Abong-Mbang",
+                "en": "Abong-Mbang"
+              },
+              "active": true
+            },
+            {
+              "key": "yokadouma",
+              "label": {
+                "fr": "Yokadouma",
+                "en": "Yokadouma"
+              },
+              "active": true
+            },
+            {
+              "key": "belabo",
+              "label": {
+                "fr": "Bélabo",
+                "en": "Belabo"
+              },
+              "active": true
+            },
+            {
+              "key": "garoua-boulai",
+              "label": {
+                "fr": "Garoua-Boulaï",
+                "en": "Garoua-Boulai"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "extreme-nord",
-          "label": "Extrême-Nord",
-          "active": true
+          "label": {
+            "fr": "Extrême-Nord",
+            "en": "Far North"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "maroua",
+              "label": {
+                "fr": "Maroua",
+                "en": "Maroua"
+              },
+              "active": true
+            },
+            {
+              "key": "kousseri",
+              "label": {
+                "fr": "Kousséri",
+                "en": "Kousseri"
+              },
+              "active": true
+            },
+            {
+              "key": "mokolo",
+              "label": {
+                "fr": "Mokolo",
+                "en": "Mokolo"
+              },
+              "active": true
+            },
+            {
+              "key": "yagoua",
+              "label": {
+                "fr": "Yagoua",
+                "en": "Yagoua"
+              },
+              "active": true
+            },
+            {
+              "key": "mora",
+              "label": {
+                "fr": "Mora",
+                "en": "Mora"
+              },
+              "active": true
+            },
+            {
+              "key": "kaele",
+              "label": {
+                "fr": "Kaélé",
+                "en": "Kaele"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "littoral",
-          "label": "Littoral",
-          "active": true
+          "label": {
+            "fr": "Littoral",
+            "en": "Littoral"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "douala",
+              "label": {
+                "fr": "Douala",
+                "en": "Douala"
+              },
+              "active": true
+            },
+            {
+              "key": "edea",
+              "label": {
+                "fr": "Édéa",
+                "en": "Edea"
+              },
+              "active": true
+            },
+            {
+              "key": "nkongsamba",
+              "label": {
+                "fr": "Nkongsamba",
+                "en": "Nkongsamba"
+              },
+              "active": true
+            },
+            {
+              "key": "loum",
+              "label": {
+                "fr": "Loum",
+                "en": "Loum"
+              },
+              "active": true
+            },
+            {
+              "key": "mbanga",
+              "label": {
+                "fr": "Mbanga",
+                "en": "Mbanga"
+              },
+              "active": true
+            },
+            {
+              "key": "manjo",
+              "label": {
+                "fr": "Manjo",
+                "en": "Manjo"
+              },
+              "active": true
+            },
+            {
+              "key": "yabassi",
+              "label": {
+                "fr": "Yabassi",
+                "en": "Yabassi"
+              },
+              "active": true
+            },
+            {
+              "key": "dibombari",
+              "label": {
+                "fr": "Dibombari",
+                "en": "Dibombari"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "nord",
-          "label": "Nord",
-          "active": true
+          "label": {
+            "fr": "Nord",
+            "en": "North"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "garoua",
+              "label": {
+                "fr": "Garoua",
+                "en": "Garoua"
+              },
+              "active": true
+            },
+            {
+              "key": "guider",
+              "label": {
+                "fr": "Guider",
+                "en": "Guider"
+              },
+              "active": true
+            },
+            {
+              "key": "figuil",
+              "label": {
+                "fr": "Figuil",
+                "en": "Figuil"
+              },
+              "active": true
+            },
+            {
+              "key": "pitoa",
+              "label": {
+                "fr": "Pitoa",
+                "en": "Pitoa"
+              },
+              "active": true
+            },
+            {
+              "key": "lagdo",
+              "label": {
+                "fr": "Lagdo",
+                "en": "Lagdo"
+              },
+              "active": true
+            },
+            {
+              "key": "poli",
+              "label": {
+                "fr": "Poli",
+                "en": "Poli"
+              },
+              "active": true
+            },
+            {
+              "key": "tchollire",
+              "label": {
+                "fr": "Tcholliré",
+                "en": "Tchollire"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "nord-ouest",
-          "label": "Nord-Ouest",
-          "active": true
+          "label": {
+            "fr": "Nord-Ouest",
+            "en": "North West"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "bamenda",
+              "label": {
+                "fr": "Bamenda",
+                "en": "Bamenda"
+              },
+              "active": true
+            },
+            {
+              "key": "kumbo",
+              "label": {
+                "fr": "Kumbo",
+                "en": "Kumbo"
+              },
+              "active": true
+            },
+            {
+              "key": "ndop",
+              "label": {
+                "fr": "Ndop",
+                "en": "Ndop"
+              },
+              "active": true
+            },
+            {
+              "key": "wum",
+              "label": {
+                "fr": "Wum",
+                "en": "Wum"
+              },
+              "active": true
+            },
+            {
+              "key": "nkambe",
+              "label": {
+                "fr": "Nkambé",
+                "en": "Nkambe"
+              },
+              "active": true
+            },
+            {
+              "key": "bali",
+              "label": {
+                "fr": "Bali",
+                "en": "Bali"
+              },
+              "active": true
+            },
+            {
+              "key": "mbengwi",
+              "label": {
+                "fr": "Mbengwi",
+                "en": "Mbengwi"
+              },
+              "active": true
+            },
+            {
+              "key": "fundong",
+              "label": {
+                "fr": "Fundong",
+                "en": "Fundong"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "ouest",
-          "label": "Ouest",
-          "active": true
+          "label": {
+            "fr": "Ouest",
+            "en": "West"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "bafoussam",
+              "label": {
+                "fr": "Bafoussam",
+                "en": "Bafoussam"
+              },
+              "active": true
+            },
+            {
+              "key": "dschang",
+              "label": {
+                "fr": "Dschang",
+                "en": "Dschang"
+              },
+              "active": true
+            },
+            {
+              "key": "mbouda",
+              "label": {
+                "fr": "Mbouda",
+                "en": "Mbouda"
+              },
+              "active": true
+            },
+            {
+              "key": "foumban",
+              "label": {
+                "fr": "Foumban",
+                "en": "Foumban"
+              },
+              "active": true
+            },
+            {
+              "key": "foumbot",
+              "label": {
+                "fr": "Foumbot",
+                "en": "Foumbot"
+              },
+              "active": true
+            },
+            {
+              "key": "bangangte",
+              "label": {
+                "fr": "Bangangté",
+                "en": "Bangangte"
+              },
+              "active": true
+            },
+            {
+              "key": "bafang",
+              "label": {
+                "fr": "Bafang",
+                "en": "Bafang"
+              },
+              "active": true
+            },
+            {
+              "key": "bandjoun",
+              "label": {
+                "fr": "Bandjoun",
+                "en": "Bandjoun"
+              },
+              "active": true
+            },
+            {
+              "key": "baham",
+              "label": {
+                "fr": "Baham",
+                "en": "Baham"
+              },
+              "active": true
+            },
+            {
+              "key": "penka-michel",
+              "label": {
+                "fr": "Penka-Michel",
+                "en": "Penka-Michel"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "sud",
-          "label": "Sud",
-          "active": true
+          "label": {
+            "fr": "Sud",
+            "en": "South"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "ebolowa",
+              "label": {
+                "fr": "Ebolowa",
+                "en": "Ebolowa"
+              },
+              "active": true
+            },
+            {
+              "key": "kribi",
+              "label": {
+                "fr": "Kribi",
+                "en": "Kribi"
+              },
+              "active": true
+            },
+            {
+              "key": "sangmelima",
+              "label": {
+                "fr": "Sangmélima",
+                "en": "Sangmelima"
+              },
+              "active": true
+            },
+            {
+              "key": "ambam",
+              "label": {
+                "fr": "Ambam",
+                "en": "Ambam"
+              },
+              "active": true
+            },
+            {
+              "key": "lolodorf",
+              "label": {
+                "fr": "Lolodorf",
+                "en": "Lolodorf"
+              },
+              "active": true
+            },
+            {
+              "key": "campo",
+              "label": {
+                "fr": "Campo",
+                "en": "Campo"
+              },
+              "active": true
+            },
+            {
+              "key": "mvangan",
+              "label": {
+                "fr": "Mvangan",
+                "en": "Mvangan"
+              },
+              "active": true
+            }
+          ]
         },
         {
           "key": "sud-ouest",
-          "label": "Sud-Ouest",
-          "active": true
+          "label": {
+            "fr": "Sud-Ouest",
+            "en": "South West"
+          },
+          "active": true,
+          "cities": [
+            {
+              "key": "buea",
+              "label": {
+                "fr": "Buéa",
+                "en": "Buea"
+              },
+              "active": true
+            },
+            {
+              "key": "limbe",
+              "label": {
+                "fr": "Limbé",
+                "en": "Limbe"
+              },
+              "active": true
+            },
+            {
+              "key": "kumba",
+              "label": {
+                "fr": "Kumba",
+                "en": "Kumba"
+              },
+              "active": true
+            },
+            {
+              "key": "tiko",
+              "label": {
+                "fr": "Tiko",
+                "en": "Tiko"
+              },
+              "active": true
+            },
+            {
+              "key": "mamfe",
+              "label": {
+                "fr": "Mamfé",
+                "en": "Mamfe"
+              },
+              "active": true
+            },
+            {
+              "key": "muyuka",
+              "label": {
+                "fr": "Muyuka",
+                "en": "Muyuka"
+              },
+              "active": true
+            },
+            {
+              "key": "mundemba",
+              "label": {
+                "fr": "Mundemba",
+                "en": "Mundemba"
+              },
+              "active": true
+            }
+          ]
         }
       ]
     },

@@ -19,7 +19,10 @@ const DOT_CLASSES: Readonly<Record<string, string>> = {
   stone: 'bg-stone'
 };
 
-function dotClass(color: string | undefined): string {
+/** The tones a category can wear, as the API accepts them. */
+export const CATEGORY_TONES: readonly string[] = Object.keys(DOT_CLASSES);
+
+export function dotClass(color: string | undefined): string {
   return (color && DOT_CLASSES[color]) || 'bg-stone';
 }
 let bySpecies = new Map<string, { sub: CatalogSubcategory; category: CatalogCategory }>();
@@ -34,6 +37,8 @@ export interface SpeciesGroup {
   readonly key: string;
   readonly labelKey: string;
   readonly dot: string;
+  /** The animal drawing the API gives the category. */
+  readonly icon: string;
   readonly species: readonly string[];
 }
 
@@ -46,6 +51,7 @@ export function speciesGroups(): SpeciesGroup[] {
       key: c.key,
       labelKey: refKey.category(c.key),
       dot: dotClass(c.color),
+      icon: c.icon,
       species: c.subcategories.filter((s) => s.active).map((s) => s.key)
     }))
     .filter((g) => g.species.length > 0);
@@ -77,6 +83,16 @@ export function speciesDot(value: string): string {
 export function speciesUnitKey(value: string): string {
   const unit = bySpecies.get(value)?.sub.unit.key;
   return unit ? refKey.unit(unit) : '';
+}
+
+/** The animal drawing the API gives a species ('' for one it doesn't know). */
+export function speciesIcon(value: string): string {
+  return bySpecies.get(value)?.sub.icon ?? '';
+}
+
+/** The animal drawing the API gives a category. */
+export function categoryIcon(value: string): string {
+  return categories.find((c) => c.key === value)?.icon ?? '';
 }
 
 /** The category a species belongs to. */

@@ -24,7 +24,8 @@ export type Permission =
   | 'escrow.settle'
   | 'exports.accounting'
   | 'staff.manage'
-  | 'audit.read';
+  | 'audit.read'
+  | 'reference.manage';
 
 export type IdDocumentType = 'national_id' | 'passport' | 'driving_licence';
 

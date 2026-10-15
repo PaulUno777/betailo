@@ -100,8 +100,14 @@ func (f *fakeTrust) Execute(_ context.Context, userID bson.ObjectID) error {
 	return nil
 }
 
-func (f *fakeFarms) ListByStatus(context.Context, domain.FarmStatus) ([]*domain.Farm, error) {
-	return nil, nil
+func (f *fakeFarms) ListByStatus(_ context.Context, status domain.FarmStatus) ([]*domain.Farm, error) {
+	var out []*domain.Farm
+	for _, farm := range f.byID {
+		if farm.Status == status {
+			out = append(out, farm)
+		}
+	}
+	return out, nil
 }
 
 // fakeUsers answers FindByID with a plain personal account for anyone,
