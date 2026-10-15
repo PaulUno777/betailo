@@ -10,6 +10,7 @@ const REVIEW: Review = {
   criteria: { health: 5 },
   tags: ['responsive_farmer'],
   photos: ['https://cdn.test/a.jpg'],
+  thumbs: ['https://cdn.test/a.thumb.jpg'],
   helpfulCount: 7,
   votedByMe: false,
   mine: false,

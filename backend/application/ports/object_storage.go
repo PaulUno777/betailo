@@ -11,9 +11,13 @@ import "context"
 type ObjectStorage interface {
 	// PresignUpload returns a URL the client can PUT the object to
 	// directly, bypassing the API server for the file bytes themselves.
-	PresignUpload(ctx context.Context, key string) (string, error)
+	// The URL only accepts a JPEG of exactly size bytes, so storage
+	// refuses anything heavier than what the usecase allowed.
+	PresignUpload(ctx context.Context, key string, size int64) (string, error)
 
 	// PresignDownload returns a URL the client can GET the object from
 	// directly (used to serve listing photos without proxying them).
+	// The same key yields the same URL for hours, so browsers cache the
+	// image instead of downloading it again on every page.
 	PresignDownload(ctx context.Context, key string) (string, error)
 }

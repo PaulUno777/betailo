@@ -39,13 +39,18 @@ type PresignFarmProofOutput struct {
 	UploadURL string
 }
 
-func (uc *PresignFarmProof) Execute(ctx context.Context, farmID, ownerID bson.ObjectID) (*PresignFarmProofOutput, error) {
+// Execute locks the upload URL to size bytes, under the photo cap. Proof
+// files are only ever seen full size by staff, so they get no small copy.
+func (uc *PresignFarmProof) Execute(ctx context.Context, farmID, ownerID bson.ObjectID, size int64) (*PresignFarmProofOutput, error) {
+	if err := domain.CheckPhotoSize(size, domain.MaxPhotoBytes); err != nil {
+		return nil, err
+	}
 	f, err := ownedFarm(ctx, uc.Farms, farmID, ownerID)
 	if err != nil {
 		return nil, err
 	}
 	key := domain.FarmProofPrefix(f.ID) + bson.NewObjectID().Hex() + ".jpg"
-	uploadURL, err := uc.Storage.PresignUpload(ctx, key)
+	uploadURL, err := uc.Storage.PresignUpload(ctx, key, size)
 	if err != nil {
 		return nil, err
 	}

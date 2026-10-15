@@ -44,7 +44,7 @@ func TestSeller_HTTP_WizardDraftPhotosPublish(t *testing.T) {
 		t.Fatalf("publish without photos code = %q, want listing.photo_required", code)
 	}
 
-	key := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/photos/presign", nil, token)).Key
+	key := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/photos/presign", photoSizes, token)).Key
 	if set := doJSON(t, router, http.MethodPut, "/listings/"+l.ID+"/photos", setListingPhotosRequest{Keys: []string{key}}, token); set.Code != http.StatusOK {
 		t.Fatalf("set one photo status = %d; body = %s", set.Code, set.Body.String())
 	}
@@ -90,7 +90,7 @@ func TestSeller_HTTP_PriceHint(t *testing.T) {
 	router := newTestRouter()
 	publish := func(token, farmID string, price float64) {
 		l := decodeJSON[quickListingResponse](t, doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("jeunes-poulets", price), token)).Listing
-		key := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/photos/presign", nil, token)).Key
+		key := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/photos/presign", photoSizes, token)).Key
 		doJSON(t, router, http.MethodPut, "/listings/"+l.ID+"/photos", setListingPhotosRequest{Keys: []string{key}}, token)
 		doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/publish", nil, token)
 	}

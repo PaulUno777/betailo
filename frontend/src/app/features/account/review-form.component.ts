@@ -227,7 +227,7 @@ export class ReviewFormComponent {
     this.submitting.set(true);
     const files = this.photos().map((p) => p.file);
     const keys$ = files.length
-      ? forkJoin(files.map((f) => this.uploads.upload(f, () => this.reviewsApi.presignPhoto(v.id))))
+      ? forkJoin(files.map((f) => this.uploads.upload(f, (sizes) => this.reviewsApi.presignPhoto(v.id, sizes), { thumb: true })))
       : of<string[]>([]);
     keys$
       .pipe(

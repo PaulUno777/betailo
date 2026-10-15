@@ -13,6 +13,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { ThumbSrcDirective } from '../../shared/ui/thumb-src/thumb-src.directive';
 
 /** `/portal/listings` — "Mes annonces": every listing of the farm, any
  * status, as one card each (cover, price, what's left, reservations),
@@ -20,7 +21,7 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
  * take a live one off the market. Editing opens the listing's page. */
 @Component({
   selector: 'bt-portal-listings',
-  imports: [RouterLink, ButtonComponent, IconComponent, StatusBadgeComponent, FcfaCurrencyPipe, TranslatePipe],
+  imports: [ThumbSrcDirective, RouterLink, ButtonComponent, IconComponent, StatusBadgeComponent, FcfaCurrencyPipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-4xl p-4 sm:p-8">
@@ -50,7 +51,7 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
             <li class="flex gap-3 rounded-lg border border-line bg-surface-card p-3">
               <a [routerLink]="['/portal/listings', row.listing.id]" class="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-surface-sunken">
                 @if (row.listing.photos?.[0]; as cover) {
-                  <img [src]="cover" alt="" loading="lazy" class="h-full w-full object-cover" />
+                  <img [btThumbSrc]="row.listing.thumbs?.[0]" [photo]="cover" alt="" loading="lazy" decoding="async" class="h-full w-full object-cover" />
                 } @else {
                   <span class="flex h-full w-full items-center justify-center text-ink-muted"><bt-icon name="camera" [size]="22" /></span>
                 }

@@ -142,7 +142,7 @@ export class ListingFormComponent {
             return [listing];
           }
           this.uploading.set(true);
-          const uploads = this.photoFiles().map((file) => this.photos.upload(file, () => this.listingsApi.presignPhoto(listing.id)));
+          const uploads = this.photoFiles().map((file) => this.photos.upload(file, (sizes) => this.listingsApi.presignPhoto(listing.id, sizes), { thumb: true }));
           return forkJoin(uploads).pipe(switchMap((keys) => this.listingsApi.setPhotos(listing.id, keys)));
         })
       )

@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { IdDocumentType } from '../../domain/enums';
 import { Farm } from '../../domain/models';
-import { PresignedUpload } from '../../core/http/photo-upload.service';
+import { PhotoSizes, PresignedUpload } from '../../core/http/photo-upload.service';
 import { ApiClient } from '../../core/http/api-client';
 
 export interface FarmInput {
@@ -56,8 +56,8 @@ export class FarmsApi {
 
   /** One upload slot for a proof file (identity document or a photo of
    * the farm). Private: only this farm's review ever reads it. */
-  presignProof(id: string): Observable<PresignedUpload> {
-    return this.api.post<PresignedUpload>(`/farms/${id}/verification/presign`);
+  presignProof(id: string, sizes: PhotoSizes): Observable<PresignedUpload> {
+    return this.api.post<PresignedUpload>(`/farms/${id}/verification/presign`, sizes);
   }
 
   /** Takes a farm back out of the review queue. */

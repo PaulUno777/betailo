@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Cycle, Listing, ListingSearchParams } from '../../domain/models';
 import { ApiClient, QueryParams } from '../../core/http/api-client';
+import { PhotoSizes, PresignedUpload } from '../../core/http/photo-upload.service';
 
 export interface ListingInput {
   readonly cycleId: string;
@@ -41,10 +42,6 @@ export interface QuickListingResult {
   readonly listing: Listing;
 }
 
-export interface PresignPhotoResult {
-  readonly key: string;
-  readonly uploadUrl: string;
-}
 
 /** Exposes URLs rather than Observables for reads — these feed Angular's
  * `httpResource()` directly from `features/*`, which needs a URL (or a
@@ -108,8 +105,8 @@ export class ListingsApi {
     return this.api.delete<void>(`/listings/${id}`);
   }
 
-  presignPhoto(id: string): Observable<PresignPhotoResult> {
-    return this.api.post<PresignPhotoResult>(`/listings/${id}/photos/presign`);
+  presignPhoto(id: string, sizes: PhotoSizes): Observable<PresignedUpload> {
+    return this.api.post<PresignedUpload>(`/listings/${id}/photos/presign`, sizes);
   }
 
   setPhotos(id: string, keys: string[]): Observable<Listing> {

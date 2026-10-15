@@ -21,6 +21,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { StickyActionBarComponent } from '../../shared/ui/sticky-action-bar/sticky-action-bar.component';
 import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
+import { ThumbSrcDirective } from '../../shared/ui/thumb-src/thumb-src.directive';
 
 const PHONE_STORAGE_KEY = 'betailo.momoPhone';
 const QUOTE_DEBOUNCE_MS = 250;
@@ -50,7 +51,7 @@ function readStoredPhone(): string {
  * computes the fee itself. */
 @Component({
   selector: 'bt-checkout',
-  imports: [
+  imports: [ThumbSrcDirective, 
     NgTemplateOutlet,
     FormsModule,
     ChoiceCardComponent,
@@ -83,7 +84,7 @@ function readStoredPhone(): string {
             <div class="flex items-center gap-3 rounded-lg border border-line bg-surface-card p-3">
               <div class="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-sunken">
                 @if (d.listing.photos?.[0]; as photo) {
-                  <img [src]="photo" alt="" class="h-full w-full object-cover" />
+                  <img [btThumbSrc]="d.listing.thumbs?.[0]" [photo]="photo" alt="" decoding="async" class="h-full w-full object-cover" />
                 }
               </div>
               <div class="flex min-w-0 flex-col">

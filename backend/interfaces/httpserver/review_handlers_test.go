@@ -76,7 +76,7 @@ func TestReview_HTTP_RichReviewHelpfulAndReply(t *testing.T) {
 	tf.setDisplayName(buyerID, "Joël Tchoupo")
 	reservationID := reserveAndRelease(t, router, listingID, farmerToken, buyerToken)
 
-	presign := doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/reviews/photos/presign", nil, buyerToken)
+	presign := doJSON(t, router, http.MethodPost, "/reservations/"+reservationID+"/reviews/photos/presign", photoSizes, buyerToken)
 	if presign.Code != http.StatusOK {
 		t.Fatalf("presign status = %d; body = %s", presign.Code, presign.Body.String())
 	}

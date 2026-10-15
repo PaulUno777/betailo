@@ -5,6 +5,7 @@ import { AvatarComponent } from '../avatar/avatar.component';
 import { IconComponent } from '../icon/icon.component';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { LocalDatePipe } from '../../pipes/local-date.pipe';
+import { ThumbSrcDirective } from '../thumb-src/thumb-src.directive';
 
 /** A verified review, per the design: who (public name only) and when,
  * stars, comment, photos, what they liked, the "Avis vérifié · RSV-xxxx"
@@ -13,7 +14,7 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
  * enforces both regardless. */
 @Component({
   selector: 'bt-review-card',
-  imports: [RatingComponent, AvatarComponent, IconComponent, TranslatePipe, LocalDatePipe],
+  imports: [ThumbSrcDirective, RatingComponent, AvatarComponent, IconComponent, TranslatePipe, LocalDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article class="flex flex-col gap-3 rounded-xl border border-line bg-surface-card p-4 sm:p-5">
@@ -32,9 +33,16 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
 
       @if (review().photos.length) {
         <div class="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
-          @for (photo of review().photos; track photo) {
+          @for (photo of review().photos; track photo; let i = $index) {
             <a [href]="photo" target="_blank" rel="noopener" class="shrink-0">
-              <img [src]="photo" [alt]="'review.photoAlt' | t" loading="lazy" class="h-20 w-20 rounded-md object-cover sm:h-24 sm:w-24" />
+              <img
+                [btThumbSrc]="review().thumbs[i]"
+                [photo]="photo"
+                [alt]="'review.photoAlt' | t"
+                loading="lazy"
+                decoding="async"
+                class="h-20 w-20 rounded-md object-cover sm:h-24 sm:w-24"
+              />
             </a>
           }
         </div>

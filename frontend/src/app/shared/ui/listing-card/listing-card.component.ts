@@ -10,6 +10,7 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { LocaleService } from '../../../core/i18n/locale.service';
 import { speciesLabelKey } from '../../../domain/reference/species';
 import { cycleTypeLabelKey } from '../../../domain/reference/cycle-types';
+import { ThumbSrcDirective } from '../thumb-src/thumb-src.directive';
 
 export type ListingCardLayout = 'tile' | 'row';
 
@@ -18,7 +19,7 @@ export type ListingCardLayout = 'tile' | 'row';
  * the left, so a screen shows four or five results instead of one. */
 @Component({
   selector: 'bt-listing-card',
-  imports: [RouterLink, FcfaCurrencyPipe, StatusBadgeComponent, CapacityBarComponent, RatingComponent, IconComponent, TranslatePipe],
+  imports: [ThumbSrcDirective, RouterLink, FcfaCurrencyPipe, StatusBadgeComponent, CapacityBarComponent, RatingComponent, IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (layout() === 'row') {
@@ -28,7 +29,7 @@ export type ListingCardLayout = 'tile' | 'row';
       >
         <div class="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-surface-sunken">
           @if (item().listing.photos?.[0]; as photo) {
-            <img [src]="photo" alt="" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+            <img [btThumbSrc]="item().listing.thumbs?.[0]" [photo]="photo" alt="" loading="lazy" decoding="async" class="h-full w-full object-cover" />
           }
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -77,7 +78,15 @@ export type ListingCardLayout = 'tile' | 'row';
           @if (item().listing.photos?.[0]; as photo) {
             <!-- Absolute, so a portrait or square photo is cropped to 4:3
                  instead of stretching the card. -->
-            <img [src]="photo" alt="" loading="lazy" decoding="async" class="absolute inset-0 h-full w-full object-cover" />
+            <img
+              [btThumbSrc]="item().listing.thumbs?.[0]"
+              [photo]="photo"
+              sizes="(min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              class="absolute inset-0 h-full w-full object-cover"
+            />
           } @else {
             <!-- No photo yet: say so, instead of an empty grey box. -->
             <div class="photo-pending absolute inset-0 flex items-end p-3">

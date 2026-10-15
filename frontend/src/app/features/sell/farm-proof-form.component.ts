@@ -236,7 +236,7 @@ export class FarmProofFormComponent {
     this.saving.set(true);
     this.error.set(null);
     const farmId = this.farm().id;
-    const upload = (f: PickedFile | null) => (f ? this.uploads.upload(f.file, () => this.farmsApi.presignProof(farmId)) : of(''));
+    const upload = (f: PickedFile | null) => (f ? this.uploads.upload(f.file, (sizes) => this.farmsApi.presignProof(farmId, sizes)) : of(''));
     const photos = this.photos();
     forkJoin({
       idDocumentKey: upload(this.front()),

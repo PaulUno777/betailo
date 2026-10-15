@@ -16,7 +16,7 @@ export class ListingPhotosService {
   save(listingId: string, photos: readonly PickedPhoto[]): Observable<Listing | null> {
     if (!photos.length) return of(null);
     const keys$ = photos.map((p) =>
-      p.key ? of(p.key) : this.uploads.upload(p.file!, () => this.listingsApi.presignPhoto(listingId))
+      p.key ? of(p.key) : this.uploads.upload(p.file!, (sizes) => this.listingsApi.presignPhoto(listingId, sizes), { thumb: true })
     );
     return forkJoin(keys$).pipe(switchMap((keys) => this.listingsApi.setPhotos(listingId, keys)));
   }

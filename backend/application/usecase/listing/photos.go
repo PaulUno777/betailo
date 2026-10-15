@@ -34,16 +34,28 @@ type PresignListingPhoto struct {
 type PresignListingPhotoInput struct {
 	ListingID bson.ObjectID
 	OwnerID   bson.ObjectID
+	// Size and ThumbSize are the byte sizes of the photo and its small
+	// copy, which the upload URLs are locked to.
+	Size      int64
+	ThumbSize int64
 }
 
 type PresignListingPhotoOutput struct {
-	Key       string
-	UploadURL string
+	Key            string
+	UploadURL      string
+	ThumbUploadURL string
 }
 
 // Execute returns domain.ErrForbidden if the caller doesn't own the
-// listing's cycle's farm.
+// listing's cycle's farm, and domain.ErrInvalid if either size is over
+// its cap.
 func (uc *PresignListingPhoto) Execute(ctx context.Context, in PresignListingPhotoInput) (*PresignListingPhotoOutput, error) {
+	if err := domain.CheckPhotoSize(in.Size, domain.MaxPhotoBytes); err != nil {
+		return nil, err
+	}
+	if err := domain.CheckPhotoSize(in.ThumbSize, domain.MaxThumbBytes); err != nil {
+		return nil, err
+	}
 	l, err := uc.Listings.FindByID(ctx, in.ListingID)
 	if err != nil {
 		return nil, err
@@ -57,11 +69,15 @@ func (uc *PresignListingPhoto) Execute(ctx context.Context, in PresignListingPho
 	}
 
 	key := ListingPhotoPrefix(in.ListingID) + bson.NewObjectID().Hex() + ".jpg"
-	uploadURL, err := uc.Storage.PresignUpload(ctx, key)
+	uploadURL, err := uc.Storage.PresignUpload(ctx, key, in.Size)
 	if err != nil {
 		return nil, err
 	}
-	return &PresignListingPhotoOutput{Key: key, UploadURL: uploadURL}, nil
+	thumbURL, err := uc.Storage.PresignUpload(ctx, domain.ThumbKey(key), in.ThumbSize)
+	if err != nil {
+		return nil, err
+	}
+	return &PresignListingPhotoOutput{Key: key, UploadURL: uploadURL, ThumbUploadURL: thumbURL}, nil
 }
 
 // SetListingPhotos replaces a listing's ordered photo list — the first

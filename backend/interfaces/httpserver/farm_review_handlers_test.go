@@ -15,7 +15,7 @@ func uploadFarmProof(t *testing.T, router http.Handler, farmID, token string, n 
 	t.Helper()
 	keys := make([]string, 0, n)
 	for range n {
-		rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/verification/presign", nil, token)
+		rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/verification/presign", photoSizes, token)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("presign status = %d; body = %s", rec.Code, rec.Body.String())
 		}
@@ -43,7 +43,7 @@ func newDraftFarmWithListing(t *testing.T, router http.Handler, tf *testFakes) (
 		t.Fatalf("quick listing status = %d; body = %s", quick.Code, quick.Body.String())
 	}
 	listingID = decodeJSON[quickListingResponse](t, quick).Listing.ID
-	up := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", nil, token))
+	up := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+listingID+"/photos/presign", photoSizes, token))
 	if rec := doJSON(t, router, http.MethodPut, "/listings/"+listingID+"/photos", setListingPhotosRequest{Keys: []string{up.Key}}, token); rec.Code != http.StatusOK {
 		t.Fatalf("set photos status = %d; body = %s", rec.Code, rec.Body.String())
 	}

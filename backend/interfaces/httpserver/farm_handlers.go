@@ -288,7 +288,11 @@ func handlePresignFarmProof(uc *farm.PresignFarmProof) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		out, err := uc.Execute(r.Context(), id, claims.UserID)
+		var req presignPhotoRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		out, err := uc.Execute(r.Context(), id, claims.UserID, req.Size)
 		if err != nil {
 			writeError(w, err)
 			return
