@@ -49,6 +49,10 @@ type ListingSearchCriteria struct {
 	// fills it from the catalog): farms store keys, so "Far North" or
 	// "Yaoundé" still find them.
 	QueryPlaces [][]string
+	// QuerySpecies holds, for each word of Query in order, the species
+	// whose name in either language contains it: keys are English, so
+	// "poussins" finds "chicks".
+	QuerySpecies [][]string
 	// IDs, when non-empty, restricts results to these listings (still
 	// only published, unflagged ones). Backs "my favorites".
 	IDs []bson.ObjectID

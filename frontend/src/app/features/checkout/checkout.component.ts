@@ -176,6 +176,9 @@ function readStoredPhone(): string {
             }
 
             <bt-notice tone="success" icon="lock">{{ 'checkout.escrowNotice' | t }}</bt-notice>
+            <!-- Last reminder before paying: the escrow covers the
+                 animals only, transport is settled with the farmer. -->
+            <bt-notice tone="info" icon="pin" [title]="'checkout.transportTitle' | t">{{ 'checkout.transportBody' | t }}</bt-notice>
 
             <!-- Desktop submit; phones use the sticky bar. -->
             <div class="hidden lg:block">

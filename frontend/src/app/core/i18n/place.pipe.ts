@@ -3,7 +3,7 @@ import { LocaleService } from './locale.service';
 import { placeLabelKey } from '../../domain/reference/countries';
 
 /** `{{ farm.location | place }}`: a farm's stored town or region in the
- * reader's language. Farms store the catalog's keys ("extreme-nord",
+ * reader's language. Farms store the catalog's keys ("far-north",
  * "ngaoundere") for listed places and the text for others, which shows
  * as typed. Impure for the same reason as TranslatePipe. */
 @Pipe({ name: 'place', pure: false })

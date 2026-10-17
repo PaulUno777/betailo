@@ -1,6 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Injector, runInInjectionContext } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ApiResource, apiResource } from './api-resource';
 
@@ -44,5 +44,38 @@ describe('apiResource', () => {
     expect(res.value()).toBeUndefined();
     expect(res.error()).toBeTruthy();
     expect(res.hasValue()).toBeFalse();
+  });
+
+  it('fetches again only when the URL itself changes', async () => {
+    const farm = signal({ id: 'f1', region: 'west' });
+    const species = signal('chicks');
+    const res = runInInjectionContext(TestBed.inject(Injector), () =>
+      apiResource<{ low: number }>(() => `/listings/price-hint?species=${species()}&region=${farm().region}`)
+    );
+    TestBed.tick();
+    httpMock.expectOne('/listings/price-hint?species=chicks&region=west').flush({ low: 1 });
+    await settle();
+    expect(res.value()).toEqual({ low: 1 });
+
+    // A refreshed farm object, same region: same URL, no new request.
+    farm.set({ id: 'f1', region: 'west' });
+    TestBed.tick();
+    httpMock.expectNone(() => true);
+
+    species.set('broilers');
+    TestBed.tick();
+    httpMock.expectOne('/listings/price-hint?species=broilers&region=west').flush({ low: 2 });
+    await settle();
+    expect(res.value()).toEqual({ low: 2 });
+  });
+
+  it('waits while the URL is undefined', () => {
+    const id = signal<string | undefined>(undefined);
+    runInInjectionContext(TestBed.inject(Injector), () => apiResource(() => (id() ? `/forum/posts/${id()}` : undefined)));
+    TestBed.tick();
+    httpMock.expectNone(() => true);
+    id.set('p1');
+    TestBed.tick();
+    httpMock.expectOne('/forum/posts/p1').flush({});
   });
 });

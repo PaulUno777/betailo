@@ -204,7 +204,7 @@ export class ListingEditComponent {
         unitPrice: f.unitPrice,
         unit: r.listing.unit,
         breed: f.breed.trim(),
-        ageWeeks: r.listing.ageWeeks,
+        ageDays: r.listing.ageDays,
         deliveryAvailable: f.delivery
       })
       .pipe(

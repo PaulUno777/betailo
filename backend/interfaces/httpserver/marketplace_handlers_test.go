@@ -77,12 +77,12 @@ func TestSearchListings_HTTP_FiltersBySpeciesAndPrice(t *testing.T) {
 	router := newTestRouter()
 	farmerToken, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme A", Location: "Douala", Species: []string{"poussins", "porcs"}}, farmerToken)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme A", Location: "Douala", Species: []string{"chicks", "piglets"}}, farmerToken)
 	farmID := decodeJSON[farmResponse](t, farmRec).ID
 
 	makeListing := func(species string, price float64) string {
 		cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-			FarmID: farmID, Species: species, Type: "engraissement", Capacity: 50, StartsAt: time.Now().Add(24 * time.Hour),
+			FarmID: farmID, Species: species, Type: "fattening", Capacity: 50, StartsAt: time.Now().Add(24 * time.Hour),
 		}, farmerToken)
 		cycleID := decodeJSON[cycleResponse](t, cycleRec).ID
 		listingRec := doJSON(t, router, http.MethodPost, "/listings", createListingRequest{
@@ -91,10 +91,10 @@ func TestSearchListings_HTTP_FiltersBySpeciesAndPrice(t *testing.T) {
 		return decodeJSON[listingResponse](t, listingRec).ID
 	}
 
-	cheapChicken := makeListing("poussins", 1000)
-	expensivePig := makeListing("porcs", 20000)
+	cheapChicken := makeListing("chicks", 1000)
+	expensivePig := makeListing("piglets", 20000)
 
-	rec := doJSON(t, router, http.MethodGet, "/listings?species=poussins&maxPrice=5000", nil, "")
+	rec := doJSON(t, router, http.MethodGet, "/listings?species=chicks&maxPrice=5000", nil, "")
 	items := decodeJSON[marketplaceSearchResponse](t, rec).Items
 	foundCheap, foundExpensive := false, false
 	for _, item := range items {
@@ -106,20 +106,20 @@ func TestSearchListings_HTTP_FiltersBySpeciesAndPrice(t *testing.T) {
 		}
 	}
 	if !foundCheap {
-		t.Error("species=poussins&maxPrice=5000 should include the cheap chicken listing")
+		t.Error("species=chicks&maxPrice=5000 should include the cheap chicken listing")
 	}
 	if foundExpensive {
-		t.Error("species=poussins&maxPrice=5000 should exclude the pig listing")
+		t.Error("species=chicks&maxPrice=5000 should exclude the pig listing")
 	}
 
 	// A category stands for its sub-categories: the pig, not the chicks.
-	rec = doJSON(t, router, http.MethodGet, "/listings?category=porcins", nil, "")
+	rec = doJSON(t, router, http.MethodGet, "/listings?category=swine", nil, "")
 	ids := []string{}
 	for _, item := range decodeJSON[marketplaceSearchResponse](t, rec).Items {
 		ids = append(ids, item.Listing.ID)
 	}
 	if !slices.Contains(ids, expensivePig) || slices.Contains(ids, cheapChicken) {
-		t.Errorf("category=porcins = %v, want the pig listing only", ids)
+		t.Errorf("category=swine = %v, want the pig listing only", ids)
 	}
 }
 

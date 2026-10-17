@@ -57,7 +57,7 @@ export interface CatalogVersion {
   readonly fromSeed: boolean;
 }
 
-/** How many farms, cycles, posts… use each entry ("species:poussins"). */
+/** How many farms, cycles, posts… use each entry ("species:chicks"). */
 export type Usage = Readonly<Record<string, number>>;
 
 /** Where an entry stands in the draft. */

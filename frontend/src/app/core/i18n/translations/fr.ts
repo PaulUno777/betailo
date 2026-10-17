@@ -158,6 +158,7 @@ export const fr = {
     },
     forum: {
       post_required: 'Choisissez une catégorie, un titre et écrivez votre question.',
+      title_too_long: 'Le titre ne peut pas dépasser {max} caractères.',
       reply_required: 'Écrivez votre réponse.'
     }
   },
@@ -420,7 +421,12 @@ export const fr = {
     reportFailedTitle: "Échec de l'envoi",
     reportFailedRetry: 'Veuillez réessayer.',
     safetyNoticeTitle: 'Ne payez jamais en dehors de la plateforme',
-    safetyNoticeBody: 'Un éleveur qui demande un paiement direct hors séquestre est presque toujours une arnaque. Signalez-le immédiatement.'
+    safetyNoticeBody: 'Ne payez les animaux que via Betailo : un éleveur qui demande à être payé pour les animaux hors séquestre est presque toujours une arnaque. Seul le transport se règle directement, une fois convenu.',
+    transportDelivers: 'L’éleveur peut livrer',
+    transportPickup: 'Retrait à la ferme',
+    transportBody: 'Le transport n’est pas compris dans le prix : son coût dépend de la distance et de la quantité. Mettez-vous d’accord avec l’éleveur par WhatsApp ou téléphone avant de réserver.',
+    transportOutside: 'Le transport se paie directement à l’éleveur, hors de Betailo. Seuls les animaux se paient dans l’application, protégés par le séquestre.',
+    transportShort: 'Transport non compris : convenez-en avec l’éleveur avant de réserver. Il se paie directement à lui.',
   },
   auth: {
     connexionTab: 'Connexion',
@@ -481,6 +487,8 @@ export const fr = {
     feeLabel: 'Frais de service ({rate} %)',
     totalWithFee: 'Total (frais {rate} % inclus)',
     escrowNotice: 'Argent retenu par Betailo, versé à l’éleveur après votre confirmation de réception.',
+    transportTitle: 'Le transport n’est pas compris',
+    transportBody: 'Ce paiement couvre uniquement les animaux, gardés en séquestre. Convenez du transport avec l’éleveur au préalable et payez-le-lui directement.',
     momoNumberInvalid: 'Entrez un numéro mobile camerounais à 9 chiffres (6…).',
     momoNumberHint: 'Vous recevrez une demande de validation sur ce numéro.',
     momoNumberLabel: 'Numéro Mobile Money',
@@ -651,7 +659,33 @@ export const fr = {
     replySubmitting: 'Envoi…',
     replyFailedTitle: "Échec de l'envoi",
     loginToReply: 'Connectez-vous pour répondre.',
-    someone: 'Membre Betailo'
+    someone: 'Membre Betailo',
+    pitch: 'Posez vos questions aux autres éleveurs, partagez ce qui marche : santé, alimentation, reproduction, prix.',
+    allCategories: 'Tous',
+    sortLabel: 'Trier les sujets',
+    topicsCount_one: '{count} sujet',
+    topicsCount: '{count} sujets',
+    solved: 'Résolu',
+    unanswered: 'Sans réponse',
+    noMatch: 'Aucun sujet ne correspond.',
+    resetFilters: 'Effacer les filtres',
+    emptyTitle: 'Aucun sujet pour l’instant',
+    emptyBody: 'Posez la première question : les éleveurs répondent en général dans la journée.',
+    loadError: 'Impossible de charger les sujets.',
+    tipsTitle: 'Bien poser sa question',
+    tip1: 'Précisez l’espèce, l’âge et le nombre d’animaux.',
+    tip2: 'Décrivez ce que vous avez observé et depuis quand.',
+    tip3: 'Marquez la réponse qui vous a aidé comme meilleure réponse.',
+    titleCounter: '{count}/{max}',
+    titleTooLong: '{max} caractères au plus.',
+    bodyHint: 'Espèce, âge, nombre d’animaux, ce que vous avez remarqué…',
+    authorTag: 'Auteur',
+    noRepliesYet: 'Pas encore de réponse. Vous savez ? Répondez ci-dessous.',
+    sort: {
+      recent: 'Récents',
+      popular: 'Les plus répondus',
+      unanswered: 'Sans réponse'
+    }
   },
   priorityChoice: {
     payNowTitle: 'Payer maintenant',
@@ -1187,6 +1221,16 @@ export const fr = {
     reportScam: 'Signaler une arnaque',
     terms: "Conditions d'utilisation"
   },
+  age: {
+    days_one: '{count} jour',
+    days: '{count} jours',
+    weeks_one: '{count} semaine',
+    weeks: '{count} semaines',
+    months_one: '{count} mois',
+    months: '{count} mois',
+    years_one: '{count} an',
+    years: '{count} ans'
+  },
   sell: {
     addSpecies: 'Pas dans la liste ? Ajoutez une espèce à votre ferme',
     title: 'Vendre mes animaux',
@@ -1200,8 +1244,6 @@ export const fr = {
     breedPlaceholder: 'Brahma, Goliath, Large White…',
     ageLabel: 'Âge',
     ageUnknown: 'Je ne sais pas',
-    ageWeeks: '{count} semaines',
-    ageWeeks_one: '{count} semaine',
     priceTitle: 'Combien et à quel prix ?',
     quantityLabel: 'Nombre d’animaux',
     priceLabel: 'Prix par animal',
@@ -1436,11 +1478,11 @@ export const fr = {
     townOther: 'Nom de la ville ou du village'
   },
   cycleTypes: {
-    couvee: 'Couvée',
-    engraissement: 'Engraissement',
-    ponte: 'Ponte',
-    reproduction: 'Reproduction',
-    elevage: 'Élevage'
+    hatching: 'Couvée',
+    fattening: 'Engraissement',
+    laying: 'Ponte',
+    breeding: 'Reproduction',
+    rearing: 'Élevage'
   },
   staffRole: {
     super_admin: 'Super admin',

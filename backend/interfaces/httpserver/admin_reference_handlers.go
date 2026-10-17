@@ -93,7 +93,7 @@ func handleAdminCatalogVersion(repo ports.CatalogRepository) http.HandlerFunc {
 }
 
 // handleAdminCatalogUsage counts what uses each reference entry
-// (GET /admin/reference/usage), keyed like "species:poussins".
+// (GET /admin/reference/usage), keyed like "species:chicks".
 func handleAdminCatalogUsage(usage ports.CatalogUsage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		counts, err := usage.Usage(r.Context())

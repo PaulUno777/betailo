@@ -136,6 +136,17 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 
               <bt-capacity-bar [capacity]="d.cycle.capacity" [availableQuantity]="d.cycle.availableQuantity" />
 
+              <!-- Transport isn't in the price nor in escrow: the buyer
+                   agrees on it with the farmer before reserving. -->
+              <section class="flex flex-col gap-2 rounded-lg border border-line bg-surface-card p-4" aria-labelledby="transport-title">
+                <h2 id="transport-title" class="flex items-center gap-2 text-body-strong">
+                  <bt-icon name="pin" [size]="18" class="text-forest" />
+                  {{ (d.listing.deliveryAvailable ? 'listingDetail.transportDelivers' : 'listingDetail.transportPickup') | t }}
+                </h2>
+                <p class="text-small text-ink-muted">{{ 'listingDetail.transportBody' | t }}</p>
+                <p class="text-small font-semibold text-ink">{{ 'listingDetail.transportOutside' | t }}</p>
+              </section>
+
               @if (d.listing.description; as description) {
                 <p class="whitespace-pre-line text-body text-ink">{{ description }}</p>
               }
@@ -191,6 +202,10 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
               </div>
               <bt-capacity-bar [capacity]="d.cycle.capacity" [availableQuantity]="d.cycle.availableQuantity" />
               <ng-container *ngTemplateOutlet="cta; context: { $implicit: d, block: true }" />
+              <p class="flex gap-2 text-small text-ink-muted">
+                <bt-icon name="pin" [size]="16" class="mt-0.5 shrink-0 text-forest" />
+                {{ 'listingDetail.transportShort' | t }}
+              </p>
               <bt-notice tone="warning">{{ priorityNotice.noticeBodyKey | t }}</bt-notice>
             </div>
           </aside>

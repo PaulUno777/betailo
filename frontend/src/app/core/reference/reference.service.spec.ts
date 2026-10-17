@@ -31,27 +31,27 @@ describe('ReferenceService', () => {
 
     // Only active categories with active sub-categories are offered.
     expect(speciesGroups().map((g) => [g.key, g.species])).toEqual([
-      ['volaille', ['poussins', 'dindes']],
-      ['ovins', ['agneaux']]
+      ['poultry', ['chicks', 'turkeys']],
+      ['ovine', ['lambs']]
     ]);
-    expect(isSpecies('cailles')).toBeTrue(); // inactive, but older listings keep their label
-    expect(categoryOf('agneaux')).toBe('ovins');
-    expect(speciesDot('dindes')).toBe('bg-clay');
-    expect(speciesCycleType('poussins')).toBe('couvee');
+    expect(isSpecies('quails')).toBeTrue(); // inactive, but older listings keep their label
+    expect(categoryOf('lambs')).toBe('ovine');
+    expect(speciesDot('turkeys')).toBe('bg-clay');
+    expect(speciesCycleType('chicks')).toBe('hatching');
 
     const locale = TestBed.inject(LocaleService);
-    expect(locale.t(speciesLabelKey('dindes'))).toBe('Dindes');
-    expect(locale.t(speciesUnitKey('agneaux'))).toBe('agneau');
+    expect(locale.t(speciesLabelKey('turkeys'))).toBe('Dindes');
+    expect(locale.t(speciesUnitKey('lambs'))).toBe('lamb');
     expect(speciesLabelKey('licornes')).toBe('licornes'); // unknown: shown as stored
     locale.setLocale('en');
-    expect(locale.t(speciesLabelKey('dindes'))).toBe('Turkeys');
+    expect(locale.t(speciesLabelKey('turkeys'))).toBe('Turkeys');
 
     expect(farmCountries()).toEqual(['CM', 'GH']);
-    expect(regionsOf('CM')?.map((r) => r.key)).toEqual(['ouest', 'extreme-nord']);
-    expect(citiesOf('CM', 'extreme-nord').map((c) => c.key)).toEqual(['kousseri']);
-    expect(regionOfCity('kousseri')).toBe('extreme-nord');
+    expect(regionsOf('CM')?.map((r) => r.key)).toEqual(['west', 'far-north']);
+    expect(citiesOf('CM', 'far-north').map((c) => c.key)).toEqual(['kousseri']);
+    expect(regionOfCity('kousseri')).toBe('far-north');
     // Stored keys read in the reader's language; typed text as typed.
-    expect(locale.t(placeLabelKey('extreme-nord'))).toBe('Far North');
+    expect(locale.t(placeLabelKey('far-north'))).toBe('Far North');
     expect(locale.t(placeLabelKey('kousseri'))).toBe('Kousseri');
     expect(locale.t(placeLabelKey('Bamendjou'))).toBe('Bamendjou');
     locale.setLocale('fr');
@@ -73,6 +73,6 @@ describe('ReferenceService', () => {
     await loaded;
     expect(service.catalog().versions.places).toBe(3);
     expect(service.catalog().countries.length).toBeGreaterThan(0);
-    expect(service.forumOptions()).toEqual([{ value: 'sante', label: 'Santé animale' }]);
+    expect(service.forumOptions()).toEqual([{ value: 'health', label: 'Santé animale' }]);
   });
 });

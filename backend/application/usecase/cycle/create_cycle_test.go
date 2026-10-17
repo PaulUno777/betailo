@@ -13,7 +13,7 @@ import (
 
 func TestCreateCycle_Execute_Success(t *testing.T) {
 	owner := bson.NewObjectID()
-	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
+	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"chicks"}}
 	farms := newFakeFarms(f)
 	cycles := newFakeCycles()
 	uc := &CreateCycle{Farms: farms, Cycles: cycles, Sequencer: &fakeSequencer{}}
@@ -22,7 +22,7 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 	ends := starts.Add(30 * 24 * time.Hour)
 
 	c, err := uc.Execute(context.Background(), CreateCycleInput{
-		FarmID: f.ID, OwnerID: owner, Species: "poussins", Type: "ponte",
+		FarmID: f.ID, OwnerID: owner, Species: "chicks", Type: "laying",
 		Capacity: 100, StartsAt: starts, EndsAt: &ends,
 	})
 	if err != nil {
@@ -31,7 +31,7 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 	if c.Reference != "CYC-2610-0001" {
 		t.Errorf("Reference = %q, want CYC-2610-0001", c.Reference)
 	}
-	if c.Type != "couvee" {
+	if c.Type != "hatching" {
 		t.Errorf("Type = %q, want couvee: the catalog's cycle type for poussins, not the one sent", c.Type)
 	}
 	if c.Status != domain.CycleStatusPlanned {
@@ -46,11 +46,11 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 }
 
 func TestCreateCycle_Execute_NotFarmOwner(t *testing.T) {
-	f := &domain.Farm{OwnerID: bson.NewObjectID(), Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
+	f := &domain.Farm{OwnerID: bson.NewObjectID(), Name: "Ferme", Location: "Douala", Species: []string{"chicks"}}
 	uc := &CreateCycle{Farms: newFakeFarms(f), Cycles: newFakeCycles()}
 
 	_, err := uc.Execute(context.Background(), CreateCycleInput{
-		FarmID: f.ID, OwnerID: bson.NewObjectID(), Species: "poussins", Type: "ponte",
+		FarmID: f.ID, OwnerID: bson.NewObjectID(), Species: "chicks", Type: "laying",
 		Capacity: 10, StartsAt: time.Now(),
 	})
 	if !errors.Is(err, domain.ErrForbidden) {
@@ -60,7 +60,7 @@ func TestCreateCycle_Execute_NotFarmOwner(t *testing.T) {
 
 func TestCreateCycle_Execute_Validation(t *testing.T) {
 	owner := bson.NewObjectID()
-	f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
+	f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"chicks"}}
 	starts := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	before := starts.Add(-time.Hour)
 
@@ -68,14 +68,14 @@ func TestCreateCycle_Execute_Validation(t *testing.T) {
 		name string
 		in   CreateCycleInput
 	}{
-		{"missing species", CreateCycleInput{Type: "ponte", Capacity: 10, StartsAt: starts}},
+		{"missing species", CreateCycleInput{Type: "laying", Capacity: 10, StartsAt: starts}},
 		{"a species the catalog doesn't offer", CreateCycleInput{Species: "licornes", Capacity: 10, StartsAt: starts}},
-		{"a species of an inactive category", CreateCycleInput{Species: "veaux", Capacity: 10, StartsAt: starts}},
-		{"zero capacity", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 0, StartsAt: starts}},
-		{"negative capacity", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: -1, StartsAt: starts}},
-		{"zero startsAt", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 10}},
-		{"endsAt before startsAt", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: starts, EndsAt: &before}},
-		{"endsAt equal startsAt", CreateCycleInput{Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: starts, EndsAt: &starts}},
+		{"a species of an inactive category", CreateCycleInput{Species: "calves", Capacity: 10, StartsAt: starts}},
+		{"zero capacity", CreateCycleInput{Species: "chicks", Type: "laying", Capacity: 0, StartsAt: starts}},
+		{"negative capacity", CreateCycleInput{Species: "chicks", Type: "laying", Capacity: -1, StartsAt: starts}},
+		{"zero startsAt", CreateCycleInput{Species: "chicks", Type: "laying", Capacity: 10}},
+		{"endsAt before startsAt", CreateCycleInput{Species: "chicks", Type: "laying", Capacity: 10, StartsAt: starts, EndsAt: &before}},
+		{"endsAt equal startsAt", CreateCycleInput{Species: "chicks", Type: "laying", Capacity: 10, StartsAt: starts, EndsAt: &starts}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -94,11 +94,11 @@ func TestCreateCycle_Execute_Validation(t *testing.T) {
 // owner declares pigs.
 func TestCreateCycle_Execute_SpeciesNotDeclared(t *testing.T) {
 	owner := bson.NewObjectID()
-	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
+	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"chicks"}}
 	uc := &CreateCycle{Farms: newFakeFarms(f), Cycles: newFakeCycles(), Sequencer: &fakeSequencer{}}
 
 	_, err := uc.Execute(context.Background(), CreateCycleInput{
-		FarmID: f.ID, OwnerID: owner, Species: "porcs", Capacity: 10, StartsAt: time.Now(),
+		FarmID: f.ID, OwnerID: owner, Species: "piglets", Capacity: 10, StartsAt: time.Now(),
 	})
 	if code, _ := domain.CodeOf(err); !errors.Is(err, domain.ErrInvalid) || code != "farm.species_not_declared" {
 		t.Fatalf("Execute() error = %v, want farm.species_not_declared", err)

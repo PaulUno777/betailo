@@ -42,7 +42,7 @@ func op(kind domain.CatalogOpKind, ref domain.CatalogRef, value string) domain.C
 var (
 	addRegion = op(domain.OpAdd, domain.CatalogRef{Entity: domain.EntityRegion, Country: "SN"}, `{"key":"dakar","label":{"fr":"Dakar","en":"Dakar"},"active":true}`)
 	addTown   = op(domain.OpAdd, domain.CatalogRef{Entity: domain.EntityCity, Country: "SN", Parent: "dakar"}, `{"key":"rufisque","label":{"fr":"Rufisque","en":"Rufisque"},"active":true}`)
-	renameEN  = op(domain.OpUpdate, domain.CatalogRef{Entity: domain.EntityCategory, Key: "volaille"}, `{"label":{"en":"Fowl"}}`)
+	renameEN  = op(domain.OpUpdate, domain.CatalogRef{Entity: domain.EntityCategory, Key: "poultry"}, `{"label":{"en":"Fowl"}}`)
 )
 
 func TestChangeset_ChangesAccumulateAndPublishTogether(t *testing.T) {
@@ -86,7 +86,7 @@ func TestChangeset_ChangesAccumulateAndPublishTogether(t *testing.T) {
 
 func TestChangeset_RefusesWhatDoesNotApplyNamingTheOperation(t *testing.T) {
 	uc, _, _ := newChangeset()
-	badIcon := op(domain.OpUpdate, domain.CatalogRef{Entity: domain.EntityCategory, Key: "ovins"}, `{"icon":"dragon"}`)
+	badIcon := op(domain.OpUpdate, domain.CatalogRef{Entity: domain.EntityCategory, Key: "ovine"}, `{"icon":"dragon"}`)
 	_, err := uc.Queue(context.Background(), 0, []domain.CatalogOp{renameEN, badIcon}, bson.NewObjectID())
 	if codeOf(err) != "catalog.invalid" {
 		t.Errorf("invalid result: %v", err)

@@ -12,25 +12,25 @@ import (
 func newFarmer(t *testing.T, router http.Handler, location string) (token, farmID string) {
 	t.Helper()
 	token, _ = registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme " + location, Location: location, Species: []string{"poussins", "jeunes-poulets", "porcs"}}, token))
+	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme " + location, Location: location, Species: []string{"chicks", "broilers", "piglets"}}, token))
 	return token, farm.ID
 }
 
 func quickListing(species string, price float64) quickListingRequest {
-	return quickListingRequest{Species: species, Breed: "Brahma", AgeWeeks: 10, Quantity: 40, UnitPrice: price, Title: "Jeunes poulets Brahma — disponibles"}
+	return quickListingRequest{Species: species, Breed: "Brahma", AgeDays: 10, Quantity: 40, UnitPrice: price, Title: "Jeunes poulets Brahma — disponibles"}
 }
 
 func TestSeller_HTTP_WizardDraftPhotosPublish(t *testing.T) {
 	router := newTestRouter()
 	token, farmID := newFarmer(t, router, "Dschang")
 
-	rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("jeunes-poulets", 12000), token)
+	rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("broilers", 12000), token)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("quick create status = %d; body = %s", rec.Code, rec.Body.String())
 	}
 	out := decodeJSON[quickListingResponse](t, rec)
 	l, c := out.Listing, out.Cycle
-	if l.Status != "draft" || l.Unit != "sujet" || l.Breed != "Brahma" || c.Type != "engraissement" || c.Status != "in_progress" || c.Reference == "" {
+	if l.Status != "draft" || l.Unit != "bird" || l.Breed != "Brahma" || c.Type != "fattening" || c.Status != "in_progress" || c.Reference == "" {
 		t.Fatalf("created = %+v / %+v, want a draft priced per sujet on an in-progress engraissement cycle with a reference", l, c)
 	}
 
@@ -67,14 +67,14 @@ func TestSeller_HTTP_WizardValidationAndRoles(t *testing.T) {
 	token, farmID := newFarmer(t, router, "Dschang")
 	buyer, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
-	if rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("jeunes-poulets", 12000), buyer); rec.Code != http.StatusForbidden {
+	if rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("broilers", 12000), buyer); rec.Code != http.StatusForbidden {
 		t.Errorf("buyer quick-create status = %d, want 403", rec.Code)
 	}
 	if rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("licornes", 12000), token); rec.Code != http.StatusBadRequest {
 		t.Errorf("unknown species status = %d, want 400", rec.Code)
 	}
 	past := time.Now().Add(-72 * time.Hour)
-	req := quickListing("porcs", 50000)
+	req := quickListing("piglets", 50000)
 	req.AvailableFrom = &past
 	if rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", req, token); rec.Code != http.StatusBadRequest {
 		t.Errorf("past availability status = %d, want 400", rec.Code)
@@ -82,7 +82,7 @@ func TestSeller_HTTP_WizardValidationAndRoles(t *testing.T) {
 	future := time.Now().Add(10 * 24 * time.Hour)
 	req.AvailableFrom = &future
 	planned := decodeJSON[quickListingResponse](t, doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", req, token))
-	if planned.Cycle.Status != "planned" || planned.Listing.Unit != "porcelet" {
+	if planned.Cycle.Status != "planned" || planned.Listing.Unit != "piglet" {
 		t.Errorf("future availability = %+v, want a planned cycle priced per porcelet", planned)
 	}
 }
@@ -90,7 +90,7 @@ func TestSeller_HTTP_WizardValidationAndRoles(t *testing.T) {
 func TestSeller_HTTP_PriceHint(t *testing.T) {
 	router := newTestRouter()
 	publish := func(token, farmID string, price float64) {
-		l := decodeJSON[quickListingResponse](t, doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("jeunes-poulets", price), token)).Listing
+		l := decodeJSON[quickListingResponse](t, doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("broilers", price), token)).Listing
 		key := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/photos/presign", photoSizes, token)).Key
 		doJSON(t, router, http.MethodPut, "/listings/"+l.ID+"/photos", setListingPhotosRequest{Keys: []string{key}}, token)
 		doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/publish", nil, token)
@@ -99,13 +99,13 @@ func TestSeller_HTTP_PriceHint(t *testing.T) {
 	publish(west, westFarm, 10000)
 	publish(west, westFarm, 12000)
 
-	if rec := doJSON(t, router, http.MethodGet, "/listings/price-hint?species=jeunes-poulets&region=Dschang", nil, ""); rec.Code != http.StatusNoContent {
+	if rec := doJSON(t, router, http.MethodGet, "/listings/price-hint?species=broilers&region=Dschang", nil, ""); rec.Code != http.StatusNoContent {
 		t.Fatalf("2 samples: status = %d, want 204", rec.Code)
 	}
 
 	littoral, litFarm := newFarmer(t, router, "Douala")
 	publish(littoral, litFarm, 14000)
-	hint := decodeJSON[priceHintResponse](t, doJSON(t, router, http.MethodGet, "/listings/price-hint?species=jeunes-poulets&region=Dschang", nil, ""))
+	hint := decodeJSON[priceHintResponse](t, doJSON(t, router, http.MethodGet, "/listings/price-hint?species=broilers&region=Dschang", nil, ""))
 	if hint.Count != 3 || hint.Regional || hint.Low != 11000 || hint.Median != 12000 || hint.High != 13000 {
 		t.Fatalf("hint = %+v, want platform-wide 11000..13000 around 12000 (only 2 in Dschang)", hint)
 	}
@@ -140,8 +140,8 @@ func TestSeller_HTTP_CycleEditCantUnsellReservedPlaces(t *testing.T) {
 func TestSeller_HTTP_QuickListingOutsideTheFarmsSpecies(t *testing.T) {
 	router := newTestRouter()
 	token, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}, token))
-	rec := doJSON(t, router, http.MethodPost, "/farms/"+farm.ID+"/quick-listings", quickListing("porcs", 20000), token)
+	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"chicks"}}, token))
+	rec := doJSON(t, router, http.MethodPost, "/farms/"+farm.ID+"/quick-listings", quickListing("piglets", 20000), token)
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "farm.species_not_declared") {
 		t.Errorf("status = %d, body = %s; want 400 farm.species_not_declared", rec.Code, rec.Body.String())
 	}

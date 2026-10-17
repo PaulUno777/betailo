@@ -16,10 +16,10 @@ type CatalogChangesetRepository interface {
 }
 
 // CatalogUsage counts what uses each reference entry, keyed like
-// "species:poussins", "region:CM:ouest", "city:CM:bafoussam",
+// "species:chicks", "region:CM:west", "city:CM:bafoussam",
 // "country:CM", "forumCategories:sante", "reviewTags:on_time",
 // "reportReasons:other", "farmReviewChecks:name_matches",
-// "unit:poussin".
+// "unit:chick".
 type CatalogUsage interface {
 	Usage(ctx context.Context) (map[string]int, error)
 }

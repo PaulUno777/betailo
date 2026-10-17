@@ -11,8 +11,8 @@ import (
 func TestListMyFarms_HTTP(t *testing.T) {
 	router := newTestRouter()
 	token, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "A", Location: "Douala", Species: []string{"poussins"}}, token)
-	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "B", Location: "Yaoundé", Species: []string{"poussins"}}, token)
+	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "A", Location: "Douala", Species: []string{"chicks"}}, token)
+	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "B", Location: "Yaoundé", Species: []string{"chicks"}}, token)
 
 	rec := doJSON(t, router, http.MethodGet, "/farms/mine", nil, token)
 	if rec.Code != http.StatusOK {
@@ -36,10 +36,10 @@ func TestUpdateListing_HTTP_NotOwnerForbidden(t *testing.T) {
 	ownerToken, _ := registerAndLogin(t, router, uniqueEmail("owner"), "farmer")
 	otherToken, _ := registerAndLogin(t, router, uniqueEmail("other"), "farmer")
 
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}, ownerToken)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"chicks"}}, ownerToken)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "chicks", Type: "laying", Capacity: 10, StartsAt: time.Now(),
 	}, ownerToken)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 	listingRec := doJSON(t, router, http.MethodPost, "/listings", createListingRequest{
@@ -58,10 +58,10 @@ func TestUpdateListing_HTTP_NotOwnerForbidden(t *testing.T) {
 func TestDeleteCycle_HTTP_SuccessAndConflict(t *testing.T) {
 	router := newTestRouter()
 	token, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}, token)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"chicks"}}, token)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "chicks", Type: "laying", Capacity: 10, StartsAt: time.Now(),
 	}, token)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 
@@ -73,7 +73,7 @@ func TestDeleteCycle_HTTP_SuccessAndConflict(t *testing.T) {
 
 	// A second cycle, now with a listing: delete is blocked.
 	cycle2Rec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
+		FarmID: farmOut.ID, Species: "chicks", Type: "laying", Capacity: 10, StartsAt: time.Now(),
 	}, token)
 	cycle2Out := decodeJSON[cycleResponse](t, cycle2Rec)
 	doJSON(t, router, http.MethodPost, "/listings", createListingRequest{

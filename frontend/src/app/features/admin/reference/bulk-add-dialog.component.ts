@@ -125,8 +125,8 @@ export class BulkAddDialogComponent {
 
   protected readonly cycleTypeLabel = cycleTypeLabelKey;
   protected readonly text = signal('');
-  protected readonly cycleType = signal('elevage');
-  protected readonly icon = signal('poule');
+  protected readonly cycleType = signal('rearing');
+  protected readonly icon = signal('hen');
   protected readonly error = signal<AppError | null>(null);
 
   protected readonly title = computed(() => this.locale.t('adminReference.bulk.title.' + this.target().entity, { where: this.target().where }));

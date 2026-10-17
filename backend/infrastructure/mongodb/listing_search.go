@@ -337,6 +337,9 @@ func commonConditions(c ports.ListingSearchCriteria) bson.A {
 			keys := c.QueryPlaces[i]
 			or = append(or, bson.M{"farm.location": bson.M{"$in": keys}}, bson.M{"farm.region": bson.M{"$in": keys}})
 		}
+		if i < len(c.QuerySpecies) && len(c.QuerySpecies[i]) > 0 {
+			or = append(or, bson.M{"cycle.species": bson.M{"$in": c.QuerySpecies[i]}})
+		}
 		conds = append(conds, bson.M{"$or": or})
 	}
 	if c.TrustedOnly {

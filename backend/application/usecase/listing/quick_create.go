@@ -18,7 +18,7 @@ const (
 	maxTitleLen       = 120
 	maxDescriptionLen = 2000
 	maxBreedLen       = 60
-	maxAgeWeeks       = 520
+	maxAgeDays        = 3650
 )
 
 // QuickCreate is the sell wizard ("Vendre mes animaux"): one call
@@ -42,7 +42,7 @@ type QuickCreateInput struct {
 	OwnerID     bson.ObjectID
 	Species     string // a catalog species key
 	Breed       string
-	AgeWeeks    int
+	AgeDays     int
 	Quantity    int
 	UnitPrice   float64
 	Title       string
@@ -79,7 +79,7 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 		return nil, fmt.Errorf("listing: description must be at most %d characters: %w", maxDescriptionLen, domain.ErrInvalid)
 	case utf8.RuneCountInString(breed) > maxBreedLen:
 		return nil, fmt.Errorf("listing: breed must be at most %d characters: %w", maxBreedLen, domain.ErrInvalid)
-	case in.AgeWeeks < 0 || in.AgeWeeks > maxAgeWeeks:
+	case in.AgeDays < 0 || in.AgeDays > maxAgeDays:
 		return nil, fmt.Errorf("listing: age is out of range: %w", domain.ErrInvalid)
 	case in.Quantity <= 0:
 		return nil, domain.Coded("listing.quantity_positive", fmt.Errorf("listing: quantity must be positive: %w", domain.ErrInvalid))
@@ -122,7 +122,7 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 	l := &domain.Listing{
 		ID: bson.NewObjectID(), CycleID: &c.ID, Title: title, Description: description,
 		UnitPrice: in.UnitPrice, Unit: sp.Unit.Key, Status: domain.ListingDraft,
-		Breed: breed, AgeWeeks: in.AgeWeeks, DeliveryAvailable: in.DeliveryAvailable,
+		Breed: breed, AgeDays: in.AgeDays, DeliveryAvailable: in.DeliveryAvailable,
 	}
 	err = uc.Tx.WithinTx(ctx, func(ctx context.Context) error {
 		if err := uc.Cycles.Create(ctx, c); err != nil {

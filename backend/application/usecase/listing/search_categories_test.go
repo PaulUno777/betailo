@@ -18,9 +18,9 @@ func TestExpandCategories(t *testing.T) {
 		categories, species []string
 		want                []string
 	}{
-		{"a whole category", []string{"caprins"}, nil, []string{"chevres", "chevreaux"}},
-		{"narrowed by one of its sub-categories", []string{"volaille"}, []string{"pondeuses"}, []string{"pondeuses"}},
-		{"two categories, one narrowed", []string{"volaille", "ovins"}, []string{"dindes"}, []string{"dindes", "moutons", "agneaux"}},
+		{"a whole category", []string{"caprine"}, nil, []string{"goats", "kids"}},
+		{"narrowed by one of its sub-categories", []string{"poultry"}, []string{"laying-hens"}, []string{"laying-hens"}},
+		{"two categories, one narrowed", []string{"poultry", "ovine"}, []string{"turkeys"}, []string{"turkeys", "sheep", "lambs"}},
 		{"an unknown category finds nothing", []string{"dragons"}, nil, []string{"-"}},
 	}
 	for _, c := range cases {

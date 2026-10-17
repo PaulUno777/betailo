@@ -1,3 +1,4 @@
+import { relativeTime } from '../../domain/rules/relative-time';
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppNotification, NotificationList } from '../../domain/models';
@@ -26,10 +27,6 @@ const ICONS: Readonly<Record<string, { icon: IconName; tone: string }>> = {
   best_answer: { icon: 'check', tone: 'bg-plum-soft text-plum' }
 };
 const DEFAULT_ICON = { icon: 'bell' as IconName, tone: 'bg-surface-sunken text-ink-muted' };
-
-const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
 
 /** The notification inbox (the bell's page): newest first, unread ones
  * marked, each opening where it's about. Text comes from a localized
@@ -113,11 +110,7 @@ export class NotificationsComponent {
   }
 
   protected ago(iso: string): string {
-    const diff = new Date(iso).getTime() - Date.now();
-    const rtf = new Intl.RelativeTimeFormat(this.locale.locale() === 'fr' ? 'fr' : 'en', { numeric: 'auto' });
-    if (Math.abs(diff) < HOUR) return rtf.format(Math.round(diff / MINUTE), 'minute');
-    if (Math.abs(diff) < DAY) return rtf.format(Math.round(diff / HOUR), 'hour');
-    return rtf.format(Math.round(diff / DAY), 'day');
+    return relativeTime(iso, this.locale.locale());
   }
 
   protected open(n: AppNotification): void {

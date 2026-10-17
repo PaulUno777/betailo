@@ -46,7 +46,7 @@ const TONE_CLASSES: Readonly<Record<DialogTone, string>> = {
         </div>
         <div class="mt-2 flex gap-3">
           <bt-button variant="outline" block (click)="secondaryClick.emit()">{{ secondaryLabel() }}</bt-button>
-          <bt-button [variant]="primaryVariant()" block (click)="primaryClick.emit()">{{ primaryLabel() }}</bt-button>
+          <bt-button [variant]="primaryVariant()" block [disabled]="primaryDisabled()" (click)="primaryClick.emit()">{{ primaryLabel() }}</bt-button>
         </div>
       </div>
     </dialog>
@@ -61,6 +61,8 @@ export class DialogComponent {
   readonly title = input.required<string>();
   readonly primaryLabel = input.required<string>();
   readonly primaryVariant = input<ButtonVariant>('primary');
+  /** Holds the main action back until its form is complete. */
+  readonly primaryDisabled = input(false);
   readonly secondaryLabel = input.required<string>();
 
   readonly primaryClick = output<void>();

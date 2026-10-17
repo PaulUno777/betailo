@@ -18,7 +18,7 @@ export interface ListingEditInput {
   readonly unitPrice: number;
   readonly unit?: string;
   readonly breed?: string;
-  readonly ageWeeks?: number;
+  readonly ageDays?: number;
   readonly deliveryAvailable?: boolean;
 }
 
@@ -27,7 +27,7 @@ export interface ListingEditInput {
 export interface QuickListingInput {
   readonly species: string;
   readonly breed?: string;
-  readonly ageWeeks?: number;
+  readonly ageDays?: number;
   readonly quantity: number;
   readonly unitPrice: number;
   readonly title: string;

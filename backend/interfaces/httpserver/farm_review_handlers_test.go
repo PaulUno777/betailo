@@ -30,7 +30,7 @@ func newDraftFarmWithListing(t *testing.T, router http.Handler, tf *testFakes) (
 	t.Helper()
 	tf.farms.awaitReview = true
 	token, _ = registerAndLogin(t, router, uniqueEmail("seller"), "farmer")
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme Etoga", Location: "Douala", Species: []string{"poussins"}}, token)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme Etoga", Location: "Douala", Species: []string{"chicks"}}, token)
 	if farmRec.Code != http.StatusCreated {
 		t.Fatalf("create farm status = %d; body = %s", farmRec.Code, farmRec.Body.String())
 	}
@@ -38,7 +38,7 @@ func newDraftFarmWithListing(t *testing.T, router http.Handler, tf *testFakes) (
 	if farm.Status != "draft" || farm.Review == nil || !farm.Review.CanSubmit {
 		t.Fatalf("new farm = %+v (review %+v), want a draft its owner can submit", farm, farm.Review)
 	}
-	quick := doJSON(t, router, http.MethodPost, "/farms/"+farm.ID+"/quick-listings", quickListingRequest{Species: "poussins", Quantity: 20, UnitPrice: 700, Title: "Poussins"}, token)
+	quick := doJSON(t, router, http.MethodPost, "/farms/"+farm.ID+"/quick-listings", quickListingRequest{Species: "chicks", Quantity: 20, UnitPrice: 700, Title: "Poussins"}, token)
 	if quick.Code != http.StatusCreated {
 		t.Fatalf("quick listing status = %d; body = %s", quick.Code, quick.Body.String())
 	}
@@ -200,7 +200,7 @@ func TestFarm_HTTP_LimitPerAccountAndStaffOverride(t *testing.T) {
 	root := adminToken(t, router, tf)
 	token, userID := registerAndLogin(t, router, uniqueEmail("seller"), "farmer")
 	create := func(name, tok string) *httptest.ResponseRecorder {
-		return doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: name, Location: "Douala", Species: []string{"poussins"}}, tok)
+		return doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: name, Location: "Douala", Species: []string{"chicks"}}, tok)
 	}
 
 	if rec := create("Première", token); rec.Code != http.StatusCreated {

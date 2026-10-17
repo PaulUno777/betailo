@@ -13,7 +13,7 @@ import (
 type quickListingRequest struct {
 	Species           string     `json:"species"`
 	Breed             string     `json:"breed,omitempty"`
-	AgeWeeks          int        `json:"ageWeeks,omitempty"`
+	AgeDays           int        `json:"ageDays,omitempty"`
 	Quantity          int        `json:"quantity"`
 	UnitPrice         float64    `json:"unitPrice"`
 	Title             string     `json:"title"`
@@ -43,7 +43,7 @@ func handleQuickCreateListing(uc *listing.QuickCreate, storage ports.ObjectStora
 			return
 		}
 		out, err := uc.Execute(r.Context(), listing.QuickCreateInput{
-			FarmID: farmID, OwnerID: claims.UserID, Species: req.Species, Breed: req.Breed, AgeWeeks: req.AgeWeeks,
+			FarmID: farmID, OwnerID: claims.UserID, Species: req.Species, Breed: req.Breed, AgeDays: req.AgeDays,
 			Quantity: req.Quantity, UnitPrice: req.UnitPrice, Title: req.Title, Description: req.Description,
 			AvailableFrom: req.AvailableFrom, DeliveryAvailable: req.DeliveryAvailable,
 		})

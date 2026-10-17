@@ -17,7 +17,7 @@
       "description": "Object storage keys — signed URLs are generated on demand via infrastructure/objectstorage, never stored."
     },
     "breed": { "bsonType": "string", "maxLength": 60 },
-    "ageWeeks": { "bsonType": "int", "minimum": 0, "maximum": 520 },
+    "ageDays": { "bsonType": "int", "minimum": 0, "maximum": 3650 },
     "deliveryAvailable": { "bsonType": "bool" },
     "flagged": {
       "bsonType": "bool",

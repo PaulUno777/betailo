@@ -26,7 +26,7 @@ type Listing struct {
 	Description string
 	UnitPrice   float64
 
-	// Unit is the pricing unit shown next to UnitPrice ("poussin",
+	// Unit is the pricing unit shown next to UnitPrice ("chick",
 	// "trio", "sac"...) — free text set by the farmer, not an enum: the
 	// marketplace spans too many species/units to close-list them.
 	Unit   string
@@ -43,9 +43,11 @@ type Listing struct {
 	// state machine doesn't have to reason about moderation.
 	Flagged bool
 
-	// Breed ("Brahma herminé"), AgeWeeks and DeliveryAvailable describe
-	// the animals as the sell wizard collects them. All optional.
+	// Breed ("Brahma herminé"), AgeDays and DeliveryAvailable describe
+	// the animals as the sell wizard collects them. All optional. Age is
+	// in days so day-old chicks can say so; the app shows it in days,
+	// weeks, months or years.
 	Breed             string
-	AgeWeeks          int
+	AgeDays           int
 	DeliveryAvailable bool
 }

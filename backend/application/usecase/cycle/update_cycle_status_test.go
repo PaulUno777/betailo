@@ -16,7 +16,7 @@ func newCycleFixture(t *testing.T, status domain.CycleStatus) (*fakeFarms, *fake
 	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala"}
 	farms := newFakeFarms(f)
 	cycles := newFakeCycles()
-	c := &domain.Cycle{FarmID: f.ID, Species: "poussins", Status: status}
+	c := &domain.Cycle{FarmID: f.ID, Species: "chicks", Status: status}
 	if err := cycles.Create(context.Background(), c); err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}

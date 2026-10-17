@@ -12,7 +12,7 @@ var farmStatuses = []domain.FarmStatus{domain.FarmDraft, domain.FarmPending, dom
 
 // CanonicalizePlaces rewrites every farm's region and town the way a
 // farm saved today stores them: the catalog's keys for a listed region
-// and town ("Ouest" → "ouest", "Bafoussam" → "bafoussam"), the text
+// and town ("Ouest" → "west", "Bafoussam" → "bafoussam"), the text
 // otherwise. Farms saved before regions and towns had keys get them;
 // it is idempotent, so it runs on every startup. A place the catalog
 // no longer accepts is left as it was. It returns how many farms

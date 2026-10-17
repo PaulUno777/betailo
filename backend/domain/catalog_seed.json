@@ -3,25 +3,25 @@
   "seedRevision": 2,
   "categories": [
     {
-      "key": "volaille",
+      "key": "poultry",
       "label": {
         "fr": "Volaille",
         "en": "Poultry"
       },
-      "icon": "poule",
+      "icon": "hen",
       "color": "clay",
       "active": true,
       "subcategories": [
         {
-          "key": "poussins",
+          "key": "chicks",
           "label": {
-            "fr": "Poussins d’un jour",
-            "en": "Day-old chicks"
+            "fr": "Poussins",
+            "en": "Chicks"
           },
-          "cycleType": "couvee",
-          "icon": "poussin",
+          "cycleType": "hatching",
+          "icon": "chick",
           "unit": {
-            "key": "poussin",
+            "key": "chick",
             "label": {
               "fr": "poussin",
               "en": "chick"
@@ -30,15 +30,15 @@
           "active": true
         },
         {
-          "key": "jeunes-poulets",
+          "key": "young-poultry",
           "label": {
-            "fr": "Poulets de chair",
-            "en": "Broilers"
+            "fr": "Jeunes volailles",
+            "en": "Young poultry"
           },
-          "cycleType": "engraissement",
-          "icon": "poule",
+          "cycleType": "rearing",
+          "icon": "hen",
           "unit": {
-            "key": "sujet",
+            "key": "bird",
             "label": {
               "fr": "sujet",
               "en": "bird"
@@ -47,15 +47,49 @@
           "active": true
         },
         {
-          "key": "pondeuses",
+          "key": "broilers",
+          "label": {
+            "fr": "Poulets de chair",
+            "en": "Broilers"
+          },
+          "cycleType": "fattening",
+          "icon": "hen",
+          "unit": {
+            "key": "bird",
+            "label": {
+              "fr": "sujet",
+              "en": "bird"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "local-chickens",
+          "label": {
+            "fr": "Poulets locaux",
+            "en": "Local chickens"
+          },
+          "cycleType": "rearing",
+          "icon": "rooster",
+          "unit": {
+            "key": "bird",
+            "label": {
+              "fr": "sujet",
+              "en": "bird"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "laying-hens",
           "label": {
             "fr": "Poules pondeuses",
             "en": "Laying hens"
           },
-          "cycleType": "ponte",
-          "icon": "poule",
+          "cycleType": "laying",
+          "icon": "hen",
           "unit": {
-            "key": "pondeuse",
+            "key": "layer",
             "label": {
               "fr": "pondeuse",
               "en": "layer"
@@ -64,15 +98,15 @@
           "active": true
         },
         {
-          "key": "reproducteurs",
+          "key": "breeders",
           "label": {
             "fr": "Reproducteurs",
             "en": "Breeders"
           },
-          "cycleType": "reproduction",
-          "icon": "coq",
+          "cycleType": "breeding",
+          "icon": "rooster",
           "unit": {
-            "key": "sujet",
+            "key": "bird",
             "label": {
               "fr": "sujet",
               "en": "bird"
@@ -81,32 +115,49 @@
           "active": true
         },
         {
-          "key": "poulets-locaux",
+          "key": "table-eggs",
           "label": {
-            "fr": "Poulets locaux",
-            "en": "Village chickens"
+            "fr": "Œufs de consommation",
+            "en": "Table eggs"
           },
-          "cycleType": "elevage",
-          "icon": "coq",
+          "cycleType": "laying",
+          "icon": "egg",
           "unit": {
-            "key": "sujet",
+            "key": "tray",
             "label": {
-              "fr": "sujet",
-              "en": "bird"
+              "fr": "plateau de 30",
+              "en": "tray of 30"
             }
           },
           "active": true
         },
         {
-          "key": "dindes",
+          "key": "fertile-eggs",
+          "label": {
+            "fr": "Œufs fécondés",
+            "en": "Fertile eggs"
+          },
+          "cycleType": "breeding",
+          "icon": "egg",
+          "unit": {
+            "key": "egg",
+            "label": {
+              "fr": "œuf",
+              "en": "egg"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "turkeys",
           "label": {
             "fr": "Dindes",
             "en": "Turkeys"
           },
-          "cycleType": "engraissement",
-          "icon": "dinde",
+          "cycleType": "fattening",
+          "icon": "turkey",
           "unit": {
-            "key": "dinde",
+            "key": "turkey",
             "label": {
               "fr": "dinde",
               "en": "turkey"
@@ -115,15 +166,15 @@
           "active": true
         },
         {
-          "key": "canards",
+          "key": "ducks",
           "label": {
             "fr": "Canards",
             "en": "Ducks"
           },
-          "cycleType": "engraissement",
-          "icon": "canard",
+          "cycleType": "rearing",
+          "icon": "duck",
           "unit": {
-            "key": "canard",
+            "key": "duck",
             "label": {
               "fr": "canard",
               "en": "duck"
@@ -132,15 +183,15 @@
           "active": true
         },
         {
-          "key": "pintades",
+          "key": "guinea-fowl",
           "label": {
             "fr": "Pintades",
             "en": "Guinea fowl"
           },
-          "cycleType": "elevage",
-          "icon": "pintade",
+          "cycleType": "rearing",
+          "icon": "guinea-fowl",
           "unit": {
-            "key": "pintade",
+            "key": "guinea-fowl",
             "label": {
               "fr": "pintade",
               "en": "guinea fowl"
@@ -149,15 +200,15 @@
           "active": true
         },
         {
-          "key": "cailles",
+          "key": "quails",
           "label": {
             "fr": "Cailles",
             "en": "Quails"
           },
-          "cycleType": "elevage",
-          "icon": "poule",
+          "cycleType": "rearing",
+          "icon": "hen",
           "unit": {
-            "key": "caille",
+            "key": "quail",
             "label": {
               "fr": "caille",
               "en": "quail"
@@ -168,25 +219,25 @@
       ]
     },
     {
-      "key": "porcins",
+      "key": "swine",
       "label": {
         "fr": "Porcins",
         "en": "Pigs"
       },
-      "icon": "porc",
+      "icon": "pig",
       "color": "alert",
       "active": true,
       "subcategories": [
         {
-          "key": "porcs",
+          "key": "piglets",
           "label": {
             "fr": "Porcelets",
             "en": "Piglets"
           },
-          "cycleType": "engraissement",
-          "icon": "porc",
+          "cycleType": "fattening",
+          "icon": "pig",
           "unit": {
-            "key": "porcelet",
+            "key": "piglet",
             "label": {
               "fr": "porcelet",
               "en": "piglet"
@@ -195,15 +246,15 @@
           "active": true
         },
         {
-          "key": "porcs-charcutiers",
+          "key": "finishing-pigs",
           "label": {
             "fr": "Porcs charcutiers",
             "en": "Finishing pigs"
           },
-          "cycleType": "engraissement",
-          "icon": "porc",
+          "cycleType": "fattening",
+          "icon": "pig",
           "unit": {
-            "key": "porc",
+            "key": "pig",
             "label": {
               "fr": "porc",
               "en": "pig"
@@ -212,15 +263,15 @@
           "active": true
         },
         {
-          "key": "porcs-reproducteurs",
+          "key": "breeding-pigs",
           "label": {
             "fr": "Truies et verrats",
             "en": "Sows and boars"
           },
-          "cycleType": "reproduction",
-          "icon": "porc",
+          "cycleType": "breeding",
+          "icon": "pig",
           "unit": {
-            "key": "sujet",
+            "key": "animal",
             "label": {
               "fr": "sujet",
               "en": "animal"
@@ -231,25 +282,25 @@
       ]
     },
     {
-      "key": "caprins",
+      "key": "caprine",
       "label": {
         "fr": "Caprins",
         "en": "Goats"
       },
-      "icon": "chevre",
+      "icon": "goat",
       "color": "plum",
       "active": true,
       "subcategories": [
         {
-          "key": "chevres",
+          "key": "goats",
           "label": {
             "fr": "Chèvres",
             "en": "Goats"
           },
-          "cycleType": "elevage",
-          "icon": "chevre",
+          "cycleType": "rearing",
+          "icon": "goat",
           "unit": {
-            "key": "chèvre",
+            "key": "goat",
             "label": {
               "fr": "chèvre",
               "en": "goat"
@@ -258,15 +309,15 @@
           "active": true
         },
         {
-          "key": "chevreaux",
+          "key": "kids",
           "label": {
             "fr": "Chevreaux",
             "en": "Kids"
           },
-          "cycleType": "elevage",
-          "icon": "chevre",
+          "cycleType": "rearing",
+          "icon": "goat",
           "unit": {
-            "key": "chevreau",
+            "key": "kid",
             "label": {
               "fr": "chevreau",
               "en": "kid"
@@ -277,25 +328,25 @@
       ]
     },
     {
-      "key": "ovins",
+      "key": "ovine",
       "label": {
         "fr": "Ovins",
         "en": "Sheep"
       },
-      "icon": "mouton",
+      "icon": "sheep",
       "color": "stone",
       "active": true,
       "subcategories": [
         {
-          "key": "moutons",
+          "key": "sheep",
           "label": {
             "fr": "Moutons",
             "en": "Sheep"
           },
-          "cycleType": "elevage",
-          "icon": "mouton",
+          "cycleType": "rearing",
+          "icon": "sheep",
           "unit": {
-            "key": "mouton",
+            "key": "sheep",
             "label": {
               "fr": "mouton",
               "en": "sheep"
@@ -304,15 +355,15 @@
           "active": true
         },
         {
-          "key": "agneaux",
+          "key": "lambs",
           "label": {
             "fr": "Agneaux",
             "en": "Lambs"
           },
-          "cycleType": "elevage",
-          "icon": "mouton",
+          "cycleType": "rearing",
+          "icon": "sheep",
           "unit": {
-            "key": "agneau",
+            "key": "lamb",
             "label": {
               "fr": "agneau",
               "en": "lamb"
@@ -323,25 +374,25 @@
       ]
     },
     {
-      "key": "lapins",
+      "key": "rabbits",
       "label": {
         "fr": "Lapins",
         "en": "Rabbits"
       },
-      "icon": "lapin",
+      "icon": "rabbit",
       "color": "amber",
       "active": true,
       "subcategories": [
         {
-          "key": "lapereaux",
+          "key": "young-rabbits",
           "label": {
             "fr": "Lapereaux",
             "en": "Young rabbits"
           },
-          "cycleType": "engraissement",
-          "icon": "lapin",
+          "cycleType": "fattening",
+          "icon": "rabbit",
           "unit": {
-            "key": "lapereau",
+            "key": "young-rabbit",
             "label": {
               "fr": "lapereau",
               "en": "young rabbit"
@@ -350,15 +401,15 @@
           "active": true
         },
         {
-          "key": "lapins-reproducteurs",
+          "key": "breeding-rabbits",
           "label": {
             "fr": "Lapins reproducteurs",
             "en": "Breeding rabbits"
           },
-          "cycleType": "reproduction",
-          "icon": "lapin",
+          "cycleType": "breeding",
+          "icon": "rabbit",
           "unit": {
-            "key": "lapin",
+            "key": "rabbit",
             "label": {
               "fr": "lapin",
               "en": "rabbit"
@@ -369,25 +420,25 @@
       ]
     },
     {
-      "key": "bovins",
+      "key": "cattle",
       "label": {
         "fr": "Bovins",
         "en": "Cattle"
       },
-      "icon": "vache",
+      "icon": "cow",
       "color": "forest",
       "active": false,
       "subcategories": [
         {
-          "key": "veaux",
+          "key": "calves",
           "label": {
             "fr": "Veaux",
             "en": "Calves"
           },
-          "cycleType": "elevage",
-          "icon": "vache",
+          "cycleType": "rearing",
+          "icon": "cow",
           "unit": {
-            "key": "veau",
+            "key": "calf",
             "label": {
               "fr": "veau",
               "en": "calf"
@@ -396,15 +447,15 @@
           "active": true
         },
         {
-          "key": "taurillons",
+          "key": "young-bulls",
           "label": {
             "fr": "Taurillons",
             "en": "Young bulls"
           },
-          "cycleType": "engraissement",
-          "icon": "vache",
+          "cycleType": "fattening",
+          "icon": "cow",
           "unit": {
-            "key": "sujet",
+            "key": "animal",
             "label": {
               "fr": "sujet",
               "en": "animal"
@@ -415,25 +466,25 @@
       ]
     },
     {
-      "key": "pisciculture",
+      "key": "aquaculture",
       "label": {
         "fr": "Pisciculture",
         "en": "Fish farming"
       },
-      "icon": "poisson",
+      "icon": "fish",
       "color": "sky",
       "active": false,
       "subcategories": [
         {
-          "key": "alevins",
+          "key": "fingerlings",
           "label": {
             "fr": "Alevins",
             "en": "Fingerlings"
           },
-          "cycleType": "elevage",
-          "icon": "poisson",
+          "cycleType": "rearing",
+          "icon": "fish",
           "unit": {
-            "key": "alevin",
+            "key": "fingerling",
             "label": {
               "fr": "alevin",
               "en": "fingerling"
@@ -442,15 +493,15 @@
           "active": true
         },
         {
-          "key": "poissons-de-table",
+          "key": "table-fish",
           "label": {
             "fr": "Poissons de table",
             "en": "Table fish"
           },
-          "cycleType": "engraissement",
-          "icon": "poisson",
+          "cycleType": "fattening",
+          "icon": "fish",
           "unit": {
-            "key": "poisson",
+            "key": "fish",
             "label": {
               "fr": "poisson",
               "en": "fish"
@@ -468,7 +519,7 @@
       "active": true,
       "regions": [
         {
-          "key": "adamaoua",
+          "key": "adamawa",
           "label": {
             "fr": "Adamaoua",
             "en": "Adamawa"
@@ -624,7 +675,7 @@
           ]
         },
         {
-          "key": "est",
+          "key": "east",
           "label": {
             "fr": "Est",
             "en": "East"
@@ -682,7 +733,7 @@
           ]
         },
         {
-          "key": "extreme-nord",
+          "key": "far-north",
           "label": {
             "fr": "Extrême-Nord",
             "en": "Far North"
@@ -814,7 +865,7 @@
           ]
         },
         {
-          "key": "nord",
+          "key": "north",
           "label": {
             "fr": "Nord",
             "en": "North"
@@ -880,7 +931,7 @@
           ]
         },
         {
-          "key": "nord-ouest",
+          "key": "north-west",
           "label": {
             "fr": "Nord-Ouest",
             "en": "North West"
@@ -954,7 +1005,7 @@
           ]
         },
         {
-          "key": "ouest",
+          "key": "west",
           "label": {
             "fr": "Ouest",
             "en": "West"
@@ -1044,7 +1095,7 @@
           ]
         },
         {
-          "key": "sud",
+          "key": "south",
           "label": {
             "fr": "Sud",
             "en": "South"
@@ -1110,7 +1161,7 @@
           ]
         },
         {
-          "key": "sud-ouest",
+          "key": "south-west",
           "label": {
             "fr": "Sud-Ouest",
             "en": "South West"
@@ -1373,7 +1424,7 @@
       "active": true
     },
     {
-      "key": "sante",
+      "key": "health",
       "label": {
         "fr": "Santé animale",
         "en": "Animal health"
@@ -1381,7 +1432,7 @@
       "active": true
     },
     {
-      "key": "alimentation",
+      "key": "feeding",
       "label": {
         "fr": "Alimentation",
         "en": "Feeding"
@@ -1389,7 +1440,7 @@
       "active": true
     },
     {
-      "key": "reproduction",
+      "key": "breeding",
       "label": {
         "fr": "Reproduction",
         "en": "Breeding"
@@ -1397,7 +1448,7 @@
       "active": true
     },
     {
-      "key": "marche",
+      "key": "market",
       "label": {
         "fr": "Marché et prix",
         "en": "Market and prices"
@@ -1405,7 +1456,7 @@
       "active": true
     },
     {
-      "key": "materiel",
+      "key": "equipment",
       "label": {
         "fr": "Matériel et bâtiments",
         "en": "Equipment and housing"

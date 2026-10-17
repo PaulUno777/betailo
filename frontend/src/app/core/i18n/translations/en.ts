@@ -160,6 +160,7 @@ export const en: TranslationDictionary = {
     },
     forum: {
       post_required: 'Pick a category, a title and write your question.',
+      title_too_long: 'The title can be at most {max} characters.',
       reply_required: 'Write your reply.'
     }
   },
@@ -422,7 +423,12 @@ export const en: TranslationDictionary = {
     reportFailedTitle: 'Couldn’t send report',
     reportFailedRetry: 'Please try again.',
     safetyNoticeTitle: 'Never pay outside the platform',
-    safetyNoticeBody: 'A farmer asking for a direct payment outside escrow is almost always a scam. Report it right away.'
+    safetyNoticeBody: 'Pay for animals only through Betailo: a farmer asking to be paid for the animals outside escrow is almost always a scam. Only transport is settled directly, once agreed.',
+    transportDelivers: 'The farmer can deliver',
+    transportPickup: 'Pickup at the farm',
+    transportBody: 'Transport isn\'t included in the price: its cost depends on distance and quantity. Agree on it with the farmer by WhatsApp or phone before you reserve.',
+    transportOutside: 'Transport is paid directly to the farmer, outside Betailo. Only the animals are paid in the app, protected by escrow.',
+    transportShort: 'Transport not included: agree on it with the farmer before reserving. It\'s paid to them directly.',
   },
   auth: {
     connexionTab: 'Log in',
@@ -483,6 +489,8 @@ export const en: TranslationDictionary = {
     feeLabel: 'Service fee ({rate}%)',
     totalWithFee: 'Total (incl. {rate}% fee)',
     escrowNotice: 'Betailo holds the money and pays the farmer only once you confirm delivery.',
+    transportTitle: 'Transport is not included',
+    transportBody: 'This payment covers the animals only, held in escrow. Agree on transport with the farmer beforehand and pay it to them directly.',
     momoNumberInvalid: 'Enter a 9-digit Cameroonian mobile number (6…).',
     momoNumberHint: 'You’ll get an approval request on this number.',
     momoNumberLabel: 'Mobile Money number',
@@ -653,7 +661,33 @@ export const en: TranslationDictionary = {
     replySubmitting: 'Sending…',
     replyFailedTitle: 'Couldn’t send',
     loginToReply: 'Log in to reply.',
-    someone: 'Betailo member'
+    someone: 'Betailo member',
+    pitch: 'Ask other farmers, share what works: health, feeding, breeding, prices.',
+    allCategories: 'All',
+    sortLabel: 'Sort topics',
+    topicsCount_one: '{count} topic',
+    topicsCount: '{count} topics',
+    solved: 'Solved',
+    unanswered: 'Unanswered',
+    noMatch: 'No topic matches.',
+    resetFilters: 'Clear filters',
+    emptyTitle: 'No topic yet',
+    emptyBody: 'Be the first to ask: other farmers usually answer within the day.',
+    loadError: 'Couldn’t load the topics.',
+    tipsTitle: 'Asking a good question',
+    tip1: 'Give the species, the age and how many animals.',
+    tip2: 'Describe what you saw and since when.',
+    tip3: 'Mark the reply that helped as the best answer.',
+    titleCounter: '{count}/{max}',
+    titleTooLong: 'At most {max} characters.',
+    bodyHint: 'Species, age, number of animals, what you noticed…',
+    authorTag: 'Author',
+    noRepliesYet: 'No reply yet. Know the answer? Share it below.',
+    sort: {
+      recent: 'Recent',
+      popular: 'Most answered',
+      unanswered: 'Unanswered'
+    }
   },
   priorityChoice: {
     payNowTitle: 'Pay now',
@@ -1188,6 +1222,16 @@ export const en: TranslationDictionary = {
     reportScam: 'Report a scam',
     terms: 'Terms of use'
   },
+  age: {
+    days_one: '{count} day',
+    days: '{count} days',
+    weeks_one: '{count} week',
+    weeks: '{count} weeks',
+    months_one: '{count} month',
+    months: '{count} months',
+    years_one: '{count} year',
+    years: '{count} years'
+  },
   sell: {
     addSpecies: 'Not in the list? Add a species to your farm',
     title: 'Sell my animals',
@@ -1201,8 +1245,6 @@ export const en: TranslationDictionary = {
     breedPlaceholder: 'Brahma, Goliath, Large White…',
     ageLabel: 'Age',
     ageUnknown: "I don't know",
-    ageWeeks: '{count} weeks',
-    ageWeeks_one: '{count} week',
     priceTitle: 'How many, and at what price?',
     quantityLabel: 'Number of animals',
     priceLabel: 'Price per animal',
@@ -1437,11 +1479,11 @@ export const en: TranslationDictionary = {
     townOther: 'Name of the town or village'
   },
   cycleTypes: {
-    couvee: 'Hatching',
-    engraissement: 'Fattening',
-    ponte: 'Laying',
-    reproduction: 'Breeding',
-    elevage: 'Rearing'
+    hatching: 'Hatching',
+    fattening: 'Fattening',
+    laying: 'Laying',
+    breeding: 'Breeding',
+    rearing: 'Rearing'
   },
   staffRole: {
     super_admin: 'Super admin',

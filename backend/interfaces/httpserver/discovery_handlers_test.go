@@ -11,7 +11,7 @@ func TestFarmProfile_HTTP_TrustBaselineAndPhonePrivacy(t *testing.T) {
 	tf.farms.awaitReview = true
 	farmerToken, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 	createRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{
-		Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poussins"}, Description: "Élevage familial", Contacts: []farmContactJSON{{Phone: "6 90 12 34 56", WhatsApp: true}, {Phone: "677001122"}},
+		Name: "Ferme des Collines", Location: "Dschang", Species: []string{"chicks"}, Description: "Élevage familial", Contacts: []farmContactJSON{{Phone: "6 90 12 34 56", WhatsApp: true}, {Phone: "677001122"}},
 	}, farmerToken)
 	if createRec.Code != http.StatusCreated {
 		t.Fatalf("create farm status = %d; body = %s", createRec.Code, createRec.Body.String())
@@ -38,7 +38,7 @@ func TestFarmProfile_HTTP_TrustBaselineAndPhonePrivacy(t *testing.T) {
 		t.Errorf("signed-in buyer sees contacts = %+v, want both with their WhatsApp flags", signedIn.Contacts)
 	}
 
-	bad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "X", Location: "Y", Contacts: []farmContactJSON{{Phone: "123"}}, Species: []string{"poussins"}}, farmerToken)
+	bad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "X", Location: "Y", Contacts: []farmContactJSON{{Phone: "123"}}, Species: []string{"chicks"}}, farmerToken)
 	if bad.Code != http.StatusBadRequest {
 		t.Errorf("invalid phone status = %d, want 400", bad.Code)
 	}

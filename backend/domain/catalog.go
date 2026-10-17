@@ -93,7 +93,7 @@ type CatalogSubcategory struct {
 	// Icon is one of AnimalIcons (a laying hen, a chick, a duck…).
 	Icon string `json:"icon"`
 	// Unit is what one animal is called on a listing. Its Key is stored
-	// on listings ("sujet"); Label is how it reads.
+	// on listings ("bird"); Label is how it reads.
 	Unit   CatalogUnit `json:"unit"`
 	Active bool        `json:"active"`
 }
@@ -133,7 +133,7 @@ type CatalogCity struct {
 
 // CycleTypes are the kinds of cycle the code knows how to run. A species
 // is raised in one of them.
-var CycleTypes = []string{"couvee", "engraissement", "ponte", "reproduction", "elevage"}
+var CycleTypes = []string{"hatching", "fattening", "laying", "breeding", "rearing"}
 
 // CategoryColors are the design system's tones a category can wear.
 var CategoryColors = []string{"clay", "forest", "amber", "sky", "alert", "plum", "stone"}
@@ -141,7 +141,7 @@ var CategoryColors = []string{"clay", "forest", "amber", "sky", "alert", "plum",
 // AnimalIcons are the brand's animal drawings clients know how to draw
 // (design/betailo-brand/icons/animaux). A category or sub-category
 // names one; adding a drawing means adding it here and to the clients.
-var AnimalIcons = []string{"poule", "coq", "poussin", "dinde", "canard", "pintade", "chevre", "mouton", "vache", "porc", "lapin", "poisson"}
+var AnimalIcons = []string{"hen", "rooster", "chick", "turkey", "duck", "guinea-fowl", "goat", "sheep", "cow", "pig", "rabbit", "fish", "egg"}
 
 //go:embed catalog_seed.json
 var catalogSeed []byte
@@ -275,7 +275,7 @@ func (k CatalogCountry) CanonicalCity(regionKey, town string) (city, region stri
 
 // PlaceKeys is every region and town key whose label in any language
 // contains text (folded): what a word search on a place should also
-// look for, since farms store keys ("Far North" finds "extreme-nord").
+// look for, since farms store keys ("Far North" finds "far-north").
 func (c *Catalog) PlaceKeys(text string) []string {
 	folded := foldKey(text)
 	if folded == "" {
@@ -294,6 +294,30 @@ func (c *Catalog) PlaceKeys(text string) []string {
 				if hit(city.Label) {
 					out = append(out, city.Key)
 				}
+			}
+		}
+	}
+	return out
+}
+
+// SpeciesKeys is the sub-categories whose name, in either language,
+// contains text (case and accents ignored), and those of the categories
+// that do: what a marketplace search word means ("poussins" → chicks,
+// "volaille" → every poultry species).
+func (c *Catalog) SpeciesKeys(text string) []string {
+	folded := foldKey(text)
+	if folded == "" {
+		return nil
+	}
+	hit := func(l Label) bool {
+		return strings.Contains(foldKey(l.FR), folded) || strings.Contains(foldKey(l.EN), folded)
+	}
+	var out []string
+	for _, cat := range c.Categories {
+		whole := hit(cat.Label)
+		for _, s := range cat.Subcategories {
+			if whole || hit(s.Label) {
+				out = append(out, s.Key)
 			}
 		}
 	}

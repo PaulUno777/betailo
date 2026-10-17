@@ -99,7 +99,7 @@ func TestAdminReference_HTTP_ChangesetFlow(t *testing.T) {
 	}
 
 	queue := map[string]any{"rev": 0, "ops": []map[string]any{
-		{"kind": "update", "ref": map[string]any{"entity": "category", "key": "volaille"}, "value": map[string]any{"label": map[string]any{"en": "Fowl"}}},
+		{"kind": "update", "ref": map[string]any{"entity": "category", "key": "poultry"}, "value": map[string]any{"label": map[string]any{"en": "Fowl"}}},
 		{"kind": "add", "ref": map[string]any{"entity": "term", "list": "reviewTags"}, "value": map[string]any{"key": "calm", "label": map[string]any{"fr": "Calme", "en": "Calm"}, "active": true}},
 	}}
 	rec := doJSON(t, router, http.MethodPost, "/admin/reference/changeset/ops", queue, admin)
@@ -112,14 +112,14 @@ func TestAdminReference_HTTP_ChangesetFlow(t *testing.T) {
 	}
 
 	// A refused operation names its place in the batch.
-	bad := map[string]any{"rev": 1, "ops": []map[string]any{{"kind": "update", "ref": map[string]any{"entity": "category", "key": "ovins"}, "value": map[string]any{"key": "other"}}}}
+	bad := map[string]any{"rev": 1, "ops": []map[string]any{{"kind": "update", "ref": map[string]any{"entity": "category", "key": "ovine"}, "value": map[string]any{"key": "other"}}}}
 	rec = doJSON(t, router, http.MethodPost, "/admin/reference/changeset/ops", bad, admin)
 	if body := decodeJSON[errorResponse](t, rec); body.Code != "catalog.op_key_immutable" || body.Params["index"] != float64(0) {
 		t.Errorf("renaming a key: %d %+v", rec.Code, body)
 	}
 
 	usage := decodeJSON[map[string]int](t, doJSON(t, router, http.MethodGet, "/admin/reference/usage", nil, admin))
-	if usage["species:poussins"] != 4 {
+	if usage["species:chicks"] != 4 {
 		t.Errorf("usage = %v", usage)
 	}
 

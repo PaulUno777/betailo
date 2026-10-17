@@ -9,35 +9,35 @@ import { setCountries } from '../domain/reference/countries';
 export const TEST_CATALOG: Catalog = {
   versions: { animals: 3, places: 3, forumCategories: 3, reviewTags: 3, reportReasons: 3, farmReviewChecks: 3 },
   defaultCountry: 'CM',
-  cycleTypes: ['couvee', 'engraissement', 'ponte', 'reproduction', 'elevage'],
+  cycleTypes: ['hatching', 'fattening', 'laying', 'breeding', 'rearing'],
   categories: [
     {
-      key: 'volaille',
+      key: 'poultry',
       label: { fr: 'Volaille', en: 'Poultry' },
-      icon: 'poule',
+      icon: 'hen',
       color: 'clay',
       active: true,
       subcategories: [
-        { key: 'poussins', label: { fr: 'Poussins d’un jour', en: 'Day-old chicks' }, cycleType: 'couvee', icon: 'poussin', unit: { key: 'poussin', label: { fr: 'poussin', en: 'chick' } }, active: true },
-        { key: 'dindes', label: { fr: 'Dindes', en: 'Turkeys' }, cycleType: 'engraissement', icon: 'dinde', unit: { key: 'dinde', label: { fr: 'dinde', en: 'turkey' } }, active: true },
-        { key: 'cailles', label: { fr: 'Cailles', en: 'Quails' }, cycleType: 'elevage', icon: 'poule', unit: { key: 'caille', label: { fr: 'caille', en: 'quail' } }, active: false }
+        { key: 'chicks', label: { fr: 'Poussins', en: 'Chicks' }, cycleType: 'hatching', icon: 'chick', unit: { key: 'chick', label: { fr: 'chick', en: 'chick' } }, active: true },
+        { key: 'turkeys', label: { fr: 'Dindes', en: 'Turkeys' }, cycleType: 'fattening', icon: 'turkey', unit: { key: 'turkey', label: { fr: 'turkey', en: 'turkey' } }, active: true },
+        { key: 'quails', label: { fr: 'Cailles', en: 'Quails' }, cycleType: 'rearing', icon: 'hen', unit: { key: 'quail', label: { fr: 'quail', en: 'quail' } }, active: false }
       ]
     },
     {
-      key: 'ovins',
+      key: 'ovine',
       label: { fr: 'Ovins', en: 'Sheep' },
-      icon: 'mouton',
+      icon: 'sheep',
       color: 'stone',
       active: true,
-      subcategories: [{ key: 'agneaux', label: { fr: 'Agneaux', en: 'Lambs' }, cycleType: 'elevage', icon: 'mouton', unit: { key: 'agneau', label: { fr: 'agneau', en: 'lamb' } }, active: true }]
+      subcategories: [{ key: 'lambs', label: { fr: 'Agneaux', en: 'Lambs' }, cycleType: 'rearing', icon: 'sheep', unit: { key: 'lamb', label: { fr: 'lamb', en: 'lamb' } }, active: true }]
     },
     {
-      key: 'bovins',
+      key: 'cattle',
       label: { fr: 'Bovins', en: 'Cattle' },
-      icon: 'vache',
+      icon: 'cow',
       color: 'forest',
       active: false,
-      subcategories: [{ key: 'veaux', label: { fr: 'Veaux', en: 'Calves' }, cycleType: 'elevage', icon: 'vache', unit: { key: 'veau', label: { fr: 'veau', en: 'calf' } }, active: true }]
+      subcategories: [{ key: 'calves', label: { fr: 'Veaux', en: 'Calves' }, cycleType: 'rearing', icon: 'cow', unit: { key: 'calf', label: { fr: 'calf', en: 'calf' } }, active: true }]
     }
   ],
   countries: [
@@ -47,13 +47,13 @@ export const TEST_CATALOG: Catalog = {
       active: true,
       regions: [
         {
-          key: 'ouest',
+          key: 'west',
           label: { fr: 'Ouest', en: 'West' },
           active: true,
           cities: [{ key: 'bafoussam', label: { fr: 'Bafoussam', en: 'Bafoussam' }, active: true }]
         },
         {
-          key: 'extreme-nord',
+          key: 'far-north',
           label: { fr: 'Extrême-Nord', en: 'Far North' },
           active: true,
           cities: [{ key: 'kousseri', label: { fr: 'Kousséri', en: 'Kousseri' }, active: true }]
@@ -62,7 +62,7 @@ export const TEST_CATALOG: Catalog = {
     },
     { code: 'GH', callingCode: '233', active: true }
   ],
-  forumCategories: [{ key: 'sante', label: { fr: 'Santé animale', en: 'Animal health' }, active: true }],
+  forumCategories: [{ key: 'health', label: { fr: 'Santé animale', en: 'Animal health' }, active: true }],
   reviewTags: [{ key: 'responsive_farmer', label: { fr: 'Éleveur réactif', en: 'Responsive farmer' }, active: true }],
   reportReasons: [{ key: 'other', label: { fr: 'Autre', en: 'Other' }, active: true }],
   farmReviewChecks: [{ key: 'name_matches', label: { fr: 'Le nom correspond', en: 'The name matches' }, active: true }]
