@@ -154,8 +154,8 @@ const TARGET_HOURS = 48;
                   · {{ 'adminFarms.requestedOn' | t: { date: (at | localDate: 'dayMonthTime') } }}
                 }
               </p>
-              @if (d.contactPhone) {
-                <p class="font-mono text-[13px] text-ink-muted">{{ d.contactPhone }}</p>
+              @for (c of d.contacts; track c.phone) {
+                <p class="font-mono text-[13px] text-ink-muted">{{ c.phone }} · {{ (c.whatsapp ? 'contactsField.whatsapp' : 'contactsField.callOnly') | t }}</p>
               }
             </div>
 

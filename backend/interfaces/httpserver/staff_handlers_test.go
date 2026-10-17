@@ -180,7 +180,7 @@ func TestStaff_HTTP_ProtectedAccounts(t *testing.T) {
 
 	// A seller stays a seller.
 	sellerToken, sellerID := registerAndLogin(t, router, uniqueEmail("seller"), "farmer")
-	if rec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, sellerToken); rec.Code != http.StatusCreated {
+	if rec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}, sellerToken); rec.Code != http.StatusCreated {
 		t.Fatalf("create farm = %d", rec.Code)
 	}
 	if rec := setRole(rootToken, sellerID, "support"); rec.Code != http.StatusConflict || errorCode(t, rec) != "admin.staff_owns_farm" {
@@ -221,7 +221,7 @@ func TestStaff_HTTP_FarmLimitExceptions(t *testing.T) {
 	email := uniqueEmail("coop")
 	sellerToken, sellerID := registerAndLogin(t, router, email, "farmer")
 	create := func(name string) int {
-		return doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: name, Location: "Bafang"}, sellerToken).Code
+		return doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: name, Location: "Bafang", Species: []string{"poussins"}}, sellerToken).Code
 	}
 	if code := create("Site 1"); code != http.StatusCreated {
 		t.Fatalf("first farm = %d", code)

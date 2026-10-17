@@ -624,7 +624,7 @@ type adminFarmResponse struct {
 }
 
 func toAdminFarmResponse(ctx context.Context, storage ports.ObjectStorage, item admin.FarmReviewItem) adminFarmResponse {
-	out := adminFarmResponse{farmResponse: toOwnerFarmResponse(item.Farm)}
+	out := adminFarmResponse{farmResponse: toOwnerFarmResponse(ctx, storage, item.Farm)}
 	if item.Owner != nil {
 		owner := toAdminUserResponse(ctx, storage, item.Owner, item.OwnerFarmCount)
 		out.Owner = &owner
@@ -755,7 +755,7 @@ type reviewFarmRequest struct {
 	Checks []string `json:"checks,omitempty"`
 }
 
-func handleAdminReviewFarm(uc *farm.ReviewFarm, journal *admin.Journal) http.HandlerFunc {
+func handleAdminReviewFarm(uc *farm.ReviewFarm, journal *admin.Journal, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := staffActor(w, r)
 		if !ok {
@@ -785,7 +785,7 @@ func handleAdminReviewFarm(uc *farm.ReviewFarm, journal *admin.Journal) http.Han
 			detail = string(code) + " · " + detail
 		}
 		journal.Record(r.Context(), actor, admin.Entry{Action: action, TargetType: "farm", TargetID: f.ID, TargetLabel: farmLabel(f), Detail: detail})
-		writeJSON(w, http.StatusOK, toOwnerFarmResponse(f))
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(r.Context(), storage, f))
 	}
 }
 

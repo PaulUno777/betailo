@@ -57,6 +57,15 @@ export function speciesGroups(): SpeciesGroup[] {
     .filter((g) => g.species.length > 0);
 }
 
+/** The groups narrowed to what a farm declared it raises: the only
+ * species the API lets it open batches and listings for. */
+export function farmSpeciesGroups(declared: readonly string[] | undefined): SpeciesGroup[] {
+  const own = new Set(declared ?? []);
+  return speciesGroups()
+    .map((g) => ({ ...g, species: g.species.filter((s) => own.has(s)) }))
+    .filter((g) => g.species.length > 0);
+}
+
 /** Every sub-category open to new listings, across categories. */
 export function speciesValues(): string[] {
   return speciesGroups().flatMap((g) => g.species);

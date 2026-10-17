@@ -13,7 +13,7 @@ import (
 )
 
 // SearchListings backs the public marketplace's search bar and filter
-// sidebar — every filter, the "verified only" toggle, and sort order are
+// sidebar — every filter, the "trusted farmers" toggle, and sort order are
 // resolved by ListingSearchRepository server-side; this usecase is a
 // thin pass-through on purpose; there is no business rule left for it
 // to own that the repository doesn't already enforce.

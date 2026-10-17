@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -28,10 +29,16 @@ type Farm struct {
 	// Description is the farmer's own pitch, shown on the public farm
 	// profile. Optional.
 	Description string
-	// ContactPhone is E.164 (see NormalizePhone). Optional. It powers
-	// the "Contacter l'éleveur" WhatsApp/call link, and the API only
-	// shows it to signed-in users.
-	ContactPhone string
+	// Contacts are the numbers buyers reach the farm on, in the order
+	// the owner listed them (at most the platform's contact limit, see
+	// DefaultMaxFarmContacts). Optional. They power the "Contacter
+	// l'éleveur" links, and the API only shows them to signed-in users.
+	Contacts []FarmContact
+	// LogoKey and BannerKey are the storage keys of the farm's logo and
+	// banner (see FarmBrandingPrefix); empty when the owner set none,
+	// and the app then shows its default artwork.
+	LogoKey   string
+	BannerKey string
 
 	// Status is where the farm stands with the platform's review: only
 	// an approved farm's listings reach the marketplace.
@@ -39,6 +46,26 @@ type Farm struct {
 	// Verification is what the owner submitted for that review and
 	// what staff decided.
 	Verification FarmVerification
+}
+
+// CheckRaises refuses a species the farm didn't declare: staff review a
+// farm for the activity it presented, so its cycles and listings stay
+// within it. The owner adds a species to the farm first.
+func (f *Farm) CheckRaises(species string) error {
+	for _, s := range f.Species {
+		if s == species {
+			return nil
+		}
+	}
+	return CodedWith("farm.species_not_declared", map[string]any{"species": species}, fmt.Errorf("farm %s doesn't raise %q: %w", f.ID.Hex(), species, ErrInvalid))
+}
+
+// FarmContact is one phone number of a farm, in E.164 (see
+// NormalizePhone). WhatsApp says whether buyers can also write to it
+// on WhatsApp; otherwise it is a number to call only.
+type FarmContact struct {
+	Phone    string
+	WhatsApp bool
 }
 
 // FarmStatus is a farm's review state.
@@ -201,12 +228,20 @@ const (
 	// DefaultMaxFarmsPerAccount applies when MAX_FARMS_PER_ACCOUNT
 	// isn't set.
 	DefaultMaxFarmsPerAccount = 1
+	// DefaultMaxFarmContacts applies when MAX_FARM_CONTACTS isn't set.
+	DefaultMaxFarmContacts = 3
 )
 
 // FarmProofPrefix is the storage prefix a farm's proof files live
 // under; keys outside it were not issued for this farm.
 func FarmProofPrefix(farmID bson.ObjectID) string {
 	return "farm-verifications/" + farmID.Hex() + "/"
+}
+
+// FarmBrandingPrefix is the storage prefix a farm's logo and banner
+// live under; keys outside it were not issued for this farm.
+func FarmBrandingPrefix(farmID bson.ObjectID) string {
+	return "farms/" + farmID.Hex() + "/branding/"
 }
 
 // MaxFarmDescriptionLen bounds Farm.Description.

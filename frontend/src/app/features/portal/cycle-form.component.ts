@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CyclesApi } from '../../data-access/cycles/cycles.api';
 import { AppError } from '../../core/http/app-error';
 import { ToastService } from '../../core/notifications/toast.service';
@@ -9,7 +9,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { SelectFieldComponent } from '../../shared/ui/select-field/select-field.component';
 import { LocaleService } from '../../core/i18n/locale.service';
-import { speciesCycleType, speciesGroups, speciesLabelKey } from '../../domain/reference/species';
+import { farmSpeciesGroups, speciesCycleType, speciesLabelKey } from '../../domain/reference/species';
 import { cycleTypeLabelKey } from '../../domain/reference/cycle-types';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 
@@ -21,7 +21,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
  * field it can't send. */
 @Component({
   selector: 'bt-cycle-form',
-  imports: [FormsModule, SelectFieldComponent, TextFieldComponent, ButtonComponent, TranslatePipe],
+  imports: [FormsModule, RouterLink, SelectFieldComponent, TextFieldComponent, ButtonComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-2xl p-6 sm:p-8">
@@ -38,6 +38,7 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
               [ngModel]="species()"
               (ngModelChange)="species.set($event)"
             />
+            <a routerLink="/portal/farm" class="self-start text-small text-forest underline underline-offset-2">{{ 'sell.addSpecies' | t }}</a>
             @if (type()) {
               <!-- The API raises a species in the cycle type the catalog gives it. -->
               <p class="text-small text-ink-muted">{{ 'cycleForm.typeFromSpecies' | t: { type: (typeLabel(type()) | t) } }}</p>
@@ -83,9 +84,10 @@ export class CycleFormComponent {
   protected readonly species = signal('');
   protected readonly type = computed(() => speciesCycleType(this.species()));
   protected readonly typeLabel = cycleTypeLabelKey;
-  /** Every species open to sale, named with its category. */
+  /** The species the farm declared, named with their category: the API
+   * refuses a batch of anything else. */
   protected readonly speciesOptions = computed(() =>
-    speciesGroups().flatMap((g) =>
+    farmSpeciesGroups(this.myFarm()?.species).flatMap((g) =>
       g.species.map((s) => ({ value: s, label: `${this.locale.t(g.labelKey)} · ${this.locale.t(speciesLabelKey(s))}` }))
     )
   );

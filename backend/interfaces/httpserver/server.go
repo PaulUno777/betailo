@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pauluno777/betailo/backend/application/usecase/farm"
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
@@ -81,15 +82,18 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 	// Guessing the current password is rate-limited like login.
 	mux.Handle("POST /me/password", limit(deps.RateLimits.Login, chain(handleChangePassword(deps.ChangePassword, deps.Login, deps.Cookies), auth)))
 
-	mux.Handle("POST /farms", signedIn(handleCreateFarm(deps.CreateFarm)))
+	mux.Handle("POST /farms", signedIn(handleCreateFarm(deps.CreateFarm, deps.Storage)))
 	mux.Handle("GET /farms/{id}", chain(handleGetFarmProfile(deps.GetFarmProfile, deps.Storage), OptionalAuth(deps.Signer, deps.Accounts)))
-	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms), auth))
+	mux.Handle("GET /farms/mine", chain(handleListMyFarms(deps.ListMyFarms, deps.Storage), auth))
 	mux.Handle("GET /farms/mine/cards", chain(handleListMyFarmCards(deps.MyFarmCards, deps.Storage), auth))
-	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm), auth))
+	mux.Handle("PUT /farms/{id}", chain(handleUpdateFarm(deps.UpdateFarm, deps.Storage), auth))
 	mux.Handle("DELETE /farms/{id}", chain(handleDeleteFarm(deps.DeleteFarm), auth))
 	mux.Handle("POST /farms/{id}/verification/presign", signedIn(handlePresignFarmProof(deps.PresignFarmProof)))
-	mux.Handle("POST /farms/{id}/verification/submit", signedIn(handleSubmitFarmForReview(deps.SubmitFarmForReview)))
-	mux.Handle("POST /farms/{id}/verification/withdraw", signedIn(handleWithdrawFarmSubmission(deps.WithdrawFarmSubmission)))
+	mux.Handle("POST /farms/{id}/verification/submit", signedIn(handleSubmitFarmForReview(deps.SubmitFarmForReview, deps.Storage)))
+	mux.Handle("POST /farms/{id}/verification/withdraw", signedIn(handleWithdrawFarmSubmission(deps.WithdrawFarmSubmission, deps.Storage)))
+	mux.Handle("POST /farms/{id}/branding/presign", chain(handlePresignFarmBranding(deps.PresignFarmBranding), auth))
+	mux.Handle("PUT /farms/{id}/logo", chain(handleSetFarmBranding(deps.SetFarmBranding, farm.BrandingLogo, deps.Storage), auth))
+	mux.Handle("PUT /farms/{id}/banner", chain(handleSetFarmBranding(deps.SetFarmBranding, farm.BrandingBanner, deps.Storage), auth))
 
 	mux.Handle("POST /cycles", signedIn(handleCreateCycle(deps.CreateCycle)))
 	mux.HandleFunc("GET /cycles/{id}", handleGetCycle(deps.GetCycle))
@@ -176,7 +180,7 @@ func NewRouter(logger *slog.Logger, deps Dependencies) http.Handler {
 
 	mux.Handle("GET /admin/farms", can(domain.PermFarmsRead, handleAdminListFarms(deps.AdminListFarms, deps.AdminFarmQueueCounts, deps.Storage)))
 	mux.Handle("GET /admin/farms/{id}", can(domain.PermFarmsRead, handleAdminGetFarm(deps.AdminGetFarm, journal, deps.Storage, deps.Catalog)))
-	mux.Handle("POST /admin/farms/{id}/review", can(domain.PermFarmsReview, handleAdminReviewFarm(deps.ReviewFarm, journal)))
+	mux.Handle("POST /admin/farms/{id}/review", can(domain.PermFarmsReview, handleAdminReviewFarm(deps.ReviewFarm, journal, deps.Storage)))
 
 	mux.Handle("GET /admin/cycles", can(domain.PermCatalogRead, handleAdminListCycles(deps.AdminListCycles)))
 	mux.Handle("GET /admin/listings", can(domain.PermCatalogRead, handleAdminListListings(deps.AdminListListings, deps.Storage)))

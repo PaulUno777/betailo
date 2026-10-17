@@ -98,6 +98,10 @@ export const en: TranslationDictionary = {
       name_location_required: "Enter the farm's name and town.",
       name_required: "Enter the farm's name.",
       location_required: "Enter the farm's town.",
+      species_required: 'Pick at least one species your farm raises.',
+      species_not_declared: "Your farm doesn't list this species. Add it in your farm's settings first.",
+      contact_duplicate: 'The same number is listed twice.',
+      contact_limit: 'A farm can list at most {max} numbers.',
       has_cycles: "Delete this farm's batches first.",
       id_document_back_required: 'Add the back of your identity document.',
       certification_required: 'Tick the declaration before sending.',
@@ -298,7 +302,7 @@ export const en: TranslationDictionary = {
     priceFrom: 'From {price} FCFA',
     priceUpTo: 'Up to {price} FCFA',
     statusLabel: 'Status',
-    verifiedChip: 'Verified only',
+    trustedChip: 'Trust {min}+',
     titleShort: 'Market',
     allChip: 'All',
     resultsSorted_one: '{count} listing · {sort}',
@@ -320,7 +324,8 @@ export const en: TranslationDictionary = {
     allSpecies: 'All species',
     cycleTypeLabel: 'Cycle type',
     regionLabel: 'Region',
-    verifiedOnlyLabel: 'Verified farmers only',
+    trustedOnlyLabel: 'Trusted farmers only',
+    trustedOnlyHint: 'Trust score of {min} or more: approval, sales, reviews and reports',
     results_one: '{count} result',
     results: '{count} results',
     sortLabel: 'Sort by',
@@ -346,6 +351,7 @@ export const en: TranslationDictionary = {
     placesLeft: '{count} spots left'
   },
   farmCard: {
+    whatsappAndCalls: 'WhatsApp and calls',
     sales_one: '{count} sale',
     sales: '{count} sales',
     since: 'since {year}',
@@ -354,6 +360,7 @@ export const en: TranslationDictionary = {
     whatsapp: 'WhatsApp',
     call: 'Call',
     signInToContact: 'Sign in to contact the farmer',
+    callOnly: 'Calls only',
     farmer: 'Farmer: {name}'
   },
   gallery: {
@@ -592,6 +599,7 @@ export const en: TranslationDictionary = {
     reviewSubmit: 'Publish my review',
     paidToast: 'Paid: your place now has priority',
     confirmedToast: 'Receipt confirmed: the farmer is paid',
+    confirmedToastDetail: 'Find it under Completed, where you can rate the farmer.',
     cancelledToast: 'Reservation cancelled',
     disputedToast: 'Dispute opened: our team will get back to you',
     reviewedToast: 'Thanks for your review',
@@ -1181,6 +1189,7 @@ export const en: TranslationDictionary = {
     terms: 'Terms of use'
   },
   sell: {
+    addSpecies: 'Not in the list? Add a species to your farm',
     title: 'Sell my animals',
     subtitle: 'Four steps, two minutes',
     draftSaved: 'draft saved',
@@ -1249,9 +1258,8 @@ export const en: TranslationDictionary = {
     locationLabel: 'Town or village',
     locationPlaceholder: 'Douala, Bafoussam…',
     locationHint: 'Buyers see the town, never your address.',
-    phoneLabel: 'Phone (optional)',
-    phoneHint: 'So buyers can call you or message you on WhatsApp.',
     speciesLabel: 'What you raise',
+    speciesHint: 'Your batches and listings can only be of these species. You can add more later.',
     submit: 'Continue',
     saving: 'Saving…',
     done: 'Your farm is ready'
@@ -1318,6 +1326,32 @@ export const en: TranslationDictionary = {
     save: 'Save',
     saved: 'Saved',
     healthSaved: 'Health record added'
+  },
+  farmCover: {
+    logoAdd: 'Add a logo',
+    logoChange: 'Change the logo',
+    logoRemove: 'Remove the logo',
+    logoHint: 'A square image, at least 400×400',
+    bannerAdd: 'Add a banner',
+    bannerChange: 'Change',
+    bannerRemove: 'Remove the banner',
+    bannerHint: 'A wide image, ideally 1500×500',
+    sizesHint: 'Logo: square, at least 400×400. Banner: wide, ideally 1500×500 (3:1). Without them, buyers see the Betailo artwork.',
+    uploading: 'Uploading…',
+    saved: 'Image saved',
+    removed: 'Image removed',
+    failed: "The image couldn't be saved",
+    failedAfterCreate: 'Your farm is created, but an image couldn’t be uploaded. You can add it again from your farm settings.'
+  },
+  contactsField: {
+    label: 'Contact numbers',
+    hint: 'Up to {max}. Buyers write to WhatsApp numbers and call the others.',
+    number: 'Number {n}',
+    remove: 'Remove number {n}',
+    kind: 'How buyers reach this number',
+    whatsapp: 'WhatsApp',
+    callOnly: 'Calls only',
+    add: 'Add a number'
   },
   farmSettings: {
     title: 'My farm',

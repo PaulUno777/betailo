@@ -72,6 +72,9 @@ func (uc *CreateCycle) Execute(ctx context.Context, in CreateCycleInput) (*domai
 	if err != nil {
 		return nil, err
 	}
+	if err := f.CheckRaises(sp.Key); err != nil {
+		return nil, err
+	}
 	if in.Capacity <= 0 {
 		return nil, fmt.Errorf("cycle: capacity must be positive: %w", domain.ErrInvalid)
 	}

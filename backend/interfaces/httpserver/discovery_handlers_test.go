@@ -11,19 +11,19 @@ func TestFarmProfile_HTTP_TrustBaselineAndPhonePrivacy(t *testing.T) {
 	tf.farms.awaitReview = true
 	farmerToken, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 	createRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{
-		Name: "Ferme des Collines", Location: "Dschang", Description: "Élevage familial", ContactPhone: "6 90 12 34 56",
+		Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poussins"}, Description: "Élevage familial", Contacts: []farmContactJSON{{Phone: "6 90 12 34 56", WhatsApp: true}, {Phone: "677001122"}},
 	}, farmerToken)
 	if createRec.Code != http.StatusCreated {
 		t.Fatalf("create farm status = %d; body = %s", createRec.Code, createRec.Body.String())
 	}
 	created := decodeJSON[farmResponse](t, createRec)
-	if created.ContactPhone != "+237690123456" {
-		t.Errorf("owner sees contactPhone = %q, want normalized E.164", created.ContactPhone)
+	if len(created.Contacts) != 2 || created.Contacts[0] != (farmContactJSON{Phone: "+237690123456", WhatsApp: true}) || created.Contacts[1] != (farmContactJSON{Phone: "+237677001122"}) {
+		t.Errorf("owner sees contacts = %+v, want both, normalized E.164", created.Contacts)
 	}
 
 	anon := decodeJSON[farmProfileResponse](t, doJSON(t, router, http.MethodGet, "/farms/"+created.ID, nil, ""))
-	if anon.ContactPhone != "" {
-		t.Errorf("anonymous caller sees contactPhone = %q, want it withheld", anon.ContactPhone)
+	if len(anon.Contacts) != 0 {
+		t.Errorf("anonymous caller sees contacts = %+v, want them withheld", anon.Contacts)
 	}
 	if anon.TrustScore != 50 {
 		t.Errorf("trustScore = %v, want the 50 baseline right after farm creation", anon.TrustScore)
@@ -34,11 +34,11 @@ func TestFarmProfile_HTTP_TrustBaselineAndPhonePrivacy(t *testing.T) {
 
 	buyerToken, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 	signedIn := decodeJSON[farmProfileResponse](t, doJSON(t, router, http.MethodGet, "/farms/"+created.ID, nil, buyerToken))
-	if signedIn.ContactPhone != "+237690123456" {
-		t.Errorf("signed-in buyer sees contactPhone = %q, want it shown", signedIn.ContactPhone)
+	if len(signedIn.Contacts) != 2 || !signedIn.Contacts[0].WhatsApp || signedIn.Contacts[1].WhatsApp {
+		t.Errorf("signed-in buyer sees contacts = %+v, want both with their WhatsApp flags", signedIn.Contacts)
 	}
 
-	bad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "X", Location: "Y", ContactPhone: "123"}, farmerToken)
+	bad := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "X", Location: "Y", Contacts: []farmContactJSON{{Phone: "123"}}, Species: []string{"poussins"}}, farmerToken)
 	if bad.Code != http.StatusBadRequest {
 		t.Errorf("invalid phone status = %d, want 400", bad.Code)
 	}

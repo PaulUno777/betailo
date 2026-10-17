@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { ReservationAction, ReservationView } from '../../domain/models';
-import { whatsappUrl } from '../../domain/rules/contact';
+import { primaryWhatsapp, telUrl, whatsappUrl } from '../../domain/rules/contact';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { PlacePipe } from '../../core/i18n/place.pipe';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
@@ -153,8 +153,11 @@ export class ReservationCardComponent {
   protected readonly primaryActions = computed(() => this.view().actions.filter((a) => a !== 'review' && a !== 'contact'));
 
   protected readonly contactUrl = computed(() => {
-    const phone = this.view().farm.contactPhone;
-    return this.has('contact') && phone ? whatsappUrl(phone, this.whatsappMessage()) : null;
+    // The first WhatsApp number, else a call to the first number.
+    const contacts = this.view().farm.contacts ?? [];
+    if (!this.has('contact') || !contacts.length) return null;
+    const wa = primaryWhatsapp(contacts);
+    return wa ? whatsappUrl(wa, this.whatsappMessage()) : telUrl(contacts[0].phone);
   });
 
   /** "Livré · à confirmer" and friends need the buyer now. */

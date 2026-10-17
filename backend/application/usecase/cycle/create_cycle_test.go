@@ -13,7 +13,7 @@ import (
 
 func TestCreateCycle_Execute_Success(t *testing.T) {
 	owner := bson.NewObjectID()
-	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala"}
+	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
 	farms := newFakeFarms(f)
 	cycles := newFakeCycles()
 	uc := &CreateCycle{Farms: farms, Cycles: cycles, Sequencer: &fakeSequencer{}}
@@ -46,7 +46,7 @@ func TestCreateCycle_Execute_Success(t *testing.T) {
 }
 
 func TestCreateCycle_Execute_NotFarmOwner(t *testing.T) {
-	f := &domain.Farm{OwnerID: bson.NewObjectID(), Name: "Ferme", Location: "Douala"}
+	f := &domain.Farm{OwnerID: bson.NewObjectID(), Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
 	uc := &CreateCycle{Farms: newFakeFarms(f), Cycles: newFakeCycles()}
 
 	_, err := uc.Execute(context.Background(), CreateCycleInput{
@@ -60,7 +60,7 @@ func TestCreateCycle_Execute_NotFarmOwner(t *testing.T) {
 
 func TestCreateCycle_Execute_Validation(t *testing.T) {
 	owner := bson.NewObjectID()
-	f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner, Name: "Ferme", Location: "Douala"}
+	f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
 	starts := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	before := starts.Add(-time.Hour)
 
@@ -87,5 +87,20 @@ func TestCreateCycle_Execute_Validation(t *testing.T) {
 				t.Fatalf("Execute() error = %v, want domain.ErrInvalid", err)
 			}
 		})
+	}
+}
+
+// A farm reviewed for its poultry can't open a pig cycle until its
+// owner declares pigs.
+func TestCreateCycle_Execute_SpeciesNotDeclared(t *testing.T) {
+	owner := bson.NewObjectID()
+	f := &domain.Farm{OwnerID: owner, Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}
+	uc := &CreateCycle{Farms: newFakeFarms(f), Cycles: newFakeCycles(), Sequencer: &fakeSequencer{}}
+
+	_, err := uc.Execute(context.Background(), CreateCycleInput{
+		FarmID: f.ID, OwnerID: owner, Species: "porcs", Capacity: 10, StartsAt: time.Now(),
+	})
+	if code, _ := domain.CodeOf(err); !errors.Is(err, domain.ErrInvalid) || code != "farm.species_not_declared" {
+		t.Fatalf("Execute() error = %v, want farm.species_not_declared", err)
 	}
 }

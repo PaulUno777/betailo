@@ -44,21 +44,60 @@ func normalizePlace(ctx context.Context, src ports.CatalogSource, country, regio
 	return place{Country: c, Region: r, Town: t}, nil
 }
 
+// normalizeSpecies checks what the farm raises: at least one species,
+// each an active one of the catalog, kept once, in the given order.
+func normalizeSpecies(ctx context.Context, src ports.CatalogSource, species []string) ([]string, error) {
+	cat, err := catalog.Of(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, key := range species {
+		if seen[key] {
+			continue
+		}
+		sp, err := cat.SpeciesByKey(key)
+		if err != nil {
+			return nil, err
+		}
+		seen[key] = true
+		out = append(out, sp.Key)
+	}
+	if len(out) == 0 {
+		return nil, domain.Coded("farm.species_required", fmt.Errorf("farm: pick at least one species: %w", domain.ErrInvalid))
+	}
+	return out, nil
+}
+
 // normalizeProfileFields validates the optional public-profile fields
-// shared by create and update: a bounded description and a contact
-// phone stored in E.164, read as a national number of the farm's
-// country (callingCode) when typed without its "+".
-func normalizeProfileFields(description, phone, callingCode string) (string, string, error) {
+// shared by create and update: a bounded description and up to max
+// contact numbers, each stored in E.164 and read as a national number
+// of the farm's country (callingCode) when typed without its "+".
+// Blank numbers are dropped; the same number twice is refused.
+func normalizeProfileFields(description string, contacts []domain.FarmContact, callingCode string, max int) (string, []domain.FarmContact, error) {
 	description = strings.TrimSpace(description)
 	if utf8.RuneCountInString(description) > domain.MaxFarmDescriptionLen {
-		return "", "", fmt.Errorf("farm: description must be at most %d characters: %w", domain.MaxFarmDescriptionLen, domain.ErrInvalid)
+		return "", nil, fmt.Errorf("farm: description must be at most %d characters: %w", domain.MaxFarmDescriptionLen, domain.ErrInvalid)
 	}
-	if strings.TrimSpace(phone) == "" {
-		return description, "", nil
+	var out []domain.FarmContact
+	seen := map[string]bool{}
+	for _, c := range contacts {
+		if strings.TrimSpace(c.Phone) == "" {
+			continue
+		}
+		normalized, err := domain.NormalizePhoneIn(c.Phone, callingCode)
+		if err != nil {
+			return "", nil, fmt.Errorf("farm: contact phone: %w", err)
+		}
+		if seen[normalized] {
+			return "", nil, domain.Coded("farm.contact_duplicate", fmt.Errorf("farm: contact %s is listed twice: %w", normalized, domain.ErrInvalid))
+		}
+		seen[normalized] = true
+		out = append(out, domain.FarmContact{Phone: normalized, WhatsApp: c.WhatsApp})
 	}
-	normalized, err := domain.NormalizePhoneIn(phone, callingCode)
-	if err != nil {
-		return "", "", fmt.Errorf("farm: contact phone: %w", err)
+	if len(out) > max {
+		return "", nil, domain.CodedWith("farm.contact_limit", map[string]any{"max": max}, fmt.Errorf("farm: at most %d contact numbers: %w", max, domain.ErrInvalid))
 	}
-	return description, normalized, nil
+	return description, out, nil
 }

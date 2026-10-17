@@ -49,6 +49,9 @@ services:
       # that account.
       - key: MAX_FARMS_PER_ACCOUNT
         value: "1"
+      # How many phone numbers a farm may list.
+      - key: MAX_FARM_CONTACTS
+        value: "3"
       # Test switch: "true" approves farms on submission without staff
       # review. Keep "false" once real sellers use the platform.
       - key: FARM_AUTO_APPROVE

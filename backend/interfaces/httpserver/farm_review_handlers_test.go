@@ -30,7 +30,7 @@ func newDraftFarmWithListing(t *testing.T, router http.Handler, tf *testFakes) (
 	t.Helper()
 	tf.farms.awaitReview = true
 	token, _ = registerAndLogin(t, router, uniqueEmail("seller"), "farmer")
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme Etoga", Location: "Douala"}, token)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme Etoga", Location: "Douala", Species: []string{"poussins"}}, token)
 	if farmRec.Code != http.StatusCreated {
 		t.Fatalf("create farm status = %d; body = %s", farmRec.Code, farmRec.Body.String())
 	}
@@ -200,7 +200,7 @@ func TestFarm_HTTP_LimitPerAccountAndStaffOverride(t *testing.T) {
 	root := adminToken(t, router, tf)
 	token, userID := registerAndLogin(t, router, uniqueEmail("seller"), "farmer")
 	create := func(name, tok string) *httptest.ResponseRecorder {
-		return doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: name, Location: "Douala"}, tok)
+		return doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: name, Location: "Douala", Species: []string{"poussins"}}, tok)
 	}
 
 	if rec := create("Première", token); rec.Code != http.StatusCreated {

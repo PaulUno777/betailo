@@ -12,6 +12,9 @@ import (
 	"github.com/pauluno777/betailo/backend/domain"
 )
 
+// sp is a species every valid test farm raises.
+var sp = []string{"poussins"}
+
 func TestCreateFarm_Execute_Success(t *testing.T) {
 	farms := newFakeFarms()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -20,12 +23,12 @@ func TestCreateFarm_Execute_Success(t *testing.T) {
 	ownerID := bson.NewObjectID()
 
 	out, err := uc.Execute(context.Background(), CreateFarmInput{
-		OwnerID:      ownerID,
-		Name:         "  Ferme du Soleil  ",
-		Location:     "Douala",
-		Species:      []string{"poussins", "porcs"},
-		Description:  "  Élevage familial depuis 2012.  ",
-		ContactPhone: "6 90 12 34 56",
+		OwnerID:     ownerID,
+		Name:        "  Ferme du Soleil  ",
+		Location:    "Douala",
+		Species:     []string{"poussins", "porcs"},
+		Description: "  Élevage familial depuis 2012.  ",
+		Contacts:    []domain.FarmContact{{Phone: "6 90 12 34 56", WhatsApp: true}, {Phone: " "}, {Phone: "+237 677 00 11 22"}},
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)
@@ -45,8 +48,9 @@ func TestCreateFarm_Execute_Success(t *testing.T) {
 	if out.Farm.Description != "Élevage familial depuis 2012." {
 		t.Errorf("Description = %q, want trimmed", out.Farm.Description)
 	}
-	if out.Farm.ContactPhone != "+237690123456" {
-		t.Errorf("ContactPhone = %q, want E.164", out.Farm.ContactPhone)
+	want := []domain.FarmContact{{Phone: "+237690123456", WhatsApp: true}, {Phone: "+237677001122"}}
+	if len(out.Farm.Contacts) != len(want) || out.Farm.Contacts[0] != want[0] || out.Farm.Contacts[1] != want[1] {
+		t.Errorf("Contacts = %+v, want %+v (E.164, blanks dropped, order kept)", out.Farm.Contacts, want)
 	}
 	if len(trust.calls) != 1 || trust.calls[0] != ownerID {
 		t.Errorf("trust recompute calls = %v, want exactly the owner, for a baseline score", trust.calls)
@@ -58,11 +62,15 @@ func TestCreateFarm_Execute_Validation(t *testing.T) {
 		name string
 		in   CreateFarmInput
 	}{
-		{"empty name", CreateFarmInput{Name: "", Location: "Douala"}},
-		{"blank name", CreateFarmInput{Name: "   ", Location: "Douala"}},
-		{"empty location", CreateFarmInput{Name: "Ferme", Location: ""}},
-		{"bad phone", CreateFarmInput{Name: "Ferme", Location: "Douala", ContactPhone: "12345"}},
-		{"description too long", CreateFarmInput{Name: "Ferme", Location: "Douala", Description: strings.Repeat("é", domain.MaxFarmDescriptionLen+1)}},
+		{"empty name", CreateFarmInput{Name: "", Location: "Douala", Species: sp}},
+		{"blank name", CreateFarmInput{Name: "   ", Location: "Douala", Species: sp}},
+		{"empty location", CreateFarmInput{Name: "Ferme", Location: "", Species: sp}},
+		{"bad phone", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: sp, Contacts: []domain.FarmContact{{Phone: "12345"}}}},
+		{"same number twice", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: sp, Contacts: []domain.FarmContact{{Phone: "690123456", WhatsApp: true}, {Phone: "+237 6 90 12 34 56"}}}},
+		{"over the default contact limit", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: sp, Contacts: []domain.FarmContact{{Phone: "690000001"}, {Phone: "690000002"}, {Phone: "690000003"}, {Phone: "690000004"}}}},
+		{"no species", CreateFarmInput{Name: "Ferme", Location: "Douala"}},
+		{"a species the catalog doesn't offer", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: []string{"poussins", "licornes"}}},
+		{"description too long", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: sp, Description: strings.Repeat("é", domain.MaxFarmDescriptionLen+1)}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,7 +94,7 @@ func TestCreateFarm_Execute_LimitPerAccount(t *testing.T) {
 	}}
 	uc := &CreateFarm{Users: users, Farms: newFakeFarms(), MaxFarms: 1, Trust: &fakeTrust{}, Clock: fakeClock{now: time.Now()}}
 	open := func(owner bson.ObjectID) error {
-		_, err := uc.Execute(ctx, CreateFarmInput{OwnerID: owner, Name: "Ferme", Location: "Douala"})
+		_, err := uc.Execute(ctx, CreateFarmInput{OwnerID: owner, Name: "Ferme", Location: "Douala", Species: sp})
 		return err
 	}
 
@@ -124,5 +132,17 @@ func TestFarmLimitFor(t *testing.T) {
 		if got := FarmLimitFor(&domain.User{FarmLimit: tt.account}, tt.env); got != tt.want {
 			t.Errorf("%s: FarmLimitFor = %d, want %d", tt.name, got, tt.want)
 		}
+	}
+}
+
+// MAX_FARM_CONTACTS raises the number of contacts a farm may list.
+func TestCreateFarm_Execute_ContactLimitFromConfig(t *testing.T) {
+	uc := &CreateFarm{Users: &fakeUsers{}, Farms: newFakeFarms(), Trust: &fakeTrust{}, Clock: fakeClock{now: time.Now()}, MaxContacts: 4}
+	out, err := uc.Execute(context.Background(), CreateFarmInput{
+		OwnerID: bson.NewObjectID(), Name: "Ferme", Location: "Douala", Species: sp,
+		Contacts: []domain.FarmContact{{Phone: "690000001"}, {Phone: "690000002"}, {Phone: "690000003"}, {Phone: "690000004"}},
+	})
+	if err != nil || len(out.Farm.Contacts) != 4 {
+		t.Fatalf("Execute() = %v, %v; want 4 contacts under a limit of 4", out, err)
 	}
 }

@@ -11,8 +11,8 @@ import (
 func TestListMyFarms_HTTP(t *testing.T) {
 	router := newTestRouter()
 	token, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "A", Location: "Douala"}, token)
-	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "B", Location: "Yaoundé"}, token)
+	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "A", Location: "Douala", Species: []string{"poussins"}}, token)
+	doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "B", Location: "Yaoundé", Species: []string{"poussins"}}, token)
 
 	rec := doJSON(t, router, http.MethodGet, "/farms/mine", nil, token)
 	if rec.Code != http.StatusOK {
@@ -36,7 +36,7 @@ func TestUpdateListing_HTTP_NotOwnerForbidden(t *testing.T) {
 	ownerToken, _ := registerAndLogin(t, router, uniqueEmail("owner"), "farmer")
 	otherToken, _ := registerAndLogin(t, router, uniqueEmail("other"), "farmer")
 
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, ownerToken)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}, ownerToken)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
 		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),
@@ -58,7 +58,7 @@ func TestUpdateListing_HTTP_NotOwnerForbidden(t *testing.T) {
 func TestDeleteCycle_HTTP_SuccessAndConflict(t *testing.T) {
 	router := newTestRouter()
 	token, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala"}, token)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}, token)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
 		FarmID: farmOut.ID, Species: "poussins", Type: "ponte", Capacity: 10, StartsAt: time.Now(),

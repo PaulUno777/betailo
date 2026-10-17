@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -11,7 +12,7 @@ import (
 func newFarmer(t *testing.T, router http.Handler, location string) (token, farmID string) {
 	t.Helper()
 	token, _ = registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme " + location, Location: location}, token))
+	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme " + location, Location: location, Species: []string{"poussins", "jeunes-poulets", "porcs"}}, token))
 	return token, farm.ID
 }
 
@@ -132,5 +133,16 @@ func TestSeller_HTTP_CycleEditCantUnsellReservedPlaces(t *testing.T) {
 	}
 	if rec := doJSON(t, router, http.MethodPut, "/cycles/"+cycleID, grow, buyer); rec.Code != http.StatusForbidden {
 		t.Errorf("buyer edit status = %d, want 403", rec.Code)
+	}
+}
+
+// A farm only sells what it declared: staff reviewed it for that.
+func TestSeller_HTTP_QuickListingOutsideTheFarmsSpecies(t *testing.T) {
+	router := newTestRouter()
+	token, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
+	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme", Location: "Douala", Species: []string{"poussins"}}, token))
+	rec := doJSON(t, router, http.MethodPost, "/farms/"+farm.ID+"/quick-listings", quickListing("porcs", 20000), token)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "farm.species_not_declared") {
+		t.Errorf("status = %d, body = %s; want 400 farm.species_not_declared", rec.Code, rec.Body.String())
 	}
 }

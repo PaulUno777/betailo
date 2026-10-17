@@ -1,3 +1,4 @@
+import { FarmCoverComponent } from '../../shared/ui/farm-cover/farm-cover.component';
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -33,7 +34,7 @@ const FILTERS: readonly { id: ReviewFilter; labelKey: string }[] = [
  * one, once. */
 @Component({
   selector: 'bt-farm-reviews',
-  imports: [FormsModule, ReviewCardComponent, RatingComponent, IconComponent, ButtonComponent, BottomSheetComponent, TextFieldComponent, TranslatePipe],
+  imports: [FormsModule, FarmCoverComponent, ReviewCardComponent, RatingComponent, IconComponent, ButtonComponent, BottomSheetComponent, TextFieldComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-2xl px-4 pb-10 pt-4 sm:px-8 lg:pt-10">
@@ -53,6 +54,12 @@ const FILTERS: readonly { id: ReviewFilter; labelKey: string }[] = [
           }
         </div>
       </header>
+
+      @if (farm.value(); as f) {
+        <bt-farm-cover class="mt-5 block" [name]="f.name" [logoUrl]="f.logoThumbUrl" [bannerUrl]="f.bannerUrl" [size]="72">
+          <span class="truncate text-heading-4">{{ f.name }}</span>
+        </bt-farm-cover>
+      }
 
       @if (summary(); as s) {
         <section class="mt-5 rounded-xl bg-forest-deep p-5 text-on-forest-deep">

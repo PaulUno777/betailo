@@ -120,6 +120,7 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 	systemClock := clock.System{}
 
 	maxFarms := maxFarmsPerAccount()
+	maxContacts := maxFarmContacts()
 	autoApproveFarms := os.Getenv("FARM_AUTO_APPROVE") == "true"
 	if autoApproveFarms {
 		logger.Warn("FARM_AUTO_APPROVE is on: farms are approved on submission without staff review. Test use only; turn it off before real sellers arrive.")
@@ -298,10 +299,10 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			People:           &people.Directory{Users: users},
 			Catalog:          catalogSource,
 			ChangePassword:   &auth.ChangePassword{Users: users, Hasher: hasher, RefreshTokens: refreshTokens, Clock: systemClock},
-			SellerAccess:     &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms},
+			SellerAccess:     &farm.SellerAccess{Users: users, Farms: farms, MaxFarms: maxFarms, MaxContacts: maxContacts},
 			RateLimits:       httpserver.DefaultRateLimits(os.Getenv("TRUST_PROXY_HEADERS") == "true"),
 
-			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, Trust: trustRecompute, Clock: systemClock, Sequencer: counters, Catalog: catalogSource},
+			CreateFarm: &farm.CreateFarm{Users: users, Farms: farms, MaxFarms: maxFarms, MaxContacts: maxContacts, Trust: trustRecompute, Clock: systemClock, Sequencer: counters, Catalog: catalogSource},
 			GetFarmProfile: &farm.GetProfile{
 				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
 			},
@@ -309,10 +310,12 @@ func Initialize(ctx context.Context) (*Application, func(), error) {
 			MyFarmCards: &farm.MyFarmCards{
 				Farms: farms, Users: users, Reviews: reviews, Cycles: cycles, Listings: listings, Reservations: reservations,
 			},
-			UpdateFarm: &farm.UpdateFarm{Farms: farms, Catalog: catalogSource},
+			UpdateFarm: &farm.UpdateFarm{Farms: farms, Catalog: catalogSource, MaxContacts: maxContacts},
 			DeleteFarm: &farm.DeleteFarm{Farms: farms, Cycles: cycles},
 
 			PresignFarmProof:       &farm.PresignFarmProof{Farms: farms, Storage: storageProvider},
+			PresignFarmBranding:    &farm.PresignBranding{Farms: farms, Storage: storageProvider},
+			SetFarmBranding:        &farm.SetBranding{Farms: farms},
 			WithdrawFarmSubmission: &farm.WithdrawFarmSubmission{Farms: farms},
 			SubmitFarmForReview: &farm.SubmitFarmForReview{
 				Farms: farms, Trust: trustRecompute, Notifications: notifications, Clock: systemClock, AutoApprove: autoApproveFarms,
@@ -704,6 +707,17 @@ func cookieConfig() httpserver.CookieConfig {
 	}
 
 	return httpserver.CookieConfig{Secure: secure, SameSite: sameSite}
+}
+
+// maxFarmContacts reads MAX_FARM_CONTACTS: how many contact numbers a
+// farm may list. Unset or not a positive number:
+// domain.DefaultMaxFarmContacts.
+func maxFarmContacts() int {
+	n, err := strconv.Atoi(os.Getenv("MAX_FARM_CONTACTS"))
+	if err != nil || n < 1 {
+		return domain.DefaultMaxFarmContacts
+	}
+	return n
 }
 
 // maxFarmsPerAccount reads MAX_FARMS_PER_ACCOUNT: how many farms an
