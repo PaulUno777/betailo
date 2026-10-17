@@ -15,22 +15,39 @@
         {
           "key": "poussins",
           "label": {
-            "fr": "Poussins et jeunes",
-            "en": "Chicks and young birds"
+            "fr": "Poussins",
+            "en": "Chicks"
           },
           "cycleType": "couvee",
           "icon": "poussin",
           "unit": {
-            "key": "sujet",
+            "key": "poussin",
             "label": {
-              "fr": "sujet",
-              "en": "bird"
+              "fr": "poussin",
+              "en": "chick"
             }
           },
           "active": true
         },
         {
-          "key": "jeunes-poulets",
+          "key": "poulettes",
+          "label": {
+            "fr": "Poulettes",
+            "en": "Pullets"
+          },
+          "cycleType": "elevage",
+          "icon": "poule",
+          "unit": {
+            "key": "poulette",
+            "label": {
+              "fr": "poulette",
+              "en": "pullet"
+            }
+          },
+          "active": true
+        },
+        {
+          "key": "poulets-chair",
           "label": {
             "fr": "Poulets de chair",
             "en": "Broilers"

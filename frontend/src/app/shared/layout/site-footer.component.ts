@@ -28,7 +28,7 @@ import { LogoComponent } from '../ui/logo/logo.component';
         <div class="flex flex-col gap-2.5 sm:col-span-2">
           <span class="text-small font-medium">{{ 'footer.marketplaceHeading' | t }}</span>
           <a routerLink="/marketplace" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.allCycles' | t }}</a>
-          <a routerLink="/marketplace" [queryParams]="{ species: 'jeunes-poulets' }" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.poultry' | t }}</a>
+          <a routerLink="/marketplace" [queryParams]="{ species: 'poulets-chair' }" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.poultry' | t }}</a>
           <a routerLink="/marketplace" [queryParams]="{ species: 'porcs' }" class="text-small text-on-forest-deep/70 hover:text-on-forest-deep">{{ 'footer.pigs' | t }}</a>
         </div>
         <div class="flex flex-col gap-2.5 sm:col-span-2">

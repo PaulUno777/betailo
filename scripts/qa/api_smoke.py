@@ -176,7 +176,7 @@ if lid_any:
     check("G02", "Guest", "Open listing detail", "200 with listing, cycle, farm", s == 200 and isinstance(b, dict), f"{s} keys={list(b.keys())[:8] if isinstance(b, dict) else b}")
     contacts = ((b or {}).get("farm") or {}).get("contacts") if isinstance(b, dict) else None
     check("G03", "Guest", "Farmer numbers hidden from anonymous visitors", "farm.contacts empty in anonymous detail", contacts == [], f"contacts={contacts}")
-s, b = g.call("GET", "/listings?q=poulets&species=jeunes-poulets")
+s, b = g.call("GET", "/listings?q=poulets&species=poulets-chair")
 check("G04", "Guest", "Search + species filter", "200", s == 200, f"{s} total={b.get('total') if isinstance(b, dict) else b}")
 s, b = g.call("GET", "/forum/posts")
 check("G05", "Guest", "Read forum", "200", s == 200, s)
@@ -199,7 +199,7 @@ far, s, b = register("seller", "Awa Fermière")
 check("F01", "Farmer", "Register a personal account", "201, not staff", s == 201 and not (b or {}).get("staffRole"), f"{s} {str(b)[:100]}")
 s, me = far.call("GET", "/me")
 check("F01b", "Farmer", "GET /me before any farm", "no farm, canAddFarm, farmLimit=1", s == 200 and me.get("farms") == [] and me.get("canAddFarm") is True and me.get("farmLimit") == 1, f"{s} farms={me.get('farms')} canAdd={me.get('canAddFarm')} limit={me.get('farmLimit')}")
-s, b = far.call("POST", "/farms", {"name": "Ferme QA", "location": "Bafoussam", "species": ["jeunes-poulets"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
+s, b = far.call("POST", "/farms", {"name": "Ferme QA", "location": "Bafoussam", "species": ["poulets-chair"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
 check("F02", "Farmer", "Open a farm (POST /farms)", "201, status draft, owner can submit", s == 201 and isinstance(b, dict) and b.get("status") == "draft" and (b.get("review") or {}).get("canSubmit") is True, f"{s} {str(b)[:160]}")
 farm_id = (b or {}).get("id") if isinstance(b, dict) else None
 check("F02c", "Farmer", "Contacts saved in E.164 with their WhatsApp flag", "2 numbers, WhatsApp then call only",
@@ -231,9 +231,9 @@ s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Doual
 check("F02b", "Farmer", "Second farm at the default limit", "409 code farm.limit_reached", s == 409 and (b or {}).get("code") == "farm.limit_reached", f"{s} {b}")
 s, me = far.call("GET", "/me")
 check("F03", "Farmer", "GET /me lists the farm", "1 farm (draft), canAddFarm=false", s == 200 and len(me.get("farms", [])) == 1 and me["farms"][0].get("status") == "draft" and me.get("canAddFarm") is False, f"{s} farms={[f.get('status') for f in me.get('farms', [])]} canAdd={me.get('canAddFarm')}")
-s, b = far.call("GET", f"/listings/price-hint?species=jeunes-poulets&region=Bafoussam")
+s, b = far.call("GET", f"/listings/price-hint?species=poulets-chair&region=Bafoussam")
 check("F04", "Farmer", "Price hint", "200 or 204", s in (200, 204), f"{s} {b}")
-s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-poulets", "breed": "Brahma", "ageDays": 42, "quantity": 50, "unitPrice": 3000, "title": "QA Jeunes poulets", "deliveryAvailable": True})
+s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "poulets-chair", "breed": "Brahma", "ageDays": 42, "quantity": 50, "unitPrice": 3000, "title": "QA Jeunes poulets", "deliveryAvailable": True})
 check("F05", "Farmer", "Quick listing (sell wizard)", "201 cycle + draft listing", s == 201 and isinstance(b, dict) and b.get("listing", {}).get("status") == "draft", f"{s} status={(b or {}).get('listing', {}).get('status') if isinstance(b, dict) else b}")
 qlisting = (b or {}).get("listing", {}).get("id") if isinstance(b, dict) else None
 qcycle = (b or {}).get("cycle", {}).get("id") if isinstance(b, dict) else None
@@ -241,7 +241,7 @@ s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "porcs",
 check("F05b", "Farmer", "Sell a species the farm didn't declare", "400 farm.species_not_declared", s == 400 and (b or {}).get("code") == "farm.species_not_declared", f"{s} {b}")
 s, b = far.call("POST", f"/listings/{qlisting}/publish")
 check("F06", "Farmer", "Publish without any photo (D2 code)", "400 code listing.photo_required", s == 400 and (b or {}).get("code") == "listing.photo_required", f"{s} {b}")
-s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-poulets", "quantity": 0, "unitPrice": -5, "title": ""})
+s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "poulets-chair", "quantity": 0, "unitPrice": -5, "title": ""})
 check("F07", "Farmer", "Quick listing with quantity 0 / negative price", "400", s == 400, f"{s} {b}")
 s, b = far.call("POST", f"/listings/{qlisting}/photos/presign", PHOTO_SIZES)
 check("F08", "Farmer", "Presign a listing photo upload", "200 key + uploadUrl", s == 200 and isinstance(b, dict) and b.get("uploadUrl"), f"{s} {str(b)[:100]}")
@@ -534,7 +534,7 @@ check("R01", "Guest", "Reference lists Cameroon's regions and calling codes", "2
       s == 200 and len([x for x in countries.get("CM", {}).get("regions", []) if x.get("active")]) == 10 and countries.get("GH", {}).get("callingCode") == "233", f"{s}")
 s, b = g.call("GET", "/listings?pageSize=5")
 check("R02", "Guest", "Search returns facets", "species/cycleTypes/regions/price facets", s == 200 and all(k in (b.get("facets") or {}) for k in ("species", "cycleTypes", "statuses", "regions", "priceMin", "priceMax")), f"{s} {str(b.get('facets'))[:160]}")
-s, b = g.call("GET", "/listings?species=jeunes-poulets,poussins&status=planned,in_progress&available=" + now.strftime("%Y-%m"))
+s, b = g.call("GET", "/listings?species=poulets-chair,poussins&status=planned,in_progress&available=" + now.strftime("%Y-%m"))
 check("R03", "Guest", "Multi-value filters + availability month", "200", s == 200 and isinstance(b.get("items"), list), f"{s} total={b.get('total')}")
 s, b = g.call("GET", "/listings?available=octobre")
 check("R04", "Guest", "Invalid availability month", "400 search.available_invalid", s == 400 and (b or {}).get("code") == "search.available_invalid", f"{s} {b}")
@@ -543,9 +543,9 @@ check("R05", "Guest", "Word search across title and town", "finds the QA listing
 s, b = g.call("GET", "/listings?trustedOnly=true&pageSize=100", token=False)
 scores = [i.get("farmTrustScore", 0) for i in (b or {}).get("items", [])] if isinstance(b, dict) else []
 check("R06b", "Guest", "Trusted farmers only (trust score 70+)", "200, every farm 70+", s == 200 and all(x >= 70 for x in scores), f"{s} scores={sorted(set(scores))[:5]}")
-s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "region": "Atlantique", "species": ["jeunes-poulets"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
+s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "region": "Atlantique", "species": ["poulets-chair"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
 check("R07", "Farmer", "Farm with an unknown Cameroonian region", "400 farm.region_invalid", s == 400 and (b or {}).get("code") == "farm.region_invalid", f"{s} {b}")
-s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "country": "CM", "region": "ouest", "species": ["jeunes-poulets"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
+s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "country": "CM", "region": "ouest", "species": ["poulets-chair"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
 check("R08", "Farmer", "Farm region is stored as the catalog's key", "ouest", s == 200 and b.get("region") == "ouest" and b.get("country") == "CM", f"{s} {b.get('region') if isinstance(b, dict) else b}")
 
 s, b = g.call("GET", "/listings?country=CM&region=ouest")
@@ -871,7 +871,7 @@ s, cs2 = adm.call("DELETE", f"/admin/reference/changeset/ops/{cs['changes'][2]['
 check("RE07", "Admin", "Undo one town", "200, 3 changes left", s == 200 and len(cs2.get("changes", [])) == 3, f"{s}")
 cs = cs2
 s, usage = adm.call("GET", "/admin/reference/usage")
-check("RE08", "Admin", "Usage counts", "species:jeunes-poulets and region:CM:ouest counted", s == 200 and usage.get("species:jeunes-poulets", 0) >= 1 and usage.get("region:CM:ouest", 0) >= 1, f"{s} {len(usage or {})} keys")
+check("RE08", "Admin", "Usage counts", "species:poulets-chair and region:CM:ouest counted", s == 200 and usage.get("species:poulets-chair", 0) >= 1 and usage.get("region:CM:ouest", 0) >= 1, f"{s} {len(usage or {})} keys")
 s, b = adm.call("POST", "/admin/reference/changeset/publish", {"rev": cs["rev"], "note": " "})
 check("RE09", "Admin", "Publish without a note", "400 catalog.note_invalid", s == 400 and b.get("code") == "catalog.note_invalid", f"{s} {b}")
 before = {k: v for k, v in cs["baseVersions"].items()}
@@ -930,7 +930,7 @@ if PHOTOS and os.path.isdir(PHOTOS):
         ]),
         ("Élevage du Littoral", "Douala", "Paul Ekwalla", [
             ("reproducteurs", "Coq Brahma blanc géant", 40000, 3, ["IMG_1095", "IMG_1099_2"]),
-            ("jeunes-poulets", "Jeunes Brahma noirs, 3 mois", 9000, 25, ["IMG_1098", "IMG_1051"]),
+            ("poulets-chair", "Jeunes Brahma noirs, 3 mois", 9000, 25, ["IMG_1098", "IMG_1051"]),
         ]),
         ("Brahma du Centre", "Yaoundé", "Marie Atangana", [
             ("reproducteurs", "Trio Brahma fauve (1 coq, 2 poules)", 75000, 5, ["IMG_1096"]),

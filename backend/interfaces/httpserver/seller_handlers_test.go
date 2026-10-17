@@ -12,7 +12,7 @@ import (
 func newFarmer(t *testing.T, router http.Handler, location string) (token, farmID string) {
 	t.Helper()
 	token, _ = registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
-	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme " + location, Location: location, Species: []string{"poussins", "jeunes-poulets", "porcs"}}, token))
+	farm := decodeJSON[farmResponse](t, doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme " + location, Location: location, Species: []string{"poussins", "poulets-chair", "porcs"}}, token))
 	return token, farm.ID
 }
 
@@ -24,7 +24,7 @@ func TestSeller_HTTP_WizardDraftPhotosPublish(t *testing.T) {
 	router := newTestRouter()
 	token, farmID := newFarmer(t, router, "Dschang")
 
-	rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("jeunes-poulets", 12000), token)
+	rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("poulets-chair", 12000), token)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("quick create status = %d; body = %s", rec.Code, rec.Body.String())
 	}
@@ -67,7 +67,7 @@ func TestSeller_HTTP_WizardValidationAndRoles(t *testing.T) {
 	token, farmID := newFarmer(t, router, "Dschang")
 	buyer, _ := registerAndLogin(t, router, uniqueEmail("buyer"), "buyer")
 
-	if rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("jeunes-poulets", 12000), buyer); rec.Code != http.StatusForbidden {
+	if rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("poulets-chair", 12000), buyer); rec.Code != http.StatusForbidden {
 		t.Errorf("buyer quick-create status = %d, want 403", rec.Code)
 	}
 	if rec := doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("licornes", 12000), token); rec.Code != http.StatusBadRequest {
@@ -90,7 +90,7 @@ func TestSeller_HTTP_WizardValidationAndRoles(t *testing.T) {
 func TestSeller_HTTP_PriceHint(t *testing.T) {
 	router := newTestRouter()
 	publish := func(token, farmID string, price float64) {
-		l := decodeJSON[quickListingResponse](t, doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("jeunes-poulets", price), token)).Listing
+		l := decodeJSON[quickListingResponse](t, doJSON(t, router, http.MethodPost, "/farms/"+farmID+"/quick-listings", quickListing("poulets-chair", price), token)).Listing
 		key := decodeJSON[presignPhotoResponse](t, doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/photos/presign", photoSizes, token)).Key
 		doJSON(t, router, http.MethodPut, "/listings/"+l.ID+"/photos", setListingPhotosRequest{Keys: []string{key}}, token)
 		doJSON(t, router, http.MethodPost, "/listings/"+l.ID+"/publish", nil, token)
@@ -99,13 +99,13 @@ func TestSeller_HTTP_PriceHint(t *testing.T) {
 	publish(west, westFarm, 10000)
 	publish(west, westFarm, 12000)
 
-	if rec := doJSON(t, router, http.MethodGet, "/listings/price-hint?species=jeunes-poulets&region=Dschang", nil, ""); rec.Code != http.StatusNoContent {
+	if rec := doJSON(t, router, http.MethodGet, "/listings/price-hint?species=poulets-chair&region=Dschang", nil, ""); rec.Code != http.StatusNoContent {
 		t.Fatalf("2 samples: status = %d, want 204", rec.Code)
 	}
 
 	littoral, litFarm := newFarmer(t, router, "Douala")
 	publish(littoral, litFarm, 14000)
-	hint := decodeJSON[priceHintResponse](t, doJSON(t, router, http.MethodGet, "/listings/price-hint?species=jeunes-poulets&region=Dschang", nil, ""))
+	hint := decodeJSON[priceHintResponse](t, doJSON(t, router, http.MethodGet, "/listings/price-hint?species=poulets-chair&region=Dschang", nil, ""))
 	if hint.Count != 3 || hint.Regional || hint.Low != 11000 || hint.Median != 12000 || hint.High != 13000 {
 		t.Fatalf("hint = %+v, want platform-wide 11000..13000 around 12000 (only 2 in Dschang)", hint)
 	}
