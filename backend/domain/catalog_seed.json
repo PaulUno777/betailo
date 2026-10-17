@@ -427,7 +427,7 @@
       },
       "icon": "cow",
       "color": "forest",
-      "active": true,
+      "active": false,
       "subcategories": [
         {
           "key": "calves",
@@ -473,7 +473,7 @@
       },
       "icon": "fish",
       "color": "sky",
-      "active": true,
+      "active": false,
       "subcategories": [
         {
           "key": "fingerlings",
