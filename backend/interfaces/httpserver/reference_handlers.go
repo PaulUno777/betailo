@@ -1,10 +1,10 @@
 package httpserver
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/pauluno777/betailo/backend/application/ports"
 	"github.com/pauluno777/betailo/backend/application/usecase/catalog"
@@ -23,20 +23,33 @@ func toReferenceResponse(c *domain.Catalog) referenceResponse {
 	return referenceResponse{Catalog: c, DefaultCountry: domain.DefaultCountry, CycleTypes: domain.CycleTypes}
 }
 
-// cacheable answers 304 when the client already holds etag.
-func cacheable(w http.ResponseWriter, r *http.Request, etag string) bool {
+// writeCached writes body with an ETag made from its own bytes, and
+// answers 304 when the client already holds them. A fingerprint of the
+// content, not the version number: a reference changed without a new
+// version (the shipped seed, edited while nothing is in production)
+// still reaches every browser instead of their cached copy.
+func writeCached(w http.ResponseWriter, r *http.Request, body any) {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	sum := sha256.Sum256(raw)
+	etag := `"` + hex.EncodeToString(sum[:8]) + `"`
 	w.Header().Set("ETag", etag)
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
-		return true
+		return
 	}
-	return false
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(raw)
 }
 
 // handleReference serves every reference together (GET /reference):
 // what clients loaded before the references were split. The versions
-// in force make the ETag.
+// served make the ETag.
 func handleReference(src ports.CatalogSource) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cat, err := catalog.Of(r.Context(), src)
@@ -44,14 +57,7 @@ func handleReference(src ports.CatalogSource) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		tags := make([]string, 0, len(domain.CatalogParts))
-		for _, name := range domain.CatalogParts {
-			tags = append(tags, name+strconv.Itoa(cat.Versions[name]))
-		}
-		if cacheable(w, r, `"catalog-`+strings.Join(tags, "-")+`"`) {
-			return
-		}
-		writeJSON(w, http.StatusOK, toReferenceResponse(cat))
+		writeCached(w, r, toReferenceResponse(cat))
 	}
 }
 
@@ -59,7 +65,7 @@ func handleReference(src ports.CatalogSource) http.HandlerFunc {
 // its content, its name and version, plus what it needs read alongside
 // (the cycle types for the animals, the default country for places),
 // so a client loads, and re-downloads after a publish, only what it
-// uses. The name and version make the ETag.
+// uses. Its content makes the ETag.
 func handleReferencePart(src ports.CatalogSource) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
@@ -73,9 +79,6 @@ func handleReferencePart(src ports.CatalogSource) http.HandlerFunc {
 			return
 		}
 		version := cat.Versions[name]
-		if cacheable(w, r, `"`+name+`-`+strconv.Itoa(version)+`"`) {
-			return
-		}
 		content, err := cat.PartContent(name)
 		if err != nil {
 			writeError(w, err)
@@ -90,6 +93,6 @@ func handleReferencePart(src ports.CatalogSource) http.HandlerFunc {
 		case domain.PartPlaces:
 			body["defaultCountry"] = domain.DefaultCountry
 		}
-		writeJSON(w, http.StatusOK, body)
+		writeCached(w, r, body)
 	}
 }

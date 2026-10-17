@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestReference_ServesTheCatalogWithItsVersionsAsETag(t *testing.T) {
+func TestReference_ServesTheCatalogWithAContentETag(t *testing.T) {
 	h := handleReference(nil) // nil source: the seed, every reference at version 1
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/reference", nil))
