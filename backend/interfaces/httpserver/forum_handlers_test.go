@@ -2,7 +2,10 @@ package httpserver
 
 import (
 	"net/http"
+	"strings"
 	"testing"
+
+	"github.com/pauluno777/betailo/backend/domain"
 )
 
 func TestForum_HTTP_PostReplyAndMarkBestAnswer(t *testing.T) {
@@ -21,6 +24,11 @@ func TestForum_HTTP_PostReplyAndMarkBestAnswer(t *testing.T) {
 	odd := doJSON(t, router, http.MethodPost, "/forum/posts", createForumPostRequest{Category: "n'importe quoi", Title: "Titre", Body: "Texte"}, authorToken)
 	if odd.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, odd).Code != "forum.category_unknown" {
 		t.Errorf("unlisted category: status = %d, body = %s; want 400 forum.category_unknown", odd.Code, odd.Body.String())
+	}
+
+	long := doJSON(t, router, http.MethodPost, "/forum/posts", createForumPostRequest{Category: "health", Title: strings.Repeat("é", domain.MaxForumTitleLen+1), Body: "Texte"}, authorToken)
+	if long.Code != http.StatusBadRequest || decodeJSON[errorResponse](t, long).Code != "forum.title_too_long" {
+		t.Errorf("long title: status = %d, body = %s; want 400 forum.title_too_long", long.Code, long.Body.String())
 	}
 
 	listRec := doJSON(t, router, http.MethodGet, "/forum/posts?category=health", nil, "")

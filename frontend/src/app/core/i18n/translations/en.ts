@@ -160,6 +160,7 @@ export const en: TranslationDictionary = {
     },
     forum: {
       post_required: 'Pick a category, a title and write your question.',
+      title_too_long: 'The title can be at most {max} characters.',
       reply_required: 'Write your reply.'
     }
   },
@@ -660,7 +661,33 @@ export const en: TranslationDictionary = {
     replySubmitting: 'Sending…',
     replyFailedTitle: 'Couldn’t send',
     loginToReply: 'Log in to reply.',
-    someone: 'Betailo member'
+    someone: 'Betailo member',
+    pitch: 'Ask other farmers, share what works: health, feeding, breeding, prices.',
+    allCategories: 'All',
+    sortLabel: 'Sort topics',
+    topicsCount_one: '{count} topic',
+    topicsCount: '{count} topics',
+    solved: 'Solved',
+    unanswered: 'Unanswered',
+    noMatch: 'No topic matches.',
+    resetFilters: 'Clear filters',
+    emptyTitle: 'No topic yet',
+    emptyBody: 'Be the first to ask: other farmers usually answer within the day.',
+    loadError: 'Couldn’t load the topics.',
+    tipsTitle: 'Asking a good question',
+    tip1: 'Give the species, the age and how many animals.',
+    tip2: 'Describe what you saw and since when.',
+    tip3: 'Mark the reply that helped as the best answer.',
+    titleCounter: '{count}/{max}',
+    titleTooLong: 'At most {max} characters.',
+    bodyHint: 'Species, age, number of animals, what you noticed…',
+    authorTag: 'Author',
+    noRepliesYet: 'No reply yet. Know the answer? Share it below.',
+    sort: {
+      recent: 'Recent',
+      popular: 'Most answered',
+      unanswered: 'Unanswered'
+    }
   },
   priorityChoice: {
     payNowTitle: 'Pay now',

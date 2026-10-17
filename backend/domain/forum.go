@@ -16,6 +16,9 @@ type ForumReply struct {
 	CreatedAt time.Time
 }
 
+// MaxForumTitleLen bounds a topic's title: a question, not a post.
+const MaxForumTitleLen = 120
+
 // ForumPost handles community categories, posts and replies,
 // optionally linked to a listing. Kept deliberately simple in the MVP:
 // it builds trust and content around the marketplace rather than being

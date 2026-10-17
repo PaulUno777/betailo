@@ -36,8 +36,12 @@ type CreatePostInput struct {
 }
 
 func (uc *CreatePost) Execute(ctx context.Context, in CreatePostInput) (*domain.ForumPost, error) {
+	in.Title, in.Body = strings.TrimSpace(in.Title), strings.TrimSpace(in.Body)
 	if in.Category == "" || in.Title == "" || in.Body == "" {
 		return nil, domain.Coded("forum.post_required", fmt.Errorf("forum: category, title and body are required: %w", domain.ErrInvalid))
+	}
+	if utf8.RuneCountInString(in.Title) > domain.MaxForumTitleLen {
+		return nil, domain.CodedWith("forum.title_too_long", map[string]any{"max": domain.MaxForumTitleLen}, fmt.Errorf("forum: title over %d characters: %w", domain.MaxForumTitleLen, domain.ErrInvalid))
 	}
 	cat, err := catalog.Of(ctx, uc.Catalog)
 	if err != nil {
