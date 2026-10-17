@@ -420,7 +420,12 @@ export const fr = {
     reportFailedTitle: "Échec de l'envoi",
     reportFailedRetry: 'Veuillez réessayer.',
     safetyNoticeTitle: 'Ne payez jamais en dehors de la plateforme',
-    safetyNoticeBody: 'Un éleveur qui demande un paiement direct hors séquestre est presque toujours une arnaque. Signalez-le immédiatement.'
+    safetyNoticeBody: 'Ne payez les animaux que via Betailo : un éleveur qui demande à être payé pour les animaux hors séquestre est presque toujours une arnaque. Seul le transport se règle directement, une fois convenu.',
+    transportDelivers: 'L’éleveur peut livrer',
+    transportPickup: 'Retrait à la ferme',
+    transportBody: 'Le transport n’est pas compris dans le prix : son coût dépend de la distance et de la quantité. Mettez-vous d’accord avec l’éleveur par WhatsApp ou téléphone avant de réserver.',
+    transportOutside: 'Le transport se paie directement à l’éleveur, hors de Betailo. Seuls les animaux se paient dans l’application, protégés par le séquestre.',
+    transportShort: 'Transport non compris : convenez-en avec l’éleveur avant de réserver. Il se paie directement à lui.',
   },
   auth: {
     connexionTab: 'Connexion',
@@ -481,6 +486,8 @@ export const fr = {
     feeLabel: 'Frais de service ({rate} %)',
     totalWithFee: 'Total (frais {rate} % inclus)',
     escrowNotice: 'Argent retenu par Betailo, versé à l’éleveur après votre confirmation de réception.',
+    transportTitle: 'Le transport n’est pas compris',
+    transportBody: 'Ce paiement couvre uniquement les animaux, gardés en séquestre. Convenez du transport avec l’éleveur au préalable et payez-le-lui directement.',
     momoNumberInvalid: 'Entrez un numéro mobile camerounais à 9 chiffres (6…).',
     momoNumberHint: 'Vous recevrez une demande de validation sur ce numéro.',
     momoNumberLabel: 'Numéro Mobile Money',

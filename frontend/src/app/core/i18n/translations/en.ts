@@ -422,7 +422,12 @@ export const en: TranslationDictionary = {
     reportFailedTitle: 'Couldn’t send report',
     reportFailedRetry: 'Please try again.',
     safetyNoticeTitle: 'Never pay outside the platform',
-    safetyNoticeBody: 'A farmer asking for a direct payment outside escrow is almost always a scam. Report it right away.'
+    safetyNoticeBody: 'Pay for animals only through Betailo: a farmer asking to be paid for the animals outside escrow is almost always a scam. Only transport is settled directly, once agreed.',
+    transportDelivers: 'The farmer can deliver',
+    transportPickup: 'Pickup at the farm',
+    transportBody: 'Transport isn\'t included in the price: its cost depends on distance and quantity. Agree on it with the farmer by WhatsApp or phone before you reserve.',
+    transportOutside: 'Transport is paid directly to the farmer, outside Betailo. Only the animals are paid in the app, protected by escrow.',
+    transportShort: 'Transport not included: agree on it with the farmer before reserving. It\'s paid to them directly.',
   },
   auth: {
     connexionTab: 'Log in',
@@ -483,6 +488,8 @@ export const en: TranslationDictionary = {
     feeLabel: 'Service fee ({rate}%)',
     totalWithFee: 'Total (incl. {rate}% fee)',
     escrowNotice: 'Betailo holds the money and pays the farmer only once you confirm delivery.',
+    transportTitle: 'Transport is not included',
+    transportBody: 'This payment covers the animals only, held in escrow. Agree on transport with the farmer beforehand and pay it to them directly.',
     momoNumberInvalid: 'Enter a 9-digit Cameroonian mobile number (6…).',
     momoNumberHint: 'You’ll get an approval request on this number.',
     momoNumberLabel: 'Mobile Money number',
