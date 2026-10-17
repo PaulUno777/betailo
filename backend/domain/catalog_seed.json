@@ -15,16 +15,16 @@
         {
           "key": "poussins",
           "label": {
-            "fr": "Poussins",
-            "en": "Chicks"
+            "fr": "Poussins et jeunes",
+            "en": "Chicks and young birds"
           },
           "cycleType": "couvee",
           "icon": "poussin",
           "unit": {
-            "key": "poussin",
+            "key": "sujet",
             "label": {
-              "fr": "poussin",
-              "en": "chick"
+              "fr": "sujet",
+              "en": "bird"
             }
           },
           "active": true
