@@ -8,7 +8,7 @@ export const ICON_NAMES = [
   'chevron-down', 'calendar', 'pin', 'shield', 'lock', 'flag', 'message', 'upload', 'camera',
   'heart', 'share', 'wallet', 'cycle', 'alert', 'clock', 'filter', 'user', 'users', 'chart',
   'grid', 'bolt', 'thumb', 'leaf', 'star', 'sun', 'moon', 'logout', 'settings', 'more', 'farm',
-  'idcard', 'key'
+  'idcard', 'key', 'phone'
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -31,6 +31,7 @@ export const ICON_PATHS: Readonly<Record<IconName, string>> = {
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   message: '<path d="M21 12a8 8 0 0 1-12 7l-5 1 1-4a8 8 0 1 1 16-4z"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
   camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
   heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
   share: '<path d="M12 15V3M7 8l5-5 5 5M5 13v7h14v-7"/>',

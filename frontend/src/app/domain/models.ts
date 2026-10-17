@@ -47,6 +47,8 @@ export interface Profile extends User {
 export interface Account extends Profile {
   farms: Farm[];
   farmLimit: number;
+  /** How many contact numbers each farm may list. */
+  farmContactLimit: number;
   canAddFarm: boolean;
   /** Set when staff gave this account its own farm limit. */
   farmLimitRaisedAt?: string;
@@ -68,11 +70,24 @@ export interface Farm {
   region?: string;
   species?: string[];
   description?: string;
-  /** E.164. Only present for the owner and signed-in viewers. */
-  contactPhone?: string;
+  /** The farm's numbers, in the owner's order. Empty for signed-out
+   * viewers of a public profile. */
+  contacts: FarmContact[];
+  /** Short-lived links to the farm's images; absent when none is set
+   * (the app then shows its default artwork). */
+  logoUrl?: string;
+  logoThumbUrl?: string;
+  bannerUrl?: string;
   status: FarmStatus;
   /** The review, as its owner and staff see it. Never on a public profile. */
   review?: FarmReview;
+}
+
+/** One phone number of a farm: WhatsApp, or a number to call only. */
+export interface FarmContact {
+  /** E.164. */
+  phone: string;
+  whatsapp: boolean;
 }
 
 export interface FarmReview {
@@ -305,7 +320,8 @@ export interface ListingSearchParams {
   available?: string;
   minPrice?: number;
   maxPrice?: number;
-  verifiedOnly?: boolean;
+  /** Farms whose trust score is at least 70 (domain.TrustedFarmerScore). */
+  trustedOnly?: boolean;
   q?: string;
   sort?: string;
   page?: number;
@@ -346,7 +362,7 @@ export type EscrowStepKey = 'paid' | 'delivered' | 'confirmed' | 'released';
  * reserved, from whom, its tab, escrow progress and allowed actions. */
 export interface ReservationView extends Reservation {
   listing: { id: string; title: string; unit?: string; photo?: string };
-  farm: { id: string; name: string; location: string; contactPhone?: string };
+  farm: { id: string; name: string; location: string; contacts?: FarmContact[] };
   cycle: { id: string; reference: string; status: CycleStatus; startsAt: string; endsAt?: string };
   group: ReservationGroup;
   steps: { key: EscrowStepKey; state: TimelineStepState }[];

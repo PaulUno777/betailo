@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { IdDocumentType } from '../../domain/enums';
-import { Farm } from '../../domain/models';
+import { Farm, FarmContact } from '../../domain/models';
 import { PhotoSizes, PresignedUpload } from '../../core/http/photo-upload.service';
 import { ApiClient } from '../../core/http/api-client';
 
@@ -12,8 +12,11 @@ export interface FarmInput {
   readonly region?: string;
   readonly species?: string[];
   readonly description?: string;
-  readonly contactPhone?: string;
+  readonly contacts?: FarmContact[];
 }
+
+/** Which of a farm's two public images. */
+export type FarmImage = 'logo' | 'banner';
 
 /** What an owner sends for review: the identity document (its back
  * too, when it has one), photos of the farm, and their declaration. */
@@ -58,6 +61,17 @@ export class FarmsApi {
    * the farm). Private: only this farm's review ever reads it. */
   presignProof(id: string, sizes: PhotoSizes): Observable<PresignedUpload> {
     return this.api.post<PresignedUpload>(`/farms/${id}/verification/presign`, sizes);
+  }
+
+  /** Upload slots for a new logo or banner and its small copy. */
+  presignImage(id: string, sizes: PhotoSizes): Observable<PresignedUpload> {
+    return this.api.post<PresignedUpload>(`/farms/${id}/branding/presign`, sizes);
+  }
+
+  /** Makes an uploaded image the farm's logo or banner; an empty key
+   * removes it. */
+  setImage(id: string, image: FarmImage, key: string): Observable<Farm> {
+    return this.api.put<Farm>(`/farms/${id}/${image}`, { key });
   }
 
   /** Takes a farm back out of the review queue. */

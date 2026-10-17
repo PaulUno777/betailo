@@ -96,6 +96,10 @@ export const fr = {
       name_location_required: 'Indiquez le nom de la ferme et sa ville.',
       name_required: 'Indiquez le nom de la ferme.',
       location_required: 'Indiquez la ville de la ferme.',
+      species_required: 'Choisissez au moins une espèce élevée par votre ferme.',
+      species_not_declared: 'Votre ferme ne déclare pas cette espèce. Ajoutez-la d’abord dans les réglages de la ferme.',
+      contact_duplicate: 'Le même numéro figure deux fois.',
+      contact_limit: 'Une ferme peut indiquer au plus {max} numéros.',
       has_cycles: "Supprimez d'abord les lots de cette ferme.",
       id_document_back_required: 'Ajoutez le verso de votre pièce d’identité.',
       certification_required: 'Cochez la déclaration avant d’envoyer.',
@@ -296,7 +300,7 @@ export const fr = {
     priceFrom: 'Dès {price} FCFA',
     priceUpTo: "Jusqu'à {price} FCFA",
     statusLabel: 'Statut',
-    verifiedChip: 'Vérifiés uniquement',
+    trustedChip: 'Confiance {min}+',
     titleShort: 'Marché',
     allChip: 'Tout',
     resultsSorted_one: '{count} annonce · {sort}',
@@ -318,7 +322,8 @@ export const fr = {
     allSpecies: 'Toutes les espèces',
     cycleTypeLabel: 'Type de cycle',
     regionLabel: 'Région',
-    verifiedOnlyLabel: 'Éleveurs vérifiés uniquement',
+    trustedOnlyLabel: 'Éleveurs de confiance uniquement',
+    trustedOnlyHint: 'Score de confiance de {min} ou plus : validation, ventes, avis et signalements',
     results_one: '{count} résultat',
     results: '{count} résultats',
     sortLabel: 'Trier par',
@@ -344,6 +349,7 @@ export const fr = {
     placesLeft: '{count} places restantes'
   },
   farmCard: {
+    whatsappAndCalls: 'WhatsApp et appels',
     sales_one: '{count} vente',
     sales: '{count} ventes',
     since: 'depuis {year}',
@@ -352,6 +358,7 @@ export const fr = {
     whatsapp: 'WhatsApp',
     call: 'Appeler',
     signInToContact: 'Connectez-vous pour contacter l’éleveur',
+    callOnly: 'Appels uniquement',
     farmer: 'Éleveur : {name}'
   },
   gallery: {
@@ -590,6 +597,7 @@ export const fr = {
     reviewSubmit: 'Publier mon avis',
     paidToast: 'Paiement effectué : votre place est prioritaire',
     confirmedToast: 'Réception confirmée : l’éleveur est payé',
+    confirmedToastDetail: 'Retrouvez-la dans Terminées, où vous pouvez noter l’éleveur.',
     cancelledToast: 'Réservation annulée',
     disputedToast: 'Litige ouvert : notre équipe vous recontacte',
     reviewedToast: 'Merci pour votre avis',
@@ -1180,6 +1188,7 @@ export const fr = {
     terms: "Conditions d'utilisation"
   },
   sell: {
+    addSpecies: 'Pas dans la liste ? Ajoutez une espèce à votre ferme',
     title: 'Vendre mes animaux',
     subtitle: 'Quatre étapes, deux minutes',
     draftSaved: 'brouillon enregistré',
@@ -1248,9 +1257,8 @@ export const fr = {
     locationLabel: 'Ville ou village',
     locationPlaceholder: 'Douala, Bafoussam…',
     locationHint: 'Les acheteurs voient la ville, jamais votre adresse.',
-    phoneLabel: 'Téléphone (facultatif)',
-    phoneHint: 'Pour que les acheteurs vous appellent ou vous écrivent sur WhatsApp.',
     speciesLabel: 'Ce que vous élevez',
+    speciesHint: 'Vos lots et annonces ne peuvent porter que sur ces espèces. Vous pourrez en ajouter plus tard.',
     submit: 'Continuer',
     saving: 'Enregistrement…',
     done: 'Votre ferme est prête'
@@ -1317,6 +1325,32 @@ export const fr = {
     save: 'Enregistrer',
     saved: 'Enregistré',
     healthSaved: 'Relevé ajouté'
+  },
+  farmCover: {
+    logoAdd: 'Ajouter un logo',
+    logoChange: 'Changer le logo',
+    logoRemove: 'Retirer le logo',
+    logoHint: 'Une image carrée, au moins 400×400',
+    bannerAdd: 'Ajouter une bannière',
+    bannerChange: 'Changer',
+    bannerRemove: 'Retirer la bannière',
+    bannerHint: 'Une image large, idéalement 1500×500',
+    sizesHint: 'Logo : carré, au moins 400×400. Bannière : large, idéalement 1500×500 (3:1). Sans eux, les acheteurs voient l’illustration Betailo.',
+    uploading: 'Envoi en cours…',
+    saved: 'Image enregistrée',
+    removed: 'Image retirée',
+    failed: 'L’image n’a pas pu être enregistrée',
+    failedAfterCreate: 'Votre ferme est créée, mais une image n’a pas pu être envoyée. Vous pourrez l’ajouter depuis les réglages de la ferme.'
+  },
+  contactsField: {
+    label: 'Numéros de contact',
+    hint: 'Jusqu’à {max}. Les acheteurs écrivent aux numéros WhatsApp et appellent les autres.',
+    number: 'Numéro {n}',
+    remove: 'Retirer le numéro {n}',
+    kind: 'Comment les acheteurs joignent ce numéro',
+    whatsapp: 'WhatsApp',
+    callOnly: 'Appels uniquement',
+    add: 'Ajouter un numéro'
   },
   farmSettings: {
     title: 'Ma ferme',

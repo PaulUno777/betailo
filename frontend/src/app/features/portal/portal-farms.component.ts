@@ -86,8 +86,8 @@ import { SellerOnboardingComponent } from '../sell/seller-onboarding.component';
             class="grid overflow-hidden rounded-[20px] border bg-surface-card lg:grid-cols-[220px_minmax(0,1fr)_260px]"
             [class]="farm.status === 'rejected' || farm.status === 'suspended' ? 'border-alert/40' : 'border-line'"
           >
-            @if (farm.coverUrl) {
-              <img [src]="farm.coverUrl" [alt]="'portalFarms.photoAlt' | t: { name: farm.name }" class="h-44 w-full object-cover lg:h-full lg:min-h-[220px]" [class.saturate-50]="farm.status === 'rejected'" />
+            @if (farm.bannerUrl || farm.coverUrl; as cover) {
+              <img [src]="cover" [alt]="'portalFarms.photoAlt' | t: { name: farm.name }" class="h-44 w-full object-cover lg:h-full lg:min-h-[220px]" [class.saturate-50]="farm.status === 'rejected'" />
             } @else {
               <div class="flex h-32 w-full items-center justify-center bg-forest-soft font-display text-[40px] font-extrabold text-forest lg:h-full lg:min-h-[220px]" aria-hidden="true">
                 {{ initials(farm.name) }}

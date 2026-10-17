@@ -9,3 +9,8 @@ export function whatsappUrl(e164: string, message: string): string {
 export function telUrl(e164: string): string {
   return `tel:${e164.replace(/[^\d+]/g, '')}`;
 }
+
+/** The number a buyer writes to first: the first WhatsApp one. */
+export function primaryWhatsapp(contacts: readonly { phone: string; whatsapp: boolean }[] | undefined): string | undefined {
+  return contacts?.find((c) => c.whatsapp)?.phone;
+}

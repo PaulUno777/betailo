@@ -1,19 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { callingCodeOf, citiesOf, countryName, defaultFarmCountry, farmCountries, regionOfCity, regionsOf } from '../../../domain/reference/countries';
+import { citiesOf, countryName, defaultFarmCountry, farmCountries, regionOfCity, regionsOf } from '../../../domain/reference/countries';
 import { LocaleService } from '../../../core/i18n/locale.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { SelectFieldComponent, SelectOption } from '../select-field/select-field.component';
 import { TextFieldComponent } from '../text-field/text-field.component';
 
-/** Where a farm is and how to reach it: country, region, town, phone.
+/** Where a farm is: country, region, town.
  * The region is a list where the API knows the country's regions
  * (Cameroon's ten) and free text anywhere else, so a farmer in any
  * country can sell, and buyers can filter by an exact region. The town
  * is picked from the region's main towns, or typed under "Autre ville";
  * `location` holds the town's key or the typed text, as the API stores
- * it. Town is what buyers see on cards; the phone shows its country's
- * prefix. */
+ * it. Town is what buyers see on cards. */
 @Component({
   selector: 'bt-place-fields',
   imports: [FormsModule, SelectFieldComponent, TextFieldComponent, TranslatePipe],
@@ -69,19 +68,6 @@ import { TextFieldComponent } from '../text-field/text-field.component';
           (ngModelChange)="location.set($event)"
         />
       }
-      <!-- The prefix follows the country: a number typed without it is
-           read as a national number there (the API does the same). -->
-      <bt-text-field
-        [label]="'sellerOnboarding.phoneLabel' | t"
-        [hint]="'sellerOnboarding.phoneHint' | t"
-        type="tel"
-        inputmode="tel"
-        autocomplete="tel-national"
-        [prefix]="phonePrefix()"
-        name="phone"
-        [ngModel]="phone()"
-        (ngModelChange)="phone.set($event)"
-      />
     </div>
   `
 })
@@ -91,7 +77,6 @@ export class PlaceFieldsComponent {
   readonly country = model('');
   readonly region = model('');
   readonly location = model('');
-  readonly phone = model('');
 
   protected readonly OTHER = '__other__';
 
@@ -130,12 +115,6 @@ export class PlaceFieldsComponent {
   protected readonly otherTown = linkedSignal<{ location: string; keys: string[] }, boolean>({
     source: () => ({ location: this.location(), keys: this.towns().map((c) => c.key) }),
     computation: ({ location, keys }, previous) => (location ? !keys.includes(location) : (previous?.value ?? false))
-  });
-
-  /** "+233" for Ghana; none once the number carries its own "+". */
-  protected readonly phonePrefix = computed(() => {
-    const code = callingCodeOf(this.country());
-    return code && !this.phone().trim().startsWith('+') ? `+${code}` : undefined;
   });
 
   constructor() {

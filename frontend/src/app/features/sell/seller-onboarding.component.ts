@@ -1,7 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, output, signal } from '@angular/core';
+import { Observable, catchError, concat, defer, map, of, switchMap, tap, toArray } from 'rxjs';
 import { FormsModule } from '@angular/forms';
-import { Farm } from '../../domain/models';
-import { FarmInput, FarmsApi } from '../../data-access/farms/farms.api';
+import { Farm, FarmContact } from '../../domain/models';
+import { FarmImage, FarmInput, FarmsApi } from '../../data-access/farms/farms.api';
+import { PhotoUploadService } from '../../core/http/photo-upload.service';
+import { ToastService } from '../../core/notifications/toast.service';
 import { SellerSpaceService } from '../../core/auth/seller-space.service';
 import { AppError } from '../../core/http/app-error';
 import { SpeciesPickerComponent } from '../../shared/ui/species-picker/species-picker.component';
@@ -12,8 +15,11 @@ import { NoticeComponent } from '../../shared/ui/notice/notice.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
 import { PlaceFieldsComponent } from '../../shared/ui/place-fields/place-fields.component';
 import { FarmProofFormComponent } from './farm-proof-form.component';
+import { FarmCoverComponent } from '../../shared/ui/farm-cover/farm-cover.component';
+import { ContactsFieldComponent, filledContacts } from '../../shared/ui/contacts-field/contacts-field.component';
 
-/** Opening a farm, in two steps: present it, then submit the proof
+/** Opening a farm, in two steps: present it (its logo and banner, where
+ * it is, the numbers buyers reach it on, what it raises), then submit the proof
  * staff validate it from (an identity document and photos of the farm).
  * Any account can do this, up to its farm limit. The second step can be
  * left for later: the farm then stays a draft whose cycles and listings
@@ -21,7 +27,19 @@ import { FarmProofFormComponent } from './farm-proof-form.component';
  * done with both steps. */
 @Component({
   selector: 'bt-seller-onboarding',
-  imports: [SpeciesPickerComponent, FormsModule, ButtonComponent, IconComponent, NoticeComponent, TextFieldComponent, PlaceFieldsComponent, FarmProofFormComponent, TranslatePipe],
+  imports: [
+    SpeciesPickerComponent,
+    FormsModule,
+    ButtonComponent,
+    IconComponent,
+    NoticeComponent,
+    TextFieldComponent,
+    PlaceFieldsComponent,
+    FarmProofFormComponent,
+    FarmCoverComponent,
+    ContactsFieldComponent,
+    TranslatePipe
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ol class="mb-5 grid grid-cols-2 gap-2" [attr.aria-label]="'sellerOnboarding.stepsLabel' | t">
@@ -59,6 +77,10 @@ import { FarmProofFormComponent } from './farm-proof-form.component';
         <bt-notice tone="danger">{{ message }}</bt-notice>
       }
 
+      <!-- Picked images wait here, previewed, until the farm exists:
+           their storage keys are minted under its id. -->
+      <bt-farm-cover [name]="name()" [logoUrl]="logo()?.url" [bannerUrl]="banner()?.url" editable (picked)="pickImage($event.image, $event.file)" (removed)="dropImage($event)" />
+
       <bt-text-field
         [label]="'sellerOnboarding.nameLabel' | t"
         [placeholder]="'sellerOnboarding.namePlaceholder' | t"
@@ -67,11 +89,13 @@ import { FarmProofFormComponent } from './farm-proof-form.component';
         [ngModel]="name()"
         (ngModelChange)="name.set($event)"
       />
-      <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" [(phone)]="phone" />
+      <bt-place-fields [(country)]="country" [(region)]="region" [(location)]="location" />
+      <bt-contacts-field [(contacts)]="contacts" [country]="country()" [limit]="seller.contactLimit()" />
 
       <fieldset class="flex flex-col gap-3">
-        <legend class="mb-3 text-small font-bold text-ink">{{ 'sellerOnboarding.speciesLabel' | t }}</legend>
-          <bt-species-picker [(value)]="species" />
+        <legend class="mb-1 text-small font-bold text-ink">{{ 'sellerOnboarding.speciesLabel' | t }} <span aria-hidden="true" class="text-alert">*</span></legend>
+        <p class="mb-2 text-small text-ink-muted">{{ 'sellerOnboarding.speciesHint' | t }}</p>
+        <bt-species-picker [(value)]="species" />
       </fieldset>
 
       <bt-button type="submit" size="lg" block [disabled]="!canSubmit()">
@@ -84,6 +108,8 @@ import { FarmProofFormComponent } from './farm-proof-form.component';
 export class SellerOnboardingComponent {
   protected readonly seller = inject(SellerSpaceService);
   private readonly farmsApi = inject(FarmsApi);
+  private readonly uploads = inject(PhotoUploadService);
+  private readonly toast = inject(ToastService);
 
   protected readonly steps = [{ key: 'sellerOnboarding.stepFarm' }, { key: 'sellerOnboarding.stepProof' }];
   /** Set once step 1 created the farm: step 2 works on it. */
@@ -97,13 +123,39 @@ export class SellerOnboardingComponent {
   protected readonly location = signal('');
   protected readonly country = signal('');
   protected readonly region = signal('');
-  protected readonly phone = signal('');
+  protected readonly contacts = signal<FarmContact[]>([]);
+  /** Images picked before the farm exists, with a local preview. */
+  protected readonly logo = signal<PickedImage | null>(null);
+  protected readonly banner = signal<PickedImage | null>(null);
   protected readonly species = signal<string[]>([]);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected readonly canSubmit = computed(() => !this.saving() && !!this.name().trim() && !!this.location().trim());
+  protected readonly canSubmit = computed(
+    () => !this.saving() && !!this.name().trim() && !!this.location().trim() && this.species().length > 0
+  );
 
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.dropImage('logo');
+      this.dropImage('banner');
+    });
+  }
+
+  protected pickImage(image: FarmImage, file: File): void {
+    this.dropImage(image);
+    this.slot(image).set({ file, url: URL.createObjectURL(file) });
+  }
+
+  protected dropImage(image: FarmImage): void {
+    const picked = this.slot(image)();
+    if (picked) URL.revokeObjectURL(picked.url);
+    this.slot(image).set(null);
+  }
+
+  private slot(image: FarmImage) {
+    return image === 'logo' ? this.logo : this.banner;
+  }
 
   protected submit(): void {
     if (!this.canSubmit()) return;
@@ -115,9 +167,12 @@ export class SellerOnboardingComponent {
       country: this.country() || undefined,
       region: this.region().trim() || undefined,
       species: this.species(),
-      contactPhone: this.phone().trim() || undefined
+      contacts: filledContacts(this.contacts())
     };
-    this.farmsApi.create(input).subscribe({
+    this.farmsApi
+      .create(input)
+      .pipe(switchMap((farm) => this.uploadImages(farm)))
+      .subscribe({
       next: (farm) => {
         this.saving.set(false);
         this.farm.set(farm);
@@ -132,9 +187,46 @@ export class SellerOnboardingComponent {
     });
   }
 
+  /** Uploads the picked logo and banner onto the new farm, one after
+   * the other. The farm exists by now: an image that fails doesn't undo
+   * it, the owner is told and can add the image from the settings. */
+  private uploadImages(farm: Farm): Observable<Farm> {
+    let failed = false;
+    const steps = (['logo', 'banner'] as const).flatMap((image) => {
+      const picked = this.slot(image)();
+      if (!picked) return [];
+      return [
+        defer(() =>
+          this.uploads
+            .upload(picked.file, (sizes) => this.farmsApi.presignImage(farm.id, sizes), { thumb: true })
+            .pipe(switchMap((key) => this.farmsApi.setImage(farm.id, image, key)))
+        ).pipe(
+          catchError(() => {
+            failed = true;
+            return of(null);
+          })
+        )
+      ];
+    });
+    if (!steps.length) return of(farm);
+    return concat(...steps).pipe(
+      toArray(),
+      tap(() => {
+        if (failed) this.toast.show({ tone: 'warning', title: 'farmCover.failedAfterCreate' });
+      }),
+      map((saved) => saved.filter((f): f is Farm => !!f).at(-1) ?? farm)
+    );
+  }
+
   /** Step 2 is over, submitted or left for later. */
   protected finish(farm: Farm): void {
     this.seller.refresh();
     this.created.emit(farm);
   }
+}
+
+interface PickedImage {
+  readonly file: File;
+  /** An object URL for the preview; revoked once dropped. */
+  readonly url: string;
 }

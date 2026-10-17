@@ -298,9 +298,12 @@ export class ReservationsListComponent {
     this.run(this.reservationsApi.pay(v.id, this.payMethod(), phone), 'reservations.paidToast');
   }
 
+  /** Confirming releases the escrow: the order leaves "En cours" for
+   * "Terminées", so the list follows it there, highlighted, with its
+   * review button in reach. */
   protected confirm(): void {
     const v = this.current();
-    if (v) this.run(this.reservationsApi.confirmDelivery(v.id), 'reservations.confirmedToast');
+    if (v) this.run(this.reservationsApi.confirmDelivery(v.id), 'reservations.confirmedToast', v.id);
   }
 
   protected cancel(): void {
@@ -315,14 +318,20 @@ export class ReservationsListComponent {
 
   /** Every action: call it, close the sheet, refresh the list (the API
    * recomputes steps, actions and counts), and say what happened. */
-  private run(request: Observable<unknown>, successTitle: string): void {
+  private run(request: Observable<unknown>, successTitle: string, completedId?: string): void {
     this.busy.set(true);
     request.subscribe({
       next: () => {
         this.busy.set(false);
         this.close();
+        if (completedId) {
+          this.group.set('done');
+          this.router.navigate([], { queryParams: { highlight: completedId }, queryParamsHandling: 'merge', replaceUrl: true });
+        }
         this.list.reload();
-        this.toast.show({ tone: 'success', title: successTitle });
+        this.active.reload();
+        this.done.reload();
+        this.toast.show({ tone: 'success', title: successTitle, detail: completedId ? 'reservations.confirmedToastDetail' : undefined });
       },
       error: (err: AppError) => {
         this.busy.set(false);

@@ -43,6 +43,7 @@ export class SellerSpaceService {
   readonly farms = computed<readonly Farm[]>(() => this.account()?.farms ?? []);
   readonly hasFarm = computed(() => this.farms().length > 0);
   readonly farmLimit = computed(() => this.account()?.farmLimit ?? 0);
+  readonly contactLimit = computed(() => this.account()?.farmContactLimit || 3);
   readonly canAddFarm = computed(() => this.account()?.canAddFarm ?? false);
 
   /** The farm the portal is working on: the one chosen, else the first. */

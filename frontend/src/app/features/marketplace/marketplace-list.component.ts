@@ -57,7 +57,7 @@ interface Filters {
   available: string;
   minPrice: number | null;
   maxPrice: number | null;
-  verifiedOnly: boolean;
+  trustedOnly: boolean;
   sort: SortValue;
 }
 
@@ -72,7 +72,7 @@ const EMPTY_FILTERS: Filters = {
   available: '',
   minPrice: null,
   maxPrice: null,
-  verifiedOnly: false,
+  trustedOnly: false,
   sort: 'availability'
 };
 
@@ -91,7 +91,7 @@ type CategoryState = 'all' | 'some' | 'none';
 /** The marketplace, per the design: a search, the active filters as
  * removable chips, and the filters themselves — species (with how many
  * lots each), cycle type, region, month of availability, price range,
- * status and verified farmers. From `lg` up they sit in a sidebar beside
+ * status and trusted farmers. From `lg` up they sit in a sidebar beside
  * a card grid; on phones and tablets in a sheet behind the filter
  * button, with a species chip row for the most common choice.
  *
@@ -100,6 +100,10 @@ type CategoryState = 'all' | 'some' | 'none';
  * before making it. Filters live in the URL, so a search is shareable
  * and coming back from a listing restores it. Results load page by page;
  * any filter change starts again from page 1. */
+/** The trust score the "trusted farmers" filter keeps (the API's
+ * domain.TrustedFarmerScore). */
+const TRUSTED_SCORE = 70;
+
 @Component({
   selector: 'bt-marketplace-list',
   imports: [
@@ -395,18 +399,21 @@ type CategoryState = 'all' | 'some' | 'none';
         </fieldset>
 
         <label class="flex min-h-control-lg cursor-pointer items-center justify-between gap-3 rounded-md bg-forest-soft p-3.5">
-          <span class="text-small font-semibold text-on-forest-soft">{{ 'marketplace.verifiedOnlyLabel' | t }}</span>
-          <span class="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus" [class]="filters().verifiedOnly ? 'bg-forest' : 'bg-line-strong'">
+          <span class="flex flex-col">
+            <span class="text-small font-semibold text-on-forest-soft">{{ 'marketplace.trustedOnlyLabel' | t }}</span>
+            <span class="text-caption text-on-forest-soft/80">{{ 'marketplace.trustedOnlyHint' | t: { min: trustedScore } }}</span>
+          </span>
+          <span class="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus" [class]="filters().trustedOnly ? 'bg-forest' : 'bg-line-strong'">
             <input
               type="checkbox"
               role="switch"
-              [checked]="filters().verifiedOnly"
-              (change)="patch({ verifiedOnly: !filters().verifiedOnly })"
+              [checked]="filters().trustedOnly"
+              (change)="patch({ trustedOnly: !filters().trustedOnly })"
               class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
             />
             <span
               class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-surface-card transition"
-              [class]="filters().verifiedOnly ? 'translate-x-[22px]' : 'translate-x-[3px]'"
+              [class]="filters().trustedOnly ? 'translate-x-[22px]' : 'translate-x-[3px]'"
             ></span>
           </span>
         </label>
@@ -415,6 +422,7 @@ type CategoryState = 'all' | 'some' | 'none';
   `
 })
 export class MarketplaceListComponent {
+  protected readonly trustedScore = TRUSTED_SCORE;
   private readonly listingsApi = inject(ListingsApi);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -480,7 +488,7 @@ export class MarketplaceListComponent {
       available: f.available || undefined,
       minPrice: f.minPrice ?? undefined,
       maxPrice: f.maxPrice ?? undefined,
-      verifiedOnly: f.verifiedOnly || undefined,
+      trustedOnly: f.trustedOnly || undefined,
       sort: f.sort,
       ...this.pageParams()
     };
@@ -657,7 +665,7 @@ export class MarketplaceListComponent {
     for (const v of f.statuses) {
       chips.push({ id: 'st-' + v, label: this.locale.t(STATUS_LABEL_KEYS[v] ?? v), remove: { statuses: f.statuses.filter((x) => x !== v) } });
     }
-    if (f.verifiedOnly) chips.push({ id: 'verified', label: this.locale.t('marketplace.verifiedChip'), remove: { verifiedOnly: false } });
+    if (f.trustedOnly) chips.push({ id: 'trusted', label: this.locale.t('marketplace.trustedChip', { min: TRUSTED_SCORE }), remove: { trustedOnly: false } });
     return chips;
   });
 
@@ -713,7 +721,7 @@ export class MarketplaceListComponent {
           available: f.available || null,
           minPrice: f.minPrice ?? null,
           maxPrice: f.maxPrice ?? null,
-          verified: f.verifiedOnly ? '1' : null,
+          trusted: f.trustedOnly ? '1' : null,
           sort: f.sort === 'availability' ? null : f.sort,
           page: this.page() > 1 ? this.page() : null
         }
@@ -857,7 +865,7 @@ export class MarketplaceListComponent {
       available: /^\d{4}-\d{2}$/.test(available) ? available : '',
       minPrice: num('minPrice'),
       maxPrice: num('maxPrice'),
-      verifiedOnly: p.get('verified') === '1',
+      trustedOnly: p.get('trusted') === '1',
       sort: (SORT_VALUES as readonly string[]).includes(sort ?? '') ? (sort as SortValue) : 'availability'
     };
   }

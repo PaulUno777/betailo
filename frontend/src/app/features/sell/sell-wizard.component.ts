@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, untracked, viewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Observable, of, switchMap } from 'rxjs';
 import { Listing, PriceHint } from '../../domain/models';
-import { categoryOf, speciesGroups, speciesLabelKey, speciesUnitKey } from '../../domain/reference/species';
+import { categoryOf, farmSpeciesGroups, speciesLabelKey, speciesUnitKey } from '../../domain/reference/species';
 import { ListingsApi } from '../../data-access/listings/listings.api';
 import { ListingPhotosService } from '../../data-access/listings/listing-photos.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -57,7 +57,8 @@ type Section = 0 | 1 | 2 | 3;
     TextFieldComponent,
     FcfaCurrencyPipe,
     TranslatePipe, PlacePipe,
-    SellerOnboardingComponent
+    SellerOnboardingComponent,
+    RouterLink
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -121,7 +122,7 @@ type Section = 0 | 1 | 2 | 3;
             </h2>
             <!-- First the category, then what is sold in it. -->
             <div class="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1" role="tablist" [attr.aria-label]="'sell.categoryLabel' | t">
-              @for (g of groups; track g.key) {
+              @for (g of groups(); track g.key) {
                 <button
                   type="button"
                   role="tab"
@@ -150,6 +151,7 @@ type Section = 0 | 1 | 2 | 3;
                 </button>
               }
             </div>
+            <a routerLink="/portal/farm" class="self-start text-small text-forest underline underline-offset-2">{{ 'sell.addSpecies' | t }}</a>
             <bt-text-field
               [label]="'sell.breedLabel' | t"
               [placeholder]="'sell.breedPlaceholder' | t"
@@ -301,14 +303,15 @@ export class SellWizardComponent {
   private readonly locale = inject(LocaleService);
 
   protected readonly sections: readonly Section[] = [0, 1, 2, 3];
-  protected readonly groups = speciesGroups();
+  /** Only what the farm declared: the API refuses anything else. */
+  protected readonly groups = computed(() => farmSpeciesGroups(this.farm()?.species));
   protected readonly speciesLabel = speciesLabelKey;
   /** The category the farmer opened; until then, the one of the species
    * already picked, or the first. */
   protected readonly pickedCategory = signal('');
   protected readonly currentGroup = computed(() => {
-    const key = this.pickedCategory() || categoryOf(this.draft().species) || this.groups[0]?.key;
-    return this.groups.find((g) => g.key === key);
+    const key = this.pickedCategory() || categoryOf(this.draft().species) || this.groups()[0]?.key;
+    return this.groups().find((g) => g.key === key);
   });
   protected readonly whenOptions = ['now', 'date'] as const;
   protected readonly maxQuantity = MAX_QUANTITY;
