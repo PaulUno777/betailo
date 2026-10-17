@@ -20,9 +20,16 @@ export interface ApiResource<T> {
 
 /** `httpResource`, wrapped so reading it can't throw — see `ApiResource`.
  * Like `httpResource`, a request function returning `undefined` means
- * "nothing to fetch yet" (e.g. waiting on another resource's id). */
+ * "nothing to fetch yet" (e.g. waiting on another resource's id).
+ *
+ * The URL goes through a `computed` first: `httpResource` fetches again
+ * whenever a signal its request function reads changes, even when the
+ * URL it builds comes out the same (a refreshed farm object, a form
+ * draft). Comparing the URL string means it only fetches when the
+ * URL really changes. */
 export function apiResource<T>(url: () => string | undefined): ApiResource<T> {
-  const res = httpResource<T>(url);
+  const key = computed(url);
+  const res = httpResource<T>(() => key());
   return {
     value: computed(() => (res.hasValue() ? res.value() : undefined)),
     isLoading: res.isLoading,

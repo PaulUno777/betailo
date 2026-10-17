@@ -1188,6 +1188,16 @@ export const en: TranslationDictionary = {
     reportScam: 'Report a scam',
     terms: 'Terms of use'
   },
+  age: {
+    days_one: '{count} day',
+    days: '{count} days',
+    weeks_one: '{count} week',
+    weeks: '{count} weeks',
+    months_one: '{count} month',
+    months: '{count} months',
+    years_one: '{count} year',
+    years: '{count} years'
+  },
   sell: {
     addSpecies: 'Not in the list? Add a species to your farm',
     title: 'Sell my animals',
@@ -1201,8 +1211,6 @@ export const en: TranslationDictionary = {
     breedPlaceholder: 'Brahma, Goliath, Large White…',
     ageLabel: 'Age',
     ageUnknown: "I don't know",
-    ageWeeks: '{count} weeks',
-    ageWeeks_one: '{count} week',
     priceTitle: 'How many, and at what price?',
     quantityLabel: 'Number of animals',
     priceLabel: 'Price per animal',

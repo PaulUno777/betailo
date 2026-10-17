@@ -17,7 +17,7 @@ func newFarmer(t *testing.T, router http.Handler, location string) (token, farmI
 }
 
 func quickListing(species string, price float64) quickListingRequest {
-	return quickListingRequest{Species: species, Breed: "Brahma", AgeWeeks: 10, Quantity: 40, UnitPrice: price, Title: "Jeunes poulets Brahma — disponibles"}
+	return quickListingRequest{Species: species, Breed: "Brahma", AgeDays: 10, Quantity: 40, UnitPrice: price, Title: "Jeunes poulets Brahma — disponibles"}
 }
 
 func TestSeller_HTTP_WizardDraftPhotosPublish(t *testing.T) {

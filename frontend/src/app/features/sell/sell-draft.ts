@@ -5,7 +5,7 @@ import { isSpecies } from '../../domain/reference/species';
 export interface SellDraft {
   species: string;
   breed: string;
-  ageWeeks: number | null;
+  ageDays: number | null;
   quantity: number;
   unitPrice: number | null;
   /** '' until the farmer picks: the section only counts once answered. */
@@ -18,7 +18,7 @@ export interface SellDraft {
 export const EMPTY_DRAFT: SellDraft = {
   species: '',
   breed: '',
-  ageWeeks: null,
+  ageDays: null,
   quantity: 10,
   unitPrice: null,
   when: '',
@@ -41,7 +41,7 @@ export function loadDraft(userId: string): SellDraft | null {
     return {
       species: typeof d.species === 'string' && isSpecies(d.species) ? d.species : '',
       breed: str(d.breed),
-      ageWeeks: num(d.ageWeeks),
+      ageDays: num(d.ageDays),
       quantity: num(d.quantity) || EMPTY_DRAFT.quantity,
       unitPrice: num(d.unitPrice),
       when: d.when === 'date' || d.when === 'now' ? d.when : '',

@@ -51,10 +51,10 @@ type UpdateListingInput struct {
 	UnitPrice   float64
 	Unit        string
 
-	// Breed, AgeWeeks and DeliveryAvailable are left unchanged when nil,
+	// Breed, AgeDays and DeliveryAvailable are left unchanged when nil,
 	// so older clients that only send the core fields keep working.
 	Breed             *string
-	AgeWeeks          *int
+	AgeDays           *int
 	DeliveryAvailable *bool
 }
 
@@ -92,11 +92,11 @@ func (uc *UpdateListing) Execute(ctx context.Context, in UpdateListingInput) (*d
 		}
 		l.Breed = breed
 	}
-	if in.AgeWeeks != nil {
-		if *in.AgeWeeks < 0 || *in.AgeWeeks > maxAgeWeeks {
+	if in.AgeDays != nil {
+		if *in.AgeDays < 0 || *in.AgeDays > maxAgeDays {
 			return nil, fmt.Errorf("listing: age is out of range: %w", domain.ErrInvalid)
 		}
-		l.AgeWeeks = *in.AgeWeeks
+		l.AgeDays = *in.AgeDays
 	}
 	if in.DeliveryAvailable != nil {
 		l.DeliveryAvailable = *in.DeliveryAvailable

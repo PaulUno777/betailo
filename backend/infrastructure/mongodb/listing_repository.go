@@ -34,7 +34,7 @@ type listingDoc struct {
 	Flagged     bool                 `bson:"flagged,omitempty"`
 
 	Breed             string `bson:"breed,omitempty"`
-	AgeWeeks          int    `bson:"ageWeeks,omitempty"`
+	AgeDays           int    `bson:"ageDays,omitempty"`
 	DeliveryAvailable bool   `bson:"deliveryAvailable,omitempty"`
 }
 
@@ -51,7 +51,7 @@ func fromDomainListing(l *domain.Listing) listingDoc {
 		Flagged:     l.Flagged,
 
 		Breed:             l.Breed,
-		AgeWeeks:          l.AgeWeeks,
+		AgeDays:           l.AgeDays,
 		DeliveryAvailable: l.DeliveryAvailable,
 	}
 }
@@ -69,7 +69,7 @@ func (d listingDoc) toDomain() *domain.Listing {
 		Flagged:     d.Flagged,
 
 		Breed:             d.Breed,
-		AgeWeeks:          d.AgeWeeks,
+		AgeDays:           d.AgeDays,
 		DeliveryAvailable: d.DeliveryAvailable,
 	}
 }

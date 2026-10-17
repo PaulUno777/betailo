@@ -1,3 +1,4 @@
+import { AGE_CHOICES_DAYS, ageLabel } from '../../domain/rules/age';
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, untracked, viewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -26,7 +27,6 @@ import { FcfaCurrencyPipe } from '../../shared/pipes/fcfa-currency.pipe';
 import { SellDraft, EMPTY_DRAFT, clearDraft, isEmptyDraft, loadDraft, saveDraft } from './sell-draft';
 import { SellerOnboardingComponent } from './seller-onboarding.component';
 
-const AGE_WEEKS = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 26, 36, 52];
 const MAX_QUANTITY = 100_000;
 
 type Section = 0 | 1 | 2 | 3;
@@ -163,8 +163,8 @@ type Section = 0 | 1 | 2 | 3;
               [label]="'sell.ageLabel' | t"
               [options]="ageOptions()"
               name="age"
-              [ngModel]="draft().ageWeeks === null ? '' : '' + draft().ageWeeks"
-              (ngModelChange)="patch({ ageWeeks: $event ? +$event : null })"
+              [ngModel]="draft().ageDays === null ? '' : '' + draft().ageDays"
+              (ngModelChange)="patch({ ageDays: $event ? +$event : null })"
             />
           </section>
 
@@ -339,13 +339,17 @@ export class SellWizardComponent {
   private readonly hintRes = apiResource<PriceHint | null>(() => {
     const species = this.draft().species;
     const farm = this.farm();
-    return species && farm ? this.listingsApi.priceHintUrl(species, farm.location) : undefined;
+    // The range is regional: the farm's region, not its town.
+    return species && farm ? this.listingsApi.priceHintUrl(species, farm.region) : undefined;
   });
   protected readonly hint = computed(() => this.hintRes.value() ?? null);
 
   protected readonly ageOptions = computed<SelectOption[]>(() => [
     { value: '', label: this.locale.t('sell.ageUnknown') },
-    ...AGE_WEEKS.map((w) => ({ value: String(w), label: this.locale.t('sell.ageWeeks', { count: w }) }))
+    ...AGE_CHOICES_DAYS.map((d) => {
+      const { key, count } = ageLabel(d);
+      return { value: String(d), label: this.locale.t(key, { count }) };
+    })
   ]);
 
   protected readonly priceText = computed(() => {
@@ -450,7 +454,7 @@ export class SellWizardComponent {
       .quickCreate(farm.id, {
         species: d.species,
         breed: d.breed.trim() || undefined,
-        ageWeeks: d.ageWeeks ?? undefined,
+        ageDays: d.ageDays ?? undefined,
         quantity: d.quantity,
         unitPrice: d.unitPrice!,
         title: this.title(),

@@ -1187,6 +1187,16 @@ export const fr = {
     reportScam: 'Signaler une arnaque',
     terms: "Conditions d'utilisation"
   },
+  age: {
+    days_one: '{count} jour',
+    days: '{count} jours',
+    weeks_one: '{count} semaine',
+    weeks: '{count} semaines',
+    months_one: '{count} mois',
+    months: '{count} mois',
+    years_one: '{count} an',
+    years: '{count} ans'
+  },
   sell: {
     addSpecies: 'Pas dans la liste ? Ajoutez une espèce à votre ferme',
     title: 'Vendre mes animaux',
@@ -1200,8 +1210,6 @@ export const fr = {
     breedPlaceholder: 'Brahma, Goliath, Large White…',
     ageLabel: 'Âge',
     ageUnknown: 'Je ne sais pas',
-    ageWeeks: '{count} semaines',
-    ageWeeks_one: '{count} semaine',
     priceTitle: 'Combien et à quel prix ?',
     quantityLabel: 'Nombre d’animaux',
     priceLabel: 'Prix par animal',

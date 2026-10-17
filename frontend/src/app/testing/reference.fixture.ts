@@ -18,7 +18,7 @@ export const TEST_CATALOG: Catalog = {
       color: 'clay',
       active: true,
       subcategories: [
-        { key: 'poussins', label: { fr: 'Poussins d’un jour', en: 'Day-old chicks' }, cycleType: 'couvee', icon: 'poussin', unit: { key: 'poussin', label: { fr: 'poussin', en: 'chick' } }, active: true },
+        { key: 'poussins', label: { fr: 'Poussins', en: 'Chicks' }, cycleType: 'couvee', icon: 'poussin', unit: { key: 'poussin', label: { fr: 'poussin', en: 'chick' } }, active: true },
         { key: 'dindes', label: { fr: 'Dindes', en: 'Turkeys' }, cycleType: 'engraissement', icon: 'dinde', unit: { key: 'dinde', label: { fr: 'dinde', en: 'turkey' } }, active: true },
         { key: 'cailles', label: { fr: 'Cailles', en: 'Quails' }, cycleType: 'elevage', icon: 'poule', unit: { key: 'caille', label: { fr: 'caille', en: 'quail' } }, active: false }
       ]

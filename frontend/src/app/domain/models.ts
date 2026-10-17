@@ -221,7 +221,7 @@ export interface Listing {
    * with `btFallbackSrc` pointing at the photo. */
   thumbs?: string[];
   breed?: string;
-  ageWeeks?: number;
+  ageDays?: number;
   deliveryAvailable?: boolean;
 }
 

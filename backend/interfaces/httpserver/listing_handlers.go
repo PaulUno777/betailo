@@ -27,7 +27,7 @@ type listingResponse struct {
 	Thumbs []string `json:"thumbs,omitempty"`
 
 	Breed             string `json:"breed,omitempty"`
-	AgeWeeks          int    `json:"ageWeeks,omitempty"`
+	AgeDays           int    `json:"ageDays,omitempty"`
 	DeliveryAvailable bool   `json:"deliveryAvailable"`
 }
 
@@ -39,7 +39,7 @@ func toListingResponse(ctx context.Context, storage ports.ObjectStorage, l *doma
 	resp := listingResponse{
 		ID: l.ID.Hex(), Title: l.Title, Description: l.Description,
 		UnitPrice: l.UnitPrice, Unit: l.Unit, Status: string(l.Status),
-		Breed: l.Breed, AgeWeeks: l.AgeWeeks, DeliveryAvailable: l.DeliveryAvailable,
+		Breed: l.Breed, AgeDays: l.AgeDays, DeliveryAvailable: l.DeliveryAvailable,
 	}
 	if l.CycleID != nil {
 		hex := l.CycleID.Hex()
@@ -165,7 +165,7 @@ type updateListingRequest struct {
 	UnitPrice         float64 `json:"unitPrice"`
 	Unit              string  `json:"unit,omitempty"`
 	Breed             *string `json:"breed,omitempty"`
-	AgeWeeks          *int    `json:"ageWeeks,omitempty"`
+	AgeDays           *int    `json:"ageDays,omitempty"`
 	DeliveryAvailable *bool   `json:"deliveryAvailable,omitempty"`
 }
 
@@ -188,7 +188,7 @@ func handleUpdateListing(uc *listing.UpdateListing, storage ports.ObjectStorage)
 		l, err := uc.Execute(r.Context(), listing.UpdateListingInput{
 			ListingID: id, OwnerID: claims.UserID, Title: req.Title,
 			Description: req.Description, UnitPrice: req.UnitPrice, Unit: req.Unit,
-			Breed: req.Breed, AgeWeeks: req.AgeWeeks, DeliveryAvailable: req.DeliveryAvailable,
+			Breed: req.Breed, AgeDays: req.AgeDays, DeliveryAvailable: req.DeliveryAvailable,
 		})
 		if err != nil {
 			writeError(w, err)

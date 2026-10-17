@@ -87,7 +87,7 @@ describe('reference editor flows', () => {
 
   it('deactivates from the row, shows it pending, and undoes it', async () => {
     const { el, button, settle } = await render();
-    expect(el.textContent).toContain('Day-old chicks');
+    expect(el.textContent).toContain('Chicks');
     expect(el.textContent).toContain('7'); // usage
 
     button('Deactivate', el.querySelector('section')!).click();

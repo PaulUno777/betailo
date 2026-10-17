@@ -15,8 +15,8 @@
         {
           "key": "poussins",
           "label": {
-            "fr": "Poussins d’un jour",
-            "en": "Day-old chicks"
+            "fr": "Poussins",
+            "en": "Chicks"
           },
           "cycleType": "couvee",
           "icon": "poussin",

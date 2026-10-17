@@ -233,7 +233,7 @@ s, me = far.call("GET", "/me")
 check("F03", "Farmer", "GET /me lists the farm", "1 farm (draft), canAddFarm=false", s == 200 and len(me.get("farms", [])) == 1 and me["farms"][0].get("status") == "draft" and me.get("canAddFarm") is False, f"{s} farms={[f.get('status') for f in me.get('farms', [])]} canAdd={me.get('canAddFarm')}")
 s, b = far.call("GET", f"/listings/price-hint?species=jeunes-poulets&region=Bafoussam")
 check("F04", "Farmer", "Price hint", "200 or 204", s in (200, 204), f"{s} {b}")
-s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-poulets", "breed": "Brahma", "ageWeeks": 6, "quantity": 50, "unitPrice": 3000, "title": "QA Jeunes poulets", "deliveryAvailable": True})
+s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-poulets", "breed": "Brahma", "ageDays": 42, "quantity": 50, "unitPrice": 3000, "title": "QA Jeunes poulets", "deliveryAvailable": True})
 check("F05", "Farmer", "Quick listing (sell wizard)", "201 cycle + draft listing", s == 201 and isinstance(b, dict) and b.get("listing", {}).get("status") == "draft", f"{s} status={(b or {}).get('listing', {}).get('status') if isinstance(b, dict) else b}")
 qlisting = (b or {}).get("listing", {}).get("id") if isinstance(b, dict) else None
 qcycle = (b or {}).get("cycle", {}).get("id") if isinstance(b, dict) else None
@@ -960,7 +960,7 @@ if PHOTOS and os.path.isdir(PHOTOS):
             s, b = owner.call("PUT", f"/farms/{f['id']}/{image}", {"key": b["key"]})
             check("S00", "Farmer", f"{farm_name}: set the {image}", "200", s == 200 and bool(b.get(image + "Url")), s)
         for species, title, price, qty, photos in listings:
-            s, b = owner.call("POST", f"/farms/{f['id']}/quick-listings", {"species": species, "breed": "Brahma", "ageWeeks": 16, "quantity": qty, "unitPrice": price, "title": title, "deliveryAvailable": True})
+            s, b = owner.call("POST", f"/farms/{f['id']}/quick-listings", {"species": species, "breed": "Brahma", "ageDays": 112, "quantity": qty, "unitPrice": price, "title": title, "deliveryAvailable": True})
             lid = b["listing"]["id"]
             keys = [upload_photo(owner, lid, ph)[0] for ph in photos]
             owner.call("PUT", f"/listings/{lid}/photos", {"keys": keys})
