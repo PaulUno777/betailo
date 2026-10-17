@@ -10,20 +10,27 @@ attempts, invalid input, forbidden roles) and the error codes clients
 translate. Each check prints PASS/FAIL; the exit code is the number of
 failures (capped at 1), so CI fails on any.
 
-Creates fresh accounts on every run, so it's repeatable against any
-database. Needs a super admin account (nobody registers into the staff;
+Every account it creates signs in with the same password,
+QA_USER_PASSWORD (default Betailo-qa-2026), and gets an email made from
+its name ("Awa Nana" -> awa.nana@betailo.test), so after a run on a
+fresh database you can sign in as any of them; the list is printed at
+the end and written to scripts/qa/accounts.local.json. An email already
+taken (a rerun on the same database) gets a random suffix instead, so
+the run stays repeatable against any database. Needs a super admin account (nobody registers into the staff;
 the API creates it at startup from SUPER_ADMIN_EMAIL/PASSWORD), and
 expects MAX_FARMS_PER_ACCOUNT=1 and FARM_AUTO_APPROVE=false:
 
     QA_API=http://localhost:8080          (default)
     QA_ADMIN_EMAIL=... QA_ADMIN_PASSWORD=...
     QA_RESULTS=path/to/results.json       (optional)
+    QA_USER_PASSWORD=...                  (optional)
+    QA_PHOTOS=dir of NAME.jpg + NAME.thumb.jpg  (optional, the showcase)
 
 Run it with scripts/qa/run_smoke.sh, which starts the stack with those
 settings.
 """
 import json
-import os, os, sys, time, uuid, urllib.request, urllib.error, http.cookiejar, datetime
+import os, sys, time, unicodedata, uuid, urllib.request, urllib.error, http.cookiejar, datetime
 
 BASE = os.environ.get("QA_API", "http://localhost:8080").rstrip("/")
 CREDS = {"ADMIN": os.environ["QA_ADMIN_EMAIL"], "PW": os.environ["QA_ADMIN_PASSWORD"]}
@@ -31,6 +38,10 @@ CREDS = {"ADMIN": os.environ["QA_ADMIN_EMAIL"], "PW": os.environ["QA_ADMIN_PASSW
 # rerun right after) under it.
 REGISTER_PAUSE = float(os.environ.get("QA_REGISTER_PAUSE", "2.5"))
 RESULTS = []
+# One password for every QA account, so any of them can be signed into.
+USER_PW = os.environ.get("QA_USER_PASSWORD", "Betailo-qa-2026")
+# Who the run created, for signing in afterwards.
+ACCOUNTS = []
 
 
 class Client:
@@ -113,15 +124,33 @@ def open_approved_farm(owner, staff, farm):
     return f
 
 
+def slug(text):
+    """'Awa Fermière' -> 'awa.fermiere'."""
+    ascii_ = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return ".".join("".join(ch if ch.isalnum() else " " for ch in ascii_.lower()).split())
+
+
 def register(role, name=None):
+    """A new account, signed in. Its email follows its name (or role), so
+    it's the same from one run to the next on a fresh database; when it's
+    taken, a random suffix keeps the run going."""
     time.sleep(REGISTER_PAUSE)
     c = Client()
-    email = f"qa-{role}-{uuid.uuid4().hex[:8]}@betailo.test"
-    pw = "Qa-" + uuid.uuid4().hex[:12]
+    local = slug(name) if name else f"qa-{role}"
+    taken = {a["email"] for a in ACCOUNTS}
+    email, n = f"{local}@betailo.test", 2
+    while email in taken:
+        email, n = f"{local}-{n}@betailo.test", n + 1
+    pw = USER_PW
     s, b = c.call("POST", "/auth/register", {"email": email, "password": pw, "displayName": name or ""}, token=False)
+    if s == 409:
+        time.sleep(REGISTER_PAUSE)
+        email = f"{local}-{uuid.uuid4().hex[:6]}@betailo.test"
+        s, b = c.call("POST", "/auth/register", {"email": email, "password": pw, "displayName": name or ""}, token=False)
     s2, b2 = c.call("POST", "/auth/login", {"email": email, "password": pw, "remember": True}, token=False)
     c.token = (b2 or {}).get("accessToken")
     c.email, c.pw, c.user = email, pw, (b2 or {}).get("user", {})
+    ACCOUNTS.append({"email": email, "name": name or "", "role": role, "password": pw})
     return c, s, b
 
 
@@ -145,8 +174,8 @@ lid_any = (listing_any.get("listing") or {}).get("id")
 if lid_any:
     s, b = g.call("GET", f"/listings/{lid_any}/detail")
     check("G02", "Guest", "Open listing detail", "200 with listing, cycle, farm", s == 200 and isinstance(b, dict), f"{s} keys={list(b.keys())[:8] if isinstance(b, dict) else b}")
-    contact = json.dumps(b).find("contactPhone") >= 0 if isinstance(b, dict) else False
-    check("G03", "Guest", "Farmer phone hidden from anonymous visitors", "no contactPhone in anonymous detail", not contact, f"contactPhone present={contact}")
+    contacts = ((b or {}).get("farm") or {}).get("contacts") if isinstance(b, dict) else None
+    check("G03", "Guest", "Farmer numbers hidden from anonymous visitors", "farm.contacts empty in anonymous detail", contacts == [], f"contacts={contacts}")
 s, b = g.call("GET", "/listings?q=poulets&species=jeunes-poulets")
 check("G04", "Guest", "Search + species filter", "200", s == 200, f"{s} total={b.get('total') if isinstance(b, dict) else b}")
 s, b = g.call("GET", "/forum/posts")
@@ -170,10 +199,35 @@ far, s, b = register("seller", "Awa Fermière")
 check("F01", "Farmer", "Register a personal account", "201, not staff", s == 201 and not (b or {}).get("staffRole"), f"{s} {str(b)[:100]}")
 s, me = far.call("GET", "/me")
 check("F01b", "Farmer", "GET /me before any farm", "no farm, canAddFarm, farmLimit=1", s == 200 and me.get("farms") == [] and me.get("canAddFarm") is True and me.get("farmLimit") == 1, f"{s} farms={me.get('farms')} canAdd={me.get('canAddFarm')} limit={me.get('farmLimit')}")
-s, b = far.call("POST", "/farms", {"name": "Ferme QA", "location": "Bafoussam", "species": ["jeunes-poulets"], "contactPhone": "677001122"})
+s, b = far.call("POST", "/farms", {"name": "Ferme QA", "location": "Bafoussam", "species": ["jeunes-poulets"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
 check("F02", "Farmer", "Open a farm (POST /farms)", "201, status draft, owner can submit", s == 201 and isinstance(b, dict) and b.get("status") == "draft" and (b.get("review") or {}).get("canSubmit") is True, f"{s} {str(b)[:160]}")
 farm_id = (b or {}).get("id") if isinstance(b, dict) else None
-s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Douala"})
+check("F02c", "Farmer", "Contacts saved in E.164 with their WhatsApp flag", "2 numbers, WhatsApp then call only",
+      isinstance(b, dict) and [(c.get("phone"), c.get("whatsapp")) for c in b.get("contacts", [])] == [("+237677001122", True), ("+237699001122", False)],
+      (b or {}).get("contacts") if isinstance(b, dict) else b)
+s, b = far.call("POST", "/farms", {"name": "Sans espèce", "location": "Douala"})
+check("F02d", "Farmer", "A farm with no species", "400 farm.species_required", s == 400 and (b or {}).get("code") == "farm.species_required", f"{s} {b}")
+s, b = far.call("POST", "/farms", {"name": "Trop de numéros", "location": "Douala", "species": ["poussins"],
+                                   "contacts": [{"phone": f"67700000{i}"} for i in range(4)]})
+check("F02e", "Farmer", "More numbers than MAX_FARM_CONTACTS (3)", "400 farm.contact_limit", s == 400 and (b or {}).get("code") == "farm.contact_limit", f"{s} {b}")
+s, b = far.call("POST", "/farms", {"name": "Numéro double", "location": "Douala", "species": ["poussins"],
+                                   "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "+237 677 00 11 22"}]})
+check("F02f", "Farmer", "The same number twice", "400 farm.contact_duplicate", s == 400 and (b or {}).get("code") == "farm.contact_duplicate", f"{s} {b}")
+s, me = far.call("GET", "/me")
+check("F02g", "Farmer", "GET /me says how many numbers a farm may list", "farmContactLimit=3", me.get("farmContactLimit") == 3, me.get("farmContactLimit"))
+# Logo and banner: presign under the farm, upload, set; a key minted
+# elsewhere is refused.
+s, b = far.call("POST", f"/farms/{farm_id}/branding/presign", PHOTO_SIZES)
+check("F02h", "Farmer", "Presign a farm logo upload", "200 key under farms/<id>/branding/", s == 200 and (b or {}).get("key", "").startswith(f"farms/{farm_id}/branding/"), f"{s} {str(b)[:100]}")
+logo_key = (b or {}).get("key")
+put_file(b["uploadUrl"]); put_file(b["thumbUploadUrl"])
+s, b = far.call("PUT", f"/farms/{farm_id}/logo", {"key": logo_key})
+check("F02i", "Farmer", "Set the farm logo", "200 with logoUrl, no banner yet", s == 200 and bool((b or {}).get("logoUrl")) and not (b or {}).get("bannerUrl"), s)
+s, b = far.call("PUT", f"/farms/{farm_id}/banner", {"key": f"avatars/{far.user.get('id')}/{uuid.uuid4().hex[:24]}.jpg"})
+check("F02j", "Farmer", "Set a banner from a key minted elsewhere", "400", s == 400, f"{s} {b}")
+s, b = far.call("PUT", f"/farms/{farm_id}/banner", {"key": logo_key})
+check("F02k", "Farmer", "Set the banner", "200 with bannerUrl", s == 200 and bool((b or {}).get("bannerUrl")), s)
+s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Douala", "species": ["poussins"]})
 check("F02b", "Farmer", "Second farm at the default limit", "409 code farm.limit_reached", s == 409 and (b or {}).get("code") == "farm.limit_reached", f"{s} {b}")
 s, me = far.call("GET", "/me")
 check("F03", "Farmer", "GET /me lists the farm", "1 farm (draft), canAddFarm=false", s == 200 and len(me.get("farms", [])) == 1 and me["farms"][0].get("status") == "draft" and me.get("canAddFarm") is False, f"{s} farms={[f.get('status') for f in me.get('farms', [])]} canAdd={me.get('canAddFarm')}")
@@ -183,6 +237,8 @@ s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-
 check("F05", "Farmer", "Quick listing (sell wizard)", "201 cycle + draft listing", s == 201 and isinstance(b, dict) and b.get("listing", {}).get("status") == "draft", f"{s} status={(b or {}).get('listing', {}).get('status') if isinstance(b, dict) else b}")
 qlisting = (b or {}).get("listing", {}).get("id") if isinstance(b, dict) else None
 qcycle = (b or {}).get("cycle", {}).get("id") if isinstance(b, dict) else None
+s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "porcs", "quantity": 5, "unitPrice": 30000, "title": "Porcs hors déclaration"})
+check("F05b", "Farmer", "Sell a species the farm didn't declare", "400 farm.species_not_declared", s == 400 and (b or {}).get("code") == "farm.species_not_declared", f"{s} {b}")
 s, b = far.call("POST", f"/listings/{qlisting}/publish")
 check("F06", "Farmer", "Publish without any photo (D2 code)", "400 code listing.photo_required", s == 400 and (b or {}).get("code") == "listing.photo_required", f"{s} {b}")
 s, b = far.call("POST", f"/farms/{farm_id}/quick-listings", {"species": "jeunes-poulets", "quantity": 0, "unitPrice": -5, "title": ""})
@@ -392,11 +448,11 @@ s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit
 check("A05a", "Admin", "Farm limit exception without a reason", "400 code admin.farm_limit_reason_required", s == 400 and (b or {}).get("code") == "admin.farm_limit_reason_required", f"{s} {b}")
 s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit": 2, "reason": "Second site"})
 check("A05", "Admin", "Raise one account's farm limit, with a reason", "200 farmLimit=2", s == 200 and (b or {}).get("farmLimit") == 2 and (b.get("farmLimitNote") or {}).get("reason") == "Second site", f"{s} {str(b)[:100]}")
-s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Douala"})
+s, b = far.call("POST", "/farms", {"name": "Deuxième ferme", "location": "Douala", "species": ["poussins"]})
 check("A05b", "Farmer", "Second farm once staff raised the limit", "201 draft", s == 201 and (b or {}).get("status") == "draft", f"{s} {str(b)[:100]}")
-s, b = far.call("POST", "/farms", {"name": "Troisième ferme", "location": "Douala"})
+s, b = far.call("POST", "/farms", {"name": "Troisième ferme", "location": "Douala", "species": ["poussins"]})
 check("A05c", "Farmer", "Third farm beyond the raised limit", "409 code farm.limit_reached", s == 409 and (b or {}).get("code") == "farm.limit_reached", f"{s} {b}")
-s, b = adm.call("POST", "/farms", {"name": "Ferme du staff", "location": "Douala"})
+s, b = adm.call("POST", "/farms", {"name": "Ferme du staff", "location": "Douala", "species": ["poussins"]})
 check("A05d", "Admin", "Staff account opening a farm", "403 code farm.staff_cannot_sell", s == 403 and (b or {}).get("code") == "farm.staff_cannot_sell", f"{s} {b}")
 s, b = adm.call("POST", f"/admin/users/{far.user.get('id')}/farm-limit", {"limit": 1, "reason": "Erreur"})
 check("A05e", "Admin", "Limit below the farms the account owns", "409 code admin.farm_limit_below_owned", s == 409 and (b or {}).get("code") == "admin.farm_limit_below_owned", f"{s} {b}")
@@ -438,7 +494,7 @@ s, b = mod.call("GET", "/admin/escrow/export.csv")
 check("T07b", "Staff", "Moderator downloading the accounting export", "403 admin.permission_denied", s == 403 and (b or {}).get("code") == "admin.permission_denied", f"{s} {b}")
 s, b = mod.call("POST", "/admin/staff", {"email": victim.email, "role": "support"})
 check("T08", "Staff", "Moderator granting a role", "403", s == 403, f"{s} {b}")
-s, b = mod.call("POST", "/farms", {"name": "Ferme du modérateur", "location": "Douala"})
+s, b = mod.call("POST", "/farms", {"name": "Ferme du modérateur", "location": "Douala", "species": ["poussins"]})
 check("T09", "Staff", "Moderator opening a farm", "403 code farm.staff_cannot_sell", s == 403 and (b or {}).get("code") == "farm.staff_cannot_sell", f"{s} {b}")
 s, b = adm.call("POST", "/admin/staff", {"email": far.email, "role": "support"})
 check("T10", "Staff", "A farm owner joining the staff", "409 code admin.staff_owns_farm", s == 409 and (b or {}).get("code") == "admin.staff_owns_farm", f"{s} {b}")
@@ -484,9 +540,12 @@ s, b = g.call("GET", "/listings?available=octobre")
 check("R04", "Guest", "Invalid availability month", "400 search.available_invalid", s == 400 and (b or {}).get("code") == "search.available_invalid", f"{s} {b}")
 s, b = g.call("GET", "/listings?q=QA%20Bafoussam")
 check("R05", "Guest", "Word search across title and town", "finds the QA listing", s == 200 and any(i["listing"]["id"] == qlisting for i in b.get("items", [])), f"{s} total={b.get('total')}")
-s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "region": "Atlantique"})
+s, b = g.call("GET", "/listings?trustedOnly=true&pageSize=100", token=False)
+scores = [i.get("farmTrustScore", 0) for i in (b or {}).get("items", [])] if isinstance(b, dict) else []
+check("R06b", "Guest", "Trusted farmers only (trust score 70+)", "200, every farm 70+", s == 200 and all(x >= 70 for x in scores), f"{s} scores={sorted(set(scores))[:5]}")
+s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "region": "Atlantique", "species": ["jeunes-poulets"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
 check("R07", "Farmer", "Farm with an unknown Cameroonian region", "400 farm.region_invalid", s == 400 and (b or {}).get("code") == "farm.region_invalid", f"{s} {b}")
-s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "country": "CM", "region": "ouest"})
+s, b = far.call("PUT", f"/farms/{farm_id}", {"name": "Ferme QA", "location": "Bafoussam", "country": "CM", "region": "ouest", "species": ["jeunes-poulets"], "contacts": [{"phone": "677001122", "whatsapp": True}, {"phone": "699001122", "whatsapp": False}]})
 check("R08", "Farmer", "Farm region is stored as the catalog's key", "ouest", s == 200 and b.get("region") == "ouest" and b.get("country") == "CM", f"{s} {b.get('region') if isinstance(b, dict) else b}")
 
 s, b = g.call("GET", "/listings?country=CM&region=ouest")
@@ -494,7 +553,7 @@ check("R06", "Guest", "Region filter by key (farm in Bafoussam is in ouest)", "i
 
 # Waiting list: a full lot, an unpaid buyer, a paying buyer takes the places.
 wl_farmer, _, _ = register("seller", "Waitlist Farmer")
-wf = open_approved_farm(wl_farmer, adm, {"name": "Ferme WL", "location": "Dschang", "region": "Ouest"})
+wf = open_approved_farm(wl_farmer, adm, {"name": "Ferme WL", "location": "Dschang", "region": "Ouest", "species": ["poussins"]})
 s, ql = wl_farmer.call("POST", f"/farms/{wf['id']}/quick-listings", {"species": "poussins", "quantity": 10, "unitPrice": 700, "title": "Lot liste d'attente", "deliveryAvailable": False})
 wl_listing, wl_cycle = ql["listing"]["id"], ql["cycle"]["id"]
 s, up = wl_farmer.call("POST", f"/listings/{wl_listing}/photos/presign", PHOTO_SIZES)
@@ -533,6 +592,10 @@ s, b = buy.call("POST", "/me/password", {"currentPassword": buy.pw, "newPassword
 check("S02", "Buyer", "Change password", "200 new session", s == 200 and isinstance(b, dict) and b.get("accessToken"), f"{s}")
 _, s = login(buy.email, buy.pw)
 check("S03", "Buyer", "Old password no longer works", "401", s == 401, s)
+buy.pw = "Qa-newpassword-1"
+for a in ACCOUNTS:
+    if a["email"] == buy.email:
+        a["password"] = buy.pw
 s, b = g.call("GET", "/listings?pageSize=1000")
 check("S04", "Guest", "Oversized pageSize is capped", "200, ≤100 items", s == 200 and len(b.get("items", [])) <= 100, f"{s} n={len(b.get('items', [])) if isinstance(b, dict) else b}")
 
@@ -731,10 +794,10 @@ check("G02", "Buyer", "Order references are dated and sortable", "RSV-YYMM-NNNN"
 s, b = far.call("GET", f"/cycles/{qcycle}")
 check("G03", "Farmer", "Cycle reference is dated and sortable", "CYC-YYMM-NNNN", bool(re.fullmatch(r"CYC-\d{4}-\d{4,}", (b or {}).get("reference", ""))), (b or {}).get("reference"))
 yao, _, _ = register("yaounde", "Ferme Yaoundé")
-s, b = yao.call("POST", "/farms", {"name": "Ferme du Centre", "location": "Yaoundé"})
+s, b = yao.call("POST", "/farms", {"name": "Ferme du Centre", "location": "Yaoundé", "species": ["poussins"]})
 check("G04", "Farmer", "A listed town is stored as its key and settles the region", "location yaounde, region centre", s == 201 and b.get("location") == "yaounde" and b.get("region") == "centre", f"{s} {b.get('location') if isinstance(b, dict) else b}/{b.get('region') if isinstance(b, dict) else ''}")
 other_town, _, _ = register("bamendjou", "Ferme Bamendjou")
-s, b = other_town.call("POST", "/farms", {"name": "Ferme des Hauts", "location": "Bamendjou", "region": "West"})
+s, b = other_town.call("POST", "/farms", {"name": "Ferme des Hauts", "location": "Bamendjou", "region": "West", "species": ["poussins"]})
 check("G05", "Farmer", "An unlisted town is kept as typed; the region named in English", "location Bamendjou, region ouest", s == 201 and b.get("location") == "Bamendjou" and b.get("region") == "ouest", f"{s} {b.get('location') if isinstance(b, dict) else b}/{b.get('region') if isinstance(b, dict) else ''}")
 # A listing of its own: the moderation scenarios above take the first
 # QA listing off the marketplace on purpose.
@@ -820,7 +883,7 @@ s, b = g.call("GET", "/reference/places", token=False)
 cm = next(c for c in b["countries"] if c["code"] == "CM")
 check("RE11", "Guest", "The new region is served at once, with its town", f"{qa} with {qa}-a", any(r["key"] == qa and [c["key"] for c in r.get("cities", [])] == [qa + "-a"] for r in cm["regions"]), b.get("version"))
 qa_farmer, _, _ = register("qa-region", "Ferme QA Région")
-s, b = qa_farmer.call("POST", "/farms", {"name": "Ferme de la région QA", "location": f"Town {qa} A", "region": f"Region {qa}"})
+s, b = qa_farmer.call("POST", "/farms", {"name": "Ferme de la région QA", "location": f"Town {qa} A", "region": f"Region {qa}", "species": ["poussins"]})
 check("RE12", "Farmer", "A farm picks the new region and town by their English names", f"{qa}/{qa}-a", s == 201 and b.get("region") == qa and b.get("location") == qa + "-a", f"{s} {b.get('region') if isinstance(b, dict) else b}")
 s, vs = adm.call("GET", "/admin/reference/versions?name=reviewTags")
 check("RE13", "Admin", "One reference's history, newest first", "reviewTags only", s == 200 and vs and all(v["name"] == "reviewTags" for v in vs) and vs[0]["version"] == made.get("reviewTags"), f"{s} {[v['version'] for v in vs or []][:3]}")
@@ -878,8 +941,24 @@ if PHOTOS and os.path.isdir(PHOTOS):
     for farm_name, town, owner_name, listings in farms:
         owner, _, _ = register("showcase", owner_name)
         f = open_approved_farm(owner, adm, {"name": farm_name, "location": town, "species": sorted({l[0] for l in listings}),
-                                            "contactPhone": "677" + uuid.uuid4().hex[:6].translate(str.maketrans("abcdef", "123456")),
+                                            "contacts": [{"phone": "677" + uuid.uuid4().hex[:6].translate(str.maketrans("abcdef", "123456")), "whatsapp": True},
+                                                         {"phone": "699" + uuid.uuid4().hex[:6].translate(str.maketrans("abcdef", "123456")), "whatsapp": False}],
                                             "description": f"{farm_name} : élevage familial de poulets Brahma à {town}."})
+        # The first photo's small copy as the logo, the last photo as the banner.
+        first, last_ = listings[0][4][0], listings[-1][4][-1]
+        for image, main_name, thumb_name in (("logo", first + ".thumb", first + ".thumb"), ("banner", last_, last_ + ".thumb")):
+            main = open(os.path.join(PHOTOS, main_name + ".jpg"), "rb").read()
+            thumb = open(os.path.join(PHOTOS, thumb_name + ".jpg"), "rb").read()
+            s, b = owner.call("POST", f"/farms/{f['id']}/branding/presign", {"size": len(main), "thumbSize": len(thumb)})
+            if s != 200:
+                check("S00", "Farmer", f"{farm_name}: presign the {image}", "200", False, f"{s} {b}")
+                continue
+            for url, data in ((b["uploadUrl"], main), (b["thumbUploadUrl"], thumb)):
+                req = urllib.request.Request(url, data=data, method="PUT")
+                req.add_header("Content-Type", "image/jpeg")
+                urllib.request.urlopen(req, timeout=30)
+            s, b = owner.call("PUT", f"/farms/{f['id']}/{image}", {"key": b["key"]})
+            check("S00", "Farmer", f"{farm_name}: set the {image}", "200", s == 200 and bool(b.get(image + "Url")), s)
         for species, title, price, qty, photos in listings:
             s, b = owner.call("POST", f"/farms/{f['id']}/quick-listings", {"species": species, "breed": "Brahma", "ageWeeks": 16, "quantity": qty, "unitPrice": price, "title": title, "deliveryAvailable": True})
             lid = b["listing"]["id"]
@@ -917,4 +996,11 @@ if PHOTOS and os.path.isdir(PHOTOS):
 
 failed = [r for r in RESULTS if not r["ok"]]
 print(f"\n{len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
+accounts = [{"email": CREDS["ADMIN"], "name": "Super admin", "role": "admin", "password": CREDS["PW"]}] + ACCOUNTS
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.local.json"), "w") as fh:
+    json.dump(accounts, fh, indent=1, ensure_ascii=False)
+print("\nAccounts (password " + USER_PW + " unless shown):")
+for a in accounts:
+    pw = "" if a["password"] == USER_PW else f"  [{a['password']}]"
+    print(f"  {a['email']:<42} {a['name']}{pw}")
 sys.exit(1 if failed else 0)
