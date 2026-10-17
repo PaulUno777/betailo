@@ -13,7 +13,7 @@ import (
 )
 
 // sp is a species every valid test farm raises.
-var sp = []string{"poussins"}
+var sp = []string{"chicks"}
 
 func TestCreateFarm_Execute_Success(t *testing.T) {
 	farms := newFakeFarms()
@@ -26,7 +26,7 @@ func TestCreateFarm_Execute_Success(t *testing.T) {
 		OwnerID:     ownerID,
 		Name:        "  Ferme du Soleil  ",
 		Location:    "Douala",
-		Species:     []string{"poussins", "porcs"},
+		Species:     []string{"chicks", "piglets"},
 		Description: "  Élevage familial depuis 2012.  ",
 		Contacts:    []domain.FarmContact{{Phone: "6 90 12 34 56", WhatsApp: true}, {Phone: " "}, {Phone: "+237 677 00 11 22"}},
 	})
@@ -69,7 +69,7 @@ func TestCreateFarm_Execute_Validation(t *testing.T) {
 		{"same number twice", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: sp, Contacts: []domain.FarmContact{{Phone: "690123456", WhatsApp: true}, {Phone: "+237 6 90 12 34 56"}}}},
 		{"over the default contact limit", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: sp, Contacts: []domain.FarmContact{{Phone: "690000001"}, {Phone: "690000002"}, {Phone: "690000003"}, {Phone: "690000004"}}}},
 		{"no species", CreateFarmInput{Name: "Ferme", Location: "Douala"}},
-		{"a species the catalog doesn't offer", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: []string{"poussins", "licornes"}}},
+		{"a species the catalog doesn't offer", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: []string{"chicks", "licornes"}}},
 		{"description too long", CreateFarmInput{Name: "Ferme", Location: "Douala", Species: sp, Description: strings.Repeat("é", domain.MaxFarmDescriptionLen+1)}},
 	}
 	for _, tt := range tests {

@@ -183,7 +183,7 @@ const SCHEMA_PATH: Record<Entity, readonly string[]> = {
               <div class="grid gap-3 sm:grid-cols-2">
                 <label class="flex flex-col gap-1">
                   <span class="text-small font-semibold">{{ 'adminReference.field.unitFr' | t }}</span>
-                  <input class="bo-input" placeholder="poussin" [ngModel]="f.unitFr" (ngModelChange)="setUnitFr($event)" />
+                  <input class="bo-input" placeholder="chick" [ngModel]="f.unitFr" (ngModelChange)="setUnitFr($event)" />
                 </label>
                 <label class="flex flex-col gap-1">
                   <span class="text-small font-semibold">{{ 'adminReference.field.unitEn' | t }}</span>
@@ -525,9 +525,9 @@ function emptyForm(): Form {
     autoKey: true,
     fr: '',
     en: '',
-    icon: 'poule',
+    icon: 'hen',
     color: 'stone',
-    cycleType: 'elevage',
+    cycleType: 'rearing',
     unitKey: '',
     unitAutoKey: true,
     unitFr: '',
@@ -538,8 +538,8 @@ function emptyForm(): Form {
     parent: '',
     kindFr: '',
     kindEn: '',
-    kindCycle: 'elevage',
-    kindIcon: 'poule',
+    kindCycle: 'rearing',
+    kindIcon: 'hen',
     kindUnitFr: '',
     kindUnitEn: ''
   };

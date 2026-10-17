@@ -446,7 +446,7 @@ func newTestRouterAndFakes() (http.Handler, *testFakes) {
 			Versions: tf.catalogVersions, Pending: &fakeChangesetRepo{}, Clock: tf.clock,
 			Publish: &catalogusecase.Publish{Repo: tf.catalogVersions, Clock: tf.clock},
 		},
-		CatalogUsage: fakeUsage{"species:poussins": 4},
+		CatalogUsage: fakeUsage{"species:chicks": 4},
 		AdminGetReportDetail: &admin.GetReportDetail{
 			Reports: tf.reports, Users: tf.users, Listings: tf.listings, Cycles: tf.cycles, Farms: tf.farms,
 			Search: search, Clock: tf.clock,

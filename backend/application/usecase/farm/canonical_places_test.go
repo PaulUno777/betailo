@@ -20,10 +20,10 @@ func TestCanonicalizePlaces_GivesOldFarmsTheCatalogKeys(t *testing.T) {
 	if err != nil || n != 2 {
 		t.Fatalf("CanonicalizePlaces = %d, %v; want the two Cameroonian farms rewritten", n, err)
 	}
-	if old.Region != "ouest" || old.Location != "bafoussam" {
+	if old.Region != "west" || old.Location != "bafoussam" {
 		t.Errorf("listed town: %s/%s, want ouest/bafoussam", old.Region, old.Location)
 	}
-	if unlisted.Region != "ouest" || unlisted.Location != "Bamendjou" {
+	if unlisted.Region != "west" || unlisted.Location != "Bamendjou" {
 		t.Errorf("unlisted town: %s/%s, want ouest/Bamendjou", unlisted.Region, unlisted.Location)
 	}
 	if abroad.Region != "Estuaire" || abroad.Location != "Libreville" {

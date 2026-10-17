@@ -37,7 +37,7 @@ describe('PlaceFieldsComponent', () => {
     expect(options(region)).toContain('Far North');
     expect(texts().length).toBe(1); // no region yet: the town is typed
 
-    await pick(fixture, region, 'extreme-nord');
+    await pick(fixture, region, 'far-north');
     const town = selects()[2];
     expect(options(town)).toEqual(['Pick your town', 'Kousseri', 'Another town or village…']);
 
@@ -47,18 +47,18 @@ describe('PlaceFieldsComponent', () => {
   });
 
   it('types a town the list doesn’t have under "another town"', async () => {
-    const { fixture, selects, texts } = render('ouest', 'bafoussam');
+    const { fixture, selects, texts } = render('west', 'bafoussam');
     await pick(fixture, selects()[2], '__other__');
     expect(fixture.componentInstance.location()).toBe('');
     expect(texts().length).toBe(1);
   });
 
   it('opens a farm with a typed town on "another town", and a listed town fills its region', async () => {
-    const typed = render('ouest', 'Bamendjou');
+    const typed = render('west', 'Bamendjou');
     await typed.fixture.whenStable();
     typed.fixture.detectChanges();
     expect(typed.texts().map((i) => i.value)).toEqual(['Bamendjou']);
     const { fixture } = render('', 'kousseri');
-    expect(fixture.componentInstance.region()).toBe('extreme-nord');
+    expect(fixture.componentInstance.region()).toBe('far-north');
   });
 });

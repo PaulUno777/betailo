@@ -58,7 +58,7 @@ export function changedFields(original: Record<string, unknown>, edited: Record<
   return Object.keys(out).length ? out : null;
 }
 
-/** The stable id of an entry, for marks and usage: "subcategory:poussins",
+/** The stable id of an entry, for marks and usage: "subcategory:chicks",
  * "city:CM:bafoussam", "term:reviewTags:on_time". */
 export function refId(ref: CatalogRef): string {
   switch (ref.entity) {

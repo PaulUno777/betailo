@@ -68,7 +68,7 @@ describe('reference editor flows', () => {
     // Answer everything the page asks for: a pending request keeps
     // Angular from settling.
     http.match(`${API}/reference`).forEach((r) => r.flush(TEST_CATALOG));
-    http.match(`${API}/admin/reference/usage`).forEach((r) => r.flush({ 'species:poussins': 7 }));
+    http.match(`${API}/admin/reference/usage`).forEach((r) => r.flush({ 'species:chicks': 7 }));
     http.match(`${API}/admin/reference/versions`).forEach((r) => r.flush([]));
     fixture.detectChanges();
     await fixture.whenStable();
@@ -92,7 +92,7 @@ describe('reference editor flows', () => {
 
     button('Deactivate', el.querySelector('section')!).click();
     const req = http.expectOne(`${API}/admin/reference/changeset/ops`);
-    expect(req.request.body).toEqual({ rev: 0, ops: [{ kind: 'update', ref: { entity: 'category', key: 'volaille' }, value: { active: false } }] });
+    expect(req.request.body).toEqual({ rev: 0, ops: [{ kind: 'update', ref: { entity: 'category', key: 'poultry' }, value: { active: false } }] });
     const change: Change = { id: 'c1', op: req.request.body.ops[0], before: { active: true }, by: { id: 'u', name: 'Awa' }, at: '2026-10-15T10:00:00Z' };
     req.flush(changeset(1, [change]));
     await settle();
@@ -126,8 +126,8 @@ describe('reference editor flows', () => {
     queue().click();
     const req = http.expectOne(`${API}/admin/reference/changeset/ops`);
     expect(req.request.body.ops.map((o: { ref: { parent: string }; value: { key: string } }) => [o.ref.parent, o.value.key])).toEqual([
-      ['volaille', 'oies'],
-      ['volaille', 'cailles-japonaises']
+      ['poultry', 'oies'],
+      ['poultry', 'cailles-japonaises']
     ]);
     req.flush(changeset(1));
     await settle();
@@ -145,7 +145,7 @@ describe('reference editor flows', () => {
     await settle();
     button('Save to the changes', drawer).click();
     const req = http.expectOne(`${API}/admin/reference/changeset/ops`);
-    expect(req.request.body.ops).toEqual([{ kind: 'update', ref: { entity: 'category', key: 'volaille' }, value: { label: { fr: 'Volaille', en: 'Fowl' } } }]);
+    expect(req.request.body.ops).toEqual([{ kind: 'update', ref: { entity: 'category', key: 'poultry' }, value: { label: { fr: 'Volaille', en: 'Fowl' } } }]);
     req.flush(changeset(1));
     await settle();
   });

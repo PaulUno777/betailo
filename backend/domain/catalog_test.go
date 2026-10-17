@@ -44,17 +44,17 @@ func TestCatalog_Validate_ReportsEveryProblem(t *testing.T) {
 
 func TestCatalog_Lookups(t *testing.T) {
 	c := SeedCatalog()
-	if s, err := c.SpeciesByKey("porcs"); err != nil || s.Unit.Key != "porcelet" {
+	if s, err := c.SpeciesByKey("piglets"); err != nil || s.Unit.Key != "piglet" {
 		t.Errorf("SpeciesByKey(porcs) = %+v, %v", s, err)
 	}
-	if _, err := c.SpeciesByKey("veaux"); !errors.Is(err, ErrInvalid) {
+	if _, err := c.SpeciesByKey("calves"); !errors.Is(err, ErrInvalid) {
 		t.Errorf("a sub-category of an inactive category is offered: %v", err)
 	}
 	c.Categories[0].Subcategories[0].Active = false
 	if _, err := c.SpeciesByKey(c.Categories[0].Subcategories[0].Key); !errors.Is(err, ErrInvalid) {
 		t.Errorf("an inactive sub-category is still offered: %v", err)
 	}
-	if got := c.SpeciesOf("caprins"); !slices.Equal(got, []string{"chevres", "chevreaux"}) {
+	if got := c.SpeciesOf("caprine"); !slices.Equal(got, []string{"goats", "kids"}) {
 		t.Errorf("SpeciesOf(caprins) = %v", got)
 	}
 
@@ -66,7 +66,7 @@ func TestCatalog_Lookups(t *testing.T) {
 	}
 
 	cm, _ := c.Country("cm")
-	for in, want := range map[string]string{"Extrême-Nord": "extreme-nord", "far north": "extreme-nord", "  OUEST ": "ouest", "North West": "nord-ouest", "nord-ouest": "nord-ouest", "": ""} {
+	for in, want := range map[string]string{"Extrême-Nord": "far-north", "far north": "far-north", "  OUEST ": "west", "North West": "north-west", "north-west": "north-west", "": ""} {
 		if got, err := cm.CanonicalRegion(in); err != nil || got != want {
 			t.Errorf("CanonicalRegion(%q) = %q, %v; want %q", in, got, err, want)
 		}
@@ -91,7 +91,7 @@ func TestCatalogRemovals(t *testing.T) {
 	next.Countries = slices.Delete(next.Countries, 1, 2)
 
 	got := CatalogRemovals(prev, next)
-	want := []string{"subcategory poussins", "category porcins", "subcategory porcs", "subcategory porcs-charcutiers", "subcategory porcs-reproducteurs", "country CM region sud-ouest", "country " + prev.Countries[1].Code}
+	want := []string{"subcategory chicks", "category swine", "subcategory piglets", "subcategory finishing-pigs", "subcategory breeding-pigs", "country CM region south-west", "country " + prev.Countries[1].Code}
 	// The region's towns go with it.
 	for _, city := range prev.Countries[0].Regions[len(prev.Countries[0].Regions)-1].Cities {
 		want = append(want, "country CM city "+city.Key)
@@ -109,25 +109,25 @@ func TestCatalogRemovals(t *testing.T) {
 func TestCatalogCountry_CanonicalCity(t *testing.T) {
 	cm, _ := SeedCatalog().Country("CM")
 	for _, tc := range []struct{ region, town, city, wantRegion string }{
-		{"ouest", "Bafoussam", "bafoussam", "ouest"},
-		{"", "ngaoundere", "ngaoundere", "adamaoua"},       // the town settles the region
+		{"west", "Bafoussam", "bafoussam", "west"},
+		{"", "ngaoundere", "ngaoundere", "adamawa"},        // the town settles the region
 		{"littoral", "  EDEA ", "edea", "littoral"},        // accents and case don't matter
 		{"littoral", "Bafoussam", "Bafoussam", "littoral"}, // listed elsewhere: kept as typed
-		{"ouest", "Bamendjou", "Bamendjou", "ouest"},       // not listed: kept as typed
+		{"west", "Bamendjou", "Bamendjou", "west"},         // not listed: kept as typed
 	} {
 		city, region, err := cm.CanonicalCity(tc.region, tc.town)
 		if err != nil || city != tc.city || region != tc.wantRegion {
 			t.Errorf("CanonicalCity(%q, %q) = %q, %q, %v; want %q, %q", tc.region, tc.town, city, region, err, tc.city, tc.wantRegion)
 		}
 	}
-	if _, _, err := cm.CanonicalCity("ouest", strings.Repeat("x", MaxTownLen+1)); !errors.Is(err, ErrInvalid) {
+	if _, _, err := cm.CanonicalCity("west", strings.Repeat("x", MaxTownLen+1)); !errors.Is(err, ErrInvalid) {
 		t.Errorf("long town: err = %v", err)
 	}
 }
 
 func TestCatalog_PlaceKeys_FindsKeysFromEitherLanguage(t *testing.T) {
 	c := SeedCatalog()
-	if got := c.PlaceKeys("far north"); !slices.Equal(got, []string{"extreme-nord"}) {
+	if got := c.PlaceKeys("far north"); !slices.Equal(got, []string{"far-north"}) {
 		t.Errorf("PlaceKeys(far north) = %v", got)
 	}
 	if got := c.PlaceKeys("Yaoundé"); !slices.Equal(got, []string{"yaounde"}) {
@@ -137,7 +137,7 @@ func TestCatalog_PlaceKeys_FindsKeysFromEitherLanguage(t *testing.T) {
 
 func TestLabel_ReadsAPlainStringAsEveryLanguage(t *testing.T) {
 	var r CatalogRegion
-	if err := json.Unmarshal([]byte(`{"key":"ouest","label":"Ouest","active":true}`), &r); err != nil {
+	if err := json.Unmarshal([]byte(`{"key":"west","label":"Ouest","active":true}`), &r); err != nil {
 		t.Fatal(err)
 	}
 	if r.Label != (Label{FR: "Ouest", EN: "Ouest"}) {
@@ -150,9 +150,25 @@ func TestCatalog_Validate_RequiresKnownIcons(t *testing.T) {
 	c.Categories[0].Icon = "dragon"
 	c.Categories[1].Subcategories[0].Icon = ""
 	err := c.Validate()
-	for _, want := range []string{`category volaille: icon "dragon"`, `subcategory porcs: icon ""`} {
+	for _, want := range []string{`category poultry: icon "dragon"`, `subcategory piglets: icon ""`} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Validate() = %v, want it to mention %s", err, want)
 		}
+	}
+}
+
+func TestCatalog_SpeciesKeys_MatchesNamesInBothLanguages(t *testing.T) {
+	c := SeedCatalog()
+	if got := c.SpeciesKeys("poussins"); !slices.Contains(got, "chicks") {
+		t.Errorf(`SpeciesKeys("poussins") = %v, want chicks`, got)
+	}
+	if got := c.SpeciesKeys("oeufs"); !slices.Contains(got, "table-eggs") || !slices.Contains(got, "fertile-eggs") {
+		t.Errorf(`SpeciesKeys("oeufs") = %v, want both kinds of eggs`, got)
+	}
+	if got := c.SpeciesKeys("volaille"); len(got) != len(c.Categories[0].Subcategories) {
+		t.Errorf(`SpeciesKeys("volaille") = %v, want every poultry species`, got)
+	}
+	if got := c.SpeciesKeys("licorne"); got != nil {
+		t.Errorf(`SpeciesKeys("licorne") = %v, want none`, got)
 	}
 }

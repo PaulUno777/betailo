@@ -14,11 +14,11 @@ func setupListing(t *testing.T, router http.Handler, capacity int) (listingID, f
 	t.Helper()
 	farmerToken, _ = registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poussins"}}, farmerToken)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme des Collines", Location: "Dschang", Species: []string{"chicks"}}, farmerToken)
 	farmOut := decodeJSON[farmResponse](t, farmRec)
 
 	cycleRec := doJSON(t, router, http.MethodPost, "/cycles", createCycleRequest{
-		FarmID: farmOut.ID, Species: "poussins", Type: "couvee", Capacity: capacity, StartsAt: time.Now().Add(24 * time.Hour),
+		FarmID: farmOut.ID, Species: "chicks", Type: "hatching", Capacity: capacity, StartsAt: time.Now().Add(24 * time.Hour),
 	}, farmerToken)
 	cycleOut := decodeJSON[cycleResponse](t, cycleRec)
 

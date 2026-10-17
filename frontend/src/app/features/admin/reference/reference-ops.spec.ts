@@ -12,7 +12,7 @@ describe('reference-ops', () => {
   });
 
   it('sends only the fields an edit changed', () => {
-    const before = { label: { fr: 'Volaille', en: 'Poultry' }, icon: 'poule', active: true };
+    const before = { label: { fr: 'Volaille', en: 'Poultry' }, icon: 'hen', active: true };
     expect(changedFields(before, { ...before, label: { fr: 'Volaille', en: 'Fowl' } })).toEqual({ label: { fr: 'Volaille', en: 'Fowl' } });
     expect(changedFields(before, { ...before })).toBeNull();
   });

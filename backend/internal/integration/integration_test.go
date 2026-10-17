@@ -120,18 +120,18 @@ func (e *env) seed(t *testing.T, capacity int) (farmer *domain.User, cycle *doma
 	if err := e.users.Create(ctx, farmer); err != nil {
 		t.Fatalf("create farmer: %v", err)
 	}
-	farm := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer.ID, Name: "Ferme des Collines", Location: "Dschang", Species: []string{"poussins"}, CreatedAt: now, Status: domain.FarmApproved}
+	farm := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer.ID, Name: "Ferme des Collines", Location: "Dschang", Species: []string{"chicks"}, CreatedAt: now, Status: domain.FarmApproved}
 	if err := e.farms.Create(ctx, farm); err != nil {
 		t.Fatalf("create farm: %v", err)
 	}
 	cycle = &domain.Cycle{
-		ID: bson.NewObjectID(), FarmID: farm.ID, Species: "poussins", Type: "couvee", Status: domain.CycleStatusInProgress,
+		ID: bson.NewObjectID(), FarmID: farm.ID, Species: "chicks", Type: "hatching", Status: domain.CycleStatusInProgress,
 		Capacity: capacity, AvailableQuantity: capacity, StartsAt: now.Add(24 * time.Hour),
 	}
 	if err := e.cycles.Create(ctx, cycle); err != nil {
 		t.Fatalf("create cycle: %v", err)
 	}
-	listing = &domain.Listing{ID: bson.NewObjectID(), CycleID: &cycle.ID, Title: "Poussins Brahma", UnitPrice: 2500, Unit: "poussin", Status: domain.ListingPublished}
+	listing = &domain.Listing{ID: bson.NewObjectID(), CycleID: &cycle.ID, Title: "Poussins Brahma", UnitPrice: 2500, Unit: "chick", Status: domain.ListingPublished}
 	if err := e.listings.Create(ctx, listing); err != nil {
 		t.Fatalf("create listing: %v", err)
 	}
@@ -375,9 +375,9 @@ func TestWorker_TickAdvancesCyclesClosesUnpaidAndDrainsOutbox(t *testing.T) {
 	// One planned cycle that should have started, one in-progress cycle
 	// that should have ended.
 	farmID := cycle.FarmID
-	toStart := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porcs", Type: "engraissement", Status: domain.CycleStatusPlanned, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-time.Hour)}
+	toStart := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "piglets", Type: "fattening", Status: domain.CycleStatusPlanned, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-time.Hour)}
 	ended := now.Add(-time.Minute)
-	toEnd := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "porcs", Type: "engraissement", Status: domain.CycleStatusInProgress, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-48 * time.Hour), EndsAt: &ended}
+	toEnd := &domain.Cycle{ID: bson.NewObjectID(), FarmID: farmID, Species: "piglets", Type: "fattening", Status: domain.CycleStatusInProgress, Capacity: 10, AvailableQuantity: 10, StartsAt: now.Add(-48 * time.Hour), EndsAt: &ended}
 	for _, c := range []*domain.Cycle{toStart, toEnd} {
 		if err := e.cycles.Create(ctx, c); err != nil {
 			t.Fatal(err)
@@ -695,20 +695,20 @@ func TestListingSearch_PublishedPricesBySpeciesAndRegion(t *testing.T) {
 	_ = e.users.Create(ctx, farmer2)
 	f2 := &domain.Farm{ID: bson.NewObjectID(), OwnerID: farmer2.ID, Name: "B", Location: "Douala", CreatedAt: time.Now(), Status: domain.FarmApproved}
 	_ = e.farms.Create(ctx, f2)
-	c2 := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f2.ID, Species: "poussins", Type: "couvee", Status: domain.CycleStatusInProgress, Capacity: 5, AvailableQuantity: 5, StartsAt: time.Now()}
+	c2 := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f2.ID, Species: "chicks", Type: "hatching", Status: domain.CycleStatusInProgress, Capacity: 5, AvailableQuantity: 5, StartsAt: time.Now()}
 	_ = e.cycles.Create(ctx, c2)
 	_ = e.listings.Create(ctx, &domain.Listing{ID: bson.NewObjectID(), CycleID: &c2.ID, Title: "x", UnitPrice: 3000, Status: domain.ListingPublished})
 	_ = e.listings.Create(ctx, &domain.Listing{ID: bson.NewObjectID(), CycleID: &c2.ID, Title: "draft", UnitPrice: 99999, Status: domain.ListingDraft})
 
-	all, err := e.listings.PublishedPrices(ctx, "poussins", "", 10)
+	all, err := e.listings.PublishedPrices(ctx, "chicks", "", 10)
 	if err != nil || len(all) != 2 {
 		t.Fatalf("all regions = %v, %v; want the two published prices (not the draft)", all, err)
 	}
-	douala, _ := e.listings.PublishedPrices(ctx, "poussins", "douala", 10)
+	douala, _ := e.listings.PublishedPrices(ctx, "chicks", "douala", 10)
 	if len(douala) != 1 || douala[0] != 3000 {
 		t.Fatalf("Douala = %v, want [3000]", douala)
 	}
-	if none, _ := e.listings.PublishedPrices(ctx, "porcs", "", 10); len(none) != 0 {
+	if none, _ := e.listings.PublishedPrices(ctx, "piglets", "", 10); len(none) != 0 {
 		t.Fatalf("other species = %v, want none", none)
 	}
 }
@@ -733,8 +733,8 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 		return f
 	}
 	// Farms store the catalog's keys for a listed region and town.
-	ouest, littoral := farm("dschang", "ouest"), farm("douala", "littoral")
-	bafoussam := farm("bafoussam", "ouest")
+	ouest, littoral := farm("dschang", "west"), farm("douala", "littoral")
+	bafoussam := farm("bafoussam", "west")
 
 	list := func(f *domain.Farm, species, typ string, status domain.CycleStatus, price float64, starts time.Time) {
 		c := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f.ID, Species: species, Type: typ, Status: status, Capacity: 10, AvailableQuantity: 10, StartsAt: starts}
@@ -746,11 +746,11 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	list(ouest, "poussins", "couvee", domain.CycleStatusInProgress, 800, now)
-	list(ouest, "porcs", "engraissement", domain.CycleStatusPlanned, 30000, now.AddDate(0, 2, 0))
-	list(littoral, "poussins", "Couvee", domain.CycleStatusPlanned, 900, now)
-	list(littoral, "poussins", "couvee", domain.CycleStatusDone, 700, now.AddDate(0, -2, 0))
-	list(bafoussam, "lapereaux", "engraissement", domain.CycleStatusPlanned, 5000, now)
+	list(ouest, "chicks", "hatching", domain.CycleStatusInProgress, 800, now)
+	list(ouest, "piglets", "fattening", domain.CycleStatusPlanned, 30000, now.AddDate(0, 2, 0))
+	list(littoral, "chicks", "Hatching", domain.CycleStatusPlanned, 900, now)
+	list(littoral, "chicks", "hatching", domain.CycleStatusDone, 700, now.AddDate(0, -2, 0))
+	list(bafoussam, "young-rabbits", "fattening", domain.CycleStatusPlanned, 5000, now)
 
 	search := func(c ports.ListingSearchCriteria) ports.ListingSearchResult {
 		t.Helper()
@@ -772,8 +772,8 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 	if all.Total != 4 {
 		t.Fatalf("default total = %d, want 4 (the done cycle is hidden)", all.Total)
 	}
-	if got := counts(all.Facets.CycleTypes); got["couvee"] != 2 {
-		t.Errorf("type facet = %v, want couvee:2 (case folded)", got)
+	if got := counts(all.Facets.CycleTypes); got["hatching"] != 2 {
+		t.Errorf("type facet = %v, want hatching:2 (case folded)", got)
 	}
 	if len(all.Facets.Cities) != 3 {
 		t.Errorf("town facet = %v, want dschang, douala and bafoussam", all.Facets.Cities)
@@ -782,29 +782,34 @@ func TestListingSearch_FiltersAndFacets(t *testing.T) {
 		t.Errorf("price range = %v..%v, want 800..30000", all.Facets.PriceMin, all.Facets.PriceMax)
 	}
 
-	poussins := search(ports.ListingSearchCriteria{Species: []string{"poussins"}})
+	poussins := search(ports.ListingSearchCriteria{Species: []string{"chicks"}})
 	if poussins.Total != 2 {
 		t.Errorf("species total = %d, want 2", poussins.Total)
 	}
-	if got := counts(poussins.Facets.Species); got["porcs"] != 1 || got["poussins"] != 2 {
+	if got := counts(poussins.Facets.Species); got["piglets"] != 1 || got["chicks"] != 2 {
 		t.Errorf("species facet with a species picked = %v, want the other species still counted", got)
 	}
 
-	inOuest := search(ports.ListingSearchCriteria{Country: "CM", Region: "ouest"})
+	inOuest := search(ports.ListingSearchCriteria{Country: "CM", Region: "west"})
 	if inOuest.Total != 3 || len(inOuest.Facets.Regions) != 2 || len(inOuest.Facets.Cities) != 2 {
 		t.Errorf("region filter: total %d, regions %v, towns %v; want 3 lots, both regions and the region's two towns", inOuest.Total, inOuest.Facets.Regions, inOuest.Facets.Cities)
 	}
 
-	inDschang := search(ports.ListingSearchCriteria{Country: "CM", Region: "ouest", City: "dschang"})
+	inDschang := search(ports.ListingSearchCriteria{Country: "CM", Region: "west", City: "dschang"})
 	if inDschang.Total != 2 || len(inDschang.Facets.Cities) != 2 || len(inDschang.Facets.Regions) != 2 {
 		t.Errorf("town filter: total %d, towns %v, regions %v; want 2 lots, the other town and both regions still offered", inDschang.Total, inDschang.Facets.Cities, inDschang.Facets.Regions)
 	}
 
-	if got := search(ports.ListingSearchCriteria{Query: "poussins Douala"}).Total; got != 1 {
-		t.Errorf("query by species and town = %d, want 1", got)
+	if got := search(ports.ListingSearchCriteria{Query: "chicks Douala"}).Total; got != 1 {
+		t.Errorf("query by species key and town = %d, want 1", got)
 	}
-	// "West" is the English name of the region the key "ouest" stands for.
-	if got := search(ports.ListingSearchCriteria{Query: "West", QueryPlaces: [][]string{{"ouest", "nord-ouest", "sud-ouest"}}}).Total; got != 3 {
+	// A French species name finds the English key (SearchListings fills
+	// QuerySpecies from the catalog's labels).
+	if got := search(ports.ListingSearchCriteria{Query: "poussins douala", QuerySpecies: [][]string{{"chicks"}, nil}}).Total; got != 1 {
+		t.Errorf("query by French species name = %d, want 1", got)
+	}
+	// "West" is the English name of the region the key "west" stands for.
+	if got := search(ports.ListingSearchCriteria{Query: "West", QueryPlaces: [][]string{{"west", "north-west", "south-west"}}}).Total; got != 3 {
 		t.Errorf("query by the region's English name = %d, want 3", got)
 	}
 
@@ -934,17 +939,17 @@ func TestCatalogChangeset_RevisionGuardsConcurrentWrites(t *testing.T) {
 			Kind: domain.OpUpdate, Ref: domain.CatalogRef{Entity: domain.EntityCategory, Key: key}, Value: json.RawMessage(`{"active":false}`),
 		}}
 	}
-	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: []domain.CatalogChange{change("ovins")}}, 0); err != nil {
+	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: []domain.CatalogChange{change("ovine")}}, 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: []domain.CatalogChange{change("lapins")}}, 0); !errors.Is(err, domain.ErrConflict) {
+	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: []domain.CatalogChange{change("rabbits")}}, 0); !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("second write from rev 0: %v, want a conflict", err)
 	}
 	cs, err := repo.Get(ctx)
-	if err != nil || cs.Rev != 1 || len(cs.Changes) != 1 || cs.Changes[0].Op.Ref.Key != "ovins" {
+	if err != nil || cs.Rev != 1 || len(cs.Changes) != 1 || cs.Changes[0].Op.Ref.Key != "ovine" {
 		t.Fatalf("changeset = %+v, %v", cs, err)
 	}
-	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: append(cs.Changes, change("lapins"))}, 1); err != nil {
+	if err := repo.Save(ctx, &domain.CatalogChangeset{Changes: append(cs.Changes, change("rabbits"))}, 1); err != nil {
 		t.Fatal(err)
 	}
 	if cs, _ := repo.Get(ctx); cs.Rev != 2 || len(cs.Changes) != 2 {
@@ -961,7 +966,7 @@ func TestCatalogUsage_CountsWhatUsesEachKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The seeded farm names no country: its town counts under "city::".
-	if usage["species:poussins"] < 1 || usage["city::Dschang"] != 1 {
+	if usage["species:chicks"] < 1 || usage["city::Dschang"] != 1 {
 		t.Errorf("usage = %v, want the seeded cycle and farm counted", usage)
 	}
 }

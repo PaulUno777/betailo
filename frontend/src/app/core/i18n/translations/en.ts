@@ -1452,11 +1452,11 @@ export const en: TranslationDictionary = {
     townOther: 'Name of the town or village'
   },
   cycleTypes: {
-    couvee: 'Hatching',
-    engraissement: 'Fattening',
-    ponte: 'Laying',
-    reproduction: 'Breeding',
-    elevage: 'Rearing'
+    hatching: 'Hatching',
+    fattening: 'Fattening',
+    laying: 'Laying',
+    breeding: 'Breeding',
+    rearing: 'Rearing'
   },
   staffRole: {
     super_admin: 'Super admin',

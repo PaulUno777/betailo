@@ -20,12 +20,14 @@ const MaxRegionLen = 60
 const MaxTownLen = 60
 
 // foldKey lowercases s and strips its accents, so "Extrême-Nord",
-// "extreme-nord" and "EXTREME-NORD" compare equal.
+// "far-north" and "FAR-NORTH" compare equal.
 func foldKey(s string) string {
 	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-	out, _, err := transform.String(t, strings.ToLower(strings.TrimSpace(s)))
+	// Ligatures don't decompose: "œufs" and "oeufs" must still meet.
+	s = strings.NewReplacer("œ", "oe", "æ", "ae").Replace(strings.ToLower(strings.TrimSpace(s)))
+	out, _, err := transform.String(t, s)
 	if err != nil {
-		return strings.ToLower(strings.TrimSpace(s))
+		return s
 	}
 	return out
 }

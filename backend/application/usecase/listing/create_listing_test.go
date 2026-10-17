@@ -14,7 +14,7 @@ func newListingFixture(t *testing.T) (*fakeFarms, *fakeCycles, bson.ObjectID, *d
 	t.Helper()
 	owner := bson.NewObjectID()
 	f := &domain.Farm{ID: bson.NewObjectID(), OwnerID: owner, Name: "Ferme", Location: "Douala", Status: domain.FarmApproved}
-	c := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f.ID, Species: "poussins", Status: domain.CycleStatusPlanned, Capacity: 10, AvailableQuantity: 10}
+	c := &domain.Cycle{ID: bson.NewObjectID(), FarmID: f.ID, Species: "chicks", Status: domain.CycleStatusPlanned, Capacity: 10, AvailableQuantity: 10}
 	return newFakeFarms(f), newFakeCycles(c), owner, c
 }
 

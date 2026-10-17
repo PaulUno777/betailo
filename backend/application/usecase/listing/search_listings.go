@@ -36,11 +36,13 @@ func (uc *SearchListings) Execute(ctx context.Context, criteria ports.ListingSea
 			criteria.Species = expandCategories(cat, criteria.Categories, criteria.Species)
 			criteria.Categories = nil
 		}
-		// Farms store region and town keys: each word also finds the
-		// places whose name, in either language, contains it.
-		criteria.QueryPlaces = nil
+		// Farms store region and town keys, cycles species keys: each
+		// word also finds those whose name, in either language,
+		// contains it.
+		criteria.QueryPlaces, criteria.QuerySpecies = nil, nil
 		for _, word := range strings.Fields(criteria.Query) {
 			criteria.QueryPlaces = append(criteria.QueryPlaces, cat.PlaceKeys(word))
+			criteria.QuerySpecies = append(criteria.QuerySpecies, cat.SpeciesKeys(word))
 		}
 	}
 	result, err := uc.Search.Search(ctx, criteria)

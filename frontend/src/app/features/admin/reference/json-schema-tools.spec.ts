@@ -15,7 +15,7 @@ const SCHEMA: JsonSchema = {
         required: ['key', 'icon', 'active'],
         properties: {
           key: { type: 'string', pattern: '^[a-z]+$', description: 'Stable key' },
-          icon: { type: 'string', enum: ['poule', 'porc'], description: 'The drawing' },
+          icon: { type: 'string', enum: ['hen', 'pig'], description: 'The drawing' },
           active: { type: 'boolean' }
         }
       }
@@ -33,8 +33,8 @@ function stateOf(text: string): EditorState {
 
 const DOC = `{
   "categories": [
-    { "key": "volaille", "icon": "poule", "active": true },
-    { "key": "porcins", "icon": "dragon", "active": true }
+    { "key": "poultry", "icon": "hen", "active": true },
+    { "key": "swine", "icon": "dragon", "active": true }
   ]
 }`;
 
@@ -44,7 +44,7 @@ describe('json-schema-tools', () => {
     const slice = (n: { from: number; to: number } | null) => (n ? state.sliceDoc(n.from, n.to) : null);
     expect(slice(nodeAt(state, ['categories', 1, 'icon']))).toBe('"dragon"');
     expect(slice(nodeAt(state, ['categories', 1, 'icon'], true))).toBe('"icon"');
-    expect(slice(nodeAt(state, ['categories', 1, 'missing']))!.startsWith('{ "key": "porcins"')).toBeTrue();
+    expect(slice(nodeAt(state, ['categories', 1, 'missing']))!.startsWith('{ "key": "swine"')).toBeTrue();
   });
 
   it('knows the path at the cursor, and whether a name goes there', () => {
@@ -63,22 +63,22 @@ describe('json-schema-tools', () => {
     const [d] = schemaProblems(state, errors, SCHEMA, t);
     expect(state.sliceDoc(d.from, d.to)).toBe('"dragon"');
     expect(d.message).toContain('adminReference.problem.enum');
-    expect(d.message).toContain('poule, porc');
+    expect(d.message).toContain('hen, pig');
   });
 
   it('flags a key used twice and a published key that disappeared', () => {
-    const doc = `{ "categories": [ { "key": "volaille", "subcategories": [ { "key": "volaille" } ] } ], "forumCategories": [] }`;
-    const base = { categories: [{ key: 'volaille', subcategories: [] }], forumCategories: [{ key: 'sante' }] };
+    const doc = `{ "categories": [ { "key": "poultry", "subcategories": [ { "key": "poultry" } ] } ], "forumCategories": [] }`;
+    const base = { categories: [{ key: 'poultry', subcategories: [] }], forumCategories: [{ key: 'health' }] };
     const problems = catalogProblems(stateOf(doc), JSON.parse(doc), base, t);
     expect(problems.filter((p) => p.message.includes('problem.duplicate')).length).toBe(2);
-    expect(problems.some((p) => p.message.includes('problem.removed') && p.message.includes('sante'))).toBeTrue();
+    expect(problems.some((p) => p.message.includes('problem.removed') && p.message.includes('health'))).toBeTrue();
   });
 
   it('completes the allowed values and the properties an object still lacks', () => {
     const complete = schemaCompletions(() => SCHEMA);
     const valueDoc = '{ "categories": [ { "key": "x", "icon": "po" } ] }';
     const value = complete(new CompletionContext(stateOf(valueDoc), valueDoc.indexOf('"po"') + 3, true));
-    expect(value!.options.map((o) => o.label)).toEqual(['"poule"', '"porc"']);
+    expect(value!.options.map((o) => o.label)).toEqual(['"hen"', '"pig"']);
 
     const nameDoc = '{ "categories": [ { "key": "x", "" } ] }';
     const names = complete(new CompletionContext(stateOf(nameDoc), nameDoc.indexOf('""') + 1, true));

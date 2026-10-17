@@ -20,7 +20,7 @@ func TestUpdateFarm_Execute_Success(t *testing.T) {
 
 	uc := &UpdateFarm{Farms: farms}
 	got, err := uc.Execute(context.Background(), UpdateFarmInput{
-		FarmID: f.ID, OwnerID: owner, Name: "New", Location: "Yaoundé", Species: []string{"poussins"},
+		FarmID: f.ID, OwnerID: owner, Name: "New", Location: "Yaoundé", Species: []string{"chicks"},
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v, want nil", err)

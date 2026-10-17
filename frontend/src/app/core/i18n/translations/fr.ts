@@ -1451,11 +1451,11 @@ export const fr = {
     townOther: 'Nom de la ville ou du village'
   },
   cycleTypes: {
-    couvee: 'Couvée',
-    engraissement: 'Engraissement',
-    ponte: 'Ponte',
-    reproduction: 'Reproduction',
-    elevage: 'Élevage'
+    hatching: 'Couvée',
+    fattening: 'Engraissement',
+    laying: 'Ponte',
+    breeding: 'Reproduction',
+    rearing: 'Élevage'
   },
   staffRole: {
     super_admin: 'Super admin',

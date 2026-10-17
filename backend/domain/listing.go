@@ -26,7 +26,7 @@ type Listing struct {
 	Description string
 	UnitPrice   float64
 
-	// Unit is the pricing unit shown next to UnitPrice ("poussin",
+	// Unit is the pricing unit shown next to UnitPrice ("chick",
 	// "trio", "sac"...) — free text set by the farmer, not an enum: the
 	// marketplace spans too many species/units to close-list them.
 	Unit   string
