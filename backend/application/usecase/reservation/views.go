@@ -195,7 +195,7 @@ func actionsFor(v View, viewer Viewer) []Action {
 		if payment == domain.PaymentReleased && !v.Reviewed {
 			actions = append(actions, ActionReview)
 		}
-		if v.Group == domain.GroupActive && v.Farm.ContactPhone != "" {
+		if v.Group == domain.GroupActive && len(v.Farm.Contacts) > 0 {
 			actions = append(actions, ActionContact)
 		}
 	case ViewerFarmer:

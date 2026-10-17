@@ -28,12 +28,14 @@ type ListingSearchCriteria struct {
 	Statuses   []domain.CycleStatus
 	// Country, Region and City match the farm's exactly (see
 	// domain.Farm): catalog keys where the catalog lists them.
-	Country      string
-	Region       string
-	City         string
-	MinPrice     float64
-	MaxPrice     float64
-	VerifiedOnly bool
+	Country  string
+	Region   string
+	City     string
+	MinPrice float64
+	MaxPrice float64
+	// TrustedOnly keeps farms whose owner's trust score is at least
+	// domain.TrustedFarmerScore.
+	TrustedOnly bool
 	// AvailableFrom/AvailableTo keep lots open at some point in the
 	// window: started by its end, not ended before its start. Either
 	// bound may be zero.

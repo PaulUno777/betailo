@@ -16,6 +16,8 @@ import (
 type UpdateFarm struct {
 	Farms   ports.FarmRepository
 	Catalog ports.CatalogSource
+	// MaxContacts: see CreateFarm.MaxContacts.
+	MaxContacts int
 }
 
 // UpdateFarmInput is what a caller (the HTTP handler) supplies. OwnerID
@@ -30,8 +32,8 @@ type UpdateFarmInput struct {
 	Region   string
 	Species  []string
 
-	Description  string
-	ContactPhone string
+	Description string
+	Contacts    []domain.FarmContact
 }
 
 // Execute returns domain.ErrNotFound if the farm doesn't exist and
@@ -63,7 +65,12 @@ func (uc *UpdateFarm) Execute(ctx context.Context, in UpdateFarmInput) (*domain.
 	if err != nil {
 		return nil, err
 	}
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, where.Country.CallingCode)
+	description, contacts, err := normalizeProfileFields(in.Description, in.Contacts, where.Country.CallingCode, ContactLimit(uc.MaxContacts))
+	if err != nil {
+		return nil, err
+	}
+
+	species, err := normalizeSpecies(ctx, uc.Catalog, in.Species)
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +79,9 @@ func (uc *UpdateFarm) Execute(ctx context.Context, in UpdateFarmInput) (*domain.
 	f.Location = where.Town
 	f.Country = where.Country.Code
 	f.Region = where.Region
-	f.Species = in.Species
+	f.Species = species
 	f.Description = description
-	f.ContactPhone = phone
+	f.Contacts = contacts
 
 	if err := uc.Farms.Update(ctx, f); err != nil {
 		return nil, err

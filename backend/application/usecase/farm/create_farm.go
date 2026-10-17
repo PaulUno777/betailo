@@ -29,6 +29,9 @@ type CreateFarm struct {
 	// (MAX_FARMS_PER_ACCOUNT); an account's own User.FarmLimit, set by
 	// staff, takes precedence.
 	MaxFarms int
+	// MaxContacts is how many contact numbers a farm may list
+	// (MAX_FARM_CONTACTS); 0 means domain.DefaultMaxFarmContacts.
+	MaxContacts int
 	// Trust gives the new farmer their baseline trust score straight
 	// away. Without it, the score reads 0/100 until the first sale,
 	// review or report.
@@ -50,8 +53,8 @@ type CreateFarmInput struct {
 	Region   string
 	Species  []string
 
-	Description  string
-	ContactPhone string
+	Description string
+	Contacts    []domain.FarmContact
 }
 
 // CreateFarmOutput wraps the usecase's result.
@@ -74,7 +77,12 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 	if err != nil {
 		return nil, err
 	}
-	description, phone, err := normalizeProfileFields(in.Description, in.ContactPhone, where.Country.CallingCode)
+	description, contacts, err := normalizeProfileFields(in.Description, in.Contacts, where.Country.CallingCode, ContactLimit(uc.MaxContacts))
+	if err != nil {
+		return nil, err
+	}
+
+	species, err := normalizeSpecies(ctx, uc.Catalog, in.Species)
 	if err != nil {
 		return nil, err
 	}
@@ -101,11 +109,11 @@ func (uc *CreateFarm) Execute(ctx context.Context, in CreateFarmInput) (*CreateF
 		Location:  where.Town,
 		Country:   where.Country.Code,
 		Region:    where.Region,
-		Species:   in.Species,
+		Species:   species,
 		CreatedAt: uc.Clock.Now(),
 
-		Description:  description,
-		ContactPhone: phone,
+		Description: description,
+		Contacts:    contacts,
 	}
 
 	if uc.Sequencer != nil {
@@ -138,19 +146,31 @@ func FarmLimitFor(u *domain.User, platformDefault int) int {
 	return domain.DefaultMaxFarmsPerAccount
 }
 
+// ContactLimit is how many contact numbers a farm may list: the
+// platform's setting, else domain.DefaultMaxFarmContacts.
+func ContactLimit(platform int) int {
+	if platform > 0 {
+		return platform
+	}
+	return domain.DefaultMaxFarmContacts
+}
+
 // SellerAccess is what an account can do as a seller, for the client to
 // draw its menus from: the farms it owns and whether it may open
 // another. The same rule CreateFarm enforces, read here.
 type SellerAccess struct {
-	Users    ports.UserRepository
-	Farms    ports.FarmRepository
-	MaxFarms int
+	Users       ports.UserRepository
+	Farms       ports.FarmRepository
+	MaxFarms    int
+	MaxContacts int
 }
 
 type SellerAccessOutput struct {
 	Farms     []*domain.Farm
 	FarmLimit int
 	CanAdd    bool
+	// ContactLimit is how many contact numbers each farm may list.
+	ContactLimit int
 }
 
 func (uc *SellerAccess) Execute(ctx context.Context, userID bson.ObjectID) (*SellerAccessOutput, error) {
@@ -163,5 +183,5 @@ func (uc *SellerAccess) Execute(ctx context.Context, userID bson.ObjectID) (*Sel
 		return nil, err
 	}
 	limit := FarmLimitFor(u, uc.MaxFarms)
-	return &SellerAccessOutput{Farms: farms, FarmLimit: limit, CanAdd: !u.StaffRole.IsStaff() && len(farms) < limit}, nil
+	return &SellerAccessOutput{Farms: farms, FarmLimit: limit, CanAdd: !u.StaffRole.IsStaff() && len(farms) < limit, ContactLimit: ContactLimit(uc.MaxContacts)}, nil
 }

@@ -111,8 +111,8 @@ func handleSearchListings(uc *listing.SearchListings, storage ports.ObjectStorag
 			Country: strings.ToUpper(strings.TrimSpace(q.Get("country"))), Region: strings.TrimSpace(q.Get("region")),
 			City:     strings.TrimSpace(q.Get("city")),
 			MinPrice: parseFloatOr(q.Get("minPrice"), 0), MaxPrice: parseFloatOr(q.Get("maxPrice"), 0),
-			VerifiedOnly: q.Get("verifiedOnly") == "true",
-			Query:        q.Get("q"), Sort: q.Get("sort"),
+			TrustedOnly: q.Get("trustedOnly") == "true",
+			Query:       q.Get("q"), Sort: q.Get("sort"),
 			Page: parseIntOr(q.Get("page"), 1), PageSize: parseIntOr(q.Get("pageSize"), 0),
 		}
 		for _, st := range listParam(q, "status") {

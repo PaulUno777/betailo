@@ -67,10 +67,15 @@ type User struct {
 	// reservations, reviews, reports or forum posts — set by
 	// application/usecase/admin's account actions, never by the user
 	// themselves.
-	Suspended  bool
+	Suspended bool
+	// TrustScore is out of 100, recomputed by application/usecase/trust.
 	TrustScore float64
 	CreatedAt  time.Time
 }
+
+// TrustedFarmerScore is the trust score from which the marketplace's
+// "trusted farmers" filter keeps a farm's listings.
+const TrustedFarmerScore = 70
 
 // Profile field limits.
 const (

@@ -56,7 +56,7 @@ type searchRow struct {
 
 // Search implements ports.ListingSearchRepository via one aggregation:
 // join each published, unflagged listing to its cycle, farm and farm
-// owner, apply the filters that aren't facets (query, verified, dates),
+// owner, apply the filters that aren't facets (query, trusted, dates),
 // then one $facet computes the page, the total and every facet's counts
 // — each facet with all the other dimension filters but its own — in a
 // single round trip.
@@ -339,8 +339,8 @@ func commonConditions(c ports.ListingSearchCriteria) bson.A {
 		}
 		conds = append(conds, bson.M{"$or": or})
 	}
-	if c.VerifiedOnly {
-		conds = append(conds, bson.M{"farm.verification.autoApproved": bson.M{"$ne": true}})
+	if c.TrustedOnly {
+		conds = append(conds, bson.M{"owner.trustScore": bson.M{"$gte": domain.TrustedFarmerScore}})
 	}
 	if !c.AvailableTo.IsZero() {
 		conds = append(conds, bson.M{"cycle.startsAt": bson.M{"$lte": c.AvailableTo}})

@@ -17,15 +17,22 @@ import (
 type farmResponse struct {
 	ID string `json:"id"`
 	// Reference is the code staff and owners quote ("FRM-0212").
-	Reference    string   `json:"reference,omitempty"`
-	OwnerID      string   `json:"ownerId"`
-	Name         string   `json:"name"`
-	Location     string   `json:"location"`
-	Country      string   `json:"country"`
-	Region       string   `json:"region,omitempty"`
-	Species      []string `json:"species,omitempty"`
-	Description  string   `json:"description,omitempty"`
-	ContactPhone string   `json:"contactPhone,omitempty"`
+	Reference   string   `json:"reference,omitempty"`
+	OwnerID     string   `json:"ownerId"`
+	Name        string   `json:"name"`
+	Location    string   `json:"location"`
+	Country     string   `json:"country"`
+	Region      string   `json:"region,omitempty"`
+	Species     []string `json:"species,omitempty"`
+	Description string   `json:"description,omitempty"`
+	// Contacts are the farm's phone numbers, each one WhatsApp or call
+	// only; withheld from anonymous viewers of the public profile.
+	Contacts []farmContactJSON `json:"contacts"`
+	// LogoURL, LogoThumbURL and BannerURL are short-lived links to the
+	// farm's images; absent when the owner set none.
+	LogoURL      string `json:"logoUrl,omitempty"`
+	LogoThumbURL string `json:"logoThumbUrl,omitempty"`
+	BannerURL    string `json:"bannerUrl,omitempty"`
 	// Status is the farm's review state; only "approved" sells.
 	Status string `json:"status"`
 	// Review is the owner's (and staff's) view of that review. Never
@@ -58,16 +65,39 @@ type farmReviewResponse struct {
 	CanWithdraw bool `json:"canWithdraw"`
 }
 
-func toFarmResponse(f *domain.Farm) farmResponse {
+type farmContactJSON struct {
+	Phone    string `json:"phone"`
+	WhatsApp bool   `json:"whatsapp"`
+}
+
+func toFarmResponse(ctx context.Context, storage ports.ObjectStorage, f *domain.Farm) farmResponse {
+	contacts := make([]farmContactJSON, 0, len(f.Contacts))
+	for _, c := range f.Contacts {
+		contacts = append(contacts, farmContactJSON{Phone: c.Phone, WhatsApp: c.WhatsApp})
+	}
 	return farmResponse{
 		ID: f.ID.Hex(), Reference: f.Reference, OwnerID: f.OwnerID.Hex(), Name: f.Name, Location: f.Location, Country: f.Country, Region: f.Region, Species: f.Species,
-		Description: f.Description, ContactPhone: f.ContactPhone, Status: string(f.Status),
+		Description: f.Description, Contacts: contacts, Status: string(f.Status),
+		LogoURL: imageURL(ctx, storage, f.LogoKey), LogoThumbURL: avatarURL(ctx, storage, f.LogoKey), BannerURL: imageURL(ctx, storage, f.BannerKey),
 	}
 }
 
+// imageURL is a short-lived link to the full-size image at key, or ""
+// when there is none (or no storage to sign it with).
+func imageURL(ctx context.Context, storage ports.ObjectStorage, key string) string {
+	if key == "" || storage == nil {
+		return ""
+	}
+	url, err := storage.PresignDownload(ctx, key)
+	if err != nil {
+		return ""
+	}
+	return url
+}
+
 // toOwnerFarmResponse adds the review to what the owner and staff see.
-func toOwnerFarmResponse(f *domain.Farm) farmResponse {
-	out := toFarmResponse(f)
+func toOwnerFarmResponse(ctx context.Context, storage ports.ObjectStorage, f *domain.Farm) farmResponse {
+	out := toFarmResponse(ctx, storage, f)
 	v := f.Verification
 	out.Review = &farmReviewResponse{
 		SubmittedAt: v.SubmittedAt, Submissions: v.Submissions, IDDocumentType: string(v.IDDocumentType),
@@ -101,13 +131,13 @@ type farmProfileResponse struct {
 	OwnerAvatar   string    `json:"ownerAvatarUrl,omitempty"`
 }
 
-// toFarmProfileResponse withholds the contact phone from anonymous
+// toFarmProfileResponse withholds the contact numbers from anonymous
 // callers: a buyer has to sign in to call or message a farmer, which
 // keeps phone numbers out of reach of scrapers.
 func toFarmProfileResponse(ctx context.Context, storage ports.ObjectStorage, p *farmstats.Profile, signedIn bool) farmProfileResponse {
-	base := toFarmResponse(p.Farm)
+	base := toFarmResponse(ctx, storage, p.Farm)
 	if !signedIn {
-		base.ContactPhone = ""
+		base.Contacts = []farmContactJSON{}
 	}
 	return farmProfileResponse{
 		farmResponse: base,
@@ -118,16 +148,24 @@ func toFarmProfileResponse(ctx context.Context, storage ports.ObjectStorage, p *
 }
 
 type farmRequest struct {
-	Name         string   `json:"name"`
-	Location     string   `json:"location"`
-	Country      string   `json:"country,omitempty"`
-	Region       string   `json:"region,omitempty"`
-	Species      []string `json:"species,omitempty"`
-	Description  string   `json:"description,omitempty"`
-	ContactPhone string   `json:"contactPhone,omitempty"`
+	Name        string            `json:"name"`
+	Location    string            `json:"location"`
+	Country     string            `json:"country,omitempty"`
+	Region      string            `json:"region,omitempty"`
+	Species     []string          `json:"species,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Contacts    []farmContactJSON `json:"contacts,omitempty"`
 }
 
-func handleCreateFarm(uc *farm.CreateFarm) http.HandlerFunc {
+func (req farmRequest) contacts() []domain.FarmContact {
+	out := make([]domain.FarmContact, 0, len(req.Contacts))
+	for _, c := range req.Contacts {
+		out = append(out, domain.FarmContact{Phone: c.Phone, WhatsApp: c.WhatsApp})
+	}
+	return out
+}
+
+func handleCreateFarm(uc *farm.CreateFarm, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -142,13 +180,13 @@ func handleCreateFarm(uc *farm.CreateFarm) http.HandlerFunc {
 
 		out, err := uc.Execute(r.Context(), farm.CreateFarmInput{
 			OwnerID: claims.UserID, Name: req.Name, Location: req.Location, Country: req.Country, Region: req.Region, Species: req.Species,
-			Description: req.Description, ContactPhone: req.ContactPhone,
+			Description: req.Description, Contacts: req.contacts(),
 		})
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusCreated, toOwnerFarmResponse(out.Farm))
+		writeJSON(w, http.StatusCreated, toOwnerFarmResponse(r.Context(), storage, out.Farm))
 	}
 }
 
@@ -168,7 +206,7 @@ func handleGetFarmProfile(uc *farm.GetProfile, storage ports.ObjectStorage) http
 	}
 }
 
-func handleListMyFarms(uc *farm.ListMyFarms) http.HandlerFunc {
+func handleListMyFarms(uc *farm.ListMyFarms, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -182,7 +220,7 @@ func handleListMyFarms(uc *farm.ListMyFarms) http.HandlerFunc {
 		}
 		out := make([]farmResponse, 0, len(farms))
 		for _, f := range farms {
-			out = append(out, toOwnerFarmResponse(f))
+			out = append(out, toOwnerFarmResponse(r.Context(), storage, f))
 		}
 		writeJSON(w, http.StatusOK, out)
 	}
@@ -215,7 +253,7 @@ func handleListMyFarmCards(uc *farm.MyFarmCards, storage ports.ObjectStorage) ht
 		out := make([]farmCardResponse, 0, len(cards))
 		for _, c := range cards {
 			row := farmCardResponse{
-				farmResponse: toOwnerFarmResponse(c.Farm), ActiveCycles: c.ActiveCycles, SalesCount: c.SalesCount,
+				farmResponse: toOwnerFarmResponse(r.Context(), storage, c.Farm), ActiveCycles: c.ActiveCycles, SalesCount: c.SalesCount,
 				TrustScore: c.TrustScore, ReviewAverage: c.ReviewAverage, ReviewCount: c.ReviewCount,
 			}
 			if c.CoverKey != "" && storage != nil {
@@ -229,7 +267,7 @@ func handleListMyFarmCards(uc *farm.MyFarmCards, storage ports.ObjectStorage) ht
 	}
 }
 
-func handleUpdateFarm(uc *farm.UpdateFarm) http.HandlerFunc {
+func handleUpdateFarm(uc *farm.UpdateFarm, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -247,13 +285,13 @@ func handleUpdateFarm(uc *farm.UpdateFarm) http.HandlerFunc {
 
 		f, err := uc.Execute(r.Context(), farm.UpdateFarmInput{
 			FarmID: id, OwnerID: claims.UserID, Name: req.Name, Location: req.Location, Country: req.Country, Region: req.Region, Species: req.Species,
-			Description: req.Description, ContactPhone: req.ContactPhone,
+			Description: req.Description, Contacts: req.contacts(),
 		})
 		if err != nil {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, toFarmResponse(f))
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(r.Context(), storage, f))
 	}
 }
 
@@ -315,7 +353,7 @@ type submitFarmRequest struct {
 	Certified bool `json:"certified"`
 }
 
-func handleWithdrawFarmSubmission(uc *farm.WithdrawFarmSubmission) http.HandlerFunc {
+func handleWithdrawFarmSubmission(uc *farm.WithdrawFarmSubmission, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -331,11 +369,11 @@ func handleWithdrawFarmSubmission(uc *farm.WithdrawFarmSubmission) http.HandlerF
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, toOwnerFarmResponse(f))
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(r.Context(), storage, f))
 	}
 }
 
-func handleSubmitFarmForReview(uc *farm.SubmitFarmForReview) http.HandlerFunc {
+func handleSubmitFarmForReview(uc *farm.SubmitFarmForReview, storage ports.ObjectStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok {
@@ -358,6 +396,60 @@ func handleSubmitFarmForReview(uc *farm.SubmitFarmForReview) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, toOwnerFarmResponse(f))
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(r.Context(), storage, f))
+	}
+}
+
+type setBrandingRequest struct {
+	Key string `json:"key"`
+}
+
+func handlePresignFarmBranding(uc *farm.PresignBranding) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		var req presignPhotoRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		out, err := uc.Execute(r.Context(), id, claims.UserID, req.Size, req.ThumbSize)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, presignPhotoResponse{Key: out.Key, UploadURL: out.UploadURL, ThumbUploadURL: out.ThumbUploadURL})
+	}
+}
+
+// handleSetFarmBranding serves `PUT /farms/{id}/logo` and
+// `PUT /farms/{id}/banner`: an empty key removes the image.
+func handleSetFarmBranding(uc *farm.SetBranding, image farm.BrandingImage, storage ports.ObjectStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok {
+			writeError(w, errUnauthorized)
+			return
+		}
+		id, ok := pathObjectID(w, r, "id")
+		if !ok {
+			return
+		}
+		var req setBrandingRequest
+		if !readJSON(w, r, &req) {
+			return
+		}
+		f, err := uc.Execute(r.Context(), id, claims.UserID, image, req.Key)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toOwnerFarmResponse(r.Context(), storage, f))
 	}
 }

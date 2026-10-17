@@ -77,7 +77,7 @@ func TestSearchListings_HTTP_FiltersBySpeciesAndPrice(t *testing.T) {
 	router := newTestRouter()
 	farmerToken, _ := registerAndLogin(t, router, uniqueEmail("farmer"), "farmer")
 
-	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme A", Location: "Douala"}, farmerToken)
+	farmRec := doJSON(t, router, http.MethodPost, "/farms", farmRequest{Name: "Ferme A", Location: "Douala", Species: []string{"poussins", "porcs"}}, farmerToken)
 	farmID := decodeJSON[farmResponse](t, farmRec).ID
 
 	makeListing := func(species string, price float64) string {
@@ -120,5 +120,33 @@ func TestSearchListings_HTTP_FiltersBySpeciesAndPrice(t *testing.T) {
 	}
 	if !slices.Contains(ids, expensivePig) || slices.Contains(ids, cheapChicken) {
 		t.Errorf("category=porcins = %v, want the pig listing only", ids)
+	}
+}
+
+// "Trusted farmers only" keeps farms whose owner scores at least
+// domain.TrustedFarmerScore, whatever else the farm is.
+func TestSearchListings_HTTP_TrustedOnly(t *testing.T) {
+	router, tf := newTestRouterAndFakes()
+	listingID, _ := setupListing(t, router, 10)
+	found := func() bool {
+		rec := doJSON(t, router, http.MethodGet, "/listings?trustedOnly=true&pageSize=100", nil, "")
+		for _, it := range decodeJSON[marketplaceSearchResponse](t, rec).Items {
+			if it.Listing.ID == listingID {
+				return true
+			}
+		}
+		return false
+	}
+	for _, u := range tf.users.byEmail {
+		u.TrustScore = domain.TrustedFarmerScore - 1
+	}
+	if found() {
+		t.Errorf("listing of a farmer scoring %d shown under trustedOnly", domain.TrustedFarmerScore-1)
+	}
+	for _, u := range tf.users.byEmail {
+		u.TrustScore = domain.TrustedFarmerScore
+	}
+	if !found() {
+		t.Errorf("listing of a farmer scoring %d missing under trustedOnly", domain.TrustedFarmerScore)
 	}
 }

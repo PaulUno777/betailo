@@ -48,10 +48,12 @@ type Dependencies struct {
 	// Catalog is the reference data in force (GET /reference).
 	Catalog ports.CatalogSource
 	// People names the authors of forum posts and replies.
-	People         *people.Directory
-	SetAvatar      *account.SetAvatar
-	ChangePassword *auth.ChangePassword
-	SellerAccess   *farm.SellerAccess
+	People              *people.Directory
+	PresignFarmBranding *farm.PresignBranding
+	SetFarmBranding     *farm.SetBranding
+	SetAvatar           *account.SetAvatar
+	ChangePassword      *auth.ChangePassword
+	SellerAccess        *farm.SellerAccess
 	// RateLimits applies to the credential endpoints; the zero value
 	// disables limiting.
 	RateLimits RateLimitConfig

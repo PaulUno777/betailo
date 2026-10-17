@@ -53,9 +53,11 @@ func avatarURL(ctx context.Context, storage ports.ObjectStorage, key string) str
 // open another (its limit, and staff accounts never sell).
 type meResponse struct {
 	profileResponse
-	Farms      []farmResponse `json:"farms"`
-	FarmLimit  int            `json:"farmLimit"`
-	CanAddFarm bool           `json:"canAddFarm"`
+	Farms     []farmResponse `json:"farms"`
+	FarmLimit int            `json:"farmLimit"`
+	// FarmContactLimit is how many contact numbers each farm may list.
+	FarmContactLimit int  `json:"farmContactLimit"`
+	CanAddFarm       bool `json:"canAddFarm"`
 	// FarmLimitRaisedAt is set when staff gave this account its own limit.
 	FarmLimitRaisedAt *time.Time `json:"farmLimitRaisedAt,omitempty"`
 	// Permissions is what the account's staff role lets it do in the
@@ -84,14 +86,14 @@ func handleGetProfile(uc *account.GetProfile, access *farm.SellerAccess, storage
 		}
 		farms := make([]farmResponse, 0, len(seller.Farms))
 		for _, f := range seller.Farms {
-			farms = append(farms, toOwnerFarmResponse(f))
+			farms = append(farms, toOwnerFarmResponse(r.Context(), storage, f))
 		}
 		permissions := []string{}
 		for _, p := range u.StaffRole.Permissions() {
 			permissions = append(permissions, string(p))
 		}
 		out := meResponse{
-			profileResponse: toProfileResponse(r.Context(), storage, u), Farms: farms, FarmLimit: seller.FarmLimit, CanAddFarm: seller.CanAdd,
+			profileResponse: toProfileResponse(r.Context(), storage, u), Farms: farms, FarmLimit: seller.FarmLimit, FarmContactLimit: seller.ContactLimit, CanAddFarm: seller.CanAdd,
 			Permissions: permissions, IsRoot: u.Root,
 		}
 		if u.FarmLimit > 0 && u.FarmLimitNote != nil {

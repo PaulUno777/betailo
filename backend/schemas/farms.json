@@ -12,7 +12,19 @@
     },
     "createdAt": { "bsonType": "date" },
     "description": { "bsonType": "string", "maxLength": 1000 },
-    "contactPhone": { "bsonType": "string", "pattern": "^\\+[0-9]{8,15}$" },
+    "contacts": {
+      "bsonType": "array",
+      "items": {
+        "bsonType": "object",
+        "required": ["phone"],
+        "properties": {
+          "phone": { "bsonType": "string", "pattern": "^\\+[0-9]{8,15}$" },
+          "whatsapp": { "bsonType": "bool" }
+        }
+      }
+    },
+    "logoKey": { "bsonType": "string" },
+    "bannerKey": { "bsonType": "string" },
     "status": { "enum": ["draft", "pending", "approved", "rejected", "suspended"] },
     "verification": {
       "bsonType": "object",

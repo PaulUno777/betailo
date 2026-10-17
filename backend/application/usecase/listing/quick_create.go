@@ -94,6 +94,9 @@ func (uc *QuickCreate) Execute(ctx context.Context, in QuickCreateInput) (*Quick
 	if f.OwnerID != in.OwnerID {
 		return nil, fmt.Errorf("listing: not the farm owner: %w", domain.ErrForbidden)
 	}
+	if err := f.CheckRaises(sp.Key); err != nil {
+		return nil, err
+	}
 
 	now := uc.Clock.Now()
 	status, startsAt := domain.CycleStatusInProgress, now

@@ -320,12 +320,12 @@ func (f *fakeListingSearch) Search(_ context.Context, c ports.ListingSearchCrite
 		}
 		owner, _ := f.users.FindByID(context.Background(), farmVal.OwnerID)
 		verified := !farmVal.Verification.AutoApproved
-		if c.VerifiedOnly && !verified {
-			continue
-		}
 		trustScore := 0.0
 		if owner != nil {
 			trustScore = owner.TrustScore
+		}
+		if c.TrustedOnly && trustScore < domain.TrustedFarmerScore {
+			continue
 		}
 		summary, _ := f.reviews.Summary(context.Background(), farmVal.ID)
 

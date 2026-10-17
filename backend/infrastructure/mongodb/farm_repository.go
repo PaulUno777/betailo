@@ -27,11 +27,18 @@ type farmDoc struct {
 	Species   []string      `bson:"species,omitempty"`
 	CreatedAt time.Time     `bson:"createdAt"`
 
-	Description  string `bson:"description,omitempty"`
-	ContactPhone string `bson:"contactPhone,omitempty"`
+	Description string           `bson:"description,omitempty"`
+	Contacts    []farmContactDoc `bson:"contacts,omitempty"`
+	LogoKey     string           `bson:"logoKey,omitempty"`
+	BannerKey   string           `bson:"bannerKey,omitempty"`
 
 	Status       domain.FarmStatus   `bson:"status"`
 	Verification farmVerificationDoc `bson:"verification,omitempty"`
+}
+
+type farmContactDoc struct {
+	Phone    string `bson:"phone"`
+	WhatsApp bool   `bson:"whatsapp"`
 }
 
 type farmVerificationDoc struct {
@@ -62,8 +69,10 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 		Species:   f.Species,
 		CreatedAt: f.CreatedAt,
 
-		Description:  f.Description,
-		ContactPhone: f.ContactPhone,
+		Description: f.Description,
+		Contacts:    contactDocs(f.Contacts),
+		LogoKey:     f.LogoKey,
+		BannerKey:   f.BannerKey,
 
 		Status: f.Status,
 		Verification: farmVerificationDoc{
@@ -75,6 +84,22 @@ func fromDomainFarm(f *domain.Farm) farmDoc {
 			RejectionReason: f.Verification.RejectionReason, Checks: f.Verification.Checks,
 		},
 	}
+}
+
+func contactDocs(in []domain.FarmContact) []farmContactDoc {
+	var out []farmContactDoc
+	for _, c := range in {
+		out = append(out, farmContactDoc{Phone: c.Phone, WhatsApp: c.WhatsApp})
+	}
+	return out
+}
+
+func domainContacts(in []farmContactDoc) []domain.FarmContact {
+	var out []domain.FarmContact
+	for _, c := range in {
+		out = append(out, domain.FarmContact{Phone: c.Phone, WhatsApp: c.WhatsApp})
+	}
+	return out
 }
 
 func (d farmDoc) toDomain() *domain.Farm {
@@ -89,8 +114,10 @@ func (d farmDoc) toDomain() *domain.Farm {
 		Species:   d.Species,
 		CreatedAt: d.CreatedAt,
 
-		Description:  d.Description,
-		ContactPhone: d.ContactPhone,
+		Description: d.Description,
+		Contacts:    domainContacts(d.Contacts),
+		LogoKey:     d.LogoKey,
+		BannerKey:   d.BannerKey,
 
 		Status: d.Status,
 		Verification: domain.FarmVerification{

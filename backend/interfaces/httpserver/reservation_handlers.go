@@ -235,10 +235,10 @@ type reservationViewResponse struct {
 		Photo string `json:"photo,omitempty"`
 	} `json:"listing"`
 	Farm struct {
-		ID           string `json:"id"`
-		Name         string `json:"name"`
-		Location     string `json:"location"`
-		ContactPhone string `json:"contactPhone,omitempty"`
+		ID       string            `json:"id"`
+		Name     string            `json:"name"`
+		Location string            `json:"location"`
+		Contacts []farmContactJSON `json:"contacts,omitempty"`
 	} `json:"farm"`
 	Cycle struct {
 		ID        string     `json:"id"`
@@ -281,7 +281,9 @@ func toReservationListResponse(ctx context.Context, storage ports.ObjectStorage,
 		}
 		item.Farm.ID, item.Farm.Name, item.Farm.Location = v.Farm.ID.Hex(), v.Farm.Name, v.Farm.Location
 		if slices.Contains(v.Actions, reservation.ActionContact) {
-			item.Farm.ContactPhone = v.Farm.ContactPhone
+			for _, c := range v.Farm.Contacts {
+				item.Farm.Contacts = append(item.Farm.Contacts, farmContactJSON{Phone: c.Phone, WhatsApp: c.WhatsApp})
+			}
 		}
 		item.Cycle.ID, item.Cycle.Reference, item.Cycle.Status = v.Cycle.ID.Hex(), v.Cycle.Reference, string(v.Cycle.Status)
 		item.Cycle.StartsAt, item.Cycle.EndsAt = v.Cycle.StartsAt, v.Cycle.EndsAt
