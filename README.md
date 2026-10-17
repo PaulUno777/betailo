@@ -15,8 +15,6 @@
 > `docs/` (proposition, concepts & architecture, ADR) restent la référence
 > produit et les raisons des choix.
 
-
-
 ## Pourquoi ce projet
 
 La plupart des plateformes d'élevage se contentent de copier un
@@ -25,8 +23,10 @@ vend pas un "produit" statique, il gère des **cycles** (reproduction, engraisse
 
 ## Sommaire
 
+- [Fonctionnalités](#fonctionnalités)
 - [Structure du monorepo](#structure-du-monorepo)
 - [Démarrage rapide](#démarrage-rapide)
+- [Données de démonstration et tests de bout en bout](#données-de-démonstration-et-tests-de-bout-en-bout)
 - [Stack technique](#stack-technique)
 - [Commandes utiles](#commandes-utiles)
 - [Intégration continue](#intégration-continue)
@@ -34,11 +34,33 @@ vend pas un "produit" statique, il gère des **cycles** (reproduction, engraisse
 - [État du projet](#état-du-projet--roadmap)
 - [Licence](#licence)
 
+## Fonctionnalités
 
+- **Fermes** : n'importe quel compte ouvre une ou plusieurs fermes
+  (`MAX_FARMS_PER_ACCOUNT`), avec un logo, une bannière (illustration
+  Betailo par défaut), les espèces élevées et jusqu'à `MAX_FARM_CONTACTS`
+  numéros, chacun WhatsApp ou appels uniquement. L'équipe valide la
+  ferme sur pièces avant qu'elle ne vende.
+- **Cycles et annonces** : une ferme ne vend que les espèces qu'elle a
+  déclarées. L'annonce donne l'âge des animaux en jours (de 1 jour à
+  plusieurs années), la race, les photos et la livraison possible.
+- **Marché** : recherche par mot (titre, ferme, ville, nom d'espèce en
+  français ou en anglais), filtres par catégorie et espèce, région,
+  type de cycle, prix, disponibilité, et « éleveurs de confiance »
+  (score de confiance de 70 ou plus).
+- **Réservation et séquestre** : paiement mobile (bac à sable) gardé en
+  séquestre jusqu'à la confirmation de réception, liste d'attente, avis
+  vérifiés. Le transport n'est pas compris : il se convient avec
+  l'éleveur et se paie directement, ce que la fiche et le paiement
+  rappellent.
+- **Forum** : catégories, tri (récents, plus répondus, sans réponse),
+  recherche, meilleure réponse épinglée.
+- **Confiance et modération** : signalements, score de confiance,
+  back-office avec rôles, journal et exports.
 
 ## Structure du monorepo
 
-```
+```text
 betailo/
 ├── backend/     # API Go — voir backend/ pour le détail des modules
 ├── frontend/    # Application Angular + Tailwind
@@ -52,7 +74,7 @@ chacun a son propre gestionnaire de dépendances et sa propre CI.
 
 Détail du backend (le cœur du projet) :
 
-```
+```text
 backend/
 ├── cmd/api/              # point d'entrée : Initialize -> Bootstrap -> Run
 ├── domain/               # entités et règles pures — aucun import d'infrastructure
@@ -92,8 +114,11 @@ Le **référentiel** (catégories d'animaux et sous-catégories, pays et
 régions, catégories du forum, étiquettes d'avis, motifs de signalement,
 points de contrôle d'une ferme) est un document JSON versionné en base
 (`catalog_versions`) : l'API valide contre la version en vigueur et la
-sert sur `GET /reference`. La version 1 est
-`backend/domain/catalog_seed.json`, publiée au premier démarrage.
+sert sur `GET /reference/{nom}`, avec un ETag tiré du contenu. La
+version 1 est `backend/domain/catalog_seed.json`, publiée au premier
+démarrage ; le super admin l'édite ensuite depuis le back-office. Les
+clés sont en anglais (`poultry`, `chicks`, `hatching`, `west`…) et les
+libellés en français et en anglais.
 
 ## Démarrage rapide
 
@@ -130,9 +155,8 @@ APP_PUBLIC_URL=http://192.168.1.13:4200
 
 Le site appelle alors l'API sur le port 8080 de la même adresse. Les
 passkeys ne fonctionnent pas sur une adresse IP.
+
 - SeaweedFS (stockage objet S3-compatible, dev uniquement) : API S3 sur localhost:9000 — remplace MinIO ici car ses images Docker Hub (`minio/minio`, `minio/mc`) exigent désormais une connexion Docker Hub ; même API S3, même code `ports.ObjectStorage`
-
-
 
 ### En local, sans Docker
 
@@ -155,20 +179,37 @@ bootstrap au démarrage) : `docker compose up mongo seaweedfs`
 lance juste ces deux-là si vous préférez faire tourner `go run` en
 dehors de Docker.
 
+## Données de démonstration et tests de bout en bout
 
+`scripts/qa/run_smoke.sh` démarre la pile Docker et parcourt toute l'API
+(`scripts/qa/api_smoke.py`) : inscription, fermes et validation,
+annonces avec photos, réservation, séquestre, avis, forum, modération.
+Il laisse derrière lui des données de démonstration : trois fermes avec
+logo, bannière et vraies photos (tirées de `design/templates` sur macOS),
+une commande livrée et notée.
+
+```bash
+QA_RESET=1 scripts/qa/run_smoke.sh   # vide la base locale puis rejoue tout
+```
+
+Tous les comptes créés ont le même mot de passe, `Betailo-qa-2026`
+(`QA_USER_PASSWORD`), et une adresse tirée de leur nom
+(`awa.nana@betailo.test`) ; la liste est affichée à la fin et écrite dans
+`scripts/qa/accounts.local.json` (ignoré par git). Le compte racine est
+celui de `docker-compose.yml`. Tant que la production n'a pas de
+données, un changement de schéma ou du référentiel se fait sans
+migration : on vide la base locale et on rejoue ce script.
 
 ## Stack technique
 
-
-| Couche           | Choix                                                                                                    | Détail                                                                |
-| ---------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Backend          | Go 1.26, `net/http` natif, architecture en couches (`domain` → `application` → `infrastructure`/`interfaces`), ports + inversion de dépendance (voir `application/usecase/reservation`) | voir `backend/interfaces/httpserver` et `backend/application/usecase/reservation` |
-| Base de données  | MongoDB (Atlas en prod, conteneur `mongo` en dev), driver officiel `mongo-driver/v2`, aucun ODM, validateurs `$jsonSchema` appliqués au démarrage | voir `backend/infrastructure/mongodb` et `backend/schemas/`             |
-| Stockage fichiers | Interface `ports.ObjectStorage` (URLs signées), implémentée via `aws-sdk-go-v2` — Cloudflare R2 en prod, SeaweedFS en dev, même code | voir `backend/infrastructure/objectstorage`                               |
-| Frontend         | Angular 21 (standalone components) + Tailwind CSS v4, géré avec pnpm                                       | palette de marque déclarée dans `frontend/src/styles.css` (`@theme`) |
-| CI               | GitHub Actions — jobs indépendants backend/frontend                                                        | voir `.github/workflows/ci.yml`                                      |
-| Conteneurisation | Dockerfiles multi-stage (backend et frontend) + `docker-compose.yml`                                       |                                                                        |
-
+| Couche            | Choix                                                                                                                                                                                   | Détail                                                                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Backend           | Go 1.26, `net/http` natif, architecture en couches (`domain` → `application` → `infrastructure`/`interfaces`), ports + inversion de dépendance (voir `application/usecase/reservation`) | voir `backend/interfaces/httpserver` et `backend/application/usecase/reservation` |
+| Base de données   | MongoDB (Atlas en prod, conteneur `mongo` en dev), driver officiel `mongo-driver/v2`, aucun ODM, validateurs `$jsonSchema` appliqués au démarrage                                       | voir `backend/infrastructure/mongodb` et `backend/schemas/`                       |
+| Stockage fichiers | Interface `ports.ObjectStorage` (URLs signées), implémentée via `aws-sdk-go-v2` — Cloudflare R2 en prod, SeaweedFS en dev, même code                                                    | voir `backend/infrastructure/objectstorage`                                       |
+| Frontend          | Angular 21 (standalone components) + Tailwind CSS v4, géré avec pnpm                                                                                                                    | palette de marque déclarée dans `frontend/src/styles.css` (`@theme`)              |
+| CI                | GitHub Actions — jobs indépendants backend/frontend                                                                                                                                     | voir `.github/workflows/ci.yml`                                                   |
+| Conteneurisation  | Dockerfiles multi-stage (backend et frontend) + `docker-compose.yml`                                                                                                                    |                                                                                   |
 
 Le raisonnement détaillé derrière chaque choix (pourquoi pas d'ORM, pourquoi
 un monolithe plutôt que des microservices, pourquoi MongoDB plutôt que
@@ -176,36 +217,33 @@ relationnel, etc.) est dans le document "Concepts & Architecture".
 
 ## Commandes utiles
 
-
-| Commande                        | Effet                                          |
-| ------------------------------- | ---------------------------------------------- |
-| `cd backend && make run`        | Lance l'API en local                           |
-| `cd backend && make test`       | Tests Go avec race detector                    |
-| `cd backend && make lint`       | golangci-lint                                  |
-| `cd frontend && pnpm test`      | Tests unitaires Angular (Karma + Chrome)       |
-| `cd frontend && pnpm run lint`  | ESLint                                         |
-| `cd frontend && pnpm run build` | Build de production                            |
-| `docker compose up --build`     | Stack complète (MongoDB + SeaweedFS + backend + frontend) |
-
-
-
+| Commande                             | Effet                                                               |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `cd backend && make run`             | Lance l'API en local                                                |
+| `cd backend && make test`            | Tests Go avec race detector                                         |
+| `cd backend && make lint`            | golangci-lint                                                       |
+| `cd frontend && pnpm test`           | Tests unitaires Angular (Karma + Chrome)                            |
+| `cd frontend && pnpm run lint`       | ESLint                                                              |
+| `cd frontend && pnpm run build`      | Build de production                                                 |
+| `QA_RESET=1 scripts/qa/run_smoke.sh` | Vide la base locale et rejoue le parcours complet (données de démo) |
+| `docker compose up --build`          | Stack complète (MongoDB + SeaweedFS + backend + frontend)           |
 
 ## Intégration continue
 
-Deux jobs indépendants tournent sur chaque push/PR vers `main` (voir
+Trois jobs tournent sur chaque push/PR vers `main` (voir
 `.github/workflows/ci.yml`) :
 
 - **Backend** : format (`gofmt`), `go vet`, tests avec race detector,
-tests d'intégration contre MongoDB (testcontainers), build, et
-`golangci-lint`.
+  tests d'intégration contre MongoDB (testcontainers), build, et
+  `golangci-lint`.
 - **API smoke test** : la pile complète (MongoDB, SeaweedFS, Mailpit,
-API) démarrée par docker compose, puis `scripts/qa/api_smoke.py` qui
-parcourt les parcours acheteur, éleveur et personnel de bout en bout.
+  API) démarrée par docker compose, puis `scripts/qa/api_smoke.py` qui
+  parcourt les parcours acheteur, éleveur et personnel de bout en bout.
 - **Frontend** : `pnpm install --frozen-lockfile`, ESLint, tests unitaires
-en Chrome headless, build de production.
+  en Chrome headless, build de production.
 
-Un job ne bloque pas l'autre : une régression frontend n'empêche pas de
-valider une pull request backend, et inversement.
+Backend et frontend ne se bloquent pas l'un l'autre ; le smoke test ne
+démarre qu'une fois le job backend passé.
 
 > **Note sur la version d'Angular.** La dernière version stable d'Angular
 > au moment de l'écriture est la v22, mais elle exige Node ≥22.22.3 (ou
@@ -216,8 +254,6 @@ valider une pull request backend, et inversement.
 > Le paquet `angular-eslint` est lui déjà en v22 (pas de version stable
 > intermédiaire publiée) — un avertissement cosmétique de désaccord de
 > version peut apparaître au lint, sans impact réel.
-
-
 
 ## Déploiement
 
@@ -259,16 +295,16 @@ sont bloqués en sortie, d'où `SMTP_PORT=2525` par défaut.
 Variables à renseigner à la main dans le dashboard (marquées
 `sync: false`, jamais committées) :
 
-| Variable | Valeur |
-|---|---|
-| `MONGODB_URI` | Chaîne de connexion Atlas (`mongodb+srv://…`). Autoriser `0.0.0.0/0` dans *Network Access* d'Atlas : les IP de sortie de Render ne sont pas fixes. |
-| `STORAGE_ENDPOINT` | `https://<account-id>.r2.cloudflarestorage.com` |
-| `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | Bucket R2 et son jeton d'API S3. |
-| `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | Le compte racine, créé au premier démarrage (mot de passe de 8 caractères ou plus). |
-| `CORS_ALLOWED_ORIGIN` | L'adresse Vercel, sans barre finale : `https://betailo.vercel.app`. |
-| `APP_PUBLIC_URL` | La même adresse Vercel : les liens des e-mails y pointent et les passkeys sont liées à son hôte. |
-| `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD` | Le compte SMTP (voir « E-mail » plus bas). |
-| `MAIL_FROM` | `Betailo <adresse-vérifiée@exemple.com>` : une adresse validée chez le fournisseur SMTP. |
+| Variable                                                     | Valeur                                                                                                                                             |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI`                                                | Chaîne de connexion Atlas (`mongodb+srv://…`). Autoriser `0.0.0.0/0` dans _Network Access_ d'Atlas : les IP de sortie de Render ne sont pas fixes. |
+| `STORAGE_ENDPOINT`                                           | `https://<account-id>.r2.cloudflarestorage.com`                                                                                                    |
+| `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | Bucket R2 et son jeton d'API S3.                                                                                                                   |
+| `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`                  | Le compte racine, créé au premier démarrage (mot de passe de 8 caractères ou plus).                                                                |
+| `CORS_ALLOWED_ORIGIN`                                        | L'adresse Vercel, sans barre finale : `https://betailo.vercel.app`.                                                                                |
+| `APP_PUBLIC_URL`                                             | La même adresse Vercel : les liens des e-mails y pointent et les passkeys sont liées à son hôte.                                                   |
+| `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`                | Le compte SMTP (voir « E-mail » plus bas).                                                                                                         |
+| `MAIL_FROM`                                                  | `Betailo <adresse-vérifiée@exemple.com>` : une adresse validée chez le fournisseur SMTP.                                                           |
 
 Le reste a une valeur dans `render.yaml` : `JWT_SECRET` est généré par
 Render, `PORT` est injecté par Render, `COOKIE_SAMESITE=none` et
@@ -339,13 +375,13 @@ ce qui suffit pour un premier essai.
 
 Avec [Brevo](https://www.brevo.com) (gratuit, 300 e-mails par jour) :
 
-| Variable | Valeur |
-|---|---|
-| `SMTP_HOST` | `smtp-relay.brevo.com` |
-| `SMTP_PORT` | `2525` |
-| `SMTP_USERNAME` | L'identifiant SMTP affiché dans Brevo, *SMTP & API* (pas l'e-mail du compte). |
-| `SMTP_PASSWORD` | Une clé SMTP créée sur la même page (pas une clé d'API). |
-| `MAIL_FROM` | Un expéditeur validé dans Brevo, *Senders & IP*. |
+| Variable        | Valeur                                                                        |
+| --------------- | ----------------------------------------------------------------------------- |
+| `SMTP_HOST`     | `smtp-relay.brevo.com`                                                        |
+| `SMTP_PORT`     | `2525`                                                                        |
+| `SMTP_USERNAME` | L'identifiant SMTP affiché dans Brevo, _SMTP & API_ (pas l'e-mail du compte). |
+| `SMTP_PASSWORD` | Une clé SMTP créée sur la même page (pas une clé d'API).                      |
+| `MAIL_FROM`     | Un expéditeur validé dans Brevo, _Senders & IP_.                              |
 
 ### Limite connue
 
@@ -358,20 +394,19 @@ de servir l'API sous le même domaine que le site (voir ADR-0008).
 
 ## État du projet / roadmap
 
-En place : comptes et sessions (jeton d'accès + cookie de
-rafraîchissement, double authentification par application ou passkey
-pour le personnel), fermes validées par l'équipe, cycles et annonces par
-catégorie, réservation avec séquestre et liste d'attente, avis vérifiés,
-forum, signalements et modération, score de confiance, notifications et
-e-mails, back-office avec rôles, journal et exports, référentiel
-versionné.
+En place : tout ce que décrit [Fonctionnalités](#fonctionnalités), plus
+comptes et sessions (jeton d'accès + cookie de rafraîchissement, double
+authentification par application ou passkey pour le personnel),
+notifications et e-mails, et l'éditeur du référentiel (versions,
+restauration, import JSON).
 
 Prochaines étapes :
 
-- Éditeur du référentiel pour le super admin (JSON, versions, restauration).
-- Régions identifiées par une clé stable (renommage sans orphelins).
 - Prix au kilo pour les animaux vendus au poids vif.
 - Paiement mobile réel (MTN MoMo, Orange Money) à la place du bac à sable.
+- API servie sous le même domaine que le site (cookie de session sur
+  Safari et iPhone, voir « Limite connue »).
+- Âge des animaux affiché sur la fiche de l'annonce.
 
 ## Licence
 
