@@ -12,6 +12,7 @@ import { LocaleService } from '../../core/i18n/locale.service';
 import { ReferenceService } from '../../core/reference/reference.service';
 import { categoryTone } from '../../domain/rules/category-tone';
 import { relativeTime } from '../../domain/rules/relative-time';
+import { isSolved } from '../../domain/rules/forum-thread';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AvatarComponent } from '../../shared/ui/avatar/avatar.component';
 import { TextFieldComponent } from '../../shared/ui/text-field/text-field.component';
@@ -115,7 +116,7 @@ const DOT_CLASSES: Readonly<Record<string, string>> = {
                     >
                       <span class="flex flex-wrap items-center gap-2">
                         <bt-badge [tone]="categoryTone(post.category)">{{ reference.forumLabelKey(post.category) | t }}</bt-badge>
-                        @if (post.bestReplyIndex !== undefined && post.bestReplyIndex !== null) {
+                        @if (solved(post)) {
                           <bt-badge tone="forest-solid"><bt-icon name="check" [size]="12" /> {{ 'forum.solved' | t }}</bt-badge>
                         } @else if (!post.replies?.length) {
                           <bt-badge tone="amber">{{ 'forum.unanswered' | t }}</bt-badge>
@@ -272,6 +273,8 @@ export class ForumListComponent {
       this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge', replaceUrl: true });
     });
   }
+
+  protected readonly solved = isSolved;
 
   protected ago(iso: string): string {
     return relativeTime(iso, this.locale.locale());

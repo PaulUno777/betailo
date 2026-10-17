@@ -3,7 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
-import { ForumPost, ForumReply } from '../../domain/models';
+import { ForumPost } from '../../domain/models';
+import { isSolved, threadReplies } from '../../domain/rules/forum-thread';
 import { ForumApi } from '../../data-access/forum/forum.api';
 import { AuthService } from '../../core/auth/auth.service';
 import { AppError } from '../../core/http/app-error';
@@ -19,15 +20,6 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { BadgeComponent } from '../../shared/ui/badge/badge.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { apiResource } from '../../core/http/api-resource';
-
-/** One reply with its place in the thread (the API marks the best
- * answer by index). */
-interface ThreadReply {
-  readonly reply: ForumReply;
-  readonly index: number;
-  readonly best: boolean;
-  readonly byAuthor: boolean;
-}
 
 /** `/forum/:id`: the question in its own card, the best answer pinned
  * right under it, then the other replies in order, and the composer.
@@ -152,15 +144,13 @@ export class ForumDetailComponent {
 
   protected readonly solved = computed(() => {
     const p = this.post.value();
-    return p?.bestReplyIndex !== undefined && p?.bestReplyIndex !== null;
+    return !!p && isSolved(p);
   });
 
   /** The best answer first, then the others in the order they came. */
-  protected readonly replies = computed<ThreadReply[]>(() => {
+  protected readonly replies = computed(() => {
     const p = this.post.value();
-    if (!p) return [];
-    const all = (p.replies ?? []).map((reply, index) => ({ reply, index, best: p.bestReplyIndex === index, byAuthor: reply.authorId === p.authorId }));
-    return [...all.filter((r) => r.best), ...all.filter((r) => !r.best)];
+    return p ? threadReplies(p) : [];
   });
 
   protected readonly categoryTone = categoryTone;
